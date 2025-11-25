@@ -13,15 +13,15 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', function () { 
-    return redirect()->route('admin.login');
-});
-
-
-
-// Route::get('/content/01_into', function () { 
-//     return view('content.01_into'); 
+// Route::get('/', function () { 
+//     return redirect()->route('front.index');
 // });
+
+
+
+Route::get('/', function () { 
+    return view('front.index'); 
+});
 
 // Route::get('/content/02_interest_rate', function () { 
 //     return view('content.02_interest_rate'); 
