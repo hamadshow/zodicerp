@@ -67,6 +67,8 @@
 
 <!-- PAGE SCRIPTS -->
 <script src="{{ asset('assets/admin/dist/js/pages/dashboard2.js')}}"></script>
+<script src="{{ asset('assets/admin/js/general.js')}}"></script>
+
 @yield('script')
 </body>
 </html>

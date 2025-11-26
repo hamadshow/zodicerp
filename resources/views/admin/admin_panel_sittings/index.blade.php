@@ -13,6 +13,9 @@
         <div class="card">
             <div class="card-header">
               <h3 class="card-title">General Sitting</h3>
+              <a href="{{ route('admin.adminPanelSetting.edit') }}" class="btn btn-sm btn-success" style="float: right;"> 
+                <i class="fas fa-edit"></i> Edit Sitting
+                </a>
             </div>
             <div class="card-body">
                 @if (@isset($data) && !@empty($data))

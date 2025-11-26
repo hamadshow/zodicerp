@@ -22,8 +22,8 @@ Route::group(['prefix' => 'admin','namespace'=>'Admin','middleware'=>'auth:admin
     //     auth()->logout();});
     Route::get('logout', [LoginController::class, 'logout'])->name('admin.logout');
     Route::get('/adminpanelsetting/index', [Admin_panel_settingsController::class, 'index'])->name('admin.adminPanelSetting.index');
-
-
+    Route::get('/adminpanelsetting/edit', [Admin_panel_settingsController::class, 'edit'])->name('admin.adminPanelSetting.edit');
+    Route::post('/adminpanelsetting/update', [Admin_panel_settingsController::class, 'update'])->name('admin.adminPanelSetting.update');
 });
 
 

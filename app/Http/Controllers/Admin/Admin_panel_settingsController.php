@@ -19,4 +19,9 @@ class Admin_panel_settingsController extends Controller
         }
         return view('admin.admin_panel_sittings.index',['data'=>$data]);
     }
+    public function edit()
+    {
+        $data=Admin_panel_settings::where('com_code',auth()->user()->com_code)->first();
+        return view('admin.admin_panel_sittings.edit',['data'=>$data]);
+    }
 }
