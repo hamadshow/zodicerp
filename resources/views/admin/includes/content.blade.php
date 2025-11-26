@@ -20,7 +20,8 @@
     <!-- Main content -->
     <section class="content">
       <div class="container-fluid">
-
+@include('admin.includes.alerts.Success')
+@include('admin.includes.alerts.error')
             @yield('content')
 
         <!-- /.row -->
