@@ -1,6 +1,6 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+// use Illuminate\Support\Facades\Route; // not required because Route is referenced with its fully-qualified name below
 use App\Http\Controllers\Admin\LoginController;
 use App\Http\Controllers\Admin\DashBoardController;
 use App\Http\Controllers\Admin\Admin_panel_settingsController;
@@ -16,20 +16,20 @@ use App\Http\Controllers\Admin\Admin_panel_settingsController;
 |
 */
 
-Route::group(['prefix' => 'admin','namespace'=>'Admin','middleware'=>'auth:admin'], function () {
-    Route::get('/', [DashBoardController::class, 'index'])->name('admin.dashboard');
-    //  Route::get('logout', function() {
+\Illuminate\Support\Facades\Route::group(['prefix' => 'admin','namespace'=>'Admin','middleware'=>'auth:admin'], function () {
+    \Illuminate\Support\Facades\Route::get('/', [DashBoardController::class, 'index'])->name('admin.dashboard');
+    //  \Illuminate\Support\Facades\Route::get('logout', function() {
     //     auth()->logout();});
-    Route::get('logout', [LoginController::class, 'logout'])->name('admin.logout');
-    Route::get('/adminpanelsetting/index', [Admin_panel_settingsController::class, 'index'])->name('admin.adminPanelSetting.index');
-    Route::get('/adminpanelsetting/edit', [Admin_panel_settingsController::class, 'edit'])->name('admin.adminPanelSetting.edit');
-    Route::post('/adminpanelsetting/update', [Admin_panel_settingsController::class, 'update'])->name('admin.adminPanelSetting.update');
+    \Illuminate\Support\Facades\Route::get('logout', [LoginController::class, 'logout'])->name('admin.logout');
+    \Illuminate\Support\Facades\Route::get('/adminpanelsetting/index', [Admin_panel_settingsController::class, 'index'])->name('admin.adminPanelSetting.index');
+    \Illuminate\Support\Facades\Route::get('/adminpanelsetting/edit', [Admin_panel_settingsController::class, 'edit'])->name('admin.adminPanelSetting.edit');
+    \Illuminate\Support\Facades\Route::post('/adminpanelsetting/update', [Admin_panel_settingsController::class, 'update'])->name('admin.adminPanelSetting.update');
 });
 
 
-Route::group(['prefix' => 'admin','namespace'=>'Admin','middleware'=>'guest:admin'], function () {
-    Route::get('login', [LoginController::class, 'show_login_view'])->name('admin.showlogin');
-    Route::post('login', [LoginController::class, 'login'])->name('admin.login');
+\Illuminate\Support\Facades\Route::group(['prefix' => 'admin','namespace'=>'Admin','middleware'=>'guest:admin'], function () {
+    \Illuminate\Support\Facades\Route::get('login', [LoginController::class, 'show_login_view'])->name('admin.showlogin');
+    \Illuminate\Support\Facades\Route::post('login', [LoginController::class, 'login'])->name('admin.login');
 
 });
 
