@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\LoginController;
 use App\Http\Controllers\Admin\DashBoardController;
+use App\Http\Controllers\Admin\Admin_panel_settingsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,6 +21,7 @@ Route::group(['prefix' => 'admin','namespace'=>'Admin','middleware'=>'auth:admin
     //  Route::get('logout', function() {
     //     auth()->logout();});
     Route::get('logout', [LoginController::class, 'logout'])->name('admin.logout');
+    Route::get('/adminpanelsetting/index', [Admin_panel_settingsController::class, 'index'])->name('admin.adminPanelSetting.index');
 
 
 });
