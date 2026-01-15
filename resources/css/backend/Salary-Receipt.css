@@ -1,0 +1,493 @@
+/* Salary Receipt specific styles */
+.salary-card {
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: var(--shadow-md);
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.salary-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.receipt-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-block;
+    text-align: center;
+    min-width: 80px;
+}
+
+.status-paid {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.status-pending {
+    background-color: var(--warning-color);
+    color: white;
+}
+
+.status-cancelled {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.status-processing {
+    background-color: var(--info-color);
+    color: white;
+}
+
+.employee-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.employee-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f1f5f9;
+}
+
+.employee-details {
+    display: flex;
+    flex-direction: column;
+}
+
+.employee-name {
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.employee-position {
+    font-size: 0.8rem;
+    color: var(--gray-color);
+}
+
+.department-badge {
+    display: inline-block;
+    background-color: #e0f2fe;
+    color: #0369a1;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    margin-right: 4px;
+}
+
+.salary-amount {
+    font-size: 0.9rem;
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.salary-deduction {
+    font-size: 0.85rem;
+    color: var(--danger-color);
+    font-weight: 500;
+}
+
+.salary-net {
+    font-size: 0.95rem;
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+/* Modal styles for salary receipt details */
+.modal-overlay {
+    display: flex;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1001;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal {
+    background-color: white;
+    border-radius: 10px;
+    padding: 24px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    animation: modalSlideIn 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--gray-color);
+    padding: 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.modal-close:hover {
+    background-color: #f1f5f9;
+}
+
+.modal-body {
+    margin-bottom: 20px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Salary receipt details */
+.receipt-header {
+    text-align: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.receipt-header h3 {
+    color: var(--primary-color);
+    margin-bottom: 8px;
+}
+
+.receipt-info {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.receipt-section {
+    margin-bottom: 24px;
+}
+
+.receipt-section h4 {
+    color: var(--dark-color);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.salary-breakdown {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.salary-breakdown th,
+.salary-breakdown td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.salary-breakdown th {
+    background-color: #f8fafc;
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.salary-breakdown tr:last-child td {
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.total-row {
+    background-color: #f0f9ff;
+    font-weight: 600;
+}
+
+.signature-section {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.signature-box {
+    text-align: center;
+}
+
+.signature-line {
+    width: 200px;
+    height: 1px;
+    background-color: var(--dark-color);
+    margin: 40px auto 10px;
+}
+
+/* Print button */
+.print-receipt {
+    background-color: #10b981;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+}
+
+.print-receipt:hover {
+    background-color: #0da271;
+}
+
+/* Filter section */
+.filter-section {
+    background-color: #f8fafc;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+/* Quick stats */
+.stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 24px;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--dark-color);
+    line-height: 1;
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--gray-color);
+    margin-top: 4px;
+}
+
+/* Form controls */
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.form-row .form-group {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: var(--dark-color);
+    font-size: 0.9rem;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: border-color 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .stats-cards {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
+    .modal {
+        width: 95%;
+        padding: 16px;
+    }
+
+    .salary-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .salary-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .form-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .receipt-info {
+        grid-template-columns: 1fr;
+    }
+
+    .signature-section {
+        flex-direction: column;
+        gap: 20px;
+    }
+}
+
+@media (max-width: 576px) {
+    .stat-card {
+        padding: 16px;
+    }
+
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+
+    .stat-value {
+        font-size: 1.2rem;
+    }
+
+    .salary-breakdown th,
+    .salary-breakdown td {
+        padding: 8px;
+        font-size: 0.85rem;
+    }
+}
+
+/* Print styles */
+@media print {
+    .sidebar, .header, .breadcrumb, .salary-actions, .pagination, .footer {
+        display: none !important;
+    }
+
+    .salary-card {
+        box-shadow: none;
+        padding: 0;
+    }
+
+    .modal-overlay {
+        position: relative;
+        background: none;
+    }
+
+    .modal {
+        box-shadow: none;
+        max-width: 100%;
+        margin: 0;
+        animation: none;
+    }
+
+    .modal-actions {
+        display: none;
+    }
+
+    .receipt-header {
+        color: #000 !important;
+    }
+
+    .salary-breakdown td,
+    .salary-breakdown th {
+        border-color: #000 !important;
+    }
+}
+

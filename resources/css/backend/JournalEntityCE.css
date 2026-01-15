@@ -1,0 +1,82 @@
+.journal-ce-page {
+  padding: 24px;
+  background: #f8fafc;
+}
+
+.journal-ce-header-card,
+.journal-ce-lines-card {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.journal-ce-header-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.journal-ce-header-row .form-group {
+  flex: 1;
+}
+
+.journal-ce-header-row .form-group.full-width {
+  flex: 1 1 100%;
+}
+
+.journal-ce-lines-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.journal-ce-lines-table-wrapper {
+  overflow-x: auto;
+}
+
+.journal-ce-lines-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.journal-ce-lines-table th,
+.journal-ce-lines-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 14px;
+}
+
+.journal-ce-lines-table th {
+  text-align: left;
+  background: #f8fafc;
+  color: #475569;
+}
+
+.journal-ce-totals {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.journal-ce-totals .totals-row {
+  display: flex;
+  gap: 24px;
+  font-size: 14px;
+}
+
+.balance-ok {
+  color: #16a34a;
+}
+
+.balance-mismatch {
+  color: #b91c1c;
+}
+
+.journal-ce-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

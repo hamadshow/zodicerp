@@ -1,0 +1,318 @@
+/* ==========================================================================
+   Admin Header Styles
+   ========================================================================== */
+
+/* Main Header Container */
+.header {
+    height: var(--header-height, 60px);
+    background-color: var(--dark-color, #1e293b);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.1));
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    width: 100%;
+    transition: all 0.3s ease;
+}
+
+/* --------------------------------------------------------------------------
+   Search Bar
+   -------------------------------------------------------------------------- */
+.search-bar {
+    display: flex;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 8px 12px;
+    flex: 1;
+    max-width: 500px;
+    margin: 0 20px;
+    transition: background-color 0.2s ease;
+}
+
+.search-bar:focus-within {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.search-bar input {
+    background: transparent;
+    border: none;
+    color: white;
+    padding: 4px 8px;
+    outline: none;
+    flex: 1;
+    font-size: 0.9rem;
+}
+
+.search-bar input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.search-bar button {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.search-bar button:hover {
+    opacity: 1;
+}
+
+.search-bar .material-icons-outlined {
+    font-size: 20px;
+}
+
+/* Light Variant (if used in other contexts) */
+.search-bar.light {
+    background-color: #f1f5f9;
+    border: 1px solid var(--border-color, #e2e8f0);
+}
+
+.search-bar.light input {
+    color: var(--dark-color, #1e293b);
+}
+
+.search-bar.light input::placeholder {
+    color: var(--gray-color, #64748b);
+}
+
+.search-bar.light button {
+    color: var(--gray-color, #64748b);
+}
+
+/* --------------------------------------------------------------------------
+   Header Actions (Right Side)
+   -------------------------------------------------------------------------- */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-left: auto;
+}
+
+/* Action Buttons (Notifications, Cart, etc.) */
+.action-btn {
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    height: 40px;
+    transition: background-color 0.2s ease;
+    text-decoration: none;
+    position: relative;
+}
+
+.action-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.action-btn .material-icons-outlined {
+    font-size: 22px;
+}
+
+.action-btn .badge {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background-color: var(--danger-color, #ef4444);
+    color: white;
+    font-size: 0.65rem;
+    padding: 0;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+}
+
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+    display: none;
+    background: transparent;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.mobile-menu-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* --------------------------------------------------------------------------
+   User Profile Section
+   -------------------------------------------------------------------------- */
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 6px 4px 4px;
+    border-radius: 30px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    margin-left: 12px;
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.user-profile:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background-color: var(--info-color, #3b82f6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: white;
+    object-fit: cover;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    padding-right: 8px;
+}
+
+.user-info div:first-child {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.user-info div:last-child {
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Logout Button */
+.logout-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-left: 4px;
+}
+
+.logout-btn:hover {
+    background-color: var(--danger-color, #ef4444);
+}
+
+.logout-btn .material-icons-outlined {
+    font-size: 16px;
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Design
+   -------------------------------------------------------------------------- */
+@media (max-width: 1200px) {
+    .header-actions {
+        gap: 10px;
+    }
+    
+    .action-btn span:not(.material-icons-outlined) {
+        display: none;
+    }
+    
+    .user-info {
+        display: none;
+    }
+}
+
+@media (max-width: 992px) {
+    .mobile-menu-toggle {
+        display: block;
+    }
+    
+    .header {
+        padding: 0 16px;
+    }
+
+    .action-btn span:not(.material-icons-outlined):not(.badge) {
+        display: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .header {
+        height: auto;
+        min-height: var(--header-height, 60px);
+        padding: 10px 16px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .header-actions {
+        margin-left: auto;
+    }
+
+    .action-btn {
+        padding: 8px;
+        width: 38px;
+    }
+
+    .user-profile {
+        background: transparent;
+        border: none;
+        padding: 0;
+        margin-left: 8px;
+    }
+
+    .user-profile:hover {
+        background: transparent;
+    }
+    
+    .logout-btn {
+        display: none;
+    }
+
+    .search-bar {
+        max-width: 200px;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 8px;
+    }
+    
+    .search-bar {
+        order: 3;
+        width: 100%;
+        max-width: 100%;
+        margin: 8px 0 0 0;
+    }
+}

@@ -1,0 +1,122 @@
+/* Table Styles */
+.table-container {
+  overflow-x: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+  min-width: 800px;
+}
+
+th, td {
+  padding: var(--spacing-lg) var(--spacing-md);
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+th {
+  background-color: var(--light-bg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+tr:hover {
+  background-color: var(--light-bg);
+}
+
+/* Status badges */
+.status {
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: 20px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  display: inline-block;
+  text-align: center;
+  min-width: 80px;
+}
+
+.status-published {
+  background-color: var(--success-green);
+  color: var(--text-white);
+}
+
+.status-draft {
+  background-color: var(--warning-yellow);
+  color: var(--text-white);
+}
+
+.status-pending {
+  background-color: var(--info-color);
+  color: var(--text-white);
+}
+
+.status-active {
+  background-color: var(--success-green);
+  color: var(--text-white);
+}
+
+.status-inactive {
+  background-color: var(--danger-red);
+  color: var(--text-white);
+}
+
+/* Icon buttons */
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-fast);
+}
+
+.icon-btn.edit {
+  color: var(--info-color);
+}
+
+.icon-btn.delete {
+  color: var(--danger-red);
+}
+
+.icon-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.icon-btn .material-icons-outlined {
+  font-size: 18px;
+}
+
+/* Table header icons */
+.table-header-icon {
+  font-size: var(--font-size-base);
+}
+
+/* Status icons */
+.status-icon {
+  font-size: 18px;
+}
+
+.status-icon.success {
+  color: var(--success-color);
+}
+
+.status-icon.info {
+  color: var(--info-color);
+}
+
+/* Table links */
+.table-link {
+  color: var(--info-color);
+  text-decoration: none;
+}

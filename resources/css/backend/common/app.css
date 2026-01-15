@@ -1,0 +1,100 @@
+@import '../components/footer.css';
+@import '../components/notifications.css';
+@import '../components/pagination.css';
+@import '../components/stats.css';
+@import '../components/table.css';
+@import '../Location.css';
+
+/* Tailwind base styles would normally be injected here by PostCSS; kept as comment for reference */
+/* @tailwind components; */
+/* Tailwind utilities are injected by the build pipeline; keeping this at-rule commented to avoid parser errors. */
+/* @tailwind utilities; */
+
+/* CSS Variables System */
+:root {
+  /* Colors */
+  --primary-orange: #BBE0EF;
+  --secondary-orange: #FF986A;
+  --primary-blue: #0056B3;
+  --dark-bg: #1A1A1A;
+  --light-bg: #F8F9FA;
+  --text-dark: #333333;
+  --text-light: #666666;
+  --text-white: #FFFFFF;
+  --border-color: #E0E0E0;
+  --success-green: #28A745;
+  --warning-yellow: #FFC107;
+  --danger-red: #DC3545;
+
+  /* Backend Colors */
+  --primary-color: #1e40af;
+  --secondary-color: #1d4ed8;
+  --dark-color: #1e293b;
+  --gray-color: #64748b;
+  --info-color: #3b82f6;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+
+  /* Shadows */
+  --shadow-light: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* Transitions */
+  --transition: all 0.3s ease;
+  --transition-fast: all 0.2s ease;
+  --transition-slow: all 0.5s ease;
+
+  /* Layout */
+  --container-max-width: 1200px;
+  --header-height: 60px;
+  --sidebar-width: 250px;
+  --sidebar-collapsed: 60px;
+  --footer-height: 60px;
+
+  /* Typography */
+  --font-family-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  --font-family-secondary: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+  /* Font Sizes */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
+
+  /* Font Weights */
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Z-index */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+  --z-toast: 1080;
+}

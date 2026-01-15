@@ -1,0 +1,704 @@
+/* ==========================================================================
+   Suppliers Page — Professional 2026 Design
+   ========================================================================== */
+
+.suppliers-page {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #0a0a0a;
+  color: #e0e0e0;
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+/* Container */
+.suppliers-page .suppliers-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Header */
+.suppliers-page .suppliers-header {
+  background: rgba(10, 10, 10, 0.92);
+  backdrop-filter: blur(12px);
+  position: fixed;
+  width: 100%;
+  top: 0;
+  z-index: 1000;
+  border-bottom: 1px solid #222;
+}
+
+.suppliers-page .suppliers-header .suppliers-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+}
+
+.suppliers-page .logo-text {
+  font-size: 28px;
+  font-weight: 900;
+  color: #fee600;
+  letter-spacing: -1px;
+}
+
+.suppliers-page .main-nav {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.suppliers-page .nav-link {
+  color: #ccc;
+  font-weight: 500;
+  transition: color 0.2s;
+  text-decoration: none;
+}
+
+.suppliers-page .nav-link:hover {
+  color: #fee600;
+}
+
+.suppliers-page .login-btn {
+  background: transparent;
+  border: 1px solid #444;
+  color: white;
+  padding: 8px 20px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.suppliers-page .login-btn:hover {
+  background: #fee600;
+  color: #000;
+  border-color: #fee600;
+}
+
+/* Hero */
+.suppliers-page .hero {
+  padding: 180px 0 140px;
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.suppliers-page .hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 30% 70%, rgba(254, 230, 0, 0.08), transparent 60%);
+}
+
+.suppliers-page .hero h1 {
+  font-size: 4.2rem;
+  font-weight: 900;
+  line-height: 1.05;
+  margin-bottom: 24px;
+  background: linear-gradient(90deg, #fee600, #ffffff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.suppliers-page .highlight {
+  color: #fee600;
+}
+
+.suppliers-page .hero-subtitle {
+  font-size: 1.25rem;
+  color: #aaa;
+  max-width: 640px;
+  margin: 0 auto 40px;
+}
+
+.suppliers-page .hero-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.suppliers-page .cta-btn {
+  background: #fee600;
+  color: #000;
+  font-weight: 700;
+  padding: 16px 40px;
+  border: none;
+  border-radius: 999px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.25s;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.suppliers-page .cta-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #fee600, #ffcc00);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.suppliers-page .cta-btn:hover::before {
+  opacity: 1;
+}
+
+.suppliers-page .cta-btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(254, 230, 0, 0.3);
+  color: #000;
+}
+
+.suppliers-page .cta-btn.outline {
+  background: transparent;
+  border: 2px solid #444;
+  color: white;
+}
+
+.suppliers-page .cta-btn.outline:hover {
+  background: #fee600;
+  color: #000;
+  border-color: #fee600;
+}
+
+.suppliers-page .cta-btn.small {
+  padding: 12px 24px;
+  font-size: 1rem;
+}
+
+.suppliers-page .cta-btn.large {
+  padding: 20px 48px;
+  font-size: 1.25rem;
+}
+
+/* Why Section */
+.suppliers-page .why-section {
+  padding: 120px 0;
+  background: #000;
+}
+
+.suppliers-page .why-section h2 {
+  text-align: center;
+  font-size: 3rem;
+  margin-bottom: 80px;
+  background: linear-gradient(90deg, #ffffff, #fee600);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.suppliers-page .benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 32px;
+}
+
+.suppliers-page .benefit-card {
+  background: #111;
+  padding: 40px 32px;
+  border-radius: 16px;
+  border: 1px solid #222;
+  transition: all 0.3s;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.suppliers-page .benefit-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(254, 230, 0, 0.05), transparent);
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.suppliers-page .benefit-card:hover::before {
+  opacity: 1;
+}
+
+.suppliers-page .benefit-card:hover {
+  transform: translateY(-12px);
+  border-color: #fee600;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+.suppliers-page .icon-circle {
+  width: 72px;
+  height: 72px;
+  background: rgba(254, 230, 0, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+}
+
+.suppliers-page .benefit-card:hover .icon-circle {
+  background: rgba(254, 230, 0, 0.2);
+  transform: scale(1.1);
+}
+
+.suppliers-page .benefit-card h3 {
+  font-size: 1.6rem;
+  margin-bottom: 16px;
+  color: #fff;
+}
+
+.suppliers-page .benefit-card p {
+  color: #ccc;
+}
+
+/* Start Section */
+.suppliers-page .start-section {
+  padding: 120px 0;
+  background: #0a0a0a;
+}
+
+.suppliers-page .start-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.suppliers-page .subtitle {
+  color: #fee600;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  display: block;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+.suppliers-page .checklist-block {
+  margin-bottom: 48px;
+  padding: 24px;
+  background: rgba(30, 30, 30, 0.6);
+  border-radius: 12px;
+  border-left: 3px solid #fee600;
+}
+
+.suppliers-page .checklist {
+  list-style: none;
+  margin-top: 16px;
+  padding: 0;
+}
+
+.suppliers-page .checklist li {
+  padding-left: 28px;
+  position: relative;
+  margin-bottom: 12px;
+  color: #ccc;
+  display: flex;
+  align-items: flex-start;
+}
+
+.suppliers-page .checklist li::before {
+  content: '✓';
+  color: #fee600;
+  position: absolute;
+  left: 0;
+  font-weight: bold;
+  background: rgba(254, 230, 0, 0.1);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.suppliers-page .note {
+  font-size: 13px;
+  color: #888;
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(50, 50, 50, 0.3);
+  border-radius: 8px;
+}
+
+.suppliers-page .mockup-container {
+  display: flex;
+  justify-content: center;
+}
+
+.suppliers-page .phone-mockup {
+  width: 380px;
+  height: 720px;
+  background: #111;
+  border-radius: 40px;
+  border: 12px solid #222;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+  100% { transform: translateY(0px); }
+}
+
+.suppliers-page .mockup-placeholder {
+  background: linear-gradient(135deg, #222, #111);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  font-size: 18px;
+  position: relative;
+}
+
+.suppliers-page .mockup-placeholder::after {
+  content: '';
+  position: absolute;
+  top: 20%;
+  left: 10%;
+  right: 10%;
+  bottom: 20%;
+  border: 2px solid rgba(254, 230, 0, 0.2);
+  border-radius: 8px;
+}
+
+/* Growth Section */
+.suppliers-page .growth-section {
+  padding: 120px 0;
+  background: #000;
+}
+
+.suppliers-page .growth-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+}
+
+.suppliers-page .growth-card {
+  padding: 48px;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.suppliers-page .growth-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(254, 230, 0, 0.05), transparent);
+  z-index: -1;
+}
+
+.suppliers-page .growth-card.dark {
+  background: #111;
+  border: 1px solid #222;
+}
+
+.suppliers-page .large-text {
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #fee600;
+  margin: 16px 0;
+}
+
+.suppliers-page .video-wrapper {
+  height: 100%;
+  background: #1a1a1a;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.suppliers-page .play-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.suppliers-page .play-overlay:hover {
+  background: rgba(0,0,0,0.6);
+}
+
+.suppliers-page .play-icon {
+  font-size: 80px;
+  color: #fff;
+  background: rgba(254, 230, 0, 0.2);
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.suppliers-page .play-overlay:hover .play-icon {
+  background: rgba(254, 230, 0, 0.3);
+  transform: scale(1.1);
+}
+
+/* Testimonials */
+.suppliers-page .testimonials-section {
+  padding: 120px 0;
+  background: #0a0a0a;
+}
+
+.suppliers-page .testimonials-section h2 {
+  text-align: center;
+  font-size: 3rem;
+  margin-bottom: 80px;
+  background: linear-gradient(90deg, #ffffff, #fee600);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.suppliers-page .testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 32px;
+}
+
+.suppliers-page .testimonial {
+  background: #111;
+  padding: 40px;
+  border-radius: 16px;
+  border: 1px solid #222;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.suppliers-page .testimonial:hover {
+  transform: translateY(-5px);
+  border-color: #fee600;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.suppliers-page .testimonial::before {
+  content: '"';
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  font-size: 60px;
+  color: rgba(254, 230, 0, 0.1);
+  font-family: Georgia, serif;
+  line-height: 1;
+}
+
+.suppliers-page .quote {
+  font-size: 1.1rem;
+  line-height: 1.7;
+  margin-bottom: 24px;
+  color: #ddd;
+  position: relative;
+  padding-left: 30px;
+}
+
+.suppliers-page .author {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.suppliers-page .avatar {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #fee600, #ffcc00);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #000;
+  font-weight: bold;
+}
+
+.suppliers-page .author strong {
+  color: #fff;
+  display: block;
+}
+
+.suppliers-page .author span {
+  color: #aaa;
+  font-size: 0.95rem;
+}
+
+/* VAT Banner */
+.suppliers-page .vat-banner {
+  background: linear-gradient(135deg, #111, #0a0a0a);
+  padding: 40px 0;
+  border-top: 1px solid #222;
+}
+
+.suppliers-page .vat-banner .suppliers-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.suppliers-page .vat-link {
+  color: #fee600;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.suppliers-page .vat-link:hover {
+  color: #ffcc00;
+  transform: translateX(5px);
+}
+
+/* Site Footer */
+.suppliers-page .site-footer {
+  background: #0a0a0a;
+  border-top: 1px solid #222;
+  padding: 40px 0;
+  color: #888;
+}
+
+.suppliers-page .site-footer .suppliers-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.suppliers-page .footer-links {
+  display: flex;
+  gap: 24px;
+}
+
+.suppliers-page .footer-links a {
+  color: #888;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.suppliers-page .footer-links a:hover {
+  color: #fee600;
+}
+
+/* Animation classes */
+.suppliers-page .fade-in {
+  animation: fadeIn 0.8s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .suppliers-page .start-layout, 
+  .suppliers-page .growth-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .suppliers-page .hero h1 {
+    font-size: 3.2rem;
+  }
+
+  .suppliers-page .why-section h2,
+  .suppliers-page .testimonials-section h2 {
+    font-size: 2.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .suppliers-page .suppliers-header .suppliers-container {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .suppliers-page .main-nav {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .suppliers-page .hero {
+    padding: 140px 0 100px;
+  }
+
+  .suppliers-page .hero h1 {
+    font-size: 2.5rem;
+  }
+
+  .suppliers-page .benefits-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .suppliers-page .site-footer .suppliers-container {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+  }
+
+  .suppliers-page .vat-banner .suppliers-container {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .suppliers-page .start-layout {
+    gap: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .suppliers-page .suppliers-container {
+    padding: 0 16px;
+  }
+
+  .suppliers-page .hero h1 {
+    font-size: 2rem;
+  }
+
+  .suppliers-page .why-section h2,
+  .suppliers-page .testimonials-section h2 {
+    font-size: 2rem;
+  }
+
+  .suppliers-page .benefit-card,
+  .suppliers-page .testimonial {
+    padding: 30px 20px;
+  }
+
+  .suppliers-page .growth-card {
+    padding: 30px 20px;
+  }
+}
