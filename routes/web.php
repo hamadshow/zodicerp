@@ -303,6 +303,58 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Backend/07-Accounting/ChartOfAccounts');
     })->name('admin.chart-of-accounts');
 
+    Route::get('/reports', function () {
+        return Inertia::render('Backend/07-Accounting/FinancialReports');
+    })->name('admin.reports.index');
+
+    Route::get('/reports/trial-balance', function () {
+        return Inertia::render('Backend/07-Accounting/FinancialReports', [
+            'activeReport' => 'trial-balance',
+        ]);
+    })->name('admin.reports.trial-balance');
+
+    Route::get('/reports/income-statement', function () {
+        return Inertia::render('Backend/07-Accounting/FinancialReports', [
+            'activeReport' => 'income-statement',
+        ]);
+    })->name('admin.reports.income-statement');
+
+    Route::get('/reports/balance-sheet', function () {
+        return Inertia::render('Backend/07-Accounting/FinancialReports', [
+            'activeReport' => 'balance-sheet',
+        ]);
+    })->name('admin.reports.balance-sheet');
+
+    Route::get('/reports/cash-flow', function () {
+        return Inertia::render('Backend/07-Accounting/FinancialReports', [
+            'activeReport' => 'cash-flow',
+        ]);
+    })->name('admin.reports.cash-flow');
+
+    Route::get('/reports/general-ledger', function () {
+        return Inertia::render('Backend/07-Accounting/FinancialReports', [
+            'activeReport' => 'general-ledger',
+        ]);
+    })->name('admin.reports.general-ledger');
+
+    Route::get('/reports/account-statement', function () {
+        return Inertia::render('Backend/07-Accounting/FinancialReports', [
+            'activeReport' => 'account-statement',
+        ]);
+    })->name('admin.reports.account-statement');
+
+    Route::get('/reports/accounts-receivable-aging', function () {
+        return Inertia::render('Backend/07-Accounting/FinancialReports', [
+            'activeReport' => 'ar-aging',
+        ]);
+    })->name('admin.reports.ar-aging');
+
+    Route::get('/reports/accounts-payable-aging', function () {
+        return Inertia::render('Backend/07-Accounting/FinancialReports', [
+            'activeReport' => 'ap-aging',
+        ]);
+    })->name('admin.reports.ap-aging');
+
 });
 
 Route::get('/', [HomeController::class, 'index'])->name('frontend');

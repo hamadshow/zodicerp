@@ -148,7 +148,7 @@ const AdminLayout = ({
       submenuItems: [
         { icon: 'account_tree', label: 'Chart of Accounts', href: route('admin.chart-of-accounts') },
         { icon: 'edit_note', label: 'Journal Entries', href: route('admin.journals.index') },
-        { icon: 'bar_chart', label: 'Financial Reports' },
+        { icon: 'bar_chart', label: 'Financial Reports', href: route('admin.reports.index') },
       ],
     },
     {
