@@ -309,7 +309,12 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Backend/07-Accounting/FinancialReports');
     })->name('admin.reports.index');
 
+    Route::get('/reports/chart-of-accounts', function () {
+        return Inertia::render('Backend/07-Accounting/FinancialReports/COAReport');
+    })->name('admin.reports.chart-of-accounts');
+
     Route::get('/reports/trial-balance', function () {
+
         return Inertia::render('Backend/07-Accounting/FinancialReports', [
             'activeReport' => 'trial-balance',
         ]);
@@ -354,6 +359,7 @@ Route::middleware('auth')->group(function () {
             'activeReport' => 'ap-aging',
         ]);
     })->name('admin.reports.ap-aging');
+
 
 });
 

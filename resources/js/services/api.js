@@ -78,7 +78,10 @@ api.interceptors.response.use(
           break;
         case 422:
           // Validation errors
-          console.error('Validation errors:', data.errors);
+          console.error(
+            'Validation errors:',
+            data?.errors ?? data?.message ?? data,
+          );
           break;
         case 500:
           // Server error

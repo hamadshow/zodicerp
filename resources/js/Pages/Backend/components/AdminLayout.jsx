@@ -211,6 +211,21 @@ const AdminLayout = ({
   };
 
   useEffect(() => {
+    // Auto-open submenu if active item is inside it
+    menuItems.forEach((item) => {
+      if (item.hasSubmenu && item.submenuItems) {
+        const hasActiveChild = item.submenuItems.some(
+          (sub) => sub.label === activeMenu || isUrlActive(sub.href)
+        );
+        if (hasActiveChild) {
+          const menuKey = item.label.toLowerCase().replace(/\s+/g, '-');
+          setOpenSubmenus((prev) => ({ ...prev, [menuKey]: true }));
+        }
+      }
+    });
+  }, [activeMenu, url]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem('admin.sidebarCollapsed', isSidebarCollapsed ? '1' : '0');
     

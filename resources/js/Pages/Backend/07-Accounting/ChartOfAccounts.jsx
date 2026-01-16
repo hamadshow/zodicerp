@@ -130,10 +130,9 @@ export default function ChartOfAccounts() {
   );
 
   const parentOptions = useMemo(() => {
-    const byCode = [...allAccounts].sort(
-      (a, b) => Number(a.AccCode || 0) - Number(b.AccCode || 0),
-    );
-    return byCode;
+    return [...allAccounts]
+      .filter((a) => Number(a.AccType ?? 0) === 0)
+      .sort((a, b) => Number(a.AccCode || 0) - Number(b.AccCode || 0));
   }, [allAccounts]);
 
   const toggleNode = (id) => {
@@ -202,11 +201,14 @@ export default function ChartOfAccounts() {
       AccName: form.AccName,
       AccType: Number(form.AccType),
       AccParent: form.AccParent !== '' ? Number(form.AccParent) : null,
-      AccDmType: Number(form.AccDmType),
+      AccDmType: form.AccDmType === 0 ? 1 : 2,
       AccFinal: Boolean(form.AccFinal),
       AccMaxLimt: form.AccMaxLimt !== '' ? Number(form.AccMaxLimt) : null,
       AccMaxDuration: form.AccMaxDuration !== '' ? Number(form.AccMaxDuration) : null,
-      AccBranch: form.AccBranch !== '' ? Number(form.AccBranch) : null,
+      AccBranch:
+        form.AccBranch !== '' && Number(form.AccBranch) > 0
+          ? Number(form.AccBranch)
+          : null,
       AccNote: form.AccNote || null,
       AccStopped: Boolean(form.AccStopped),
     };
@@ -222,9 +224,17 @@ export default function ChartOfAccounts() {
       await loadAccounts();
     } catch (e) {
       console.error('Failed to save account', e);
-      const message =
-        e?.response?.data?.message || 'Failed to save account.';
-      setError(message);
+      const resp = e?.response;
+      if (resp?.status === 422 && resp?.data?.errors) {
+        const errs = resp.data.errors;
+        const messages = Object.values(errs)
+          .flat()
+          .join(' ');
+        setError(messages || 'Validation error.');
+      } else {
+        const message = resp?.data?.message || 'Failed to save account.';
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -333,9 +343,9 @@ export default function ChartOfAccounts() {
           </td>
           <td>
             {Number(account.AccType ?? 0) === 1 ? (
-              account.AccDmType === 0 || account.AccDmType === '0' ? (
+              Number(account.AccDmType) === 1 ? (
                 <span className="nature-debit">Debit</span>
-              ) : account.AccDmType === 1 || account.AccDmType === '1' ? (
+              ) : Number(account.AccDmType) === 2 ? (
                 <span className="nature-credit">Credit</span>
               ) : (
                 '-'

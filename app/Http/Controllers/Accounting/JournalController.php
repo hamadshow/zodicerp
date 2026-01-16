@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\DB;
 
 class JournalController extends Controller
 {
+    protected string $journalCodePrefix = 'QID-';
+    protected int $journalCodeStart = 10001;
+
     public function index(Request $request)
     {
         $query = DB::table('tblqaid')->orderByDesc('QaidDate')->orderByDesc('QaidID');
@@ -31,10 +34,19 @@ class JournalController extends Controller
 
     public function nextCode(Request $request)
     {
-        $maxCode = DB::table('tblqaid')->max(DB::raw('CAST(QaidCode AS UNSIGNED)'));
+        $prefix = $this->journalCodePrefix;
+        $start = $this->journalCodeStart;
+
+        $lastCode = DB::table('tblqaid')
+            ->whereNotNull('QaidCode')
+            ->where('QaidCode', '!=', '')
+            ->orderByDesc('QaidID')
+            ->value('QaidCode');
+
+        $nextNumber = $this->nextNumericPart($lastCode, $start);
 
         return response()->json([
-            'next_code' => $maxCode ? (string) ($maxCode + 1) : '1',
+            'next_code' => $prefix . $nextNumber,
         ]);
     }
 
@@ -196,16 +208,7 @@ class JournalController extends Controller
                 );
             }
             $account = $byId[$id];
-            $isFinal = (int) ($account->AccFinal ?? 0) === 1;
             $isStopped = (bool) ($account->AccStopped ?? false);
-
-            if (!$isFinal) {
-                abort(
-                    response()->json([
-                        'message' => 'Journal lines can only be posted to final (leaf) accounts.',
-                    ], 422)
-                );
-            }
 
             if ($isStopped) {
                 abort(
@@ -231,9 +234,11 @@ class JournalController extends Controller
         }
 
         return DB::transaction(function () use ($data, $lines, $total) {
+            $nextCode = $this->generateNextQaidCode();
+
             DB::table('tblqaid')->insert([
-                'QaidCode' => $data['QaidCode'],
-                'QaidType' => $data['QaidType'],
+                'QaidCode' => $nextCode,
+                'QaidType' => 'Qmanual',
                 'QaidRef' => $data['QaidRef'] ?? null,
                 'QaidDate' => $data['QaidDate'],
                 'QaidDetails' => $data['QaidDetails'] ?? null,
@@ -243,7 +248,7 @@ class JournalController extends Controller
 
             foreach ($lines as $line) {
                 DB::table('tblqaidbody')->insert([
-                    'QaidCode' => $data['QaidCode'],
+                    'QaidCode' => $nextCode,
                     'QaidBodyAccID' => $line['QaidBodyAccID'],
                     'QaidBodyM1' => $line['QaidBodyM1'],
                     'QaidBodyD1' => $line['QaidBodyD1'],
@@ -257,8 +262,45 @@ class JournalController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Journal entry created successfully.',
+                'code' => $nextCode,
             ]);
         });
+    }
+
+    protected function nextNumericPart(?string $lastCode, int $start): int
+    {
+        if (!$lastCode) {
+            return $start;
+        }
+
+        $digits = preg_replace('/\D+/', '', (string) $lastCode);
+        if ($digits === '' || $digits === null) {
+            return $start;
+        }
+
+        $number = (int) $digits;
+        if ($number < $start) {
+            return $start;
+        }
+
+        return $number + 1;
+    }
+
+    protected function generateNextQaidCode(): string
+    {
+        $prefix = $this->journalCodePrefix;
+        $start = $this->journalCodeStart;
+
+        $lastCode = DB::table('tblqaid')
+            ->whereNotNull('QaidCode')
+            ->where('QaidCode', '!=', '')
+            ->orderByDesc('QaidID')
+            ->lockForUpdate()
+            ->value('QaidCode');
+
+        $nextNumber = $this->nextNumericPart($lastCode, $start);
+
+        return $prefix . $nextNumber;
     }
 
     public function update(UpdateJournalRequest $request, string $qaidCode)
@@ -287,7 +329,6 @@ class JournalController extends Controller
             DB::table('tblqaid')
                 ->where('QaidCode', $qaidCode)
                 ->update([
-                    'QaidType' => $data['QaidType'],
                     'QaidRef' => $data['QaidRef'] ?? null,
                     'QaidDate' => $data['QaidDate'],
                     'QaidDetails' => $data['QaidDetails'] ?? null,

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Head, router, usePage } from '@inertiajs/react';
 import '../../../../css/backend/JournalEntityCE.css';
 import AdminLayout from '../components/AdminLayout';
@@ -11,22 +12,316 @@ const emptyLine = () => ({
   QaidBodyDetails: '',
 });
 
+const highlightText = (label, term) => {
+  if (!term) return label;
+  const lowerLabel = label.toLowerCase();
+  const lowerTerm = term.toLowerCase();
+  const index = lowerLabel.indexOf(lowerTerm);
+  if (index === -1) return label;
+  const before = label.slice(0, index);
+  const match = label.slice(index, index + term.length);
+  const after = label.slice(index + term.length);
+  return (
+    <>
+      {before}
+      <span className="searchable-combobox-highlight">{match}</span>
+      {after}
+    </>
+  );
+};
+
+function SearchableComboBox({
+  options,
+  value,
+  onChange,
+  disabled = false,
+  placeholder = 'Select',
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const containerRef = useRef(null);
+  const inputRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const [dropdownRect, setDropdownRect] = useState(null);
+
+  const filteredOptions = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    const limited = options;
+    if (!term) {
+      return limited;
+    }
+    return limited.filter((opt) =>
+      String(opt.label || '').toLowerCase().includes(term),
+    );
+  }, [options, searchTerm]);
+
+  useEffect(() => {
+    const current = options.find(
+      (opt) => String(opt.value) === String(value ?? ''),
+    );
+    if (current) {
+      setSearchTerm(current.label || '');
+    } else {
+      setSearchTerm('');
+    }
+  }, [value, options]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setHighlightedIndex(-1);
+      return;
+    }
+    if (filteredOptions.length > 0 && highlightedIndex < 0) {
+      setHighlightedIndex(0);
+    }
+  }, [isOpen, filteredOptions, highlightedIndex]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const container = containerRef.current;
+      const dropdownEl = dropdownRef.current;
+      if (!container && !dropdownEl) return;
+      const isInsideContainer =
+        container && container.contains(event.target);
+      const isInsideDropdown =
+        dropdownEl && dropdownEl.contains(event.target);
+      if (isInsideContainer || isInsideDropdown) return;
+      setIsOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const updateDropdownPosition = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    setDropdownRect({
+      top: rect.bottom + window.scrollY,
+      left: rect.left + window.scrollX,
+      width: rect.width,
+    });
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    updateDropdownPosition();
+    const handleReposition = () => {
+      updateDropdownPosition();
+    };
+    window.addEventListener('scroll', handleReposition, true);
+    window.addEventListener('resize', handleReposition);
+    return () => {
+      window.removeEventListener('scroll', handleReposition, true);
+      window.removeEventListener('resize', handleReposition);
+    };
+  }, [isOpen]);
+
+  const handleInputChange = (e) => {
+    if (disabled) return;
+    setSearchTerm(e.target.value);
+    setIsOpen(true);
+    updateDropdownPosition();
+  };
+
+  const handleInputFocus = () => {
+    if (disabled) return;
+    setIsOpen(true);
+    updateDropdownPosition();
+  };
+
+  const handleWrapperClick = () => {
+    if (disabled) return;
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+    setIsOpen((prev) => {
+      const next = !prev;
+      if (next) {
+        updateDropdownPosition();
+      }
+      return next;
+    });
+  };
+
+  const selectOption = (opt) => {
+    if (!opt) return;
+    onChange(opt.value);
+    setSearchTerm(opt.label || '');
+    setIsOpen(false);
+  };
+
+  const handleKeyDown = (e) => {
+    if (disabled) return;
+    if (!isOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      setIsOpen(true);
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (filteredOptions.length === 0) return;
+      setHighlightedIndex((prev) => {
+        const next = prev + 1;
+        if (next >= filteredOptions.length) return 0;
+        return next;
+      });
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (filteredOptions.length === 0) return;
+      setHighlightedIndex((prev) => {
+        const next = prev - 1;
+        if (next < 0) return filteredOptions.length - 1;
+        return next;
+      });
+      return;
+    }
+    if (e.key === 'Enter') {
+      if (!isOpen) return;
+      e.preventDefault();
+      const opt = filteredOptions[highlightedIndex];
+      if (opt) {
+        selectOption(opt);
+      }
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setIsOpen(false);
+      return;
+    }
+  };
+
+  const handleClear = (e) => {
+    e.stopPropagation();
+    if (disabled) return;
+    onChange('');
+    setSearchTerm('');
+    setIsOpen(false);
+  };
+
+  const isBrowser = typeof document !== 'undefined';
+
+  const dropdown =
+    isOpen && filteredOptions
+      ? (
+        <div
+          className="searchable-combobox-dropdown"
+          ref={dropdownRef}
+          style={
+            isBrowser && dropdownRect
+              ? {
+                  top: dropdownRect.top,
+                  left: dropdownRect.left,
+                  width: dropdownRect.width,
+                  right: 'auto',
+                }
+              : undefined
+          }
+        >
+          {filteredOptions.length === 0 ? (
+            <div className="searchable-combobox-no-results">
+              No results found
+            </div>
+          ) : (
+            filteredOptions.map((opt, index) => (
+              <div
+                key={opt.value}
+                className={`searchable-combobox-option${
+                  index === highlightedIndex ? ' active' : ''
+                }`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  selectOption(opt);
+                }}
+              >
+                {highlightText(opt.label || '', searchTerm)}
+              </div>
+            ))
+          )}
+        </div>
+        )
+      : null;
+
+  return (
+    <div className="searchable-combobox" ref={containerRef}>
+      <div
+        className={`searchable-combobox-input-wrapper${
+          disabled ? ' is-disabled' : ''
+        }`}
+        onClick={handleWrapperClick}
+      >
+        <input
+          type="text"
+          ref={inputRef}
+          className="form-control searchable-combobox-input"
+          value={searchTerm}
+          onChange={handleInputChange}
+          onFocus={handleInputFocus}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          disabled={disabled}
+        />
+        {value && !disabled && (
+          <button
+            type="button"
+            className="searchable-combobox-clear"
+            onClick={handleClear}
+          >
+            ×
+          </button>
+        )}
+        <span className="searchable-combobox-arrow">▾</span>
+      </div>
+      {dropdown &&
+        (isBrowser ? createPortal(dropdown, document.body) : dropdown)}
+      <select
+        className="searchable-combobox-hidden-select"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        required
+      >
+        <option value="">Select</option>
+        {options.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function JournalEntityCE() {
   const { url } = usePage();
-  const isCreate = url === '/admin/journals/create';
-  const isEdit = !isCreate && /\/admin\/journals\/.+\/edit$/u.test(url);
-  const viewMatch = !isCreate ? url.match(/\/admin\/journals\/([^/]+)$/u) : null;
-  const codeFromUrl = isEdit
-    ? url.replace('/admin/journals/', '').replace('/edit', '')
-    : viewMatch
-      ? decodeURIComponent(viewMatch[1])
-      : null;
+  const pathname = (() => {
+    try {
+      return new URL(url, window.location.origin).pathname;
+    } catch {
+      return typeof window !== 'undefined' ? window.location.pathname : url;
+    }
+  })();
+  const isCreate = pathname === '/admin/journals/create';
+  const matchEdit = pathname.match(/^\/admin\/journals\/([^/]+)\/edit$/u);
+  const matchView = pathname.match(/^\/admin\/journals\/([^/]+)$/u);
+  const isEdit = !!matchEdit;
+  const codeFromUrl = matchEdit
+    ? decodeURIComponent(matchEdit[1])
+    : isCreate
+    ? null
+    : matchView
+    ? decodeURIComponent(matchView[1])
+    : null;
   const readOnly = !!(codeFromUrl && !isEdit);
 
   const [header, setHeader] = useState({
     QaidCode: '',
     QaidDate: '',
-    QaidType: '',
     QaidRef: '',
     QaidDetails: '',
     QaidStatus: 'UnPost',
@@ -40,15 +335,11 @@ export default function JournalEntityCE() {
     try {
       const isEditMode = Array.isArray(extraIds) && extraIds.length > 0;
       const params = {};
-      
+
       if (isEditMode) {
-        // In edit mode, we want to load specifically the accounts used
-        // We do NOT restrict by type or postable_only to ensure we see what was saved
         params.ids = extraIds.join(',');
       } else {
-        // In create mode (or initial load), we show only postable accounts of type 1
         params.type = 1;
-        params.postable_only = true;
       }
 
       const response = await apiService.get('/accounts', params);
@@ -65,7 +356,7 @@ export default function JournalEntityCE() {
       const nextCode = response?.data?.next_code;
       setHeader((prev) => ({
         ...prev,
-        QaidCode: nextCode ? String(nextCode) : '1',
+        QaidCode: nextCode ? String(nextCode) : 'QID-10001',
       }));
     } catch (e) {
       console.error('Failed to fetch next journal code', e);
@@ -84,7 +375,6 @@ export default function JournalEntityCE() {
       setHeader({
         QaidCode: headerData.QaidCode || '',
         QaidDate: headerData.QaidDate || '',
-        QaidType: headerData.QaidType || '',
         QaidRef: headerData.QaidRef || '',
         QaidDetails: headerData.QaidDetails || '',
         QaidStatus: headerData.QaidStatus || 'UnPost',
@@ -172,6 +462,15 @@ export default function JournalEntityCE() {
       balanced: Math.round(debit * 100) === Math.round(credit * 100),
     };
   }, [lines]);
+
+  const accountOptions = useMemo(
+    () =>
+      accounts.map((acc) => ({
+        value: String(acc.AccID),
+        label: `${acc.AccCode} - ${acc.AccName}`,
+      })),
+    [accounts],
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -274,22 +573,6 @@ export default function JournalEntityCE() {
                 />
               </div>
               <div className="form-group">
-                <label className="form-label" htmlFor="qaid-type">
-                  Journal Type
-                </label>
-                <input
-                  id="qaid-type"
-                  type="text"
-                  className="form-control"
-                  value={header.QaidType}
-                  onChange={(e) =>
-                    handleHeaderChange('QaidType', e.target.value)
-                  }
-                  disabled={readOnly}
-                  required
-                />
-              </div>
-              <div className="form-group">
                 <label className="form-label" htmlFor="qaid-ref">
                   Reference
                 </label>
@@ -355,22 +638,17 @@ export default function JournalEntityCE() {
                     <tr key={index}>
                       <td>{index + 1}</td>
                       <td>
-                        <select
-                          className="form-control"
-                          value={line.QaidBodyAccID}
-                          onChange={(e) =>
-                            handleLineChange(index, 'QaidBodyAccID', e.target.value)
-                          }
-                          disabled={readOnly}
-                          required
-                        >
-                          <option value="">Select account</option>
-                          {accounts.map((acc) => (
-                            <option key={acc.AccID} value={acc.AccID}>
-                              {acc.AccCode} - {acc.AccName}
-                            </option>
-                          ))}
-                        </select>
+                        <div className="account-select-cell">
+                          <SearchableComboBox
+                            options={accountOptions}
+                            value={line.QaidBodyAccID}
+                            onChange={(val) =>
+                              handleLineChange(index, 'QaidBodyAccID', val)
+                            }
+                            disabled={readOnly}
+                            placeholder="Select account"
+                          />
+                        </div>
                       </td>
                       <td>
                         <input

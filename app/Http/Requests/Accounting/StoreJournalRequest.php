@@ -15,17 +15,6 @@ class StoreJournalRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'QaidCode' => [
-                'required',
-                'string',
-                'max:50',
-                Rule::unique('tblqaid', 'QaidCode'),
-            ],
-            'QaidType' => [
-                'required',
-                'string',
-                'max:50',
-            ],
             'QaidRef' => [
                 'nullable',
                 'string',
@@ -88,4 +77,3 @@ class StoreJournalRequest extends FormRequest
         ];
     }
 }
-

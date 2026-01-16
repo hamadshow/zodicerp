@@ -14,11 +14,6 @@ class UpdateJournalRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'QaidType' => [
-                'required',
-                'string',
-                'max:50',
-            ],
             'QaidRef' => [
                 'nullable',
                 'string',
@@ -81,4 +76,3 @@ class UpdateJournalRequest extends FormRequest
         ];
     }
 }
-
