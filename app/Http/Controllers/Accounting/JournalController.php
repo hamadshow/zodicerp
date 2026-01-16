@@ -338,4 +338,142 @@ class JournalController extends Controller
             ]);
         });
     }
+
+    public function generalLedger(Request $request)
+    {
+        $validated = $request->validate([
+            'account_id' => 'required|integer',
+            'date_from' => 'nullable|date',
+            'date_to' => 'nullable|date',
+            'status' => 'nullable|string|in:all,posted,unposted',
+        ]);
+
+        $accountId = (int) $validated['account_id'];
+        $dateFrom = $validated['date_from'] ?? null;
+        $dateTo = $validated['date_to'] ?? null;
+        $status = $validated['status'] ?? 'posted';
+
+        $account = DB::table('accounts')
+            ->where('AccID', $accountId)
+            ->first(['AccID', 'AccCode', 'AccName', 'AccDmType']);
+
+        if (!$account) {
+            return response()->json(['message' => 'Account not found.'], 404);
+        }
+
+        $nature = (int) ($account->AccDmType ?? 0);
+
+        $statusPostedValues = ['Post', 'Posted'];
+
+        $applyAccountFilter = function ($query) use ($account) {
+            $query->where(function ($q) use ($account) {
+                $q->where('b.QaidBodyAccID', $account->AccID)
+                    ->orWhere('b.QaidBodyAccID', $account->AccCode);
+            });
+        };
+
+        $applyStatusFilter = function ($query) use ($status, $statusPostedValues) {
+            if ($status === 'posted') {
+                $query->whereIn('h.QaidStatus', $statusPostedValues);
+            } elseif ($status === 'unposted') {
+                $query->whereNotIn('h.QaidStatus', $statusPostedValues);
+            }
+        };
+
+        $openingDebit = 0.0;
+        $openingCredit = 0.0;
+
+        if ($dateFrom) {
+            $openingTotals = DB::table('tblqaidbody as b')
+                ->join('tblqaid as h', 'h.QaidCode', '=', 'b.QaidCode')
+                ->tap($applyAccountFilter)
+                ->tap($applyStatusFilter)
+                ->where('h.QaidDate', '<', $dateFrom)
+                ->selectRaw('COALESCE(SUM(b.QaidBodyM1),0) as total_debit, COALESCE(SUM(b.QaidBodyD1),0) as total_credit')
+                ->first();
+
+            if ($openingTotals) {
+                $openingDebit = (float) $openingTotals->total_debit;
+                $openingCredit = (float) $openingTotals->total_credit;
+            }
+        }
+
+        $openingBalance = $nature === 0
+            ? $openingDebit - $openingCredit
+            : $openingCredit - $openingDebit;
+
+        $entriesQuery = DB::table('tblqaidbody as b')
+            ->join('tblqaid as h', 'h.QaidCode', '=', 'b.QaidCode')
+            ->tap($applyAccountFilter)
+            ->tap($applyStatusFilter);
+
+        if ($dateFrom) {
+            $entriesQuery->where('h.QaidDate', '>=', $dateFrom);
+        }
+
+        if ($dateTo) {
+            $entriesQuery->where('h.QaidDate', '<=', $dateTo);
+        }
+
+        $entries = $entriesQuery
+            ->orderBy('h.QaidDate')
+            ->orderBy('h.QaidCode')
+            ->orderBy('b.QaidBodyID')
+            ->get([
+                'h.QaidDate as date',
+                'h.QaidCode as journal_code',
+                'h.QaidRef as reference',
+                'h.QaidDetails as header_description',
+                'b.QaidBodyDetails as line_description',
+                'b.QaidBodyM1 as debit',
+                'b.QaidBodyD1 as credit',
+                'h.QaidStatus as status',
+            ]);
+
+        $runningBalance = $openingBalance;
+        $totalDebit = 0.0;
+        $totalCredit = 0.0;
+
+        $mappedEntries = $entries->map(function ($row) use (&$runningBalance, &$totalDebit, &$totalCredit, $nature) {
+            $debit = (float) ($row->debit ?? 0);
+            $credit = (float) ($row->credit ?? 0);
+
+            $totalDebit += $debit;
+            $totalCredit += $credit;
+
+            $delta = $nature === 0 ? $debit - $credit : $credit - $debit;
+            $runningBalance += $delta;
+
+            $row->debit = round($debit, 2);
+            $row->credit = round($credit, 2);
+            $row->running_balance = round($runningBalance, 2);
+            $row->description = $row->line_description ?: $row->header_description;
+
+            unset($row->header_description, $row->line_description);
+
+            return $row;
+        });
+
+        $closingBalance = $runningBalance;
+
+        return response()->json([
+            'account' => [
+                'id' => $account->AccID,
+                'code' => $account->AccCode,
+                'name' => $account->AccName,
+                'dm_type' => $nature,
+                'dm_label' => $nature === 0 ? 'Debit' : 'Credit',
+            ],
+            'filters' => [
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+                'status' => $status,
+            ],
+            'opening_balance' => round($openingBalance, 2),
+            'closing_balance' => round($closingBalance, 2),
+            'total_debit' => round($totalDebit, 2),
+            'total_credit' => round($totalCredit, 2),
+            'entries' => $mappedEntries,
+        ]);
+    }
 }

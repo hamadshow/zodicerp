@@ -273,6 +273,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/journals', [JournalController::class, 'store']);
         Route::put('/journals/{qaidCode}', [JournalController::class, 'update']);
         Route::delete('/journals/{qaidCode}', [JournalController::class, 'destroy']);
+
+        Route::get('/reports/general-ledger', [JournalController::class, 'generalLedger']);
     });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -332,9 +334,7 @@ Route::middleware('auth')->group(function () {
     })->name('admin.reports.cash-flow');
 
     Route::get('/reports/general-ledger', function () {
-        return Inertia::render('Backend/07-Accounting/FinancialReports', [
-            'activeReport' => 'general-ledger',
-        ]);
+        return Inertia::render('Backend/07-Accounting/FinancialReports/GeneralLedger');
     })->name('admin.reports.general-ledger');
 
     Route::get('/reports/account-statement', function () {

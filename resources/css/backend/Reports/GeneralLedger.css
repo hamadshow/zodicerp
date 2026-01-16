@@ -1,0 +1,176 @@
+.GeneralLedger-page {
+  padding: 24px;
+  background-color: #f8fafc;
+}
+
+.gl-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.gl-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--dark-color);
+  margin: 0 0 4px;
+}
+
+.gl-subtitle {
+  font-size: 0.9rem;
+  color: var(--gray-color);
+  margin: 0;
+}
+
+.gl-filters-card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid #e2e8f0;
+  margin-bottom: 18px;
+}
+
+.gl-filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  align-items: flex-end;
+}
+
+.gl-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gl-form-group label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--dark-color);
+}
+
+.gl-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.85rem;
+}
+
+.gl-form-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.gl-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.gl-summary-item {
+  background-color: #ffffff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid #e2e8f0;
+}
+
+.gl-summary-label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--gray-color);
+  margin-bottom: 2px;
+}
+
+.gl-summary-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--dark-color);
+}
+
+.gl-table-card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid #e2e8f0;
+  padding: 16px;
+}
+
+.gl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.gl-table th,
+.gl-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.gl-table th {
+  text-align: left;
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.gl-amount-header {
+  text-align: right;
+}
+
+.gl-amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.gl-amount-debit {
+  color: #1e88e5;
+  font-weight: 600;
+}
+
+.gl-amount-credit {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.gl-total-label {
+  text-align: right;
+  font-weight: 600;
+}
+
+.gl-table tfoot tr {
+  background-color: #f9fafb;
+}
+
+.gl-link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: var(--primary-color);
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+.gl-opening-row td {
+  font-weight: 600;
+  background-color: #f9fafb;
+}
+
+@media (max-width: 768px) {
+  .gl-table-card {
+    padding: 12px;
+  }
+
+  .gl-table th,
+  .gl-table td {
+    padding: 6px 8px;
+  }
+}
