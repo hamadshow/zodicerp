@@ -166,7 +166,7 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, multiple =
     if (!isOpen) return null;
 
     return (
-        <div className="modal-overlay active modal-overlay-picker">
+        <div className="media-page modal-overlay active modal-overlay-picker">
             <div className="modal media-picker-modal">
                 <div className="modal-header">
                     <h3 className="modal-title">Media Library</h3>

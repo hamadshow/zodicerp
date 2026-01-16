@@ -53,7 +53,7 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
     };
 
     return (
-        <div className="modal-overlay active z-index-9999" onClick={onClose}>
+        <div className="media-page modal-overlay active z-index-9999" onClick={onClose}>
             <div className="modal-card max-w-800" onClick={e => e.stopPropagation()}>
                 <div className="modal-header">
                     <h3>File Details</h3>

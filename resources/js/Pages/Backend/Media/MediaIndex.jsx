@@ -275,135 +275,136 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
 
     return (
         <AdminLayout activeMenu="Media">
-            <Head title="Media Manager" />
-            
-            <div className="breadcrumb">
-                <Link href={route('admin')}>Dashboard</Link>
-                <span>/</span>
-                <Link href={route('admin.media.index')}>Media Manager</Link>
-                {breadcrumbs && breadcrumbs.map(folder => (
-                    <React.Fragment key={folder.id}>
-                        <span>/</span>
-                        <Link href={buildIndexUrl({ folder_id: folder.id })}>
-                            {folder.name}
-                        </Link>
-                    </React.Fragment>
-                ))}
-                {currentFolder && (
-                    <React.Fragment>
-                        <span>/</span>
-                        <span>{currentFolder.name}</span>
-                    </React.Fragment>
-                )}
-            </div>
-            
-            <div className="media-layout-wrapper">
-                <MediaSidebar 
-                    currentFolder={currentFolder}
-                    folders={folders} 
-                    onFolderClick={(folder) => navigateToFolder(folder.id)}
-                    storageUsage={storageUsage}
-                    onMove={handleMove}
-                />
-
-                <div 
-                    className={`media-container ${isDragging ? 'dragging' : ''}`}
-                    onDragEnter={handleDragEnter}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    {isDragging && (
-                        <div className="drag-overlay">
-                            <span className="material-icons-outlined">cloud_upload</span>
-                            <h3>Drop files to upload</h3>
-                        </div>
+            <div className="media-page">
+                <Head title="Media Manager" />
+                
+                <div className="breadcrumb">
+                    <Link href={route('admin')}>Dashboard</Link>
+                    <span>/</span>
+                    <Link href={route('admin.media.index')}>Media Manager</Link>
+                    {breadcrumbs && breadcrumbs.map(folder => (
+                        <React.Fragment key={folder.id}>
+                            <span>/</span>
+                            <Link href={buildIndexUrl({ folder_id: folder.id })}>
+                                {folder.name}
+                            </Link>
+                        </React.Fragment>
+                    ))}
+                    {currentFolder && (
+                        <React.Fragment>
+                            <span>/</span>
+                            <span>{currentFolder.name}</span>
+                        </React.Fragment>
                     )}
+                </div>
+                
+                <div className="media-wrapper">
+                    <MediaSidebar 
+                        currentFolder={currentFolder}
+                        folders={folders} 
+                        onFolderClick={(folder) => navigateToFolder(folder.id)}
+                        storageUsage={storageUsage}
+                        onMove={handleMove}
+                    />
 
-                    <div className="media-content-wrapper">
-                        {flash?.success && (
-                            <div className="alert alert-success">
-                                {flash.success}
+                    <div 
+                        className={`media-container ${isDragging ? 'dragging' : ''}`}
+                        onDragEnter={handleDragEnter}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                    >
+                        {isDragging && (
+                            <div className="drag-overlay">
+                                <span className="material-icons-outlined">cloud_upload</span>
+                                <h3>Drop files to upload</h3>
                             </div>
                         )}
-                        
-                        {selectedItems.length > 0 ? (
-                            <div className="bulk-actions-toolbar">
-                                <div className="selected-count">
-                                    <strong>{selectedItems.length}</strong> items selected
-                                    <button type="button" className="btn btn-sm btn-link" onClick={handleSelectAll}>
-                                        {selectedItems.length === folders.length + fileList.length ? 'Deselect All' : 'Select All'}
-                                    </button>
+
+                        <div className="media-content-wrapper">
+                            {flash?.success && (
+                                <div className="alert alert-success">
+                                    {flash.success}
                                 </div>
-                                <div className="bulk-actions">
-                                    <button type="button" className="btn btn-danger bulk-delete-btn" onClick={handleBulkDelete}>
-                                        <span className="material-icons-outlined action-icon-small">delete</span> Delete
-                                    </button>
-                                    <button type="button" className="btn btn-secondary bulk-cancel-btn" onClick={() => setSelectedItems([])}>
-                                        Cancel
-                                    </button>
+                            )}
+                            
+                            {selectedItems.length > 0 ? (
+                                <div className="bulk-actions-toolbar">
+                                    <div className="selected-count">
+                                        <strong>{selectedItems.length}</strong> items selected
+                                        <button type="button" className="btn btn-sm btn-link" onClick={handleSelectAll}>
+                                            {selectedItems.length === folders.length + fileList.length ? 'Deselect All' : 'Select All'}
+                                        </button>
+                                    </div>
+                                    <div className="bulk-actions">
+                                        <button type="button" className="btn btn-danger bulk-delete-btn" onClick={handleBulkDelete}>
+                                            <span className="material-icons-outlined action-icon-small">delete</span> Delete
+                                        </button>
+                                        <button type="button" className="btn btn-secondary bulk-cancel-btn" onClick={() => setSelectedItems([])}>
+                                            Cancel
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <MediaToolbar 
-                                onUploadClick={() => fileInputRef.current.click()}
-                                onCreateFolderClick={() => setIsCreateFolderModalOpen(true)}
-                                searchQuery={searchQuery}
-                                onSearchChange={handleSearch}
+                            ) : (
+                                <MediaToolbar 
+                                    onUploadClick={() => fileInputRef.current.click()}
+                                    onCreateFolderClick={() => setIsCreateFolderModalOpen(true)}
+                                    searchQuery={searchQuery}
+                                    onSearchChange={handleSearch}
+                                    viewMode={viewMode}
+                                    onViewModeChange={setViewMode}
+                                    sortBy={filters.sort_by || 'name'}
+                                    onSortChange={handleSort}
+                                />
+                            )}
+                            
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                className="hidden-input" 
+                                onChange={handleFileChange} 
+                                multiple
+                            />
+
+                            {uploadProgress !== null && (
+                                <div className="upload-progress-container upload-progress-index">
+                                    <div className="progress-bar-wrapper large">
+                                        <div className="progress-bar" style={{ 
+                                            width: `${uploadProgress}%`
+                                        }}></div>
+                                    </div>
+                                    <div className="upload-status-text">
+                                        Uploading... {uploadProgress}%
+                                    </div>
+                                </div>
+                            )}
+
+                            <MediaGrid 
+                                folders={folders} 
+                                files={fileList} 
+                                selectedItems={selectedItems}
+                                onToggleSelect={handleToggleSelect}
+                                onFolderClick={(folder) => navigateToFolder(folder.id)}
+                                onFileClick={handleFileClick}
+                                onRename={handleRenameClick}
+                                onDelete={handleDeleteClick}
+                                onMove={handleMove}
                                 viewMode={viewMode}
-                                onViewModeChange={setViewMode}
-                                sortBy={filters.sort_by || 'name'}
-                                onSortChange={handleSort}
                             />
-                        )}
-                        
-                        <input 
-                            type="file" 
-                            ref={fileInputRef} 
-                            className="hidden-input" 
-                            onChange={handleFileChange} 
-                            multiple
-                        />
 
-                        {uploadProgress !== null && (
-                            <div className="upload-progress-container upload-progress-index">
-                                <div className="progress-bar-wrapper large">
-                                    <div className="progress-bar" style={{ 
-                                        width: `${uploadProgress}%`
-                                    }}></div>
-                                </div>
-                                <div className="upload-status-text">
-                                    Uploading... {uploadProgress}%
-                                </div>
-                            </div>
-                        )}
-
-                        <MediaGrid 
-                            folders={folders} 
-                            files={fileList} 
-                            selectedItems={selectedItems}
-                            onToggleSelect={handleToggleSelect}
-                            onFolderClick={(folder) => navigateToFolder(folder.id)}
-                            onFileClick={handleFileClick}
-                            onRename={handleRenameClick}
-                            onDelete={handleDeleteClick}
-                            onMove={handleMove}
-                            viewMode={viewMode}
-                        />
-
-                        {pagination && (
-                            <Pagination 
-                                currentPage={pagination.current_page}
-                                totalPages={pagination.last_page}
-                                totalRecords={pagination.total}
-                                recordsPerPage={pagination.per_page}
-                                onPageChange={handlePageChange}
-                                onRecordsPerPageChange={() => {}} 
-                            />
-                        )}
+                            {pagination && (
+                                <Pagination 
+                                    currentPage={pagination.current_page}
+                                    totalPages={pagination.last_page}
+                                    totalRecords={pagination.total}
+                                    recordsPerPage={pagination.per_page}
+                                    onPageChange={handlePageChange}
+                                    onRecordsPerPageChange={() => {}} 
+                                />
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
 
             {/* Create Folder Modal */}
             {isCreateFolderModalOpen && (
@@ -502,6 +503,7 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
                     onClose={() => setSelectedFile(null)} 
                 />
             )}
+            </div>
         </AdminLayout>
     );
 }
