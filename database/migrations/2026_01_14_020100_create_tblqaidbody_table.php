@@ -11,8 +11,8 @@ return new class extends Migration {
             $table->bigIncrements('QaidBodyID');
             $table->string('QaidCode', 100);
             $table->integer('QaidBodyAccID');
-            $table->double('QaidBodyM1');
-            $table->double('QaidBodyD1');
+            $table->double('QaidDebit');
+            $table->double('QaidCredit');
             $table->string('idName', 30)->nullable();
             $table->string('NameDetails', 100)->nullable();
             $table->string('QaidBodyDetails', 500)->nullable();
@@ -25,4 +25,3 @@ return new class extends Migration {
         Schema::dropIfExists('tblqaidbody');
     }
 };
-

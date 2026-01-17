@@ -32,6 +32,12 @@ export default defineConfig({
 
   // -------------------  EDITED SECTION -------------------
   server: {
+    host: '127.0.0.1',
+    port: 5173,
+    strictPort: true,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+    },
     cors: {
       origin: ['http://127.0.0.1:8000', 'http://localhost:8000'],
       methods: ['GET', 'POST', 'OPTIONS'],
@@ -40,7 +46,9 @@ export default defineConfig({
     hmr: {
       clientPort: 5173,
       protocol: 'ws',
-      host: 'localhost',
+      host: '127.0.0.1',
+      port: 5173,
+      overlay: true,
     },
   },
   // -------------------------------------------------------

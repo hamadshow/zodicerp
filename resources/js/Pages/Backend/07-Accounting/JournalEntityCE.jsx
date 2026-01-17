@@ -1,301 +1,16 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import '../../../../css/backend/JournalEntityCE.css';
 import AdminLayout from '../components/AdminLayout';
+import SearchableComboBox from '../components/SearchableComboBox';
 import { apiService } from '../../../services/api';
 
 const emptyLine = () => ({
   QaidBodyAccID: '',
-  QaidBodyD1: '',
-  QaidBodyM1: '',
+  QaidDebit: '',
+  QaidCredit: '',
   QaidBodyDetails: '',
 });
-
-const highlightText = (label, term) => {
-  if (!term) return label;
-  const lowerLabel = label.toLowerCase();
-  const lowerTerm = term.toLowerCase();
-  const index = lowerLabel.indexOf(lowerTerm);
-  if (index === -1) return label;
-  const before = label.slice(0, index);
-  const match = label.slice(index, index + term.length);
-  const after = label.slice(index + term.length);
-  return (
-    <>
-      {before}
-      <span className="searchable-combobox-highlight">{match}</span>
-      {after}
-    </>
-  );
-};
-
-function SearchableComboBox({
-  options,
-  value,
-  onChange,
-  disabled = false,
-  placeholder = 'Select',
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const containerRef = useRef(null);
-  const inputRef = useRef(null);
-  const dropdownRef = useRef(null);
-  const [dropdownRect, setDropdownRect] = useState(null);
-
-  const filteredOptions = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    const limited = options;
-    if (!term) {
-      return limited;
-    }
-    return limited.filter((opt) =>
-      String(opt.label || '').toLowerCase().includes(term),
-    );
-  }, [options, searchTerm]);
-
-  useEffect(() => {
-    const current = options.find(
-      (opt) => String(opt.value) === String(value ?? ''),
-    );
-    if (current) {
-      setSearchTerm(current.label || '');
-    } else {
-      setSearchTerm('');
-    }
-  }, [value, options]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setHighlightedIndex(-1);
-      return;
-    }
-    if (filteredOptions.length > 0 && highlightedIndex < 0) {
-      setHighlightedIndex(0);
-    }
-  }, [isOpen, filteredOptions, highlightedIndex]);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      const container = containerRef.current;
-      const dropdownEl = dropdownRef.current;
-      if (!container && !dropdownEl) return;
-      const isInsideContainer =
-        container && container.contains(event.target);
-      const isInsideDropdown =
-        dropdownEl && dropdownEl.contains(event.target);
-      if (isInsideContainer || isInsideDropdown) return;
-      setIsOpen(false);
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  const updateDropdownPosition = () => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    setDropdownRect({
-      top: rect.bottom + window.scrollY,
-      left: rect.left + window.scrollX,
-      width: rect.width,
-    });
-  };
-
-  useEffect(() => {
-    if (!isOpen) return;
-    updateDropdownPosition();
-    const handleReposition = () => {
-      updateDropdownPosition();
-    };
-    window.addEventListener('scroll', handleReposition, true);
-    window.addEventListener('resize', handleReposition);
-    return () => {
-      window.removeEventListener('scroll', handleReposition, true);
-      window.removeEventListener('resize', handleReposition);
-    };
-  }, [isOpen]);
-
-  const handleInputChange = (e) => {
-    if (disabled) return;
-    setSearchTerm(e.target.value);
-    setIsOpen(true);
-    updateDropdownPosition();
-  };
-
-  const handleInputFocus = () => {
-    if (disabled) return;
-    setIsOpen(true);
-    updateDropdownPosition();
-  };
-
-  const handleWrapperClick = () => {
-    if (disabled) return;
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-    setIsOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        updateDropdownPosition();
-      }
-      return next;
-    });
-  };
-
-  const selectOption = (opt) => {
-    if (!opt) return;
-    onChange(opt.value);
-    setSearchTerm(opt.label || '');
-    setIsOpen(false);
-  };
-
-  const handleKeyDown = (e) => {
-    if (disabled) return;
-    if (!isOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-      e.preventDefault();
-      setIsOpen(true);
-      return;
-    }
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (filteredOptions.length === 0) return;
-      setHighlightedIndex((prev) => {
-        const next = prev + 1;
-        if (next >= filteredOptions.length) return 0;
-        return next;
-      });
-      return;
-    }
-    if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (filteredOptions.length === 0) return;
-      setHighlightedIndex((prev) => {
-        const next = prev - 1;
-        if (next < 0) return filteredOptions.length - 1;
-        return next;
-      });
-      return;
-    }
-    if (e.key === 'Enter') {
-      if (!isOpen) return;
-      e.preventDefault();
-      const opt = filteredOptions[highlightedIndex];
-      if (opt) {
-        selectOption(opt);
-      }
-      return;
-    }
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      setIsOpen(false);
-      return;
-    }
-  };
-
-  const handleClear = (e) => {
-    e.stopPropagation();
-    if (disabled) return;
-    onChange('');
-    setSearchTerm('');
-    setIsOpen(false);
-  };
-
-  const isBrowser = typeof document !== 'undefined';
-
-  const dropdown =
-    isOpen && filteredOptions
-      ? (
-        <div
-          className="searchable-combobox-dropdown"
-          ref={dropdownRef}
-          style={
-            isBrowser && dropdownRect
-              ? {
-                  top: dropdownRect.top,
-                  left: dropdownRect.left,
-                  width: dropdownRect.width,
-                  right: 'auto',
-                }
-              : undefined
-          }
-        >
-          {filteredOptions.length === 0 ? (
-            <div className="searchable-combobox-no-results">
-              No results found
-            </div>
-          ) : (
-            filteredOptions.map((opt, index) => (
-              <div
-                key={opt.value}
-                className={`searchable-combobox-option${
-                  index === highlightedIndex ? ' active' : ''
-                }`}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  selectOption(opt);
-                }}
-              >
-                {highlightText(opt.label || '', searchTerm)}
-              </div>
-            ))
-          )}
-        </div>
-        )
-      : null;
-
-  return (
-    <div className="searchable-combobox" ref={containerRef}>
-      <div
-        className={`searchable-combobox-input-wrapper${
-          disabled ? ' is-disabled' : ''
-        }`}
-        onClick={handleWrapperClick}
-      >
-        <input
-          type="text"
-          ref={inputRef}
-          className="form-control searchable-combobox-input"
-          value={searchTerm}
-          onChange={handleInputChange}
-          onFocus={handleInputFocus}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          disabled={disabled}
-        />
-        {value && !disabled && (
-          <button
-            type="button"
-            className="searchable-combobox-clear"
-            onClick={handleClear}
-          >
-            ×
-          </button>
-        )}
-        <span className="searchable-combobox-arrow">▾</span>
-      </div>
-      {dropdown &&
-        (isBrowser ? createPortal(dropdown, document.body) : dropdown)}
-      <select
-        className="searchable-combobox-hidden-select"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        required
-      >
-        <option value="">Select</option>
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
 
 export default function JournalEntityCE() {
   const { url } = usePage();
@@ -333,18 +48,25 @@ export default function JournalEntityCE() {
 
   const loadAccounts = async (extraIds = []) => {
     try {
-      const isEditMode = Array.isArray(extraIds) && extraIds.length > 0;
-      const params = {};
-
-      if (isEditMode) {
-        params.ids = extraIds.join(',');
-      } else {
-        params.type = 1;
+      const ids = Array.isArray(extraIds) ? extraIds.filter(Boolean) : [];
+      // Always load AccType=1 accounts
+      const typeRespPromise = apiService.get('/accounts', { type: 1 });
+      let extras = [];
+      if (ids.length > 0) {
+        const extrasResp = await apiService.get('/accounts', { ids: ids.join(',') });
+        extras = Array.isArray(extrasResp.data) ? extrasResp.data : [];
       }
-
-      const response = await apiService.get('/accounts', params);
-      const data = Array.isArray(response.data) ? response.data : [];
-      setAccounts(data);
+      const typeResp = await typeRespPromise;
+      const typeData = Array.isArray(typeResp.data) ? typeResp.data : [];
+      // Merge unique by AccID
+      const byId = new Map();
+      [...typeData, ...extras].forEach((acc) => {
+        const key = acc.AccID ?? acc.AccCode ?? Math.random();
+        if (!byId.has(key)) {
+          byId.set(key, acc);
+        }
+      });
+      setAccounts(Array.from(byId.values()));
     } catch (e) {
       console.error('Failed to load accounts', e);
     }
@@ -384,8 +106,8 @@ export default function JournalEntityCE() {
           ? lineData.map((l) => ({
               QaidBodyAccID:
                 (l.AccountAccID ?? l.QaidBodyAccID)?.toString() || '',
-              QaidBodyD1: l.QaidBodyD1?.toString() || '',
-              QaidBodyM1: l.QaidBodyM1?.toString() || '',
+              QaidDebit: l.QaidDebit?.toString() || '',
+              QaidCredit: l.QaidCredit?.toString() || '',
               QaidBodyDetails: l.QaidBodyDetails || '',
             }))
           : [emptyLine()],
@@ -453,8 +175,8 @@ export default function JournalEntityCE() {
     let debit = 0;
     let credit = 0;
     lines.forEach((line) => {
-      debit += Number(line.QaidBodyD1 || 0);
-      credit += Number(line.QaidBodyM1 || 0);
+      debit += Number(line.QaidDebit || 0);
+      credit += Number(line.QaidCredit || 0);
     });
     return {
       debit,
@@ -485,12 +207,12 @@ export default function JournalEntityCE() {
         .filter(
           (l) =>
             l.QaidBodyAccID &&
-            (Number(l.QaidBodyD1 || 0) > 0 || Number(l.QaidBodyM1 || 0) > 0),
+            (Number(l.QaidDebit || 0) > 0 || Number(l.QaidCredit || 0) > 0),
         )
         .map((l) => ({
           QaidBodyAccID: Number(l.QaidBodyAccID),
-          QaidBodyD1: Number(l.QaidBodyD1 || 0),
-          QaidBodyM1: Number(l.QaidBodyM1 || 0),
+          QaidDebit: Number(l.QaidDebit || 0),
+          QaidCredit: Number(l.QaidCredit || 0),
           QaidBodyDetails: l.QaidBodyDetails || null,
         })),
     };
@@ -656,9 +378,9 @@ export default function JournalEntityCE() {
                           min="0"
                           step="0.01"
                           className="form-control"
-                          value={line.QaidBodyD1}
+                          value={line.QaidDebit}
                           onChange={(e) =>
-                            handleLineChange(index, 'QaidBodyD1', e.target.value)
+                            handleLineChange(index, 'QaidDebit', e.target.value)
                           }
                           disabled={readOnly}
                         />
@@ -669,9 +391,9 @@ export default function JournalEntityCE() {
                           min="0"
                           step="0.01"
                           className="form-control"
-                          value={line.QaidBodyM1}
+                          value={line.QaidCredit}
                           onChange={(e) =>
-                            handleLineChange(index, 'QaidBodyM1', e.target.value)
+                            handleLineChange(index, 'QaidCredit', e.target.value)
                           }
                           disabled={readOnly}
                         />

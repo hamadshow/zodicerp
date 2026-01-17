@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import CategoryCard from './CategoryCard';
 
-export default function CategoryRail({ categories = [], onCategoryClick }) {
+export default function CategoryRail({ categories = [], onCategoryClick, trackRef }) {
   const columns = useMemo(() => {
     const colsPerRow = 7;
     const rows = 2;
@@ -22,7 +22,7 @@ export default function CategoryRail({ categories = [], onCategoryClick }) {
 
   return (
     <div className="homepage__categories-rail" aria-label="Category navigation">
-      <div className="homepage__categories-rail-track" role="list">
+      <div className="homepage__categories-rail-track" role="list" ref={trackRef}>
         {columns.map((col) => (
           <div key={col.key} className="homepage__categories-column" role="listitem">
             {col.top ? (
@@ -41,4 +41,3 @@ export default function CategoryRail({ categories = [], onCategoryClick }) {
     </div>
   );
 }
-

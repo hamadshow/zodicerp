@@ -151,8 +151,8 @@ class JournalController extends Controller
         $totalCredit = 0;
 
         foreach ($lines as $line) {
-            $debit = (float) ($line['QaidBodyD1'] ?? 0);
-            $credit = (float) ($line['QaidBodyM1'] ?? 0);
+            $debit = (float) ($line['QaidDebit'] ?? 0);
+            $credit = (float) ($line['QaidCredit'] ?? 0);
 
             if ($debit > 0 && $credit > 0) {
                 abort(
@@ -162,8 +162,8 @@ class JournalController extends Controller
                 );
             }
 
-            $totalDebit += (float) ($line['QaidBodyD1'] ?? 0);
-            $totalCredit += (float) ($line['QaidBodyM1'] ?? 0);
+            $totalDebit += (float) ($line['QaidDebit'] ?? 0);
+            $totalCredit += (float) ($line['QaidCredit'] ?? 0);
         }
 
         if (round($totalDebit, 2) !== round($totalCredit, 2)) {
@@ -230,7 +230,7 @@ class JournalController extends Controller
 
         $total = 0;
         foreach ($lines as $line) {
-            $total += (float) ($line['QaidBodyD1'] ?? 0);
+            $total += (float) ($line['QaidDebit'] ?? 0);
         }
 
         return DB::transaction(function () use ($data, $lines, $total) {
@@ -250,8 +250,8 @@ class JournalController extends Controller
                 DB::table('tblqaidbody')->insert([
                     'QaidCode' => $nextCode,
                     'QaidBodyAccID' => $line['QaidBodyAccID'],
-                    'QaidBodyM1' => $line['QaidBodyM1'],
-                    'QaidBodyD1' => $line['QaidBodyD1'],
+                    'QaidDebit' => $line['QaidDebit'],
+                    'QaidCredit' => $line['QaidCredit'],
                     'idName' => $line['idName'] ?? null,
                     'NameDetails' => $line['NameDetails'] ?? null,
                     'QaidBodyDetails' => $line['QaidBodyDetails'] ?? null,
@@ -322,7 +322,7 @@ class JournalController extends Controller
 
         $total = 0;
         foreach ($lines as $line) {
-            $total += (float) ($line['QaidBodyD1'] ?? 0);
+            $total += (float) ($line['QaidDebit'] ?? 0);
         }
 
         return DB::transaction(function () use ($qaidCode, $data, $lines, $total) {
@@ -342,8 +342,8 @@ class JournalController extends Controller
                 DB::table('tblqaidbody')->insert([
                     'QaidCode' => $qaidCode,
                     'QaidBodyAccID' => $line['QaidBodyAccID'],
-                    'QaidBodyM1' => $line['QaidBodyM1'],
-                    'QaidBodyD1' => $line['QaidBodyD1'],
+                    'QaidDebit' => $line['QaidDebit'],
+                    'QaidCredit' => $line['QaidCredit'],
                     'idName' => $line['idName'] ?? null,
                     'NameDetails' => $line['NameDetails'] ?? null,
                     'QaidBodyDetails' => $line['QaidBodyDetails'] ?? null,
@@ -430,7 +430,7 @@ class JournalController extends Controller
                 ->tap($applyAccountFilter)
                 ->tap($applyStatusFilter)
                 ->where('h.QaidDate', '<', $dateFrom)
-                ->selectRaw('COALESCE(SUM(b.QaidBodyM1),0) as total_debit, COALESCE(SUM(b.QaidBodyD1),0) as total_credit')
+                ->selectRaw('COALESCE(SUM(b.QaidDebit),0) as total_debit, COALESCE(SUM(b.QaidCredit),0) as total_credit')
                 ->first();
 
             if ($openingTotals) {
@@ -466,8 +466,8 @@ class JournalController extends Controller
                 'h.QaidRef as reference',
                 'h.QaidDetails as header_description',
                 'b.QaidBodyDetails as line_description',
-                'b.QaidBodyM1 as debit',
-                'b.QaidBodyD1 as credit',
+                'b.QaidDebit as debit',
+                'b.QaidCredit as credit',
                 'h.QaidStatus as status',
             ]);
 

@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import '../../../../../css/backend/Reports/GeneralLedger.css';
+import '../../../../../css/backend/JournalEntityCE.css';
 import AdminLayout from '../../components/AdminLayout';
+import SearchableComboBox from '../../components/SearchableComboBox';
 import { apiService } from '../../../../services/api';
 
 const STATUS_OPTIONS = [
@@ -32,8 +34,19 @@ export default function GeneralLedger() {
     }
   };
 
-  const loadLedger = async () => {
-    if (!filters.accountId) {
+  const getQueryFilters = () => {
+    const params = new URLSearchParams(window.location.search || '');
+    const accountId =
+      params.get('accountId') || params.get('account_id') || '';
+    const dateFrom = params.get('dateFrom') || params.get('date_from') || '';
+    const dateTo = params.get('dateTo') || params.get('date_to') || '';
+    const status = params.get('status') || 'posted';
+    return { accountId, dateFrom, dateTo, status };
+  };
+
+  const loadLedger = async (overrideFilters) => {
+    const f = overrideFilters ?? filters;
+    if (!f.accountId) {
       setLedger(null);
       return;
     }
@@ -42,11 +55,22 @@ export default function GeneralLedger() {
     setError('');
 
     try {
+      const urlParams = new URLSearchParams();
+      if (f.accountId) urlParams.set('accountId', String(f.accountId));
+      if (f.dateFrom) urlParams.set('dateFrom', f.dateFrom);
+      if (f.dateTo) urlParams.set('dateTo', f.dateTo);
+      if (f.status) urlParams.set('status', f.status);
+      const nextUrl =
+        urlParams.toString() === ''
+          ? window.location.pathname
+          : `${window.location.pathname}?${urlParams.toString()}`;
+      window.history.replaceState(null, '', nextUrl);
+
       const response = await apiService.get('/reports/general-ledger', {
-        account_id: Number(filters.accountId),
-        date_from: filters.dateFrom || undefined,
-        date_to: filters.dateTo || undefined,
-        status: filters.status || undefined,
+        account_id: Number(f.accountId),
+        date_from: f.dateFrom || undefined,
+        date_to: f.dateTo || undefined,
+        status: f.status || undefined,
       });
       setLedger(response.data);
     } catch (e) {
@@ -60,7 +84,15 @@ export default function GeneralLedger() {
   };
 
   useEffect(() => {
+    const q = getQueryFilters();
+    setFilters((prev) => ({
+      ...prev,
+      ...q,
+    }));
     loadAccounts();
+    if (q.accountId) {
+      loadLedger(q);
+    }
   }, []);
 
   const handleFilterChange = (field, value) => {
@@ -104,6 +136,15 @@ export default function GeneralLedger() {
     return ledger.account.dm_label;
   }, [ledger]);
 
+  const accountOptions = useMemo(
+    () =>
+      accounts.map((acc) => ({
+        value: String(acc.AccID),
+        label: `${acc.AccCode} - ${acc.AccName}`,
+      })),
+    [accounts],
+  );
+
   return (
     <AdminLayout activeMenu="Financial Reports">
       <Head title="General Ledger - ZodicERP" />
@@ -131,21 +172,12 @@ export default function GeneralLedger() {
           <div className="gl-filters-grid">
             <div className="gl-form-group">
               <label htmlFor="gl-account">Account</label>
-              <select
-                id="gl-account"
-                className="gl-input"
+              <SearchableComboBox
+                options={accountOptions}
                 value={filters.accountId}
-                onChange={(e) =>
-                  handleFilterChange('accountId', e.target.value)
-                }
-              >
-                <option value="">Select account</option>
-                {accounts.map((acc) => (
-                  <option key={acc.AccID} value={acc.AccID}>
-                    {acc.AccCode} - {acc.AccName}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleFilterChange('accountId', val)}
+                placeholder="Select account"
+              />
             </div>
             <div className="gl-form-group">
               <label htmlFor="gl-date-from">Date from</label>
@@ -192,7 +224,7 @@ export default function GeneralLedger() {
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={loadLedger}
+                onClick={() => loadLedger()}
                 disabled={!filters.accountId || loading}
               >
                 <span className="material-icons-outlined">filter_alt</span>

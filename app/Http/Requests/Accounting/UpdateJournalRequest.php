@@ -43,12 +43,12 @@ class UpdateJournalRequest extends FormRequest
                 'integer',
                 'exists:accounts,AccID',
             ],
-            'lines.*.QaidBodyD1' => [
+            'lines.*.QaidDebit' => [
                 'required',
                 'numeric',
                 'min:0',
             ],
-            'lines.*.QaidBodyM1' => [
+            'lines.*.QaidCredit' => [
                 'required',
                 'numeric',
                 'min:0',

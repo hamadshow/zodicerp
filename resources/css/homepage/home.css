@@ -146,38 +146,6 @@
   line-height: 1.4;
 }
 
-/* Link */
-.homepage-layout .announcement-link {
-  color: var(--accent-color);
-  margin-left: 8px;
-  text-decoration: underline;
-  transition: opacity 0.2s ease;
-}
-
-.homepage-layout .announcement-link:hover {
-  opacity: 0.85;
-}
-
-/* Close Button */
-.homepage-layout .announcement-close {
-  position: absolute;
-  right: 12px;
-  background: none;
-  border: none;
-  color: rgba(255, 255, 255, 0.75);
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.2s ease, transform 0.2s ease;
-}
-
-.homepage-layout .announcement-close:hover {
-  color: var(--bg-white);
-  transform: scale(1.1);
-}
-
 /* ================================
    Responsive
 ================================ */
@@ -297,6 +265,7 @@
   padding: 80px 0;
   text-align: center;
 }
+
 .homepage-layout .homepage__hero-content {
   max-width: 1000px;
   margin: 0 auto;
@@ -395,6 +364,49 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 32px;
+}
+
+.homepage-layout .homepage__section-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.homepage-layout .homepage__slider-arrows {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.homepage-layout .slider-arrow {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--bg-white);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.homepage-layout .slider-arrow:hover {
+  background: var(--primary-color);
+  color: #ffffff;
+  border-color: var(--primary-color);
+  transform: translateY(-1px);
+}
+
+.homepage-layout .slider-arrow:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: var(--bg-light);
+  color: var(--text-muted);
+  border-color: var(--border-color);
+  transform: none;
 }
 
 .homepage-layout .homepage__section-title {
@@ -508,21 +520,59 @@
 }
 
 .homepage-layout .homepage__products-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  display: flex;
   gap: 24px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 10px;
+}
+
+.homepage-layout .homepage__products-grid > .product-card {
+  flex: 0 0 240px;
+  scroll-snap-align: start;
 }
 
 .homepage-layout .homepage__brands-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  display: flex;
   gap: 24px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 10px;
+}
+
+.homepage-layout .homepage__brands-grid > .homepage__brand-card {
+  flex: 0 0 150px;
+  scroll-snap-align: start;
 }
 
 .homepage-layout .homepage__suppliers-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  display: flex;
   gap: 24px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 10px;
+}
+
+.homepage-layout .homepage__suppliers-grid > .supplier-card {
+  flex: 0 0 320px;
+  scroll-snap-align: start;
+}
+
+.homepage-layout .homepage__categories-rail,
+.homepage-layout .homepage__products-grid,
+.homepage-layout .homepage__brands-grid,
+.homepage-layout .homepage__suppliers-grid {
+  scrollbar-width: none;
+}
+
+.homepage-layout .homepage__categories-rail::-webkit-scrollbar,
+.homepage-layout .homepage__products-grid::-webkit-scrollbar,
+.homepage-layout .homepage__brands-grid::-webkit-scrollbar,
+.homepage-layout .homepage__suppliers-grid::-webkit-scrollbar {
+  display: none;
 }
 
 /* Category Card */
@@ -1000,7 +1050,6 @@
   }
 
   /* Products: Ensure 2 columns */
-  .homepage-layout .homepage__products-grid,
   .homepage-layout .homepage__flash-sale-products {
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
@@ -1063,7 +1112,6 @@
 }
 
 @media (max-width: 360px) {
-  .homepage-layout .homepage__products-grid,
   .homepage-layout .homepage__flash-sale-products,
   .homepage-layout .homepage__categories-grid {
     grid-template-columns: 1fr;
@@ -1149,7 +1197,7 @@
 .homepage-layout .homepage__ads-section {
   padding: 40px 0;
   background: var(--bg-white);
-  margin-bottom: 24px;
+  margin-bottom: 200px;
 }
 .homepage-layout .homepage__ads-grid {
   display: grid;
@@ -1180,11 +1228,22 @@
   flex: 1;
   min-height: 0;
 }
+.homepage-layout .homepage__ads-banner:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
 .homepage-layout .ads-image {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform 0.3s ease;
+}
+.homepage-layout .homepage__ads-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.0) 60%);
+  pointer-events: none;
 }
 .homepage-layout .homepage__ads-banner:hover .ads-image {
   transform: scale(1.05);
@@ -1222,16 +1281,36 @@
   margin: 0;
   opacity: 0.9;
 }
-.homepage-layout .ads-brand-overlay {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--text-main);
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+.homepage-layout .ads-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--primary-color);
+  color: #ffffff;
+  border: none;
+  border-radius: 24px;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  margin-top: 12px;
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+.homepage-layout .ads-cta:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-hover);
+}
+.homepage-layout .ads-cta:focus-visible {
+  outline: 2px solid rgba(255, 107, 0, 0.6);
+  outline-offset: 2px;
+}
+.homepage-layout .homepage__view-all:hover {
+  color: var(--primary-hover);
+}
+.homepage-layout .homepage__view-all:focus-visible {
+  outline: 2px solid rgba(255, 107, 0, 0.4);
+  outline-offset: 2px;
 }
  

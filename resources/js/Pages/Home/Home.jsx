@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import '../../../css/homepage/home.css';
 import Header from './Components/Header';
 import Footer from './Components/Footer';
@@ -115,6 +115,372 @@ const suppliersData = [
     products: '22,100+',
   },
 ];
+
+const brandData = [
+  { id: 1, name: 'Samsung', products: '12,500+' },
+  { id: 2, name: 'Apple', products: '8,200+' },
+  { id: 3, name: 'Xiaomi', products: '15,800+' },
+  { id: 4, name: 'LG', products: '9,600+' },
+  { id: 5, name: 'TCL', products: '7,300+' },
+  { id: 6, name: 'HP', products: '11,400+' },
+];
+
+const useHorizontalSlider = () => {
+  const trackRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const update = useCallback(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setCanScrollLeft(scrollLeft > 0);
+    setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 1);
+  }, []);
+
+  const scrollByDirection = useCallback((direction) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const amount = el.clientWidth * 0.8;
+    el.scrollBy({ left: direction * amount, behavior: 'smooth' });
+  }, []);
+
+  const scrollLeft = useCallback(() => {
+    scrollByDirection(-1);
+  }, [scrollByDirection]);
+
+  const scrollRight = useCallback(() => {
+    scrollByDirection(1);
+  }, [scrollByDirection]);
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    update();
+    el.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    return () => {
+      el.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [update]);
+
+  return { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight };
+};
+
+const SectionHeaderWithSlider = ({
+  title,
+  onViewAll,
+  viewAllLabel,
+  viewAllAriaLabel,
+  onPrev,
+  onNext,
+  canScrollLeft,
+  canScrollRight,
+}) => {
+  return (
+    <div className="homepage__section-header">
+      <h2 className="homepage__section-title">{title}</h2>
+      <div className="homepage__section-actions">
+        {onViewAll && (
+          <button
+            type="button"
+            className="homepage__view-all"
+            onClick={onViewAll}
+            aria-label={viewAllAriaLabel}
+          >
+            {viewAllLabel}
+            <i className="fas fa-arrow-right" aria-hidden="true"></i>
+          </button>
+        )}
+        <div className="homepage__slider-arrows">
+          <button
+            type="button"
+            className="slider-arrow slider-arrow--left"
+            onClick={onPrev}
+            disabled={!canScrollLeft}
+            aria-label="Scroll left"
+          >
+            <i className="fas fa-chevron-left" aria-hidden="true"></i>
+          </button>
+          <button
+            type="button"
+            className="slider-arrow slider-arrow--right"
+            onClick={onNext}
+            disabled={!canScrollRight}
+            aria-label="Scroll right"
+          >
+            <i className="fas fa-chevron-right" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const HeroSection = ({ onSectionClick, onImageError, onShopNow }) => {
+  return (
+    <section className="homepage__ads-section" onClick={onSectionClick}>
+      <div className="container">
+        <div className="homepage__ads-grid">
+          <div className="homepage__ads-main">
+            <div
+              className="homepage__ads-banner homepage__ads-banner--large"
+              tabIndex={0}
+              aria-label="Main promotional banner"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&h=700&q=80"
+                alt="Main Ad"
+                className="ads-image"
+                loading="lazy"
+                onError={onImageError}
+              />
+              <div className="ads-content-overlay">
+                <span className="ads-subtitle">Trending Brands</span>
+                <h3 className="ads-title">
+                  80% <small>OFF</small>
+                </h3>
+                <p className="ads-description">EXCLUSIVE BRANDS FOR LESS</p>
+                <button
+                  type="button"
+                  className="ads-cta"
+                  onClick={onShopNow}
+                  aria-label="Shop Now"
+                >
+                  Shop Now
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="homepage__ads-side">
+            <div
+              className="homepage__ads-banner homepage__ads-banner--small"
+              tabIndex={0}
+              aria-label="ROMWE ad banner"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1483985988355-763728e1935b?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200&q=80"
+                alt="Ad 1"
+                className="ads-image"
+                loading="lazy"
+                onError={onImageError}
+              />
+              <div className="ads-brand-overlay">ROMWE</div>
+            </div>
+            <div
+              className="homepage__ads-banner homepage__ads-banner--small"
+              tabIndex={0}
+              aria-label="EMERY ROSE ad banner"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200&q=80"
+                alt="Ad 2"
+                className="ads-image"
+                loading="lazy"
+                onError={onImageError}
+              />
+              <div className="ads-brand-overlay">EMERY ROSE</div>
+            </div>
+            <div
+              className="homepage__ads-banner homepage__ads-banner--small"
+              tabIndex={0}
+              aria-label="MOTF ad banner"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1529139574466-a302d2052574?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200&q=80"
+                alt="Ad 3"
+                className="ads-image"
+                loading="lazy"
+                onError={onImageError}
+              />
+              <div className="ads-brand-overlay">MOTF</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const CategorySlider = ({ categories, onViewAll, onCategoryClick }) => {
+  const { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
+    useHorizontalSlider();
+
+  return (
+    <section className="homepage__categories-section">
+      <div className="container">
+        <SectionHeaderWithSlider
+          title="Top Categories"
+          onViewAll={onViewAll}
+          viewAllLabel="View All Categories"
+          viewAllAriaLabel="View all categories"
+          onPrev={scrollLeft}
+          onNext={scrollRight}
+          canScrollLeft={canScrollLeft}
+          canScrollRight={canScrollRight}
+        />
+        <CategoryRail
+          categories={categories}
+          onCategoryClick={onCategoryClick}
+          trackRef={trackRef}
+        />
+      </div>
+    </section>
+  );
+};
+
+const ProductSlider = ({
+  title,
+  products,
+  onViewAll,
+  viewAllLabel,
+  viewAllAriaLabel,
+  onAddToCart,
+  onWishlistToggle,
+  isInWishlist,
+  onQuickView,
+}) => {
+  const { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
+    useHorizontalSlider();
+
+  return (
+    <section className="homepage__products-section">
+      <div className="container">
+        <SectionHeaderWithSlider
+          title={title}
+          onViewAll={onViewAll}
+          viewAllLabel={viewAllLabel}
+          viewAllAriaLabel={viewAllAriaLabel}
+          onPrev={scrollLeft}
+          onNext={scrollRight}
+          canScrollLeft={canScrollLeft}
+          canScrollRight={canScrollRight}
+        />
+        <div className="homepage__products-grid" ref={trackRef}>
+          {products.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onAddToCart={onAddToCart}
+              onWishlistToggle={onWishlistToggle}
+              isInWishlist={isInWishlist}
+              onQuickView={onQuickView}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const FeaturedProducts = ({
+  products,
+  onViewAll,
+  onAddToCart,
+  onWishlistToggle,
+  isInWishlist,
+}) => {
+  const hasProducts = products && products.length > 0;
+  const { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
+    useHorizontalSlider();
+
+  return (
+    <section className="homepage__products-section">
+      <div className="container">
+        <SectionHeaderWithSlider
+          title="Featured Products"
+          onViewAll={onViewAll}
+          viewAllLabel="View All Products"
+          viewAllAriaLabel="View all products"
+          onPrev={scrollLeft}
+          onNext={scrollRight}
+          canScrollLeft={canScrollLeft}
+          canScrollRight={canScrollRight}
+        />
+        {hasProducts ? (
+          <div className="homepage__products-grid" ref={trackRef}>
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                onAddToCart={onAddToCart}
+                onWishlistToggle={onWishlistToggle}
+                isInWishlist={isInWishlist}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="homepage__empty-state">
+            No featured products available at the moment.
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
+const BrandsSlider = () => {
+  const { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
+    useHorizontalSlider();
+
+  return (
+    <section className="homepage__brands-section">
+      <div className="container">
+        <SectionHeaderWithSlider
+          title="Top Brands"
+          onViewAll={null}
+          viewAllLabel=""
+          viewAllAriaLabel=""
+          onPrev={scrollLeft}
+          onNext={scrollRight}
+          canScrollLeft={canScrollLeft}
+          canScrollRight={canScrollRight}
+        />
+        <div className="homepage__brands-grid" ref={trackRef}>
+          {brandData.map((brand) => (
+            <div key={brand.id} className="homepage__brand-card">
+              <div className="homepage__brand-logo">
+                {brand.name.charAt(0)}
+              </div>
+              <h3 className="homepage__brand-name">{brand.name}</h3>
+              <p className="homepage__brand-products">
+                {brand.products} products
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const SuppliersSection = ({ suppliers, onViewAll }) => {
+  const { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
+    useHorizontalSlider();
+
+  return (
+    <section className="homepage__suppliers-section">
+      <div className="container">
+        <SectionHeaderWithSlider
+          title="Top Verified Suppliers"
+          onViewAll={onViewAll}
+          viewAllLabel="View All Suppliers"
+          viewAllAriaLabel="View all suppliers"
+          onPrev={scrollLeft}
+          onNext={scrollRight}
+          canScrollLeft={canScrollLeft}
+          canScrollRight={canScrollRight}
+        />
+        <div className="homepage__suppliers-grid" ref={trackRef}>
+          {suppliers.map((supplier) => (
+            <SupplierCard key={supplier.id} supplier={supplier} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const useCart = (initialCart = []) => {
   const [cartItems, setCartItems] = useState(initialCart);
@@ -248,10 +614,9 @@ const Home = ({ featuredProducts, categories = [] }) => {
     showToast('Suppliers page is coming soon.', 'info');
   }, [showToast]);
 
-  // Flash Sale Timer
   const [timeLeft, setTimeLeft] = useState({ hours: 2, minutes: 45, seconds: 18 });
 
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
@@ -264,6 +629,22 @@ const Home = ({ featuredProducts, categories = [] }) => {
   }, []);
 
   const formatTime = (num) => num.toString().padStart(2, '0');
+  
+  const handleAdsImageError = useCallback((e) => {
+    e.target.onerror = null;
+    const isLarge = !!e.target.closest('.homepage__ads-banner--large');
+    e.target.src = isLarge
+      ? 'https://picsum.photos/1200/700?random=1069'
+      : 'https://picsum.photos/300/200?random=1011';
+  }, []);
+  
+  const handleAdsSectionClick = useCallback((e) => {
+    const img = e.target.closest('.ads-image');
+    if (img) {
+      const alt = img.getAttribute('alt') || 'Ad';
+      showToast(`Ad clicked: ${alt}`, 'info');
+    }
+  }, [showToast]);
 
   return (
     <div className="app-layout homepage-layout">
@@ -283,76 +664,21 @@ const Home = ({ featuredProducts, categories = [] }) => {
         showAnnouncementBar={showAnnouncementBar}
       />
       <div className="homepage">
-        {/* Hero Banner - Moved to top for better hierarchy */}
-        <section className="homepage__hero">
-          <div className="container">
-            <div className="homepage__hero-content">
-              <h1 className="homepage__hero-title">
-                Discover Quality Products from Verified Global Suppliers
-              </h1>
-              <p className="homepage__hero-subtitle">
-                ZodiMarket connects businesses worldwide with trusted suppliers
-                for wholesale procurement and sustainable growth
-              </p>
-              <div className="homepage__hero-buttons">
-                <button
-                  type="button"
-                  className="homepage__btn homepage__btn--primary homepage__btn--large"
-                  onClick={() => showToast('Shopping flow is coming soon.', 'info')}
-                >
-                  <i className="fas fa-shopping-bag" aria-hidden="true"></i>
-                  Start Shopping
-                </button>
-                <button
-                  type="button"
-                  className="homepage__btn homepage__btn--secondary homepage__btn--large"
-                  onClick={() => showToast('Supplier onboarding is coming soon.', 'info')}
-                >
-                  <i className="fas fa-store" aria-hidden="true"></i>
-                  Become a Supplier
-                </button>
-              </div>
+        <HeroSection
+          onSectionClick={handleAdsSectionClick}
+          onImageError={handleAdsImageError}
+          onShopNow={() => showToast('Shop Now', 'info')}
+        />
 
-              <div className="homepage__hero-stats">
-                <div className="homepage__stat-item">
-                  <div className="homepage__stat-number">200M+</div>
-                  <div className="homepage__stat-label">Products</div>
-                </div>
-                <div className="homepage__stat-item">
-                  <div className="homepage__stat-number">150K+</div>
-                  <div className="homepage__stat-label">Suppliers</div>
-                </div>
-                <div className="homepage__stat-item">
-                  <div className="homepage__stat-number">190+</div>
-                  <div className="homepage__stat-label">Countries</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        
 
-        {/* Categories Section - Moved up for navigation */}
-        <section className="homepage__categories-section">
-          <div className="container">
-            <div className="homepage__section-header">
-              <h2 className="homepage__section-title">Top Categories</h2>
-              <button
-                type="button"
-                className="homepage__view-all"
-                onClick={handleViewAllCategories}
-              >
-                View All Categories
-                <i className="fas fa-arrow-right" aria-hidden="true"></i>
-              </button>
-            </div>
-            <CategoryRail
-              categories={categories}
-              onCategoryClick={(category) =>
-                showToast(`Category "${category.name}" is coming soon.`, 'info')
-              }
-            />
-          </div>
-        </section>
+        <CategorySlider
+          categories={categories}
+          onViewAll={handleViewAllCategories}
+          onCategoryClick={(category) =>
+            showToast(`Category "${category.name}" is coming soon.`, 'info')
+          }
+        />
 
         {/* Flash Sale Banner */}
         <section className="homepage__flash-sale">
@@ -374,6 +700,7 @@ const Home = ({ featuredProducts, categories = [] }) => {
                   type="button"
                   className="homepage__view-all"
                   onClick={() => showToast('Flash sale page is coming soon.', 'info')}
+                aria-label="View all flash sale items"
                 >
                   View All
                 </button>
@@ -399,218 +726,49 @@ const Home = ({ featuredProducts, categories = [] }) => {
           </div>
         </section>
 
-        {/* Ads Section */}
-        <section className="homepage__ads-section">
-          <div className="container">
-            <div className="homepage__ads-grid">
-              {/* Left Side: Large Banner */}
-              <div className="homepage__ads-main">
-                <div className="homepage__ads-banner homepage__ads-banner--large">
-                    <img 
-                        src="https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1000&q=80" 
-                        alt="Main Ad" 
-                        className="ads-image" 
-                    />
-                    <div className="ads-content-overlay">
-                        <span className="ads-subtitle">Trending Brands</span>
-                        <h3 className="ads-title">80% <small>OFF</small></h3>
-                        <p className="ads-description">EXCLUSIVE BRANDS FOR LESS</p>
-                    </div>
-                </div>
-              </div>
 
-              {/* Right Side: 3 Small Banners */}
-              <div className="homepage__ads-side">
-                <div className="homepage__ads-banner homepage__ads-banner--small">
-                    <img 
-                        src="https://images.unsplash.com/photo-1483985988355-763728e1935b?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80" 
-                        alt="Ad 1" 
-                        className="ads-image" 
-                    />
-                    <div className="ads-brand-overlay">ROMWE</div>
-                </div>
-                <div className="homepage__ads-banner homepage__ads-banner--small">
-                    <img 
-                        src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80" 
-                        alt="Ad 2" 
-                        className="ads-image" 
-                    />
-                    <div className="ads-brand-overlay">EMERY ROSE</div>
-                </div>
-                <div className="homepage__ads-banner homepage__ads-banner--small">
-                    <img 
-                        src="https://images.unsplash.com/photo-1529139574466-a302d2052574?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80" 
-                        alt="Ad 3" 
-                        className="ads-image" 
-                    />
-                    <div className="ads-brand-overlay">MOTF</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+        <ProductSlider
+          title="Trending Products"
+          products={productsData.slice(0, 6)}
+          onViewAll={() =>
+            showToast('Trending products page is coming soon.', 'info')
+          }
+          viewAllLabel="View All"
+          viewAllAriaLabel="View all trending products"
+          onAddToCart={handleAddToCart}
+          onWishlistToggle={handleWishlistToggle}
+          isInWishlist={isInWishlist}
+          onQuickView={handleQuickView}
+        />
 
-        {/* Trending Products */}
-        <section className="homepage__trending-section">
-          <div className="container">
-            <div className="homepage__section-header">
-              <h2 className="homepage__section-title">Trending Products</h2>
-              <button
-                type="button"
-                className="homepage__view-all"
-                onClick={() => showToast('Trending products page is coming soon.', 'info')}
-              >
-                View All
-              </button>
-            </div>
-            <div className="homepage__products-grid">
-              {productsData.slice(0, 6).map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={handleAddToCart}
-                  onWishlistToggle={handleWishlistToggle}
-                  isInWishlist={isInWishlist}
-                  onQuickView={handleQuickView}
-                />
-              ))}
-            </div>
-          </div>
-        </section>
+        <ProductSlider
+          title="Recommended For You"
+          products={productsData}
+          onViewAll={() =>
+            showToast('Recommendations page is coming soon.', 'info')
+          }
+          viewAllLabel="View All"
+          viewAllAriaLabel="View all recommendations"
+          onAddToCart={handleAddToCart}
+          onWishlistToggle={handleWishlistToggle}
+          isInWishlist={isInWishlist}
+          onQuickView={handleQuickView}
+        />
 
-        {/* Recommended For You - Moved down */}
-        <section className="homepage__products-section">
-          <div className="container">
-            <div className="homepage__section-header">
-              <h2 className="homepage__section-title">Recommended For You</h2>
-              <button
-                type="button"
-                className="homepage__view-all"
-                onClick={() => showToast('Recommendations page is coming soon.', 'info')}
-              >
-                View All
-              </button>
-            </div>
-            <div className="homepage__products-grid">
-              {productsData.map((product) => (
-                <ProductCard
-                  key={product.id}
-                  product={product}
-                  onAddToCart={handleAddToCart}
-                  onWishlistToggle={handleWishlistToggle}
-                  isInWishlist={isInWishlist}
-                  onQuickView={handleQuickView}
-                />
-              ))}
-            </div>
-          </div>
-        </section>
+        <FeaturedProducts
+          products={featuredProducts}
+          onViewAll={handleViewAllProducts}
+          onAddToCart={handleAddToCart}
+          onWishlistToggle={handleWishlistToggle}
+          isInWishlist={isInWishlist}
+        />
 
-        {/* Featured Products Section */}
-        <section className="homepage__products-section">
-          <div className="container">
-            <div className="homepage__section-header">
-              <h2 className="homepage__section-title">Featured Products</h2>
-              <button
-                type="button"
-                className="homepage__view-all"
-                onClick={handleViewAllProducts}
-              >
-                View All Products
-                <i className="fas fa-arrow-right" aria-hidden="true"></i>
-              </button>
-            </div>
-            <div className="homepage__products-grid">
-              {featuredProducts && featuredProducts.length > 0 ? (
-                featuredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onAddToCart={handleAddToCart}
-                    onWishlistToggle={handleWishlistToggle}
-                    isInWishlist={isInWishlist}
-                  />
-                ))
-              ) : (
-                <div className="homepage__empty-state">
-                  No featured products available at the moment.
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
+        <BrandsSlider />
 
-        {/* Top Brands Section */}
-        <section className="homepage__brands-section">
-          <div className="container">
-            <div className="homepage__section-header">
-              <h2 className="homepage__section-title">Top Brands</h2>
-              <button
-                type="button"
-                className="homepage__view-all"
-                onClick={() => showToast('Brands page is coming soon.', 'info')}
-              >
-                View All
-              </button>
-            </div>
-            <div className="homepage__brands-grid">
-              <div className="homepage__brand-card">
-                <div className="homepage__brand-logo">S</div>
-                <h3 className="homepage__brand-name">Samsung</h3>
-                <p className="homepage__brand-products">12,500+ products</p>
-              </div>
-              <div className="homepage__brand-card">
-                <div className="homepage__brand-logo">A</div>
-                <h3 className="homepage__brand-name">Apple</h3>
-                <p className="homepage__brand-products">8,200+ products</p>
-              </div>
-              <div className="homepage__brand-card">
-                <div className="homepage__brand-logo">X</div>
-                <h3 className="homepage__brand-name">Xiaomi</h3>
-                <p className="homepage__brand-products">15,800+ products</p>
-              </div>
-              <div className="homepage__brand-card">
-                <div className="homepage__brand-logo">L</div>
-                <h3 className="homepage__brand-name">LG</h3>
-                <p className="homepage__brand-products">9,600+ products</p>
-              </div>
-              <div className="homepage__brand-card">
-                <div className="homepage__brand-logo">T</div>
-                <h3 className="homepage__brand-name">TCL</h3>
-                <p className="homepage__brand-products">7,300+ products</p>
-              </div>
-              <div className="homepage__brand-card">
-                <div className="homepage__brand-logo">H</div>
-                <h3 className="homepage__brand-name">HP</h3>
-                <p className="homepage__brand-products">11,400+ products</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Top Suppliers Section */}
-        <section className="homepage__suppliers-section">
-          <div className="container">
-            <div className="homepage__section-header">
-              <h2 className="homepage__section-title">
-                Top Verified Suppliers
-              </h2>
-              <button
-                type="button"
-                className="homepage__view-all"
-                onClick={handleViewAllSuppliers}
-              >
-                View All Suppliers
-                <i className="fas fa-arrow-right" aria-hidden="true"></i>
-              </button>
-            </div>
-            <div className="homepage__suppliers-grid">
-              {suppliersData.map((supplier) => (
-                <SupplierCard key={supplier.id} supplier={supplier} />
-              ))}
-            </div>
-          </div>
-        </section>
+        <SuppliersSection
+          suppliers={suppliersData}
+          onViewAll={handleViewAllSuppliers}
+        />
       </div>
       <Footer />
     </div>
