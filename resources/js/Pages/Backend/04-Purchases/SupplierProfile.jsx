@@ -5,13 +5,12 @@ import { apiService } from '../../../services/api';
 import '../../../../css/backend/Suppliers.css';
 
 const SupplierProfile = ({ supplier, products }) => {
-  const [activeTab, setActiveTab] = useState('overview');
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [toast, setToast] = useState(null);
 
   // Initialize selected products with currently assigned ones
-  const [assignedProducts, setAssignedProducts] = useState(supplier.products || []);
+  const assignedProducts = supplier.products || [];
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });

@@ -12,14 +12,13 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
     const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
     const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [itemAction, setItemAction] = useState(null); // { type: 'folder'|'file', id: 1, name: '' }
     const [selectedFile, setSelectedFile] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(null);
     const [selectedItems, setSelectedItems] = useState([]); // Array of {type: 'folder'|'file', id: number}
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [viewMode, setViewMode] = useState('grid');
-    const [activeFilter, setActiveFilter] = useState(filters.type || 'all');
+    const activeFilter = filters.type || 'all';
     
     const fileInputRef = useRef(null);
     const { flash } = usePage().props;
@@ -118,7 +117,6 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
     };
 
     const handleRenameClick = (item, type) => {
-        setItemAction({ type, id: item.id, name: item.name });
         setRenameData({
             type: type,
             id: item.id,
@@ -133,13 +131,11 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
             onSuccess: () => {
                 setIsRenameModalOpen(false);
                 resetRename();
-                setItemAction(null);
             }
         });
     };
 
     const handleDeleteClick = (item, type) => {
-        setItemAction({ type, id: item.id, name: item.name });
         setDeleteData({
             items: [{ type, id: item.id }]
         });
@@ -152,7 +148,6 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
             onSuccess: () => {
                 setIsDeleteModalOpen(false);
                 resetDelete();
-                setItemAction(null);
                 setSelectedItems([]); // Clear selection after delete
             }
         });

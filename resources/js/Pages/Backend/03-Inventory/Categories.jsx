@@ -119,7 +119,7 @@ const Categories = ({ categories = [], parents = [] }) => {
     const [duplicateOrderError, setDuplicateOrderError] = useState(null);
 
     // Form handling using Inertia's useForm
-    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
+    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         name: '',
         slug: '',
         parent_id: '',
@@ -286,8 +286,8 @@ const Categories = ({ categories = [], parents = [] }) => {
             .toLowerCase()
             .trim()
             .replace(/\s+/g, '-')        // Replace spaces with -
-            .replace(/[^\w\-]+/g, '')    // Remove all non-word chars
-            .replace(/\-\-+/g, '-')      // Replace multiple - with single -
+            .replace(/[^\w-]+/g, '')     // Remove all non-word chars
+            .replace(/--+/g, '-')        // Replace multiple - with single -
             .replace(/^-+/, '')          // Trim - from start of text
             .replace(/-+$/, '');         // Trim - from end of text
     };

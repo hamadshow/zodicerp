@@ -25,7 +25,7 @@ const SuppliersManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage] = useState(10);
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
@@ -192,6 +192,7 @@ const SuppliersManagement = () => {
           fetchSuppliers(currentPage, searchTerm);
         }
       } catch (error) {
+        console.error('Error deleting suppliers:', error);
         showToast('Error deleting suppliers', 'error');
       }
     }
@@ -507,10 +508,10 @@ const SuppliersManagement = () => {
             </select>
              <div className="search-bar light">
                  <input
-                     type="text"
-                     placeholder="Search suppliers..."
-                     value={searchTerm}
-                     onChange={(e) => setSearchTerm(e.target.value)}
+                    type="text"
+                    placeholder="Search suppliers..."
+                    value={searchTerm}
+                    onChange={handleSearch}
                  />
                  <button>
                      <span className="material-icons-outlined">search</span>

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { router, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import Header from '@/Components/Supplier/frontend/Header';
 import Footer from '@/Components/Supplier/frontend/Footer';
 import '../../../css/suppliers/suppliers.css';

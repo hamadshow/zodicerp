@@ -71,7 +71,6 @@ export default function JournalEntity() {
 
   useEffect(() => {
     loadJournals();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDelete = async (qaidCode) => {

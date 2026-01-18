@@ -79,7 +79,7 @@ export default function COAReport() {
 
   // Mock balance calculation (since API doesn't provide it yet)
   // In a real scenario, we would map these from the API response
-  const calculateBalance = (account) => {
+  const calculateBalance = () => {
     // Placeholder: Return 0.00 as requested if data is missing
     // Ideally this comes from account.Balance or similar
     return { debit: 0.00, credit: 0.00 };

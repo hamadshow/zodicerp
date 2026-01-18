@@ -1,5 +1,5 @@
 import React from 'react';
-import { router, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 
 export default function Header() {
   return (

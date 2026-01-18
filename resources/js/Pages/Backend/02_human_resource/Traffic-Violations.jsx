@@ -412,7 +412,7 @@ const TrafficViolations = () => {
         `Description: ${violation.description || 'No description'}\n\n` +
         `Evidence/Notes: ${violation.evidenceNotes || 'No additional notes'}`;
 
-      // Show details in a toast
+      console.log(details);
       showToast('Violation details logged to console', 'info');
     }
   };

@@ -1,12 +1,12 @@
 import React from 'react';
 
 const Table = ({ tableData, handleRowSelect, selectAll, handleSelectAll }) => {
-  const handleEdit = (id) => {
+  const handleEdit = () => {
     // Navigate to edit page
     // In a real app, you would use navigate() from react-router-dom
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = () => {
     // Handle delete action
     // In a real app, you would implement delete logic here
   };
@@ -95,13 +95,13 @@ const Table = ({ tableData, handleRowSelect, selectAll, handleSelectAll }) => {
               <td>
                 <button
                   className="icon-btn edit"
-                  onClick={() => handleEdit(row.id)}
+                  onClick={handleEdit}
                 >
                   <span className="material-icons-outlined">edit</span>
                 </button>
                 <button
                   className="icon-btn delete"
-                  onClick={() => handleDelete(row.id)}
+                  onClick={handleDelete}
                 >
                   <span className="material-icons-outlined">delete</span>
                 </button>

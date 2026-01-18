@@ -135,7 +135,6 @@ export default function JournalEntityCE() {
       loadAccounts();
       loadNextCode();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleHeaderChange = (field, value) => {
@@ -481,4 +480,3 @@ export default function JournalEntityCE() {
     </AdminLayout>
   );
 }
-
