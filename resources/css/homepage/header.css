@@ -885,13 +885,9 @@
     border: none;
   }
 
-  .homepage-layout .mobile-dropdown-header {
-    display: flex;
-  }
-
   .homepage-layout .category-columns {
     flex-direction: column;
-    height: calc(100% - 53px); /* Subtract header height */
+    height: 100%;
   }
 
   .homepage-layout .main-categories {

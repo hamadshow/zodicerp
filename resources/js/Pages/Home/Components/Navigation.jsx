@@ -57,12 +57,6 @@ export default function Navigation({
                 </button>
                 {showCategoryDropdown && (
                     <div className="category-dropdown-nav active">
-                        <div className="mobile-dropdown-header">
-                            <span className="mobile-dropdown-title">All Categories</span>
-                            <button className="mobile-dropdown-close" onClick={() => setShowCategoryDropdown(false)}>
-                                <i className="fas fa-times"></i>
-                            </button>
-                        </div>
                         <div className="category-columns">
                             <div className="main-categories">
                                 {categoriesData.map((category) => (

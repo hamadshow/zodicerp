@@ -12,7 +12,6 @@ const CategoryCard = ({ category, onClick }) => {
         <i className={`fas ${category.icon || 'fa-folder'}`} aria-hidden="true"></i>
       </div>
       <h3 className="category-name">{category.name}</h3>
-      <p className="category-count">{category.count || 0} Products</p>
     </button>
   );
 };

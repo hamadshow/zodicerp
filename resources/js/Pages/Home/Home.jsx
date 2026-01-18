@@ -165,6 +165,28 @@ const useHorizontalSlider = () => {
     };
   }, [update]);
 
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    const onWheel = (event) => {
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+        return;
+      }
+      if (el.scrollWidth <= el.clientWidth) {
+        return;
+      }
+      event.preventDefault();
+      el.scrollBy({
+        left: event.deltaY,
+        behavior: 'smooth',
+      });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+    };
+  }, []);
+
   return { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight };
 };
 

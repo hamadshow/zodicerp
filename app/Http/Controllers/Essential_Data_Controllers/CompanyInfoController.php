@@ -37,6 +37,7 @@ class CompanyInfoController extends Controller
             'area' => 'nullable|string',
             'address' => 'nullable|string',
             'logo' => 'nullable|image|max:1024',
+            'logo_path' => 'nullable|string|max:255',
             
             'accountant_name' => 'nullable|string',
             'commercial_registration' => 'nullable|string',
@@ -67,7 +68,11 @@ class CompanyInfoController extends Controller
         if ($request->hasFile('logo')) {
             $path = $request->file('logo')->store('company_logos', 'public');
             $validated['logo'] = $path;
+        } elseif (!empty($validated['logo_path'] ?? null)) {
+            $validated['logo'] = $validated['logo_path'];
         }
+
+        unset($validated['logo_path']);
 
         DB::transaction(function () use ($validated) {
             // Atomic company code generation
@@ -142,7 +147,11 @@ class CompanyInfoController extends Controller
             }
             $path = $request->file('logo')->store('company_logos', 'public');
             $validated['logo'] = $path;
+        } elseif (!empty($validated['logo_path'] ?? null)) {
+            $validated['logo'] = $validated['logo_path'];
         }
+
+        unset($validated['logo_path']);
 
         $companyInfo->update($validated);
 

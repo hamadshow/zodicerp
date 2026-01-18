@@ -1,79 +1,223 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/CompanyInfo.css';
 
 const CompanyInfo = ({ companies }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this company info?')) {
             router.delete(route('admin.company_info.destroy', id));
         }
     };
 
+    const stats = useMemo(() => {
+        const totalCompanies = companies.length;
+        const countriesSet = new Set();
+        let withLogo = 0;
+        let withContact = 0;
+
+        companies.forEach((company) => {
+            const countryName = company.country_data?.name || company.country;
+            if (countryName) {
+                countriesSet.add(countryName);
+            }
+            if (company.logo) {
+                withLogo += 1;
+            }
+            if (company.email_address || company.official_email) {
+                withContact += 1;
+            }
+        });
+
+        return {
+            totalCompanies,
+            totalCountries: countriesSet.size,
+            withLogo,
+            withContact,
+        };
+    }, [companies]);
+
+    const filteredCompanies = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return companies;
+        }
+
+        const term = searchTerm.toLowerCase();
+
+        return companies.filter((company) => {
+            const name = company.company_name || '';
+            const code = company.company_code || '';
+            const type = company.company_type || '';
+            const countryName = company.country_data?.name || company.country || '';
+
+            return (
+                name.toLowerCase().includes(term) ||
+                String(code).toLowerCase().includes(term) ||
+                type.toLowerCase().includes(term) ||
+                String(countryName).toLowerCase().includes(term)
+            );
+        });
+    }, [companies, searchTerm]);
+
     return (
         <AdminLayout activeMenu="Company Info">
             <Head title="Company Information" />
             <div className="Essential-Data-Container">
-                <div className="flex justify-between items-center mb-6">
+                <div className="page-header">
                     <h1 className="text-2xl font-bold text-gray-800">Company Information</h1>
-                    <Link
-                        href={route('admin.company_info.create')}
-                        className="btn btn-primary no-underline"
-                    >
-                        Add Company Info
-                    </Link>
                 </div>
 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="bg-gray-100 border-b border-gray-200">
-                                <th className="p-4 font-semibold text-gray-600">ID</th>
-                                <th className="p-4 font-semibold text-gray-600">Company Name</th>
-                                <th className="p-4 font-semibold text-gray-600">Company Code</th>
-                                <th className="p-4 font-semibold text-gray-600">Type</th>
-                                <th className="p-4 font-semibold text-gray-600">Country</th>
-                                <th className="p-4 font-semibold text-gray-600">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {companies.length > 0 ? (
-                                companies.map((company) => (
-                                    <tr key={company.id} className="border-b border-gray-100 hover:bg-gray-50">
-                                        <td className="p-4 text-gray-700">#{company.id}</td>
-                                        <td className="p-4 font-medium text-gray-800">{company.company_name}</td>
-                                        <td className="p-4 text-gray-600">{company.company_code || '-'}</td>
-                                        <td className="p-4 text-gray-600 capitalize">{company.company_type || '-'}</td>
-                                        <td className="p-4 text-gray-600 uppercase">{company.country_data?.name || company.country || '-'}</td>
-                                        <td className="p-4">
-                                            <div className="flex gap-2">
-                                                <Link
-                                                    href={route('admin.company_info.edit', company.id)}
-                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                <div className="stats-cards">
+                    <div className="stat-card">
+                        <div
+                            className="stat-icon"
+                            style={{ backgroundColor: 'var(--primary-color)' }}
+                        >
+                            <span className="material-icons-outlined">apartment</span>
+                        </div>
+                        <div className="stat-content">
+                            <div className="stat-value">{stats.totalCompanies}</div>
+                            <div className="stat-label">Total Companies</div>
+                        </div>
+                    </div>
+                    <div className="stat-card">
+                        <div
+                            className="stat-icon"
+                            style={{ backgroundColor: 'var(--success-color)' }}
+                        >
+                            <span className="material-icons-outlined">public</span>
+                        </div>
+                        <div className="stat-content">
+                            <div className="stat-value">{stats.totalCountries}</div>
+                            <div className="stat-label">Countries</div>
+                        </div>
+                    </div>
+                    <div className="stat-card">
+                        <div
+                            className="stat-icon"
+                            style={{ backgroundColor: 'var(--info-color)' }}
+                        >
+                            <span className="material-icons-outlined">image</span>
+                        </div>
+                        <div className="stat-content">
+                            <div className="stat-value">{stats.withLogo}</div>
+                            <div className="stat-label">With Logo</div>
+                        </div>
+                    </div>
+                    <div className="stat-card">
+                        <div
+                            className="stat-icon"
+                            style={{ backgroundColor: 'var(--warning-color)' }}
+                        >
+                            <span className="material-icons-outlined">mark_email_read</span>
+                        </div>
+                        <div className="stat-content">
+                            <div className="stat-value">{stats.withContact}</div>
+                            <div className="stat-label">With Contact Email</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="tasks-card">
+                    <div className="card-header">
+                        <div className="tasks-actions">
+                            <div className="search-bar light">
+                                <input
+                                    type="text"
+                                    placeholder="Search companies..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                                <button type="button">
+                                    <span className="material-icons-outlined">search</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div className="tasks-actions">
+                            <Link
+                                href={route('admin.company_info.create')}
+                                className="btn btn-primary no-underline"
+                            >
+                                <span className="material-icons-outlined">add_business</span>
+                                <span>Add Company</span>
+                            </Link>
+                        </div>
+                    </div>
+
+                    <div className="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>COMPANY NAME</th>
+                                    <th>CODE</th>
+                                    <th>TYPE</th>
+                                    <th>COUNTRY</th>
+                                    <th>ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredCompanies.length > 0 ? (
+                                    filteredCompanies.map((company) => (
+                                        <tr key={company.id}>
+                                            <td>#{company.id}</td>
+                                            <td>{company.company_name}</td>
+                                            <td>{company.company_code || '-'}</td>
+                                            <td className="capitalize">{company.company_type || '-'}</td>
+                                            <td className="uppercase">
+                                                {company.country_data?.name || company.country || '-'}
+                                            </td>
+                                            <td>
+                                                <button
+                                                    type="button"
+                                                    className="icon-btn edit"
                                                     title="Edit"
+                                                    onClick={() =>
+                                                        router.get(
+                                                            route('admin.company_info.edit', company.id)
+                                                        )
+                                                    }
                                                 >
                                                     <span className="material-icons-outlined">edit</span>
-                                                </Link>
+                                                </button>
                                                 <button
-                                                    onClick={() => handleDelete(company.id)}
-                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                                                    type="button"
+                                                    className="icon-btn delete"
                                                     title="Delete"
+                                                    onClick={() => handleDelete(company.id)}
                                                 >
                                                     <span className="material-icons-outlined">delete</span>
                                                 </button>
-                                            </div>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={6} className="text-center text-gray-500 py-6">
+                                            No company information found.
                                         </td>
                                     </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="6" className="p-8 text-center text-gray-500">
-                                        No company information found.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div className="pagination">
+                        <div className="pagination-info">
+                            <span>
+                                Showing{' '}
+                                <strong>{filteredCompanies.length}</strong> of{' '}
+                                <strong>{companies.length}</strong> companies
+                            </span>
+                        </div>
+                        <div className="pagination-controls">
+                            <button className="page-btn active" disabled>
+                                1
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </AdminLayout>
