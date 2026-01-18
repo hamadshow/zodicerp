@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Ad;
 use App\Models\Products;
 use App\Models\Categories;
 use Illuminate\Http\Request;
@@ -31,7 +32,7 @@ class HomeController extends Controller
                     'id' => $product->id,
                     'name' => $product->name,
                     'price' => $product->price,
-                    'originalPrice' => null, // Can add logic for sale price if needed
+                    'originalPrice' => null,
                     'moq' => $product->minimum_order_quantity ? $product->minimum_order_quantity . ' pcs' : '1 pc',
                     'orders' => ($product->views ?? 0) . ' Views',
                     'image' => $product->image ? (str_starts_with($product->image, 'http') ? $product->image : asset('storage/' . $product->image)) : 'https://via.placeholder.com/300x200',
@@ -41,9 +42,64 @@ class HomeController extends Controller
                 ];
             });
 
+        $now = now();
+
+        $heroAds = Ad::query()
+            ->where('status', 'published')
+            ->where(function ($query) use ($now) {
+                $query->whereNull('expired_at')->orWhere('expired_at', '>', $now);
+            })
+            ->where(function ($query) {
+                $query->whereNull('ads_type')->orWhere('ads_type', 'image');
+            })
+            ->where('location', 'homepage_slider')
+            ->orderBy('order')
+            ->orderBy('id')
+            ->get()
+            ->map(function (Ad $ad) {
+                return [
+                    'id' => $ad->id,
+                    'name' => $ad->name,
+                    'image' => $ad->image ? (str_starts_with($ad->image, 'http') ? $ad->image : asset('storage/' . $ad->image)) : null,
+                    'tablet_image' => $ad->tablet_image ? (str_starts_with($ad->tablet_image, 'http') ? $ad->tablet_image : asset('storage/' . $ad->tablet_image)) : null,
+                    'mobile_image' => $ad->mobile_image ? (str_starts_with($ad->mobile_image, 'http') ? $ad->mobile_image : asset('storage/' . $ad->mobile_image)) : null,
+                    'url' => $ad->url,
+                    'open_in_new_tab' => $ad->open_in_new_tab,
+                ];
+            })
+            ->values()
+            ->all();
+
+        $sideAds = Ad::query()
+            ->where('status', 'published')
+            ->where(function ($query) use ($now) {
+                $query->whereNull('expired_at')->orWhere('expired_at', '>', $now);
+            })
+            ->where(function ($query) {
+                $query->whereNull('ads_type')->orWhere('ads_type', 'image');
+            })
+            ->where('location', 'homepage_side')
+            ->orderBy('order')
+            ->orderBy('id')
+            ->take(3)
+            ->get()
+            ->map(function (Ad $ad) {
+                return [
+                    'id' => $ad->id,
+                    'name' => $ad->name,
+                    'image' => $ad->image ? (str_starts_with($ad->image, 'http') ? $ad->image : asset('storage/' . $ad->image)) : null,
+                    'url' => $ad->url,
+                    'open_in_new_tab' => $ad->open_in_new_tab,
+                ];
+            })
+            ->values()
+            ->all();
+
         return Inertia::render('Home/Home', [
             'featuredProducts' => $featuredProducts,
-            'categories' => $categories
+            'categories' => $categories,
+            'heroAds' => $heroAds,
+            'sideAds' => $sideAds,
         ]);
     }
 

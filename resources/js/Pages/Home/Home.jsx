@@ -218,7 +218,88 @@ const SectionHeaderWithSlider = ({
   );
 };
 
-const HeroSection = ({ onSectionClick, onImageError, onShopNow }) => {
+const HeroSection = ({ heroAds = [], sideAds = [], onSectionClick, onImageError, onShopNow }) => {
+  const hasHeroAds = heroAds && heroAds.length > 0;
+  const hasSideAds = sideAds && sideAds.length > 0;
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    if (!hasHeroAds) {
+      return;
+    }
+    setCurrentIndex(0);
+  }, [hasHeroAds, heroAds]);
+
+  useEffect(() => {
+    if (!hasHeroAds) {
+      return;
+    }
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => {
+        if (!heroAds || heroAds.length === 0) {
+          return 0;
+        }
+        return (prev + 1) % heroAds.length;
+      });
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [hasHeroAds, heroAds]);
+
+  const currentHero = hasHeroAds ? heroAds[currentIndex] : null;
+
+  const defaultHeroImage =
+    'https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&h=700&q=80';
+
+  const heroImageSrc = currentHero && currentHero.image ? currentHero.image : defaultHeroImage;
+  const heroAlt = currentHero && currentHero.name ? currentHero.name : 'Main Ad';
+
+  const fallbackSideAds = [
+    {
+      image:
+        'https://images.unsplash.com/photo-1483985988355-763728e1935b?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200&q=80',
+      name: 'ROMWE',
+    },
+    {
+      image:
+        'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200&q=80',
+      name: 'EMERY ROSE',
+    },
+    {
+      image:
+        'https://images.unsplash.com/photo-1529139574466-a302d2052574?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200&q=80',
+      name: 'MOTF',
+    },
+  ];
+
+  const sideItems = hasSideAds ? sideAds.slice(0, 3) : fallbackSideAds;
+
+  const handleHeroClick = (event) => {
+    if (currentHero && currentHero.url) {
+      event.preventDefault();
+      if (currentHero.open_in_new_tab) {
+        window.open(currentHero.url, '_blank');
+      } else {
+        window.location.href = currentHero.url;
+      }
+      return;
+    }
+    if (onSectionClick) {
+      onSectionClick(event);
+    }
+  };
+
+  const handleSideAdClick = (ad, event) => {
+    if (ad && ad.url) {
+      event.preventDefault();
+      if (ad.open_in_new_tab) {
+        window.open(ad.url, '_blank');
+      } else {
+        window.location.href = ad.url;
+      }
+    }
+  };
+
   return (
     <section className="homepage__ads-section" onClick={onSectionClick}>
       <div className="container">
@@ -228,10 +309,11 @@ const HeroSection = ({ onSectionClick, onImageError, onShopNow }) => {
               className="homepage__ads-banner homepage__ads-banner--large"
               tabIndex={0}
               aria-label="Main promotional banner"
+              onClick={handleHeroClick}
             >
               <img
-                src="https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&h=700&q=80"
-                alt="Main Ad"
+                src={heroImageSrc}
+                alt={heroAlt}
                 className="ads-image"
                 loading="lazy"
                 onError={onImageError}
@@ -245,7 +327,12 @@ const HeroSection = ({ onSectionClick, onImageError, onShopNow }) => {
                 <button
                   type="button"
                   className="ads-cta"
-                  onClick={onShopNow}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (onShopNow) {
+                      onShopNow(currentHero);
+                    }
+                  }}
                   aria-label="Shop Now"
                 >
                   Shop Now
@@ -254,48 +341,33 @@ const HeroSection = ({ onSectionClick, onImageError, onShopNow }) => {
             </div>
           </div>
           <div className="homepage__ads-side">
-            <div
-              className="homepage__ads-banner homepage__ads-banner--small"
-              tabIndex={0}
-              aria-label="ROMWE ad banner"
-            >
-              <img
-                src="https://images.unsplash.com/photo-1483985988355-763728e1935b?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200&q=80"
-                alt="Ad 1"
-                className="ads-image"
-                loading="lazy"
-                onError={onImageError}
-              />
-              <div className="ads-brand-overlay">ROMWE</div>
-            </div>
-            <div
-              className="homepage__ads-banner homepage__ads-banner--small"
-              tabIndex={0}
-              aria-label="EMERY ROSE ad banner"
-            >
-              <img
-                src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200&q=80"
-                alt="Ad 2"
-                className="ads-image"
-                loading="lazy"
-                onError={onImageError}
-              />
-              <div className="ads-brand-overlay">EMERY ROSE</div>
-            </div>
-            <div
-              className="homepage__ads-banner homepage__ads-banner--small"
-              tabIndex={0}
-              aria-label="MOTF ad banner"
-            >
-              <img
-                src="https://images.unsplash.com/photo-1529139574466-a302d2052574?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&h=200&q=80"
-                alt="Ad 3"
-                className="ads-image"
-                loading="lazy"
-                onError={onImageError}
-              />
-              <div className="ads-brand-overlay">MOTF</div>
-            </div>
+            {sideItems.map((ad, index) => {
+              const imageSrc =
+                ad && ad.image
+                  ? ad.image
+                  : fallbackSideAds[index] && fallbackSideAds[index].image;
+              const name =
+                ad && ad.name ? ad.name : fallbackSideAds[index] && fallbackSideAds[index].name;
+
+              return (
+                <div
+                  key={ad && ad.id ? ad.id : index}
+                  className="homepage__ads-banner homepage__ads-banner--small"
+                  tabIndex={0}
+                  aria-label={name ? name + ' ad banner' : 'Ad banner'}
+                  onClick={(event) => handleSideAdClick(ad, event)}
+                >
+                  <img
+                    src={imageSrc}
+                    alt={name || 'Ad'}
+                    className="ads-image"
+                    loading="lazy"
+                    onError={onImageError}
+                  />
+                  <div className="ads-brand-overlay">{name}</div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -545,7 +617,7 @@ const useWishlist = (initialWishlist = []) => {
 
 
 
-const Home = ({ featuredProducts, categories = [] }) => {
+const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] }) => {
   const [showAnnouncementBar] = useState(true);
   const { addToCart } = useCart();
 
@@ -665,9 +737,21 @@ const Home = ({ featuredProducts, categories = [] }) => {
       />
       <div className="homepage">
         <HeroSection
+          heroAds={heroAds}
+          sideAds={sideAds}
           onSectionClick={handleAdsSectionClick}
           onImageError={handleAdsImageError}
-          onShopNow={() => showToast('Shop Now', 'info')}
+          onShopNow={(ad) => {
+            if (ad && ad.url) {
+              if (ad.open_in_new_tab) {
+                window.open(ad.url, '_blank');
+              } else {
+                window.location.href = ad.url;
+              }
+              return;
+            }
+            showToast('Shop Now', 'info');
+          }}
         />
 
         

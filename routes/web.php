@@ -4,10 +4,12 @@ use App\Http\Controllers\Accounting\AccountsController;
 use App\Http\Controllers\Accounting\JournalController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\Accounting\FinancialReportController;
 use App\Http\Controllers\HumanResource\EmployeeController;
 use App\Http\Controllers\HumanResource\NationalityController;
 use App\Http\Controllers\Location\LocationController;
 use App\Http\Controllers\Media\MediaController;
+use App\Http\Controllers\ECommerce\AdsController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\Purchases\SupplierController;
@@ -275,6 +277,20 @@ Route::middleware('auth')->group(function () {
         Route::delete('/journals/{qaidCode}', [JournalController::class, 'destroy']);
 
         Route::get('/reports/general-ledger', [JournalController::class, 'generalLedger']);
+
+        Route::get('/financial-reports', [FinancialReportController::class, 'index']);
+        Route::get('/user/favorite-reports', [FinancialReportController::class, 'favorites']);
+        Route::post('/reports/favorite', [FinancialReportController::class, 'toggleFavorite']);
+
+        Route::get('/ads', [AdsController::class, 'index']);
+        Route::get('/ads/{ad}', [AdsController::class, 'show']);
+        Route::post('/ads', [AdsController::class, 'store']);
+        Route::post('/ads/{ad}', [AdsController::class, 'update']);
+        Route::put('/ads/{ad}', [AdsController::class, 'update']);
+        Route::delete('/ads/{ad}', [AdsController::class, 'destroy']);
+        Route::post('/ads/bulk-delete', [AdsController::class, 'bulkDelete']);
+        Route::post('/ads/bulk-status', [AdsController::class, 'bulkStatus']);
+        Route::post('/ads/{ad}/click', [AdsController::class, 'click']);
     });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -359,6 +375,23 @@ Route::middleware('auth')->group(function () {
             'activeReport' => 'ap-aging',
         ]);
     })->name('admin.reports.ap-aging');
+
+    Route::get('/admin/ecommerce/ads', function () {
+        return Inertia::render('Backend/E-Commerce/Ads/Ads');
+    })->name('admin.ecommerce.ads');
+
+    Route::get('/admin/ecommerce/ads/create', function () {
+        return Inertia::render('Backend/E-Commerce/Ads/AdsCE', [
+            'mode' => 'create',
+        ]);
+    })->name('admin.ecommerce.ads.create');
+
+    Route::get('/admin/ecommerce/ads/{adId}/edit', function (int $adId) {
+        return Inertia::render('Backend/E-Commerce/Ads/AdsCE', [
+            'mode' => 'edit',
+            'adId' => $adId,
+        ]);
+    })->name('admin.ecommerce.ads.edit');
 
 
 });

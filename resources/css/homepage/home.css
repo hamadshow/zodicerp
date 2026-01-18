@@ -455,7 +455,7 @@
 .homepage-layout .homepage__categories-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 24px;
+  gap: 10px;
 }
 
 .homepage-layout .homepage__categories-rail {
@@ -1195,15 +1195,15 @@
 
 /* Ads Section CSS */
 .homepage-layout .homepage__ads-section {
-  padding: 40px 0;
+  padding: 10px 0;
   background: var(--bg-white);
-  margin-bottom: 200px;
+  margin-bottom: 24px;
 }
 .homepage-layout .homepage__ads-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
-  gap: 20px;
-  height: 400px;
+  gap: 10px;
+  min-height: 260px;
 }
 .homepage-layout .homepage__ads-main {
   height: 100%;
@@ -1211,7 +1211,7 @@
 .homepage-layout .homepage__ads-side {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
   height: 100%;
 }
 .homepage-layout .homepage__ads-banner {
@@ -1247,6 +1247,25 @@
 }
 .homepage-layout .homepage__ads-banner:hover .ads-image {
   transform: scale(1.05);
+}
+@media (min-width: 1200px) {
+  .homepage-layout .homepage__ads-grid {
+    grid-template-columns: 800px 400px;
+    min-height: 270px;
+  }
+
+  .homepage-layout .homepage__ads-side {
+    height: auto;
+  }
+
+  .homepage-layout .homepage__ads-banner--large {
+    height: 270px;
+  }
+
+  .homepage-layout .homepage__ads-banner--small {
+    height: 80px;
+    flex: 0 0 80px;
+  }
 }
 .homepage-layout .ads-content-overlay {
   position: absolute;

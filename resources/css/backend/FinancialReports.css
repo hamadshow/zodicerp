@@ -123,16 +123,6 @@
   color: var(--dark-color);
 }
 
-.FinancialReports-page .report-badge {
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  font-weight: 500;
-  background-color: #dbeafe;
-  color: #1d4ed8;
-  white-space: nowrap;
-}
-
 .FinancialReports-page .report-description {
   font-size: 0.82rem;
   color: var(--gray-color);
@@ -154,11 +144,93 @@
   font-weight: 500;
 }
 
+.FinancialReports-page .report-favorite-toggle {
+  margin-left: 8px;
+  border: none;
+  background: transparent;
+  color: #cbd5f5;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 999px;
+  transition: color 0.15s ease, transform 0.15s ease, background-color 0.15s ease;
+}
+
+.FinancialReports-page .report-favorite-toggle .material-icons-outlined {
+  font-size: 20px;
+}
+
+.FinancialReports-page .report-favorite-active {
+  color: #facc15;
+}
+
+.FinancialReports-page .report-favorite-toggle:hover {
+  background-color: rgba(250, 204, 21, 0.08);
+  transform: scale(1.05);
+}
+
+.FinancialReports-page .report-favorite-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.FinancialReports-page .favorites-category .report-category-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.FinancialReports-page .reports-status {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+}
+
+.FinancialReports-page .reports-status-loading {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+.FinancialReports-page .reports-status-error {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.FinancialReports-page .reports-status-empty {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+.FinancialReports-page .report-category-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.FinancialReports-page .report-category-toggle-icon {
+  color: var(--gray-color);
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.FinancialReports-page .report-category-toggle-icon-collapsed {
+  transform: rotate(180deg);
+}
+
+.FinancialReports-page .report-category-toggle:hover .report-category-toggle-icon {
+  color: var(--primary-color);
+}
+
 
 
 @media (max-width: 640px) {
   .FinancialReports-page .report-cards {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .FinancialReports-page .report-heading {

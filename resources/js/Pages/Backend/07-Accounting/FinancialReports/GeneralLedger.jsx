@@ -247,13 +247,13 @@ export default function GeneralLedger() {
             <div className="gl-summary-item">
               <span className="gl-summary-label">Opening balance</span>
               <span className="gl-summary-value">
-                {ledger.opening_balance.toFixed(2)}
+                {Math.abs(ledger.opening_balance).toFixed(2)}
               </span>
             </div>
             <div className="gl-summary-item">
               <span className="gl-summary-label">Closing balance</span>
               <span className="gl-summary-value">
-                {ledger.closing_balance.toFixed(2)}
+                {Math.abs(ledger.closing_balance).toFixed(2)}
               </span>
             </div>
           </div>
@@ -318,7 +318,7 @@ export default function GeneralLedger() {
                       {row.credit ? row.credit.toFixed(2) : ''}
                     </td>
                     <td className="gl-amount">
-                      {row.running_balance.toFixed(2)}
+                      {Math.abs(row.running_balance).toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -336,7 +336,7 @@ export default function GeneralLedger() {
                     {ledger.total_credit.toFixed(2)}
                   </td>
                   <td className="gl-amount">
-                    {ledger.closing_balance.toFixed(2)}
+                    {Math.abs(ledger.closing_balance).toFixed(2)}
                   </td>
                 </tr>
               </tfoot>

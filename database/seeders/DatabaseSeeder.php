@@ -38,6 +38,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             LocationSeeder::class,
             TaskSeeder::class,
+            FinancialReportsSeeder::class,
         ]);
 
         // Create sample employees

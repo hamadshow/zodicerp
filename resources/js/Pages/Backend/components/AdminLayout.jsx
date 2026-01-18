@@ -165,7 +165,7 @@ const AdminLayout = ({
       label: 'E-Commerce',
       hasSubmenu: true,
       submenuItems: [
-        { icon: 'campaign', label: 'Ads', href: '#' },
+        { icon: 'campaign', label: 'Ads', href: route('admin.ecommerce.ads') },
         { icon: 'bar_chart', label: 'Financial Reports', href: '#' },
       ],
     },
