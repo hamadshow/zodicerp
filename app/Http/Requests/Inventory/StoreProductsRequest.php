@@ -40,6 +40,8 @@ class StoreProductsRequest extends FormRequest
             'parent_id' => ['nullable', 'exists:products,id'],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'category_id' => ['nullable', 'exists:categories,id'],
+            'category_ids' => ['nullable', 'array'],
+            'category_ids.*' => ['integer', 'exists:categories,id'],
             'store_id' => ['nullable', 'integer'],
 
             // Inventory

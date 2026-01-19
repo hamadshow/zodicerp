@@ -101,6 +101,11 @@ class Products extends Model
         return $this->belongsTo(Categories::class, 'category_id');
     }
 
+    public function categories()
+    {
+        return $this->belongsToMany(Categories::class, 'category_product', 'product_id', 'category_id');
+    }
+
     // Assuming a User model exists for creator/approver
     public function creator()
     {

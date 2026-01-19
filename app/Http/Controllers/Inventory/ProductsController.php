@@ -66,7 +66,6 @@ class ProductsController extends Controller
 
             return Inertia::render('Backend/03-Inventory/Products', [
                 'products' => $products,
-                'parents' => $parents,
                 'brands' => $brands,
                 'categories' => $categories,
                 'filters' => $request->only(['search', 'status', 'brand_id', 'category_id'])
@@ -86,13 +85,38 @@ class ProductsController extends Controller
 
             return Inertia::render('Backend/03-Inventory/Products', [
                 'products' => collect([]),
-                'parents' => collect([]),
                 'brands' => collect([]),
                 'categories' => collect([]),
                 'filters' => $request->only(['search', 'status', 'brand_id', 'category_id']),
                 'error' => 'Failed to retrieve products. Please try again later.'
             ])->with('error', 'Failed to retrieve products. Please try again later.');
         }
+    }
+
+    public function create(Request $request)
+    {
+        $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
+        $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
+
+        return Inertia::render('Backend/03-Inventory/ProductsCE', [
+            'product' => null,
+            'brands' => $brands,
+            'categories' => $categories,
+        ]);
+    }
+
+    public function edit(Products $product, Request $request)
+    {
+        $product->load('categories');
+
+        $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
+        $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
+
+        return Inertia::render('Backend/03-Inventory/ProductsCE', [
+            'product' => $product,
+            'brands' => $brands,
+            'categories' => $categories,
+        ]);
     }
 
     public function store(StoreProductsRequest $request)
@@ -126,6 +150,12 @@ class ProductsController extends Controller
             }
 
             $data = $request->validated();
+
+            $categoryIds = $request->input('category_ids', []);
+            if (is_array($categoryIds) && count($categoryIds) > 0) {
+                $data['category_id'] = $categoryIds[0];
+            }
+
             $data['product_code'] = $productCode;
             $data['slug'] = $slug;
             $data['created_by_id'] = $user->id;
@@ -173,6 +203,10 @@ class ProductsController extends Controller
             }
 
             $product = Products::create($data);
+
+            if (is_array($categoryIds) && count($categoryIds) > 0) {
+                $product->categories()->sync($categoryIds);
+            }
 
             DB::commit();
 
@@ -239,6 +273,13 @@ class ProductsController extends Controller
             DB::beginTransaction();
 
             $data = $request->validated();
+
+            $categoryIds = $request->input('category_ids', []);
+            if (is_array($categoryIds) && count($categoryIds) > 0) {
+                $data['category_id'] = $categoryIds[0];
+            } else {
+                $data['category_id'] = null;
+            }
             $data['updated_by_id'] = $user->id;
             $data['updated_by_type'] = get_class($user);
 
@@ -320,6 +361,10 @@ class ProductsController extends Controller
             $data['images'] = array_merge($keptImages, $newImages);
 
             $product->update($data);
+
+            if (is_array($categoryIds)) {
+                $product->categories()->sync($categoryIds);
+            }
 
             DB::commit();
 

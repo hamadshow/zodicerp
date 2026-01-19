@@ -50,4 +50,9 @@ class Categories extends Model
     {
         return $this->hasMany(Products::class, 'category_id');
     }
+
+    public function productsMany()
+    {
+        return $this->belongsToMany(Products::class, 'category_product', 'category_id', 'product_id');
+    }
 }

@@ -55,6 +55,8 @@ class UpdateProductsRequest extends FormRequest
             ],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'category_id' => ['nullable', 'exists:categories,id'],
+            'category_ids' => ['nullable', 'array'],
+            'category_ids.*' => ['integer', 'exists:categories,id'],
             'store_id' => ['nullable', 'integer'],
 
             // Inventory
