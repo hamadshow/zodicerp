@@ -225,6 +225,32 @@ export default function ProductDetails({ product, categories = [] }) {
                             <span className="social-proof">100+ bought in past month</span>
                         </div>
 
+                        {product.description && (
+                            <div className="product-simple-description">
+                                {product.description.split('\n').some(line => line.trim().startsWith('[') || line.trim().startsWith('-') || line.trim().startsWith('•')) ? (
+                                    <div className="product-features-section">
+                                        <h3 className="features-title">About this item</h3>
+                                        <ul className="product-features-list">
+                                            {product.description.split('\n').filter(line => line.trim()).map((line, i) => {
+                                                const match = line.match(/^(\[.*?\])(.*)/);
+                                                if (match) {
+                                                    return (
+                                                        <li key={i}>
+                                                            <span className="feature-label">{match[1].replace(/[\[\]]/g, '')}: </span>
+                                                            <span className="feature-text">{match[2]}</span>
+                                                        </li>
+                                                    );
+                                                }
+                                                return <li key={i}>{line.replace(/^[-•]\s*/, '')}</li>;
+                                            })}
+                                        </ul>
+                                    </div>
+                                ) : (
+                                    product.description
+                                )}
+                            </div>
+                        )}
+
                         <div className="price-section">
                             <span className="current-price">{formatPrice(displayPrice)}</span>
                             {product.old_price && Number(product.old_price) > Number(displayPrice) && (
@@ -332,6 +358,16 @@ export default function ProductDetails({ product, categories = [] }) {
                         </div>
                     </div>
                 </main>
+
+                {product.content && (
+                    <section className="product-detailed-content">
+                        <h2 className="section-title">Product Description</h2>
+                        <div className="content-body">
+                            {product.content}
+                        </div>
+                    </section>
+                )}
+
             </div>
 
             <Footer />

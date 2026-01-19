@@ -20,6 +20,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
 }
 
 .breadcrumb a {
@@ -179,6 +180,43 @@
     border-radius: 4px;
     display: inline-block;
     width: fit-content;
+}
+
+.product-simple-description {
+    font-size: 15px;
+    color: #495057;
+    line-height: 1.5;
+    white-space: pre-wrap;
+}
+
+/* Features List Style (Professional E-commerce) */
+.product-features-section {
+    margin-top: 10px;
+}
+
+.features-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #212529;
+    margin-bottom: 10px;
+}
+
+.product-features-list {
+    list-style-type: disc;
+    padding-left: 20px;
+    margin: 0;
+}
+
+.product-features-list li {
+    margin-bottom: 8px;
+    color: #495057;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.feature-label {
+    font-weight: 700;
+    color: #212529;
 }
 
 .price-section {
@@ -453,6 +491,31 @@
     color: #dc3545;
 }
 
+/* Detailed Description Section */
+.product-detailed-content {
+    margin-top: 40px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 30px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #212529;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.content-body {
+    font-size: 15px;
+    color: #495057;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
 /* Responsive Design */
 @media (max-width: 1024px) {
     .product-main-layout {
@@ -486,5 +549,9 @@
     
     .price-section {
         flex-wrap: wrap;
+    }
+    
+    .product-detailed-content {
+        padding: 20px;
     }
 }

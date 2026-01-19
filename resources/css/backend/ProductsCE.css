@@ -469,34 +469,44 @@
     transform: translateX(18px);
 }
 
-.featured-image-placeholder {
+.image-upload-area {
     width: 100%;
-    aspect-ratio: 4 / 3;
+    min-height: 200px;
+    border: 2px dashed #cbd5e1;
     border-radius: 8px;
-    border: 1px dashed #cbd5e1;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    padding: 24px;
+    cursor: pointer;
     background-color: #f8fafc;
+    transition: all 0.3s ease;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
 }
 
-.featured-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 8px;
+.image-upload-area:hover {
+    border-color: #3b82f6;
+    background-color: #f1f5f9;
 }
 
-.featured-image-icon {
-    font-size: 32px;
+.image-upload-icon {
+    font-size: 48px;
     color: #94a3b8;
+    margin-bottom: 12px;
 }
 
-.featured-image-actions {
-    margin-top: 8px;
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
+.image-upload-title {
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 4px;
+}
+
+.image-upload-subtitle {
+    font-size: 0.875rem;
+    color: #64748b;
 }
 
 .quantity-valid-icon {

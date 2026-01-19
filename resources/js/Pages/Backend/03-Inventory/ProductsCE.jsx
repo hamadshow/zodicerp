@@ -88,7 +88,6 @@ const ProductsCE = () => {
     });
 
     const [permalink, setPermalink] = useState('');
-    const [showDescriptionEditor, setShowDescriptionEditor] = useState(true);
     const [showContentEditor, setShowContentEditor] = useState(true);
     const [showSeoMeta, setShowSeoMeta] = useState(false);
     const [specTable, setSpecTable] = useState('none');
@@ -138,7 +137,10 @@ const ProductsCE = () => {
             setData({
                 ...data,
                 ...product,
+                name: product.name || '',
                 parent_id: product.parent_id || '',
+                description: product.description || '',
+                content: product.content || '',
                 brand_id: product.brand_id || '',
                 category_id: product.category_id || '',
                 category_ids: initialCategoryIds,
@@ -149,10 +151,21 @@ const ProductsCE = () => {
                 product_type: product.product_type || 'simple',
                 quantity: Number.isFinite(Number(product.quantity)) ? Number(product.quantity) : 0,
                 minimum_order_quantity: Number.isFinite(Number(product.minimum_order_quantity)) ? Number(product.minimum_order_quantity) : 1,
+                maximum_order_quantity: product.maximum_order_quantity || '',
                 is_featured: Boolean(product.is_featured),
+                price: product.price || '',
+                sale_price: product.sale_price || '',
+                cost_per_item: product.cost_per_item || '',
+                tax_id: product.tax_id || '',
                 price_includes_tax: Boolean(product.price_includes_tax),
                 allow_checkout_when_out_of_stock: Boolean(product.allow_checkout_when_out_of_stock),
                 with_storehouse_management: Boolean(product.with_storehouse_management),
+                weight: product.weight || '',
+                length: product.length || '',
+                wide: product.wide || '',
+                height: product.height || '',
+                meta_title: product.meta_title || '',
+                meta_description: product.meta_description || '',
                 existing_images: product.images || [],
                 delete_image: false,
                 image: product.image || null,
@@ -184,21 +197,36 @@ const ProductsCE = () => {
         }
     };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
+    const submitWithAction = (action) => {
         const options = {
-            onSuccess: () => {
-                router.get('/admin/products');
-            },
             forceFormData: true,
             transform: (data) => ({
                 ...data,
+                save_action: action,
                 // Convert booleans to 1/0 for FormData consistency
                 is_featured: data.is_featured ? 1 : 0,
                 price_includes_tax: data.price_includes_tax ? 1 : 0,
                 allow_checkout_when_out_of_stock: data.allow_checkout_when_out_of_stock ? 1 : 0,
                 with_storehouse_management: data.with_storehouse_management ? 1 : 0,
                 delete_image: data.delete_image ? 1 : 0,
+                
+                // Convert empty strings to null for numeric fields
+                price: data.price === '' ? null : data.price,
+                sale_price: data.sale_price === '' ? null : data.sale_price,
+                cost_per_item: data.cost_per_item === '' ? null : data.cost_per_item,
+                quantity: data.quantity === '' ? null : data.quantity,
+                minimum_order_quantity: data.minimum_order_quantity === '' ? null : data.minimum_order_quantity,
+                maximum_order_quantity: data.maximum_order_quantity === '' ? null : data.maximum_order_quantity,
+                weight: data.weight === '' ? null : data.weight,
+                length: data.length === '' ? null : data.length,
+                wide: data.wide === '' ? null : data.wide,
+                height: data.height === '' ? null : data.height,
+                tax_id: data.tax_id === '' ? null : data.tax_id,
+                brand_id: data.brand_id === '' ? null : data.brand_id,
+                category_id: data.category_id === '' ? null : data.category_id,
+                parent_id: data.parent_id === '' ? null : data.parent_id,
+                store_id: data.store_id === '' ? null : data.store_id,
+                order: data.order === '' ? 0 : data.order,
             }),
         };
 
@@ -207,6 +235,11 @@ const ProductsCE = () => {
         } else {
             post(route('admin.products.store'), options);
         }
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        submitWithAction('save');
     };
 
     const pageTitle = product ? 'Edit Product' : 'Add New Product';
@@ -244,14 +277,25 @@ const ProductsCE = () => {
                                     <div className="products-section-content">
                                         <div className="form-group">
                                             <label className="form-label">Name *</label>
-                                            <input
-                                                type="text"
+                                            <textarea
                                                 className={`form-control ${errors.name ? 'border-red-500' : ''}`}
                                                 value={data.name}
                                                 onChange={e => setData('name', e.target.value)}
                                                 required
-                                            />
+                                                rows="2"
+                                                placeholder="Product Name"
+                                            ></textarea>
                                             {errors.name && <div className="text-error">{errors.name}</div>}
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Simple Description</label>
+                                            <textarea
+                                                className="form-control form-textarea rich-textarea"
+                                                rows="3"
+                                                value={data.description}
+                                                onChange={e => setData('description', e.target.value)}
+                                                placeholder="Short description displayed before price"
+                                            ></textarea>
                                         </div>
                                         <div className="form-group">
                                             <label className="form-label">Permalink</label>
@@ -274,38 +318,7 @@ const ProductsCE = () => {
 
                                 <div className="products-section-card">
                                     <div className="products-section-header">
-                                        <h4 className="products-section-title">Description</h4>
-                                        <div className="products-section-actions">
-                                            <button
-                                                type="button"
-                                                className="btn btn-outline-secondary"
-                                                onClick={() => setShowDescriptionEditor(value => !value)}
-                                            >
-                                                {showDescriptionEditor ? 'Hide Editor' : 'Show Editor'}
-                                            </button>
-                                            <button type="button" className="btn btn-outline-secondary">
-                                                Add media
-                                            </button>
-                                            <button type="button" className="btn btn-outline-secondary">
-                                                UI Blocks
-                                            </button>
-                                        </div>
-                                    </div>
-                                    <div className="products-section-content">
-                                        {showDescriptionEditor && (
-                                            <textarea
-                                                className="form-control form-textarea rich-textarea"
-                                                rows="5"
-                                                value={data.description}
-                                                onChange={e => setData('description', e.target.value)}
-                                            ></textarea>
-                                        )}
-                                    </div>
-                                </div>
-
-                                <div className="products-section-card">
-                                    <div className="products-section-header">
-                                        <h4 className="products-section-title">Content</h4>
+                                        <h4 className="products-section-title">Detailed Description</h4>
                                         <div className="products-section-actions">
                                             <button
                                                 type="button"
@@ -340,62 +353,38 @@ const ProductsCE = () => {
                                     </div>
                                     <div className="products-section-content">
                                         <div className="form-group">
-                                            <div className="image-upload-area" onClick={() => openMediaPicker('multiple')}>
-                                                <span className="material-icons-outlined image-upload-icon">add_photo_alternate</span>
-                                                <div>
-                                                    <div className="image-upload-title">Click here to add more images.</div>
-                                                    <div className="image-upload-subtitle">Drag & drop or choose from media.</div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="form-group">
-                                            <label className="form-label">Main Image</label>
-                                            <div className="d-flex align-items-start gap-4">
-                                                <div className="flex-1">
-                                                    <div className="input-group">
-                                                        <input
-                                                            type="text"
-                                                            className="form-control"
-                                                            value={data.image ? (typeof data.image === 'string' ? data.image : data.image.name) : ''}
-                                                            readOnly
-                                                            placeholder="No file selected"
+                                            <div
+                                                className="image-upload-area"
+                                                onClick={() => openMediaPicker('single')}
+                                            >
+                                                {(data.image || (product && product.image)) ? (
+                                                    <div className="image-preview-full-container" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                        <img
+                                                            src={data.image ? (typeof data.image === 'string' ? `/storage/${data.image}` : URL.createObjectURL(data.image)) : `/storage/${product.image}`}
+                                                            alt="Main Product"
+                                                            style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }}
                                                         />
-                                                        <button type="button" className="btn btn-outline" onClick={() => openMediaPicker('single')}>
-                                                            Choose File
-                                                        </button>
-                                                    </div>
-                                                    <div className="mt-2">
-                                                        <small className="text-muted">Or upload new:</small>
-                                                        <input
-                                                            type="file"
-                                                            className="form-control mt-2"
-                                                            onChange={e => setData('image', e.target.files[0])}
-                                                            accept="image/*"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                {(data.image || (product && product.image)) && (
-                                                    <div className="image-preview-box relative">
-                                                        {data.image ? (
-                                                            typeof data.image === 'string' ? (
-                                                                <img src={`/storage/${data.image}`} alt="Preview" className="image-preview-full" />
-                                                            ) : (
-                                                                <img src={URL.createObjectURL(data.image)} alt="Preview" className="image-preview-full" />
-                                                            )
-                                                        ) : (
-                                                            <img src={`/storage/${product.image}`} alt="Current" className="image-preview-full" />
-                                                        )}
                                                         <button
                                                             type="button"
                                                             className="gallery-remove-btn"
-                                                            style={{ top: '5px', right: '5px' }}
-                                                            onClick={() => setData(d => ({ ...d, image: null, delete_image: true }))}
+                                                            style={{ top: '10px', right: '10px' }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setData(d => ({ ...d, image: null, delete_image: true }));
+                                                            }}
                                                             title="Remove Image"
                                                         >
                                                             &times;
                                                         </button>
                                                     </div>
+                                                ) : (
+                                                    <>
+                                                        <span className="material-icons-outlined image-upload-icon">add_photo_alternate</span>
+                                                        <div>
+                                                            <div className="image-upload-title">Click to set Main Image</div>
+                                                            <div className="image-upload-subtitle">Drag & drop or choose from media.</div>
+                                                        </div>
+                                                    </>
                                                 )}
                                             </div>
                                         </div>
@@ -580,38 +569,15 @@ const ProductsCE = () => {
 
                                         <div className="form-group">
                                             <label className="form-label">Stock status</label>
-                                            <div className="stock-status-options">
-                                                <label className="radio-option">
-                                                    <input
-                                                        type="radio"
-                                                        name="stock_status"
-                                                        value="in_stock"
-                                                        checked={data.stock_status === 'in_stock'}
-                                                        onChange={e => setData('stock_status', e.target.value)}
-                                                    />
-                                                    <span>In stock</span>
-                                                </label>
-                                                <label className="radio-option">
-                                                    <input
-                                                        type="radio"
-                                                        name="stock_status"
-                                                        value="out_of_stock"
-                                                        checked={data.stock_status === 'out_of_stock'}
-                                                        onChange={e => setData('stock_status', e.target.value)}
-                                                    />
-                                                    <span>Out of stock</span>
-                                                </label>
-                                                <label className="radio-option">
-                                                    <input
-                                                        type="radio"
-                                                        name="stock_status"
-                                                        value="on_backorder"
-                                                        checked={data.stock_status === 'on_backorder'}
-                                                        onChange={e => setData('stock_status', e.target.value)}
-                                                    />
-                                                    <span>On backorder</span>
-                                                </label>
-                                            </div>
+                                            <select
+                                                className="form-control"
+                                                value={data.stock_status}
+                                                onChange={e => setData('stock_status', e.target.value)}
+                                            >
+                                                <option value="in_stock">In stock</option>
+                                                <option value="out_of_stock">Out of stock</option>
+                                                <option value="on_backorder">On backorder</option>
+                                            </select>
                                         </div>
 
                                         <div className="form-group">
@@ -789,11 +755,21 @@ const ProductsCE = () => {
                                     </div>
                                     <div className="sidebar-card-body">
                                         <div className="sidebar-button-group">
-                                            <button type="submit" className="btn btn-primary" disabled={processing}>
+                                            <button 
+                                                type="button" 
+                                                className="btn btn-primary" 
+                                                disabled={processing}
+                                                onClick={() => submitWithAction('save')}
+                                            >
                                                 <span className="material-icons-outlined sidebar-button-icon">save</span>
                                                 <span>{product ? 'Update' : 'Save'}</span>
                                             </button>
-                                            <button type="submit" className="btn btn-outline" disabled={processing}>
+                                            <button 
+                                                type="button" 
+                                                className="btn btn-outline" 
+                                                disabled={processing}
+                                                onClick={() => submitWithAction('save_and_exit')}
+                                            >
                                                 <span className="material-icons-outlined sidebar-button-icon">logout</span>
                                                 <span>{product ? 'Update & Exit' : 'Save & Exit'}</span>
                                             </button>
@@ -902,38 +878,7 @@ const ProductsCE = () => {
                                     </div>
                                 </div>
 
-                                <div className="sidebar-card">
-                                    <div className="sidebar-card-header">
-                                        <h4 className="sidebar-card-title">Featured image</h4>
-                                    </div>
-                                    <div className="sidebar-card-body">
-                                        <div className="featured-image-placeholder">
-                                            {(data.image || (product && product.image)) ? (
-                                                <img
-                                                    src={`/storage/${typeof data.image === 'string' ? data.image : product?.image || ''}`}
-                                                    alt="Featured"
-                                                    className="featured-image"
-                                                />
-                                            ) : (
-                                                <span className="material-icons-outlined featured-image-icon">
-                                                    image
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="featured-image-actions">
-                                            <button
-                                                type="button"
-                                                className="btn btn-outline"
-                                                onClick={() => openMediaPicker('single')}
-                                            >
-                                                Choose image
-                                            </button>
-                                            <button type="button" className="btn btn-link">
-                                                Add from URL
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+
 
                                 <div className="sidebar-card">
                                     <div className="sidebar-card-header">

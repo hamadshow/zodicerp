@@ -75,6 +75,9 @@ class StoreProductsRequest extends FormRequest
             // SEO
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string'],
+
+            // Actions
+            'save_action' => ['nullable', 'string', 'in:save,save_and_exit'],
         ];
     }
 }

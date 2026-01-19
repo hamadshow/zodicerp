@@ -217,8 +217,12 @@ class ProductsController extends Controller
                 ], 201);
             }
 
-            return redirect()->route('admin.products.index')
-                ->with('success', 'Product created successfully.');
+            $redirect = redirect()->route('admin.products.index');
+            if ($request->input('save_action') === 'save') {
+                $redirect = redirect()->route('admin.products.edit', $product->id);
+            }
+
+            return $redirect->with('success', 'Product created successfully.');
         } catch (ValidationException $e) {
             DB::rollBack();
 
@@ -368,11 +372,18 @@ class ProductsController extends Controller
 
             DB::commit();
 
-            if ($request->wantsJson()) {
+            $saveAction = $request->input('save_action');
+            
+            if ($request->wantsJson() && !$request->header('X-Inertia')) {
                 return response()->json([
                     'message' => 'Product updated successfully.',
-                    'product' => $product
+                    'product' => $product,
+                    'save_action' => $saveAction
                 ], 200);
+            }
+
+            if ($saveAction === 'save') {
+                return back()->with('success', 'Product updated successfully.');
             }
 
             return redirect()->route('admin.products.index')

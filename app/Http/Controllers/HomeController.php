@@ -177,6 +177,7 @@ class HomeController extends Controller
             'store_name' => $product->brand ? $product->brand->name : 'ZodiMarket',
             'store_url' => '#',
             'description' => $product->description,
+            'content' => $product->content,
             'stock' => $product->quantity ?? 0,
             'sku' => $product->sku,
             'category_name' => $product->category ? $product->category->name : null,
