@@ -76,7 +76,7 @@ const Sidebar = ({
   const handleKeyDown = (e, item) => {
     if (e.key === 'Enter' || e.key === ' ') {
       // For accessibility, trigger click
-      if (item.hasSubmenu || item.isLogout) {
+      if (item.hasSubmenu) {
           e.preventDefault();
           onMenuItemClick(e, item);
       }
@@ -134,8 +134,8 @@ const Sidebar = ({
             const isOpen = openSubmenus[menuKey];
             
             // Render logic: Link for leaf nodes, div for submenu parents
-            const Component = item.hasSubmenu || item.isLogout ? 'div' : Link;
-            const componentProps = item.hasSubmenu || item.isLogout ? {} : { href: item.href || '#' };
+            const Component = item.hasSubmenu ? 'div' : Link;
+            const componentProps = item.hasSubmenu ? {} : { href: item.href || '#' };
 
             return (
               <React.Fragment key={index}>

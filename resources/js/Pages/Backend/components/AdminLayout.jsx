@@ -44,6 +44,8 @@ const AdminLayout = ({
       hasSubmenu: true,
       submenuItems: [
         { icon: 'location_on', label: 'Location', href: route('admin.location') },
+        { icon: 'monetization_on', label: 'Currencies', href: route('admin.currencies.index') },
+        { icon: 'currency_exchange', label: 'Exchange Rates', href: route('admin.exchange_rates.index') },
         { icon: 'assessment', label: 'Company Info', href: route('admin.company_info.index') },
         { icon: 'receipt', label: 'Branch Info', href: route('admin.branch_info.index') },
       ],
@@ -53,7 +55,7 @@ const AdminLayout = ({
       label: 'Human Resources',
       hasSubmenu: true,
       submenuItems: [
-        { icon: 'dashboard', label: 'HR Dashboard', href: route('admin') }, // Using main admin for now
+        { icon: 'dashboard', label: 'HR Dashboard', href: '#' }, // Changed to placeholder
         { icon: 'group', label: 'Departments', href: route('admin.departments') },
         { icon: 'work', label: 'Profession', href: route('admin.profession') },
         canViewNationalities && {
@@ -92,7 +94,6 @@ const AdminLayout = ({
           label: 'Salary Receipt',
           href: route('admin.salary-receipt'),
         },
-        { icon: 'assignment', label: 'Tasks', href: route('admin.tasks') },
       ].filter(Boolean),
     },
     {
@@ -101,6 +102,9 @@ const AdminLayout = ({
       hasSubmenu: true,
       submenuItems: [
         { icon: 'warehouse', label: 'Warehouses', href: route('admin.warehouses') },
+        { icon: 'straighten', label: 'Item Units', href: route('admin.item-units.index') },
+        { icon: 'tune', label: 'Item Attributes', href: route('admin.item-attributes.index') },
+        { icon: 'collections_bookmark', label: 'Item Collections', href: route('admin.item-collections.index') },
         { icon: 'category', label: 'Categories', href: route('admin.categories') },
         { icon: 'branding_watermark', label: 'Brands', href: route('admin.brands.index') },
         { icon: 'inventory', label: 'Products', href: route('admin.products.index') },
@@ -134,11 +138,32 @@ const AdminLayout = ({
       ],
     },
     {
+      icon: 'business',
+      label: 'Fixed Assets',
+      hasSubmenu: true,
+      submenuItems: [
+        { icon: 'add_circle', label: 'Assets', href: '#' },
+        { icon: 'category', label: 'Assets Category', href: '#' },
+        { icon: 'location_on', label: 'Assets Location', href: '#' },
+      ],
+    },
+    {
       icon: 'account_balance',
       label: 'Bank and Cash',
       hasSubmenu: true,
       submenuItems: [
-          { icon: 'account_balance_wallet', label: 'Accounts' }
+          { icon: 'account_balance_wallet', label: 'Cash', href: route('admin.petty-cash.index') },
+          { icon: 'account_balance', label: 'Banks', href: route('admin.banks.index') },
+          { icon: 'payments', label: 'Cheque', href: route('admin.cheques.index') }
+      ],
+    },
+    {
+      icon: 'percent',
+      label: 'TAX & VAT',
+      hasSubmenu: true,
+      submenuItems: [
+        { icon: 'settings', label: 'Tax Settings', href: '#' },
+        { icon: 'description', label: 'Tax Reports', href: '#' },
       ],
     },
     {
@@ -171,6 +196,7 @@ const AdminLayout = ({
     },
     // { icon: 'reviews', label: 'Reviews' },
     { icon: 'folder', label: 'Media', href: route('admin.media.index') },
+    { icon: 'assignment', label: 'Tasks', href: route('admin.tasks') },
     // { icon: 'store', label: 'Marketplace' },
     {
       icon: 'description',
@@ -193,7 +219,8 @@ const AdminLayout = ({
         // { icon: 'admin_panel_settings', label: 'Platform Administration' },
       ],
     },
-    { icon: 'logout', label: 'Logout', isLogout: true },
+    { icon: 'settings', label: 'Settings', href: '#' },
+    { icon: 'admin_panel_settings', label: 'Platform Admin', href: '#' },
   ].filter(item => {
       // Filter out items with empty submenus if they are meant to be submenu parents
       if (item.hasSubmenu && (!item.submenuItems || item.submenuItems.length === 0)) {
@@ -249,12 +276,6 @@ const AdminLayout = ({
   const handleMenuClick = (itemOrLabel) => {
     const label = itemOrLabel?.label || itemOrLabel;
     setActiveMenu(label);
-
-    // Handle Logout
-    if (label === 'Logout' || itemOrLabel?.isLogout) {
-      document.getElementById('logout-form')?.submit();
-      return;
-    }
 
     // Handle Navigation via href
     if (itemOrLabel?.href) {

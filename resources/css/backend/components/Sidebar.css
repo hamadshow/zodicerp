@@ -25,7 +25,7 @@
     --sidebar-hover-bg: rgba(255, 255, 255, 0.05);
     --sidebar-active-bg: rgba(59, 130, 246, 0.1);
     --sidebar-accent: #3b82f6;
-    --sidebar-width: 280px; /* Updated to 280px */
+    --sidebar-width: 220px; /* Reduced from 280px */
     --sidebar-collapsed-width: 80px; /* Renamed from collapsed for clarity */
     --sidebar-collapsed: 80px; /* Kept for backward compatibility if needed */
     --transition-speed: 0.3s;
@@ -256,6 +256,7 @@ body {
 .menu-item:hover, .menu-item:focus {
     background-color: var(--sidebar-hover-bg);
     color: #fff;
+    transform: none; /* Ensure no movement */
 }
 
 .menu-item.active {
@@ -315,7 +316,7 @@ body {
 
 /* Chevron for submenu */
 .menu-chevron {
-    margin-left: auto;
+    margin-left: auto; /* Push to the far right */
     font-size: 16px;
     transition: transform 0.2s;
 }
@@ -440,11 +441,23 @@ body {
     opacity: 0.8;
 }
 
-/* Scrollbar */
-.sidebar-menu::-webkit-scrollbar {
-    width: 4px;
+/* Scrollbar - Hidden but scrollable */
+.sidebar-menu {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;  /* IE 10+ */
 }
 
+.sidebar-menu::-webkit-scrollbar {
+    width: 0px;
+    background: transparent;
+    display: none; /* Chrome/Safari/Webkit */
+}
+
+/* 
+   Previous scrollbar styles commented out or removed
+   to satisfy user request to remove "something in the scroll"
+*/
+/*
 .sidebar-menu::-webkit-scrollbar-track {
     background: transparent;
 }
@@ -457,6 +470,7 @@ body {
 .sidebar-menu::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
 }
+*/
 
 /* Tooltip for collapsed mode */
 .menu-item[title]:hover::after {

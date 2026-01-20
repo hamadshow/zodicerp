@@ -6,6 +6,9 @@ import prettier from 'eslint-plugin-prettier';
 import globals from 'globals';
 
 export default [
+  {
+    ignores: ['resources/js/ziggy.js'],
+  },
   js.configs.recommended,
   {
     files: ['resources/js/**/*.{js,jsx}'],

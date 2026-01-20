@@ -236,7 +236,7 @@ export default function ProductDetails({ product, categories = [] }) {
                                                 if (match) {
                                                     return (
                                                         <li key={i}>
-                                                            <span className="feature-label">{match[1].replace(/[\[\]]/g, '')}: </span>
+                                                            <span className="feature-label">{match[1].replace(/[[\]]/g, '')}: </span>
                                                             <span className="feature-text">{match[2]}</span>
                                                         </li>
                                                     );

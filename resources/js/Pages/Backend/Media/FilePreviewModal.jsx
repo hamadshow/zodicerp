@@ -1,6 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function FilePreviewModal({ file, isOpen, onClose }) {
+    const [pdfError, setPdfError] = useState(false);
+
+    useEffect(() => {
+        if (file && file.file_type && file.file_type.includes('pdf')) {
+            setPdfError(false);
+            // Optional: Check if file exists via HEAD request
+            fetch(file.file_path, { method: 'HEAD' })
+                .then(res => {
+                    if (!res.ok) setPdfError(true);
+                })
+                .catch(() => setPdfError(true));
+        }
+    }, [file]);
+
     if (!isOpen || !file) return null;
 
     const formatSize = (bytes) => {
@@ -34,9 +48,39 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
                 </div>
             );
         } else if (file.file_type.includes('pdf')) {
+            if (pdfError) {
+                return (
+                    <div className="preview-generic-container preview-generic">
+                        <span className="material-icons-outlined preview-generic-icon" style={{color: '#ef4444'}}>error_outline</span>
+                        <p className="preview-generic-text">Failed to load PDF preview (File not found or inaccessible)</p>
+                        <div className="pdf-actions" style={{ marginTop: '15px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                            <a href={file.file_path} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                                <span className="material-icons-outlined" style={{ fontSize: '18px' }}>open_in_new</span>
+                                Open in New Tab
+                            </a>
+                            <a href={file.file_path} download className="btn btn-secondary">
+                                <span className="material-icons-outlined" style={{ fontSize: '18px' }}>download</span>
+                                Download
+                            </a>
+                        </div>
+                    </div>
+                );
+            }
             return (
                 <div className="preview-pdf-container">
-                    <iframe src={file.file_path} className="preview-iframe" title={file.name}></iframe>
+                    <iframe src={file.file_path} className="preview-iframe" title={file.name} onError={() => setPdfError(true)}>
+                        <p>Your browser does not support iframes.</p>
+                    </iframe>
+                    <div className="pdf-actions" style={{ marginTop: '15px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                        <a href={file.file_path} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                            <span className="material-icons-outlined" style={{ fontSize: '18px' }}>open_in_new</span>
+                            Open in New Tab
+                        </a>
+                        <a href={file.file_path} download className="btn btn-secondary">
+                            <span className="material-icons-outlined" style={{ fontSize: '18px' }}>download</span>
+                            Download
+                        </a>
+                    </div>
                 </div>
             );
         } else {

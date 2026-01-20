@@ -116,4 +116,10 @@ class Products extends Model
     {
         return $this->belongsTo(\App\Models\User::class, 'approved_by');
     }
+
+    public function collections()
+    {
+        return $this->belongsToMany(ItemCollection::class, 'item_collection_product', 'product_id', 'item_collection_id')
+            ->withTimestamps();
+    }
 }

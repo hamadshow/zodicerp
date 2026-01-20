@@ -69,6 +69,23 @@ Route::middleware('auth')->group(function () {
     Route::post('/admin/location/bulk-status', [LocationController::class, 'bulkUpdateStatus']);
     Route::post('/admin/location/bulk-delete', [LocationController::class, 'bulkDelete']);
 
+    Route::resource('/admin/currencies', \App\Http\Controllers\Essential_Data_Controllers\CurrencyController::class)
+        ->names([
+            'index' => 'admin.currencies.index',
+            'store' => 'admin.currencies.store',
+            'update' => 'admin.currencies.update',
+            'destroy' => 'admin.currencies.destroy',
+        ])->except(['create', 'edit', 'show']);
+
+    Route::post('/admin/exchange-rates/fetch', [\App\Http\Controllers\Essential_Data_Controllers\ExchangeRateController::class, 'fetchRates'])->name('admin.exchange_rates.fetch');
+    Route::resource('/admin/exchange-rates', \App\Http\Controllers\Essential_Data_Controllers\ExchangeRateController::class)
+        ->names([
+            'index' => 'admin.exchange_rates.index',
+            'store' => 'admin.exchange_rates.store',
+            'update' => 'admin.exchange_rates.update',
+            'destroy' => 'admin.exchange_rates.destroy',
+        ])->except(['create', 'edit', 'show']);
+
     Route::get('/admin/attendance', function () {
         return Inertia::render('Backend/02_human_resource/Attendance');
     })->name('admin.attendance');
@@ -165,6 +182,27 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Backend/02_human_resource/Salary-Receipt');
     })->name('admin.salary-receipt');
 
+    Route::resource('/admin/banks', \App\Http\Controllers\Cash\BankController::class)
+        ->names([
+            'index' => 'admin.banks.index',
+            'store' => 'admin.banks.store',
+            'update' => 'admin.banks.update',
+            'destroy' => 'admin.banks.destroy',
+        ])->except(['create', 'edit', 'show']);
+
+    Route::resource('/admin/petty-cash', \App\Http\Controllers\Cash\PettyCashController::class)
+        ->names([
+            'index' => 'admin.petty-cash.index',
+            'store' => 'admin.petty-cash.store',
+            'update' => 'admin.petty-cash.update',
+            'destroy' => 'admin.petty-cash.destroy',
+        ])->except(['create', 'edit', 'show']);
+
+    Route::post('/admin/banks/accounts', [\App\Http\Controllers\Cash\BankController::class, 'storeAccount'])->name('admin.banks.accounts.store');
+    Route::put('/admin/banks/accounts/{bankAccount}', [\App\Http\Controllers\Cash\BankController::class, 'updateAccount'])->name('admin.banks.accounts.update');
+    Route::delete('/admin/banks/accounts/{bankAccount}', [\App\Http\Controllers\Cash\BankController::class, 'destroyAccount'])->name('admin.banks.accounts.destroy');
+    Route::get('/admin/banks/{bank}/accounts', [\App\Http\Controllers\Cash\BankController::class, 'getAccounts'])->name('admin.banks.accounts.index');
+
     Route::get('/admin/vacations', function () {
         return Inertia::render('Backend/02_human_resource/Vacations');
     })->name('admin.vacations');
@@ -205,6 +243,44 @@ Route::middleware('auth')->group(function () {
             'update' => 'admin.warehouses.update',
             'destroy' => 'admin.warehouses.destroy',
         ])->except(['create', 'edit']);
+
+    Route::resource('/admin/item-units', \App\Http\Controllers\Backend\ItemUnitController::class)
+        ->names([
+            'index' => 'admin.item-units.index',
+            'store' => 'admin.item-units.store',
+            'update' => 'admin.item-units.update',
+            'destroy' => 'admin.item-units.destroy',
+        ])->except(['create', 'edit', 'show']);
+
+    Route::resource('/admin/item-attributes', \App\Http\Controllers\Backend\ItemAttributeController::class)
+        ->names([
+            'index' => 'admin.item-attributes.index',
+            'create' => 'admin.item-attributes.create',
+            'store' => 'admin.item-attributes.store',
+            'edit' => 'admin.item-attributes.edit',
+            'update' => 'admin.item-attributes.update',
+            'destroy' => 'admin.item-attributes.destroy',
+        ])->except(['show']);
+
+    Route::resource('/admin/item-collections', \App\Http\Controllers\Backend\ItemCollectionController::class)
+        ->names([
+            'index' => 'admin.item-collections.index',
+            'create' => 'admin.item-collections.create',
+            'store' => 'admin.item-collections.store',
+            'edit' => 'admin.item-collections.edit',
+            'update' => 'admin.item-collections.update',
+            'destroy' => 'admin.item-collections.destroy',
+        ])->except(['show']);
+
+    Route::resource('/admin/cheques', \App\Http\Controllers\Cash\ChequeController::class)
+        ->names([
+            'index' => 'admin.cheques.index',
+            'create' => 'admin.cheques.create',
+            'store' => 'admin.cheques.store',
+            'edit' => 'admin.cheques.edit',
+            'update' => 'admin.cheques.update',
+            'destroy' => 'admin.cheques.destroy',
+        ])->except(['show']);
 
     Route::resource('/admin/categories', \App\Http\Controllers\Inventory\CategoriesController::class)
         ->names([
