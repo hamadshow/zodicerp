@@ -87,6 +87,7 @@ class AccountsController extends Controller
                     'AccName' => $account->AccName,
                     'AccType' => $account->AccType,
                     'AccParent' => $account->AccParent,
+                    'Nature' => $account->Nature,
                     'AccDmType' => (int) $account->AccType === 1 ? $account->AccDmType : null,
                     'AccFinal' => $account->AccFinal,
                     'AccMaxLimt' => $account->AccMaxLimt,

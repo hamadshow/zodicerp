@@ -35,6 +35,11 @@ class CashAccount extends Model
         return $this->belongsTo(Bank::class);
     }
 
+    public function currencyInfo()
+    {
+        return $this->belongsTo(Currency::class, 'currency', 'id');
+    }
+
     public function payments()
     {
         return $this->hasMany(CashPayment::class, 'account_id');

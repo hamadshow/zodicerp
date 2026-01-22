@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Bank;
 use App\Models\BankAccount;
 use App\Models\Account; // Chart of Accounts
+use App\Models\Currency;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -37,12 +38,17 @@ class BankController extends Controller
         // Get GL Accounts for dropdowns (assets/cash/bank type accounts ideally)
         // For now, fetching all or filtering by type if known. 
         // Assuming we want leaf accounts.
-        $glAccounts = Account::where('AccFinal', 1)->select('AccID', 'AccName', 'AccCode')->get();
+        $glAccounts = Account::where('Nature', 'bank')
+            ->select('AccID', 'AccName', 'AccCode')
+            ->get();
+
+        $currencies = Currency::where('status', 'active')->select('id', 'code', 'name')->get();
 
         return Inertia::render('Backend/06-Cash/Bank', [
             'banks' => $banks,
             'filters' => $request->only(['search', 'status']),
             'glAccounts' => $glAccounts,
+            'currencies' => $currencies,
         ]);
     }
 
@@ -113,7 +119,7 @@ class BankController extends Controller
             'account_name' => 'required|string|max:255',
             'account_number' => 'required|string|max:50',
             'iban' => 'nullable|string|max:50',
-            'currency' => 'required|string|max:10',
+            'currency' => 'required|exists:currencies,id',
             'opening_balance' => 'required|numeric',
             'current_balance' => 'required|numeric',
             'gl_account_id' => 'nullable|exists:accounts,AccID',
@@ -132,7 +138,7 @@ class BankController extends Controller
             'account_name' => 'required|string|max:255',
             'account_number' => 'required|string|max:50',
             'iban' => 'nullable|string|max:50',
-            'currency' => 'required|string|max:10',
+            'currency' => 'required|exists:currencies,id',
             'opening_balance' => 'required|numeric',
             'current_balance' => 'required|numeric',
             'gl_account_id' => 'nullable|exists:accounts,AccID',
@@ -153,7 +159,7 @@ class BankController extends Controller
 
     public function getAccounts(Bank $bank)
     {
-        $accounts = $bank->accounts()->with('glAccount')->get();
+        $accounts = $bank->accounts()->with(['glAccount', 'currencyInfo'])->get();
         return response()->json($accounts);
     }
 }

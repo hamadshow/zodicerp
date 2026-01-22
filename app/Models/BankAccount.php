@@ -39,6 +39,11 @@ class BankAccount extends Model
         return $this->belongsTo(Account::class, 'gl_account_id', 'AccID');
     }
 
+    public function currencyInfo()
+    {
+        return $this->belongsTo(Currency::class, 'Currency', 'id');
+    }
+
     public function payments()
     {
         return $this->hasMany(BankPayment::class);

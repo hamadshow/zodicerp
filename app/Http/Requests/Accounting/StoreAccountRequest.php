@@ -30,13 +30,15 @@ class StoreAccountRequest extends FormRequest
             'AccType' => [
                 'required',
                 'integer',
-                Rule::in([1, 2, 3, 4, 5]),
             ],
             'AccParent' => [
                 'nullable',
                 'integer',
-                'different:AccCode',
-                'exists:accounts,AccCode',
+            ],
+            'Nature' => [
+                'nullable',
+                'string',
+                Rule::in(['asset', 'cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income']),
             ],
             'AccDmType' => [
                 'required',
@@ -81,9 +83,7 @@ class StoreAccountRequest extends FormRequest
             }
 
             $parent = Account::where('AccCode', $parentCode)->first();
-            if ($parent && (int) ($parent->AccFinal ?? 0) === 1) {
-                $validator->errors()->add('AccParent', 'Parent account cannot be final.');
-            }
+
         });
     }
 }

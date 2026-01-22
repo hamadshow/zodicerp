@@ -28,7 +28,7 @@ const FilterTab = ({ id, label, isActive, onClick }) => (
 
 // --- Modals ---
 
-const AddEditBankModal = ({ isOpen, onClose, bank, isEditing }) => {
+const AddEditBankModal = ({ isOpen, onClose, bank, isEditing, currencies }) => {
     const { data, setData, post, processing, errors, reset } = useForm({
         bank_code: '',
         name: '',
@@ -36,7 +36,7 @@ const AddEditBankModal = ({ isOpen, onClose, bank, isEditing }) => {
         swift_code: '',
         iban_prefix: '',
         country: '',
-        currency: 'USD',
+        currency: '',
         status: 'active',
         logo: null,
     });
@@ -50,7 +50,7 @@ const AddEditBankModal = ({ isOpen, onClose, bank, isEditing }) => {
                 swift_code: bank.swift_code || '',
                 iban_prefix: bank.iban_prefix || '',
                 country: bank.country || '',
-                currency: bank.currency || 'USD',
+                currency: bank.currency || '',
                 status: bank.status || 'active',
                 logo: null, // Don't set file input value
             });
@@ -162,12 +162,18 @@ const AddEditBankModal = ({ isOpen, onClose, bank, isEditing }) => {
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Currency</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
+                                <select
+                                    className="form-select"
                                     value={data.currency}
                                     onChange={e => setData('currency', e.target.value)}
-                                />
+                                >
+                                    <option value="">Select Currency</option>
+                                    {currencies && currencies.map(curr => (
+                                        <option key={curr.id} value={curr.code}>
+                                            {curr.name}
+                                        </option>
+                                    ))}
+                                </select>
                                 {errors.currency && <div className="text-red-500 text-xs mt-1">{errors.currency}</div>}
                             </div>
                         </div>
@@ -209,13 +215,13 @@ const AddEditBankModal = ({ isOpen, onClose, bank, isEditing }) => {
     );
 };
 
-const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAccounts, onSuccess }) => {
+const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAccounts, onSuccess, currencies }) => {
     const { data, setData, post, put, processing, errors, reset } = useForm({
         bank_id: bankId,
         account_name: '',
         account_number: '',
         iban: '',
-        currency: 'USD',
+        currency: '',
         opening_balance: 0,
         current_balance: 0,
         gl_account_id: '',
@@ -230,7 +236,7 @@ const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAc
                 account_name: account.account_name || '',
                 account_number: account.account_number || '',
                 iban: account.iban || '',
-                currency: account.currency || 'USD',
+                currency: account.currency || '',
                 opening_balance: account.opening_balance || 0,
                 current_balance: account.current_balance || 0,
                 gl_account_id: account.gl_account_id || '',
@@ -240,6 +246,7 @@ const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAc
         } else {
             reset();
             setData('bank_id', bankId);
+            setData('currency', '');
         }
     }, [account, bankId, isOpen]);
 
@@ -298,12 +305,18 @@ const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAc
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Currency</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
+                                <select
+                                    className="form-select"
                                     value={data.currency}
                                     onChange={e => setData('currency', e.target.value)}
-                                />
+                                >
+                                    <option value="">Select Currency</option>
+                                    {currencies && currencies.map(curr => (
+                                        <option key={curr.id} value={curr.id}>
+                                            {curr.name}
+                                        </option>
+                                    ))}
+                                </select>
                                 {errors.currency && <div className="text-red-500 text-xs mt-1">{errors.currency}</div>}
                             </div>
                         </div>
@@ -397,7 +410,7 @@ const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAc
     );
 };
 
-const ViewBankModal = ({ isOpen, onClose, bank, glAccounts }) => {
+const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [accountModalOpen, setAccountModalOpen] = useState(false);
@@ -537,7 +550,7 @@ const ViewBankModal = ({ isOpen, onClose, bank, glAccounts }) => {
                                                             <div className="text-xs text-gray-500">{acc.iban}</div>
                                                         </td>
                                                         <td>
-                                                            <span className="currency-badge">{acc.currency}</span>
+                                                            <span className="currency-badge">{acc.currency_info?.code || acc.currency}</span>
                                                         </td>
                                                         <td>
                                                             <div className="balance-value">{new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(acc.current_balance)}</div>
@@ -572,11 +585,12 @@ const ViewBankModal = ({ isOpen, onClose, bank, glAccounts }) => {
             <AddEditAccountModal
                 isOpen={accountModalOpen}
                 onClose={() => setAccountModalOpen(false)}
-                bankId={bank.id}
+                bankId={bank?.id}
                 account={editingAccount}
                 isEditing={!!editingAccount}
                 glAccounts={glAccounts}
                 onSuccess={fetchAccounts}
+                currencies={currencies}
             />
         </>
     );
@@ -584,7 +598,7 @@ const ViewBankModal = ({ isOpen, onClose, bank, glAccounts }) => {
 
 // --- Main Page Component ---
 
-const Bank = ({ banks, filters, glAccounts }) => {
+const Bank = ({ banks, filters, glAccounts, currencies }) => {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
     const [addEditModalOpen, setAddEditModalOpen] = useState(false);
@@ -843,6 +857,7 @@ const Bank = ({ banks, filters, glAccounts }) => {
                 onClose={() => setAddEditModalOpen(false)}
                 bank={editingBank}
                 isEditing={!!editingBank}
+                currencies={currencies}
             />
 
             <ViewBankModal
@@ -850,6 +865,7 @@ const Bank = ({ banks, filters, glAccounts }) => {
                 onClose={() => setViewModalOpen(false)}
                 bank={viewingBank}
                 glAccounts={glAccounts}
+                currencies={currencies}
             />
         </AdminLayout>
     );

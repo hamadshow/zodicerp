@@ -33,13 +33,15 @@ class UpdateAccountRequest extends FormRequest
             'AccType' => [
                 'required',
                 'integer',
-                Rule::in([1, 2, 3, 4, 5]),
             ],
             'AccParent' => [
                 'nullable',
                 'integer',
-                'different:AccCode',
-                'exists:accounts,AccCode',
+            ],
+            'Nature' => [
+                'nullable',
+                'string',
+                Rule::in(['asset', 'cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income']),
             ],
             'AccDmType' => [
                 'required',
@@ -85,11 +87,6 @@ class UpdateAccountRequest extends FormRequest
 
             $parentCode = $this->input('AccParent');
             if ($parentCode) {
-                $parent = Account::where('AccCode', $parentCode)->first();
-                if ($parent && (int) ($parent->AccFinal ?? 0) === 1) {
-                    $validator->errors()->add('AccParent', 'Parent account cannot be final.');
-                }
-
                 $currentCode = $account->AccCode;
                 $ancestorCode = $parentCode;
                 while ($ancestorCode) {
@@ -106,12 +103,7 @@ class UpdateAccountRequest extends FormRequest
             }
 
             $finalFlag = (int) ($this->input('AccFinal') ?? 0);
-            if ($finalFlag === 1) {
-                $hasChildren = Account::where('AccParent', $account->AccCode)->exists();
-                if ($hasChildren) {
-                    $validator->errors()->add('AccFinal', 'Final accounts cannot have child accounts.');
-                }
-            }
+
         });
     }
 }

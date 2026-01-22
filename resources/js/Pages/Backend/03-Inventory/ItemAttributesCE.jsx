@@ -126,32 +126,32 @@ const ItemAttributesCE = ({ attribute = null }) => {
                                         </button>
                                     </div>
                                     <div className="products-section-content">
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-left border-collapse">
+                                        <div className="table-wrapper">
+                                            <table className="attributes-table">
                                                 <thead>
-                                                    <tr className="border-b border-gray-200 text-xs text-gray-500 uppercase">
-                                                        <th className="py-2 px-3">#</th>
-                                                        <th className="py-2 px-3">Is Default?</th>
-                                                        <th className="py-2 px-3 w-1/3">Title</th>
-                                                        <th className="py-2 px-3">Color</th>
-                                                        <th className="py-2 px-3">Image</th>
-                                                        <th className="py-2 px-3 text-center">Remove</th>
+                                                    <tr>
+                                                        <th>#</th>
+                                                        <th>Is Default?</th>
+                                                        <th>Title</th>
+                                                        <th>Color</th>
+                                                        <th>Image</th>
+                                                        <th className="text-center">Remove</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
                                                     {data.details.map((detail, index) => (
-                                                        <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
-                                                            <td className="py-3 px-3">{index + 1}</td>
-                                                            <td className="py-3 px-3">
+                                                        <tr key={index}>
+                                                            <td>{index + 1}</td>
+                                                            <td>
                                                                 <input
                                                                     type="radio"
                                                                     name="default_attribute"
                                                                     checked={detail.is_default}
                                                                     onChange={() => handleDefaultChange(index)}
-                                                                    className="w-4 h-4 text-primary border-gray-300 focus:ring-primary"
+                                                                    className="attributes-radio"
                                                                 />
                                                             </td>
-                                                            <td className="py-3 px-3">
+                                                            <td>
                                                                 <input
                                                                     type="text"
                                                                     className="form-control"
@@ -160,24 +160,23 @@ const ItemAttributesCE = ({ attribute = null }) => {
                                                                     placeholder="Value title"
                                                                 />
                                                             </td>
-                                                            <td className="py-3 px-3">
+                                                            <td>
                                                                 <input
                                                                     type="color"
-                                                                    className="h-9 w-16 p-1 rounded border border-gray-300"
+                                                                    className="attributes-color-input"
                                                                     value={detail.color || '#ffffff'}
                                                                     onChange={(e) => handleDetailChange(index, 'color', e.target.value)}
                                                                 />
                                                             </td>
-                                                            <td className="py-3 px-3">
-                                                                {/* Image Placeholder - simplified for now */}
-                                                                <div className="w-9 h-9 bg-gray-100 rounded border border-gray-200 flex items-center justify-center text-gray-400">
-                                                                    <span className="material-icons-outlined text-sm">image</span>
+                                                            <td>
+                                                                <div className="attributes-image-placeholder">
+                                                                    <span className="material-icons-outlined">image</span>
                                                                 </div>
                                                             </td>
-                                                            <td className="py-3 px-3 text-center">
+                                                            <td className="text-center">
                                                                 <button
                                                                     type="button"
-                                                                    className="text-red-500 hover:text-red-700"
+                                                                    className="icon-btn delete"
                                                                     onClick={() => handleRemoveDetail(index)}
                                                                 >
                                                                     <span className="material-icons-outlined">delete_outline</span>
@@ -187,7 +186,7 @@ const ItemAttributesCE = ({ attribute = null }) => {
                                                     ))}
                                                     {data.details.length === 0 && (
                                                         <tr>
-                                                            <td colSpan="6" className="py-4 text-center text-gray-500">
+                                                            <td colSpan="6" className="attributes-empty">
                                                                 No attributes added yet. Click "Add new attribute" to start.
                                                             </td>
                                                         </tr>
@@ -207,9 +206,9 @@ const ItemAttributesCE = ({ attribute = null }) => {
                                     </div>
                                     <div className="sidebar-card-body">
                                         <div className="sidebar-button-group">
-                                            <button 
-                                                type="submit" 
-                                                className="btn btn-primary w-full" 
+                                            <button
+                                                type="submit"
+                                                className="btn btn-primary btn-block"
                                                 disabled={processing}
                                             >
                                                 <span className="material-icons-outlined sidebar-button-icon">save</span>
@@ -217,7 +216,7 @@ const ItemAttributesCE = ({ attribute = null }) => {
                                             </button>
                                         </div>
                                         <div className="mt-3">
-                                            <Link href={route('admin.item-attributes.index')} className="btn btn-outline w-full text-center block">
+                                            <Link href={route('admin.item-attributes.index')} className="btn btn-outline btn-block text-center">
                                                 Cancel
                                             </Link>
                                         </div>
@@ -266,8 +265,8 @@ const ItemAttributesCE = ({ attribute = null }) => {
                                         <h4 className="sidebar-card-title">Configuration</h4>
                                     </div>
                                     <div className="sidebar-card-body">
-                                        <div className="form-check mb-4">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Searchable</label>
+                                        <div className="sidebar-field">
+                                            <label className="sidebar-label">Searchable</label>
                                             <label className="toggle-switch">
                                                 <input
                                                     type="checkbox"
@@ -278,8 +277,8 @@ const ItemAttributesCE = ({ attribute = null }) => {
                                             </label>
                                         </div>
 
-                                        <div className="form-check mb-4">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Comparable</label>
+                                        <div className="sidebar-field">
+                                            <label className="sidebar-label">Comparable</label>
                                             <label className="toggle-switch">
                                                 <input
                                                     type="checkbox"
@@ -290,8 +289,8 @@ const ItemAttributesCE = ({ attribute = null }) => {
                                             </label>
                                         </div>
 
-                                        <div className="form-check mb-4">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Used in product listing</label>
+                                        <div className="sidebar-field">
+                                            <label className="sidebar-label">Used in product listing</label>
                                             <label className="toggle-switch">
                                                 <input
                                                     type="checkbox"
@@ -302,8 +301,8 @@ const ItemAttributesCE = ({ attribute = null }) => {
                                             </label>
                                         </div>
 
-                                        <div className="form-check">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Use Image from Variation</label>
+                                        <div className="sidebar-field">
+                                            <label className="sidebar-label">Use Image from Variation</label>
                                             <label className="toggle-switch">
                                                 <input
                                                     type="checkbox"

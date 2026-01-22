@@ -282,6 +282,15 @@ Route::middleware('auth')->group(function () {
             'destroy' => 'admin.cheques.destroy',
         ])->except(['show']);
 
+    Route::get('/admin/bank-transactions', [\App\Http\Controllers\Cash\BankTransactionController::class, 'index'])
+        ->name('admin.bank-transactions.index');
+    Route::post('/admin/bank-transactions', [\App\Http\Controllers\Cash\BankTransactionController::class, 'store'])
+        ->name('admin.bank-transactions.store');
+    Route::put('/admin/bank-transactions/{transaction}', [\App\Http\Controllers\Cash\BankTransactionController::class, 'update'])
+        ->name('admin.bank-transactions.update');
+    Route::delete('/admin/bank-transactions/{transaction}', [\App\Http\Controllers\Cash\BankTransactionController::class, 'destroy'])
+        ->name('admin.bank-transactions.destroy');
+
     Route::resource('/admin/categories', \App\Http\Controllers\Inventory\CategoriesController::class)
         ->names([
             'index' => 'admin.categories',

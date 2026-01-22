@@ -20,6 +20,7 @@ class Account extends Model
         'AccName',
         'AccType',
         'AccParent',
+        'Nature',
         'AccDmType',
         'AccFinal',
         'AccMaxLimt',

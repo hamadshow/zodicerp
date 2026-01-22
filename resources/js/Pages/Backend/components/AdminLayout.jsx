@@ -154,7 +154,8 @@ const AdminLayout = ({
       submenuItems: [
           { icon: 'account_balance_wallet', label: 'Cash', href: route('admin.petty-cash.index') },
           { icon: 'account_balance', label: 'Banks', href: route('admin.banks.index') },
-          { icon: 'payments', label: 'Cheque', href: route('admin.cheques.index') }
+          { icon: 'payments', label: 'Cheque', href: route('admin.cheques.index') },
+          { icon: 'swap_horiz', label: 'Bank Transactions', href: route('admin.bank-transactions.index') }
       ],
     },
     {

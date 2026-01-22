@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Cash;
 use App\Http\Controllers\Controller;
 use App\Models\CashAccount;
 use App\Models\Bank;
+use App\Models\Currency;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
@@ -31,11 +32,14 @@ class PettyCashController extends Controller
 
         // Get Banks for dropdown
         $banks = Bank::where('status', 'active')->select('id', 'name')->get();
+        
+        $currencies = Currency::where('status', 'active')->select('id', 'code', 'name')->get();
 
         return Inertia::render('Backend/06-Cash/PettyCash', [
             'cashAccounts' => $cashAccounts,
             'filters' => $request->only(['search', 'status']),
             'banks' => $banks,
+            'currencies' => $currencies,
         ]);
     }
 
@@ -46,7 +50,7 @@ class PettyCashController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'nullable|string|max:50',
             'bank_id' => 'nullable|exists:banks,id',
-            'currency' => 'required|string|max:10',
+            'currency' => 'required|exists:currencies,id',
             'opening_balance' => 'required|numeric',
             'current_balance' => 'required|numeric',
             'status' => 'required|in:active,inactive',
@@ -67,7 +71,7 @@ class PettyCashController extends Controller
             'name' => 'required|string|max:255',
             'type' => 'nullable|string|max:50',
             'bank_id' => 'nullable|exists:banks,id',
-            'currency' => 'required|string|max:10',
+            'currency' => 'required|exists:currencies,id',
             'opening_balance' => 'required|numeric',
             'current_balance' => 'required|numeric',
             'status' => 'required|in:active,inactive',

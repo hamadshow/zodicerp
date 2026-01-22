@@ -24,13 +24,13 @@ const FilterTab = ({ id, label, isActive, onClick }) => (
     </div>
 );
 
-const AddEditCashModal = ({ isOpen, onClose, cashAccount, isEditing, banks }) => {
+const AddEditCashModal = ({ isOpen, onClose, cashAccount, isEditing, banks, currencies }) => {
     const { data, setData, post, put, processing, errors, reset } = useForm({
         account_code: '',
         name: '',
-        type: 'petty',
+        type: 'Petty Cash',
         bank_id: '',
-        currency: 'USD',
+        currency: '',
         opening_balance: 0,
         current_balance: 0,
         status: 'active',
@@ -42,9 +42,9 @@ const AddEditCashModal = ({ isOpen, onClose, cashAccount, isEditing, banks }) =>
             setData({
                 account_code: cashAccount.account_code || '',
                 name: cashAccount.name || '',
-                type: cashAccount.type || 'petty',
+                type: cashAccount.type || 'Petty Cash',
                 bank_id: cashAccount.bank_id || '',
-                currency: cashAccount.currency || 'USD',
+                currency: cashAccount.currency || '',
                 opening_balance: cashAccount.opening_balance || 0,
                 current_balance: cashAccount.current_balance || 0,
                 status: cashAccount.status || 'active',
@@ -52,8 +52,8 @@ const AddEditCashModal = ({ isOpen, onClose, cashAccount, isEditing, banks }) =>
             });
         } else {
             reset();
-            setData('type', 'petty');
-            setData('currency', 'USD');
+            setData('type', 'Petty Cash');
+            setData('currency', '');
             setData('status', 'active');
             setData('opening_balance', 0);
             setData('current_balance', 0);
@@ -100,13 +100,15 @@ const AddEditCashModal = ({ isOpen, onClose, cashAccount, isEditing, banks }) =>
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Type</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
+                                <select
+                                    className="form-select"
                                     value={data.type}
                                     onChange={(e) => setData('type', e.target.value)}
-                                    placeholder="e.g. petty"
-                                />
+                                >
+                                    <option value="Petty Cash">Petty Cash</option>
+                                    <option value="Cash in Hand">Cash in Hand</option>
+                                    <option value="Cash Register">Cash Register</option>
+                                </select>
                                 {errors.type && <div className="text-red-500 text-xs mt-1">{errors.type}</div>}
                             </div>
                         </div>
@@ -142,12 +144,18 @@ const AddEditCashModal = ({ isOpen, onClose, cashAccount, isEditing, banks }) =>
                             </div>
                             <div className="form-group">
                                 <label className="form-label">Currency</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
+                                <select
+                                    className="form-select"
                                     value={data.currency}
                                     onChange={(e) => setData('currency', e.target.value)}
-                                />
+                                >
+                                    <option value="">Select Currency</option>
+                                    {currencies && currencies.map((curr) => (
+                                        <option key={curr.id} value={curr.id}>
+                                            {curr.name}
+                                        </option>
+                                    ))}
+                                </select>
                                 {errors.currency && <div className="text-red-500 text-xs mt-1">{errors.currency}</div>}
                             </div>
                         </div>
@@ -283,7 +291,7 @@ const ViewCashModal = ({ isOpen, onClose, cashAccount }) => {
     );
 };
 
-const PettyCash = ({ cashAccounts, filters, banks }) => {
+const PettyCash = ({ cashAccounts, filters, banks, currencies }) => {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
     const [addEditModalOpen, setAddEditModalOpen] = useState(false);
@@ -522,6 +530,7 @@ const PettyCash = ({ cashAccounts, filters, banks }) => {
                 cashAccount={editingCash}
                 isEditing={!!editingCash}
                 banks={banks}
+                currencies={currencies}
             />
 
             <ViewCashModal

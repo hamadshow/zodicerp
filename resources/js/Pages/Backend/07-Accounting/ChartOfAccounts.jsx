@@ -14,6 +14,10 @@ const DM_TYPES = [
   { value: 1, label: 'Credit' },
 ];
 
+const NATURE_OPTIONS = [
+  'asset', 'Inventory','Accounts Receivable','cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income'
+];
+
 const getAccountTypeLabel = (value) => {
   const found = ACCOUNT_TYPES.find((t) => t.value === Number(value));
   return found ? found.label : '';
@@ -78,6 +82,7 @@ export default function ChartOfAccounts() {
     AccType: 0,
     AccParent: '',
     AccDmType: 0,
+    Nature: '',
     AccFinal: false,
     AccMaxLimt: '',
     AccMaxDuration: '',
@@ -135,6 +140,12 @@ export default function ChartOfAccounts() {
       .sort((a, b) => Number(a.AccCode || 0) - Number(b.AccCode || 0));
   }, [allAccounts]);
 
+  const selectAccountOptions = useMemo(() => {
+    return [...allAccounts]
+      .filter((a) => Number(a.AccType ?? 0) === 1)
+      .sort((a, b) => Number(a.AccCode || 0) - Number(b.AccCode || 0));
+  }, [allAccounts]);
+
   const toggleNode = (id) => {
     setExpanded((prev) => ({
       ...prev,
@@ -151,6 +162,7 @@ export default function ChartOfAccounts() {
         AccType: Number(account.AccType ?? 0),
         AccParent: account.AccParent ?? '',
         AccDmType: Number(account.AccDmType ?? 0),
+        Nature: account.Nature ?? '',
         AccFinal: Number(account.AccFinal ?? 0) === 1,
         AccMaxLimt: account.AccMaxLimt != null ? String(account.AccMaxLimt) : '',
         AccMaxDuration: account.AccMaxDuration != null ? String(account.AccMaxDuration) : '',
@@ -166,6 +178,7 @@ export default function ChartOfAccounts() {
         AccType: 0,
         AccParent: '',
         AccDmType: 0,
+        Nature: '',
         AccFinal: false,
         AccMaxLimt: '',
         AccMaxDuration: '',
@@ -181,6 +194,7 @@ export default function ChartOfAccounts() {
   const closeModal = () => {
     setIsModalOpen(false);
     setCurrentAccount(null);
+    setError('');
   };
 
   const handleFieldChange = (field, value) => {
@@ -202,6 +216,7 @@ export default function ChartOfAccounts() {
       AccType: Number(form.AccType),
       AccParent: form.AccParent !== '' ? Number(form.AccParent) : null,
       AccDmType: form.AccDmType === 0 ? 1 : 2,
+      Nature: form.Nature || null,
       AccFinal: Boolean(form.AccFinal),
       AccMaxLimt: form.AccMaxLimt !== '' ? Number(form.AccMaxLimt) : null,
       AccMaxDuration: form.AccMaxDuration !== '' ? Number(form.AccMaxDuration) : null,
@@ -342,14 +357,10 @@ export default function ChartOfAccounts() {
             </span>
           </td>
           <td>
-            {Number(account.AccType ?? 0) === 1 ? (
-              Number(account.AccDmType) === 1 ? (
-                <span className="nature-debit">Debit</span>
-              ) : Number(account.AccDmType) === 2 ? (
-                <span className="nature-credit">Credit</span>
-              ) : (
-                '-'
-              )
+            {account.Nature ? (
+              <span>
+                {account.Nature.charAt(0).toUpperCase() + account.Nature.slice(1)}
+              </span>
             ) : (
               '-'
             )}
@@ -537,6 +548,21 @@ export default function ChartOfAccounts() {
           </div>
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
+              {error && (
+                <div
+                  className="error-banner"
+                  style={{
+                    marginBottom: '1rem',
+                    padding: '0.75rem',
+                    backgroundColor: '#fee2e2',
+                    color: '#991b1b',
+                    borderRadius: '0.375rem',
+                    border: '1px solid #fecaca',
+                  }}
+                >
+                  {error}
+                </div>
+              )}
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-code">
@@ -601,7 +627,7 @@ export default function ChartOfAccounts() {
                   >
                     <option value="">None</option>
                     {parentOptions.map((a) => (
-                      <option key={a.AccID} value={a.AccCode}>
+                      <option key={a.AccID} value={a.AccID}>
                         {a.AccCode} - {a.AccName}
                       </option>
                     ))}
@@ -628,6 +654,27 @@ export default function ChartOfAccounts() {
                   </select>
                 </div>
                 <div className="form-group">
+                  <label className="form-label" htmlFor="acc-nature">
+                    Nature Account
+                  </label>
+                  <select
+                    id="acc-nature"
+                    name="Nature"
+                    className="form-control"
+                    value={form.Nature}
+                    onChange={(e) => handleFieldChange('Nature', e.target.value)}
+                  >
+                    <option value="">Select Nature</option>
+                    {NATURE_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div className="form-group">
                   <label className="form-label" htmlFor="acc-final">
                     Final Account
                   </label>
@@ -642,8 +689,6 @@ export default function ChartOfAccounts() {
                     }
                   />
                 </div>
-              </div>
-              <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-max-limit">
                     Max Limit
@@ -657,6 +702,8 @@ export default function ChartOfAccounts() {
                     onChange={(e) => handleFieldChange('AccMaxLimt', e.target.value)}
                   />
                 </div>
+              </div>
+              <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-max-duration">
                     Max Duration
@@ -672,8 +719,6 @@ export default function ChartOfAccounts() {
                     }
                   />
                 </div>
-              </div>
-              <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-branch">
                     Branch
