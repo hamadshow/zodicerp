@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Salary-Receipt.css';
+import '../../../../css/backend/Salary-Receipt.scss';
 
 const DEPARTMENTS = {
   it: 'IT Department',

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '../../components/AdminLayout';
-import '../../../../../css/backend/04-Purchases/style.css';
+import '../../../../../css/backend/04-Purchases/style.scss';
 
 const Index = ({ suppliers, groups, filters, stats }) => {
     const safeFilters = filters || {};

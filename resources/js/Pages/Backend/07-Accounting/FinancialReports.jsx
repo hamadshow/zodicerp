@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
-import '../../../../css/backend/FinancialReports.css';
+import '../../../../css/backend/FinancialReports.scss';
 import AdminLayout from '../components/AdminLayout';
 
 export default function FinancialReports({ activeReport }) {

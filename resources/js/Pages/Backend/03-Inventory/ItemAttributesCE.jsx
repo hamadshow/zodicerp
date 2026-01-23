@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/ProductsCE.css';
+import '../../../../css/backend/ProductsCE.scss';
 
 const ItemAttributesCE = ({ attribute = null }) => {
     const isEdit = !!attribute;

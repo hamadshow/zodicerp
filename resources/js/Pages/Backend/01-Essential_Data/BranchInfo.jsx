@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/BranchInfo.css';
+import '../../../../css/backend/BranchInfo.scss';
 
 const BranchInfo = ({ branches }) => {
     const handleDelete = (id) => {

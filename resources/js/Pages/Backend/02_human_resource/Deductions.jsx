@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Deductions.css';
+import '../../../../css/backend/Deductions.scss';
 
 const Deductions = () => {
   const initialDeductions = [

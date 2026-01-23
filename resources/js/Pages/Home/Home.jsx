@@ -1,5 +1,5 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
-import '../../../css/homepage/home.css';
+import '../../../css/homepage/home.scss';
 import Header from './Components/Header';
 import Footer from './Components/Footer';
 import ProductCard from './Components/ProductCard';

@@ -3,7 +3,7 @@ import { Head, useForm, Link, router } from '@inertiajs/react';
 import axios from 'axios';
 import AdminLayout from '../components/AdminLayout';
 import MediaPickerModal from '../Media/MediaPickerModal';
-import '../../../../css/backend/Company.css';
+import '../../../../css/backend/Company.scss';
 
 const CompanyForm = ({ company }) => {
     const isEdit = !!company;

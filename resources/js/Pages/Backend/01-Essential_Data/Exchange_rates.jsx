@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Exchange_rates.css';
+import '../../../../css/backend/Exchange_rates.scss';
 
 const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
     const { errors } = usePage().props;

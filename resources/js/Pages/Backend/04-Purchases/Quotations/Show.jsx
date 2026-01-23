@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import AdminLayout from '../../components/AdminLayout';
-import '../../../../../css/backend/04-Purchases/style.css';
+import '../../../../../css/backend/04-Purchases/style.scss';
 
 const Show = ({ quotation }) => {
     return (

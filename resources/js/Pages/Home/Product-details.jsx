@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import Header from './Components/Header';
 import Footer from './Components/Footer';
-import '../../../css/homepage/Product-details.css';
+import '../../../css/homepage/Product-details.scss';
 
 export default function ProductDetails({ product, categories = [] }) {
   const placeholderImage = 'https://via.placeholder.com/500x500';

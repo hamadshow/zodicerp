@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Brands.css';
+import '../../../../css/backend/Brands.scss';
 
 // Recursive Brand Item Component
 const BrandItem = ({ brand, level = 0, onEdit, onDelete, onDrop, onDragStart }) => {

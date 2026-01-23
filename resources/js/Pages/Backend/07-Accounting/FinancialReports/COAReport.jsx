@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import AdminLayout from '../../components/AdminLayout';
 import { apiService } from '../../../../services/api';
-import '../../../../../css/backend/Reports/COAReport.css';
+import '../../../../../css/backend/Reports/COAReport.scss';
 
 const ACCOUNT_TYPES = [
   { value: 0, label: 'Main' },

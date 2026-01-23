@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Suppliers.css';
+import '../../../../css/backend/Suppliers.scss';
 
 const SupplierProfile = ({ supplier }) => {
     const assignedProducts = supplier?.products || [];

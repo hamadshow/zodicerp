@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import MediaPickerModal from '../Media/MediaPickerModal';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/ProductsCE.css';
+import '../../../../css/backend/ProductsCE.scss';
 
 const CategoryTreeItem = ({ category, selectedIds, onToggle, search }) => {
     const hasChildren = category.children && category.children.length > 0;

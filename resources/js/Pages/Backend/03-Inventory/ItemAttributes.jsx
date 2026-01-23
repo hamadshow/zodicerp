@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Warehouses.css'; // Reusing Warehouses CSS for consistency
+import '../../../../css/backend/Warehouses.scss'; // Reusing Warehouses CSS for consistency
 
 const ItemAttributes = ({ attributes = [] }) => {
     const [filteredAttributes, setFilteredAttributes] = useState(attributes);

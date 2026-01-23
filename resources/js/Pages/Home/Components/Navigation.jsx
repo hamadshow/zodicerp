@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import '../../../../css/homepage/header.css';
+import '../../../../css/homepage/header.scss';
 
 export default function Navigation({
   items = [

@@ -6,7 +6,7 @@ import MediaToolbar from "./MediaToolbar";
 import MediaGrid from "./MediaGrid";
 import MediaSidebar from "./MediaSidebar";
 import FilePreviewModal from "./FilePreviewModal";
-import "../../../../css/backend/Media.css";
+import '../../../../css/backend/Media.scss';
 
 export default function MediaIndex({ folders, files, currentFolder, breadcrumbs = [], filters = {}, storageUsage }) {
     const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);

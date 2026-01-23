@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Head, router, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/bank.css';
+import '../../../../css/backend/bank.scss';
 
 // --- Components ---
 

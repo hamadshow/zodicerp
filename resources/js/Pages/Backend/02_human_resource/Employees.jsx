@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
-import '../../../../css/backend/Employees.css';
+import '../../../../css/backend/Employees.scss';
 import AdminLayout from '../components/AdminLayout';
 import { apiService } from '../../../services/api';
 

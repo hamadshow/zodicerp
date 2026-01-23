@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from '@inertiajs/react';
-import '../../../../css/homepage/header.css';
+import '../../../../css/homepage/header.scss';
 import SearchBar from './SearchBar';
 
 export default function HeaderTop({

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Head, useForm, Link } from '@inertiajs/react';
-import '../../../../css/suppliers/Auth/Register.css';
+import '../../../../css/suppliers/Auth/Register.scss';
 
 const Register = () => {
     const { data, setData, post, processing, errors, reset } = useForm({

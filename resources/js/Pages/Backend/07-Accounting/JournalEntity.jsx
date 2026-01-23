@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
-import '../../../../css/backend/JournalEntity.css';
+import '../../../../css/backend/JournalEntity.scss';
 import AdminLayout from '../components/AdminLayout';
 import { apiService } from '../../../services/api';
 

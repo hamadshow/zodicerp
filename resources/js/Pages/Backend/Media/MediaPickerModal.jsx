@@ -4,7 +4,7 @@ import MediaSidebar from './MediaSidebar';
 import MediaGrid from './MediaGrid';
 import MediaToolbar from './MediaToolbar';
 import Pagination from '../components/Pagination';
-import '../../../../css/backend/Media.css';
+import '../../../../css/backend/Media.scss';
 
 export default function MediaPickerModal({ isOpen, onClose, onSelect, multiple = false, allowedTypes = ['image'] }) {
     const [loading, setLoading] = useState(false);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/PettyCash.css';
+import '../../../../css/backend/PettyCash.scss';
 
 const StatsCard = ({ icon, bgColor, value, label }) => (
     <div className="stat-card">

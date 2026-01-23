@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import { AddEditTaskModal, ViewTaskModal } from './TaskModals';
-import '../../../../css/backend/Tasks.css';
+import '../../../../css/backend/Tasks.scss';
 import { apiService } from '../../../services/api.js';
 
 const TaskManager = () => {

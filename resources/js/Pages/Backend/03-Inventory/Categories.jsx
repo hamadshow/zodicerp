@@ -3,7 +3,7 @@ import { Head, router, useForm, Link } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import IconPicker from '../../../Components/IconPicker';
 import MediaPickerModal from '../Media/MediaPickerModal';
-import '../../../../css/backend/Categories.css';
+import '../../../../css/backend/Categories.scss';
 
 // --- Recursive Category Tree Item ---
 const CategoryItem = ({ category, level = 0, selectedId, onSelect, onDelete, onDrop, onDragStart }) => {

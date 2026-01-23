@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from '@inertiajs/react';
-import '../../../../css/backend/components/Sidebar.css';
+import '../../../../css/backend/components/Sidebar.scss';
 
 const Sidebar = ({
   sidebarOpen,

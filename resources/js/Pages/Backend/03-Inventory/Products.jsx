@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Products.css';
+import '../../../../css/backend/Products.scss';
 
 const Products = ({ products, brands, categories, filters }) => {
     const { flash } = usePage().props;

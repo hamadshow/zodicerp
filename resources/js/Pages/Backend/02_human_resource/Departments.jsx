@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Departments.css';
+import '../../../../css/backend/Departments.scss';
 
 const Departments = () => {
     // Sample department data

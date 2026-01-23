@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Reward.css';
+import '../../../../css/backend/Reward.scss';
 
 const Reward = () => {
   // State management

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Currencies.css';
+import '../../../../css/backend/Currencies.scss';
 
 const Currencies = ({ currencies = [] }) => {
     const [filteredCurrencies, setFilteredCurrencies] = useState(currencies);

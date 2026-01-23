@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/TrafficViolations.css';
+import '../../../../css/backend/TrafficViolations.scss';
 
 // Toast component
 const Toast = ({ toasts, removeToast }) => {

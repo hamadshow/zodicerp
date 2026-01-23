@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, useForm, Link, router } from '@inertiajs/react';
 import axios from 'axios';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/BranchInfo.css';
+import '../../../../css/backend/BranchInfo.scss';
 
 const BranchInfoAdd_Edit = ({ branch, companies }) => {
     const isEdit = !!branch;

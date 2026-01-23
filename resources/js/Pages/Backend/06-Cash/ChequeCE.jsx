@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
-import '../../../../css/backend/ChequeCE.css';
+import '../../../../css/backend/ChequeCE.scss';
 
 const ChequeCE = ({ cheque, accounts }) => {
     const isEditing = !!cheque;

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Head } from '@inertiajs/react';
-import '../../../../css/backend/ChartOfAccounts.css';
+import '../../../../css/backend/ChartOfAccounts.scss';
 import AdminLayout from '../components/AdminLayout';
 import { apiService } from '../../../services/api';
 

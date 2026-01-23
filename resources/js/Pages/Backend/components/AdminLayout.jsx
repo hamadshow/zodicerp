@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-import '../../../../css/backend/common/app.css';
+import '../../../../css/backend/common/app.scss';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
