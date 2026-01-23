@@ -3,25 +3,25 @@
 namespace App\Http\Controllers\Essential_Data_Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\CompanyInfo;
+use App\Models\Company;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 
-class CompanyInfoController extends Controller
+class CompanyController extends Controller
 {
     public function index()
     {
-        $companies = CompanyInfo::with(['countryData', 'cityData', 'areaData'])->latest()->get();
-        return Inertia::render('Backend/01-Essential_Data/CompanyInfo', [
+        $companies = Company::with(['countryData', 'cityData', 'areaData'])->latest()->get();
+        return Inertia::render('Backend/01-Essential_Data/Company', [
             'companies' => $companies
         ]);
     }
 
     public function create()
     {
-        return Inertia::render('Backend/01-Essential_Data/CompanyInfoAdd_Edit');
+        return Inertia::render('Backend/01-Essential_Data/CompanyForm');
     }
 
     public function store(Request $request)
@@ -77,7 +77,7 @@ class CompanyInfoController extends Controller
         DB::transaction(function () use ($validated) {
             // Atomic company code generation
             // Lock the table for reading to ensure sequentiality
-            $lastCompany = CompanyInfo::lockForUpdate()->orderBy('id', 'desc')->first();
+            $lastCompany = Company::lockForUpdate()->orderBy('id', 'desc')->first();
             
             if (!$lastCompany || !$lastCompany->company_code) {
                 $nextCode = 10001;
@@ -87,20 +87,20 @@ class CompanyInfoController extends Controller
 
             $validated['company_code'] = (string) $nextCode;
             
-            CompanyInfo::create($validated);
+            Company::create($validated);
         });
 
-        return redirect()->route('admin.company_info.index')->with('success', 'Company Info created successfully.');
+        return redirect()->route('admin.companies.index')->with('success', 'Company created successfully.');
     }
 
-    public function edit(CompanyInfo $companyInfo)
+    public function edit(Company $company)
     {
-        return Inertia::render('Backend/01-Essential_Data/CompanyInfoAdd_Edit', [
-            'company' => $companyInfo
+        return Inertia::render('Backend/01-Essential_Data/CompanyForm', [
+            'company' => $company
         ]);
     }
 
-    public function update(Request $request, CompanyInfo $companyInfo)
+    public function update(Request $request, Company $company)
     {
          $validated = $request->validate([
             'company_name' => 'required|string|max:255',
@@ -142,8 +142,8 @@ class CompanyInfoController extends Controller
         ]);
 
         if ($request->hasFile('logo')) {
-            if ($companyInfo->logo) {
-                Storage::disk('public')->delete($companyInfo->logo);
+            if ($company->logo) {
+                Storage::disk('public')->delete($company->logo);
             }
             $path = $request->file('logo')->store('company_logos', 'public');
             $validated['logo'] = $path;
@@ -153,18 +153,18 @@ class CompanyInfoController extends Controller
 
         unset($validated['logo_path']);
 
-        $companyInfo->update($validated);
+        $company->update($validated);
 
-        return redirect()->route('admin.company_info.index')->with('success', 'Company Info updated successfully.');
+        return redirect()->route('admin.companies.index')->with('success', 'Company updated successfully.');
     }
 
-    public function destroy(CompanyInfo $companyInfo)
+    public function destroy(Company $company)
     {
-        if ($companyInfo->logo) {
-            Storage::disk('public')->delete($companyInfo->logo);
+        if ($company->logo) {
+            Storage::disk('public')->delete($company->logo);
         }
-        $companyInfo->delete();
+        $company->delete();
 
-        return redirect()->route('admin.company_info.index')->with('success', 'Company Info deleted successfully.');
+        return redirect()->route('admin.companies.index')->with('success', 'Company deleted successfully.');
     }
 }

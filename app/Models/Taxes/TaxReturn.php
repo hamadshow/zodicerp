@@ -2,7 +2,7 @@
 
 namespace App\Models\Taxes;
 
-use App\Models\CompanyInfo;
+use App\Models\Company;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -57,9 +57,7 @@ class TaxReturn extends Model
     public function entity()
     {
         // Polymorphic or dynamic relationship could be used here depending on entity_type,
-        // but for now, we link to CompanyInfo as per schema fallback.
-        // If 'companies' table existed, we would link to it.
-        // Assuming CompanyInfo is the model for 'company_infos'
-        return $this->belongsTo(CompanyInfo::class, 'entity_id');
+        // but for now, we link to Company as per schema fallback.
+        return $this->belongsTo(Company::class, 'entity_id');
     }
 }

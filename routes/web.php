@@ -91,15 +91,15 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Backend/02_human_resource/Attendance');
     })->name('admin.attendance');
 
-    Route::resource('/admin/company-info', \App\Http\Controllers\Essential_Data_Controllers\CompanyInfoController::class)
+    Route::resource('/admin/companies', \App\Http\Controllers\Essential_Data_Controllers\CompanyController::class)
         ->names([
-            'index' => 'admin.company_info.index',
-            'create' => 'admin.company_info.create',
-            'store' => 'admin.company_info.store',
-            'show' => 'admin.company_info.show',
-            'edit' => 'admin.company_info.edit',
-            'update' => 'admin.company_info.update',
-            'destroy' => 'admin.company_info.destroy',
+            'index' => 'admin.companies.index',
+            'create' => 'admin.companies.create',
+            'store' => 'admin.companies.store',
+            'show' => 'admin.companies.show',
+            'edit' => 'admin.companies.edit',
+            'update' => 'admin.companies.update',
+            'destroy' => 'admin.companies.destroy',
         ]);
 
     Route::resource('/admin/categories', \App\Http\Controllers\Inventory\CategoriesController::class)
@@ -127,15 +127,15 @@ Route::middleware('auth')->group(function () {
             'destroy' => 'admin.products.destroy',
         ])->except(['update']);
 
-    Route::resource('/admin/branch-info', \App\Http\Controllers\Essential_Data_Controllers\BranchInfoController::class)
+    Route::resource('/admin/branches', \App\Http\Controllers\Essential_Data_Controllers\BranchController::class)
         ->names([
-            'index' => 'admin.branch_info.index',
-            'create' => 'admin.branch_info.create',
-            'store' => 'admin.branch_info.store',
-            'show' => 'admin.branch_info.show',
-            'edit' => 'admin.branch_info.edit',
-            'update' => 'admin.branch_info.update',
-            'destroy' => 'admin.branch_info.destroy',
+            'index' => 'admin.branches.index',
+            'create' => 'admin.branches.create',
+            'store' => 'admin.branches.store',
+            'show' => 'admin.branches.show',
+            'edit' => 'admin.branches.edit',
+            'update' => 'admin.branches.update',
+            'destroy' => 'admin.branches.destroy',
         ]);
 
     Route::get('/admin/departments', function () {

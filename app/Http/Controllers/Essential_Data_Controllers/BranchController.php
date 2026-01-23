@@ -3,27 +3,27 @@
 namespace App\Http\Controllers\Essential_Data_Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\BranchInfo;
-use App\Models\CompanyInfo;
+use App\Models\Branch;
+use App\Models\Company;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 
-class BranchInfoController extends Controller
+class BranchController extends Controller
 {
     public function index()
     {
-        $branches = BranchInfo::with(['company', 'countryData', 'cityData', 'areaData'])->latest()->get();
-        return Inertia::render('Backend/01-Essential_Data/BranchInfo', [
+        $branches = Branch::with(['company', 'countryData', 'cityData', 'areaData'])->latest()->get();
+        return Inertia::render('Backend/01-Essential_Data/Branch', [
             'branches' => $branches
         ]);
     }
 
     public function create()
     {
-        $companies = CompanyInfo::select('id', 'company_name')->get();
-        return Inertia::render('Backend/01-Essential_Data/BranchInfoAdd_Edit', [
+        $companies = Company::select('id', 'company_name')->get();
+        return Inertia::render('Backend/01-Essential_Data/BranchAddEdit', [
             'companies' => $companies
         ]);
     }
@@ -31,7 +31,7 @@ class BranchInfoController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'company_id' => 'required|exists:company_infos,id',
+            'company_id' => 'required|exists:companies,id',
             'branch_name' => 'required|string|max:255',
             'english_name' => 'nullable|string',
             'branch_type' => 'nullable|string',
@@ -77,7 +77,7 @@ class BranchInfoController extends Controller
         DB::transaction(function () use ($validated) {
             // Atomic branch code generation
             // Lock the table for reading to ensure sequentiality
-            $lastBranch = BranchInfo::lockForUpdate()->orderBy('id', 'desc')->first();
+            $lastBranch = Branch::lockForUpdate()->orderBy('id', 'desc')->first();
             
             if (!$lastBranch || !$lastBranch->branch_code) {
                 $nextCode = 20001; // Starting from 20001 for branches to distinguish from companies
@@ -87,25 +87,25 @@ class BranchInfoController extends Controller
 
             $validated['branch_code'] = (string) $nextCode;
             
-            BranchInfo::create($validated);
+            Branch::create($validated);
         });
 
-        return redirect()->route('admin.branch_info.index')->with('success', 'Branch Info created successfully.');
+        return redirect()->route('admin.branches.index')->with('success', 'Branch created successfully.');
     }
 
-    public function edit(BranchInfo $branchInfo)
+    public function edit(Branch $branch)
     {
-        $companies = CompanyInfo::select('id', 'company_name')->get();
-        return Inertia::render('Backend/01-Essential_Data/BranchInfoAdd_Edit', [
-            'branch' => $branchInfo,
+        $companies = Company::select('id', 'company_name')->get();
+        return Inertia::render('Backend/01-Essential_Data/BranchAddEdit', [
+            'branch' => $branch,
             'companies' => $companies
         ]);
     }
 
-    public function update(Request $request, BranchInfo $branchInfo)
+    public function update(Request $request, Branch $branch)
     {
          $validated = $request->validate([
-            'company_id' => 'required|exists:company_infos,id',
+            'company_id' => 'required|exists:companies,id',
             'branch_name' => 'required|string|max:255',
             'english_name' => 'nullable|string',
             'branch_type' => 'nullable|string',
@@ -144,25 +144,25 @@ class BranchInfoController extends Controller
         ]);
 
         if ($request->hasFile('logo')) {
-            if ($branchInfo->logo) {
-                Storage::disk('public')->delete($branchInfo->logo);
+            if ($branch->logo) {
+                Storage::disk('public')->delete($branch->logo);
             }
             $path = $request->file('logo')->store('branch_logos', 'public');
             $validated['logo'] = $path;
         }
 
-        $branchInfo->update($validated);
+        $branch->update($validated);
 
-        return redirect()->route('admin.branch_info.index')->with('success', 'Branch Info updated successfully.');
+        return redirect()->route('admin.branches.index')->with('success', 'Branch updated successfully.');
     }
 
-    public function destroy(BranchInfo $branchInfo)
+    public function destroy(Branch $branch)
     {
-        if ($branchInfo->logo) {
-            Storage::disk('public')->delete($branchInfo->logo);
+        if ($branch->logo) {
+            Storage::disk('public')->delete($branch->logo);
         }
-        $branchInfo->delete();
+        $branch->delete();
 
-        return redirect()->route('admin.branch_info.index')->with('success', 'Branch Info deleted successfully.');
+        return redirect()->route('admin.branches.index')->with('success', 'Branch deleted successfully.');
     }
 }

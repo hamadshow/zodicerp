@@ -3,9 +3,9 @@ import { Head, useForm, Link, router } from '@inertiajs/react';
 import axios from 'axios';
 import AdminLayout from '../components/AdminLayout';
 import MediaPickerModal from '../Media/MediaPickerModal';
-import '../../../../css/backend/CompanyInfo.css';
+import '../../../../css/backend/Company.css';
 
-const CompanyInfoAdd_Edit = ({ company }) => {
+const CompanyForm = ({ company }) => {
     const isEdit = !!company;
     const [activeTab, setActiveTab] = useState('basic');
 
@@ -197,12 +197,12 @@ const CompanyInfoAdd_Edit = ({ company }) => {
         }
 
         if (isEdit) {
-            router.post(route('admin.company_info.update', company.id), {
+            router.post(route('admin.companies.update', company.id), {
                 ...data,
                 _method: 'put',
             });
         } else {
-            post(route('admin.company_info.store'));
+            post(route('admin.companies.store'));
         }
     };
 
@@ -260,8 +260,8 @@ const CompanyInfoAdd_Edit = ({ company }) => {
     );
 
     return (
-        <AdminLayout activeMenu="Company Info">
-            <Head title={isEdit ? "Edit Company Info" : "Add Company Info"} />
+        <AdminLayout activeMenu="Companies">
+            <Head title={isEdit ? "Edit Company" : "Add Company"} />
             <div className="Essential-Data-Container">
                 <div className="tasks-card">
                     <div className="card-header">
@@ -270,7 +270,7 @@ const CompanyInfoAdd_Edit = ({ company }) => {
                         </h1>
                         <div className="tasks-actions">
                             <Link
-                                href={route('admin.company_info.index')}
+                                href={route('admin.companies.index')}
                                 className="btn btn-outline no-underline"
                             >
                                 <span className="material-icons-outlined">arrow_back</span>
@@ -434,29 +434,20 @@ const CompanyInfoAdd_Edit = ({ company }) => {
                         </div>
 
                         <div className={`tab-content ${activeTab === 'government' ? 'active' : ''}`}>
-                            <div className="section-header">Company Registration Details</div>
                             <div className="form-columns">
                                 <div className="form-column">
-                                    {renderInput("Accountant Name:", "accountant_name")}
-                                    {renderInput("Tax Number:", "tax_number")}
+                                    {renderInput("Accountant Name:", "accountant_name", "text", "Enter accountant name")}
+                                    {renderInput("Commercial Registration:", "commercial_registration", "text", "Enter CR number")}
+                                    {renderInput("Tax Number:", "tax_number", "text", "Enter tax number")}
+                                    {renderInput("VAT Number:", "vat_number", "text", "Enter VAT number")}
                                     {renderInput("Date of Establishment:", "date_of_establishment", "date")}
                                 </div>
                                 <div className="form-column">
-                                    {renderInput("Commercial Registration:", "commercial_registration")}
-                                    {renderInput("VAT Number:", "vat_number")}
-                                    {renderInput("Social Insurance Number:", "social_insurance_number")}
-                                </div>
-                            </div>
-
-                            <div className="section-header">Additional Information</div>
-                            <div className="form-columns">
-                                <div className="form-column">
-                                    {renderTextarea("Annual Goals:", "annual_goals")}
-                                    {renderInput("Work Center:", "work_center")}
-                                </div>
-                                <div className="form-column">
-                                    {renderInput("Storage:", "storage")}
-                                    {renderInput("Subsidiary Company:", "subsidiary_company")}
+                                    {renderInput("Social Insurance Number:", "social_insurance_number", "text", "Enter insurance number")}
+                                    {renderInput("Annual Goals:", "annual_goals", "text", "Enter annual goals")}
+                                    {renderInput("Storage:", "storage", "text", "Enter storage details")}
+                                    {renderInput("Work Center:", "work_center", "text", "Enter work center")}
+                                    {renderInput("Subsidiary Company:", "subsidiary_company", "text", "Enter subsidiary details")}
                                 </div>
                             </div>
                         </div>
@@ -464,38 +455,57 @@ const CompanyInfoAdd_Edit = ({ company }) => {
                         <div className={`tab-content ${activeTab === 'contact' ? 'active' : ''}`}>
                             <div className="form-columns">
                                 <div className="form-column">
-                                    {renderInput("Email Address:", "email_address", "email")}
-                                    {renderInput("Official Email:", "official_email", "email")}
-                                    {renderInput("Facebook:", "facebook")}
+                                    {renderInput("Email Address:", "email_address", "email", "Enter email address")}
+                                    {renderInput("Official Email:", "official_email", "email", "Enter official email")}
+                                    {renderInput("Facebook:", "facebook", "url", "Enter Facebook URL")}
                                 </div>
                                 <div className="form-column">
-                                    {renderInput("Telegram:", "telegram")}
-                                    {renderInput("YouTube:", "youtube")}
-                                    {renderInput("Instagram:", "instagram")}
+                                    {renderInput("Telegram:", "telegram", "text", "Enter Telegram handle/URL")}
+                                    {renderInput("YouTube:", "youtube", "url", "Enter YouTube channel URL")}
+                                    {renderInput("Instagram:", "instagram", "text", "Enter Instagram handle/URL")}
                                 </div>
                             </div>
                         </div>
 
                         <div className={`tab-content ${activeTab === 'financial' ? 'active' : ''}`}>
-                            <div className="section-header">Bank Account Details</div>
                             <div className="form-columns">
                                 <div className="form-column">
-                                    {renderInput("Account Holder Name:", "account_holder_name")}
-                                    {renderInput("IBAN:", "iban")}
-                                    {renderInput("SWIFT/BIC:", "swift_bic")}
+                                    {renderInput("Account Holder Name:", "account_holder_name", "text", "Enter account holder name")}
+                                    {renderInput("Bank Name:", "bank_name", "text", "Enter bank name")}
+                                    {renderInput("IBAN:", "iban", "text", "Enter IBAN")}
                                 </div>
                                 <div className="form-column">
-                                    {renderInput("Bank Name:", "bank_name")}
-                                    {renderInput("Branch Name:", "branch_name")}
-                                    {renderTextarea("Bank Address:", "bank_address")}
+                                    {renderInput("Branch Name:", "branch_name", "text", "Enter branch name")}
+                                    {renderInput("SWIFT/BIC:", "swift_bic", "text", "Enter SWIFT/BIC code")}
+                                    {renderTextarea("Bank Address:", "bank_address", "Enter bank address")}
                                 </div>
                             </div>
                         </div>
 
-                        <div className="button-group">
-                            <button type="button" className="btn btn-outline" onClick={() => window.history.back()}>Cancel</button>
-                            <button type="submit" className="btn btn-primary" disabled={processing}>
-                                {processing ? 'Saving...' : 'Save Information'}
+                        <div className="form-actions">
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => router.visit(route('admin.companies.index'))}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                className="btn btn-primary"
+                                disabled={processing}
+                            >
+                                {processing ? (
+                                    <>
+                                        <span className="material-icons-outlined spin">sync</span>
+                                        Saving...
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="material-icons-outlined">save</span>
+                                        {isEdit ? 'Update Company' : 'Save Company'}
+                                    </>
+                                )}
                             </button>
                         </div>
                     </form>
@@ -506,11 +516,10 @@ const CompanyInfoAdd_Edit = ({ company }) => {
                 isOpen={isMediaPickerOpen}
                 onClose={() => setIsMediaPickerOpen(false)}
                 onSelect={handleLogoMediaSelect}
-                multiple={false}
                 allowedTypes={['image']}
             />
         </AdminLayout>
     );
 };
 
-export default CompanyInfoAdd_Edit;
+export default CompanyForm;

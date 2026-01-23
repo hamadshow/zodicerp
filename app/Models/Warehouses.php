@@ -31,6 +31,6 @@ class Warehouses extends Model
      */
     public function branch()
     {
-        return $this->belongsTo(BranchInfo::class, 'branch_id');
+        return $this->belongsTo(Branch::class, 'branch_id');
     }
 }

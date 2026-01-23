@@ -35,7 +35,7 @@ class UpdateWarehouseRequest extends FormRequest
                     return $query->where('branch_id', $this->branch_id);
                 }),
             ],
-            'branch_id' => 'required|exists:branch_infos,id',
+            'branch_id' => 'required|exists:branches,id',
             'manager' => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
             'capacity' => 'nullable|integer|min:0',

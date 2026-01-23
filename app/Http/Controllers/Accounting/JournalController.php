@@ -17,7 +17,7 @@ class JournalController extends Controller
 
     public function index(Request $request)
     {
-        $query = JournalEntry::query()->orderByDesc('date')->orderByDesc('id');
+        $query = JournalEntry::orderByDesc('date')->orderByDesc('id');
 
         if ($request->filled('search')) {
             $search = $request->string('search')->toString();
@@ -34,22 +34,51 @@ class JournalController extends Controller
         return response()->json($journals);
     }
 
-    public function nextCode(Request $request)
+    public function store(StoreJournalRequest $request)
     {
-        $prefix = $this->journalCodePrefix;
-        $start = $this->journalCodeStart;
+        $data = $request->validated();
+        $lines = $data['lines'] ?? [];
 
-        $lastCode = JournalEntry::query()
-            ->whereNotNull('entry_code')
-            ->where('entry_code', '!=', '')
-            ->orderByDesc('id')
-            ->value('entry_code');
+        $this->ensureAccountsPostable($lines);
+        $this->ensureBalanced($lines);
 
-        $nextNumber = $this->nextNumericPart($lastCode, $start);
+        return DB::transaction(function () use ($data, $lines) {
+            $code = $this->generateNextEntryCode();
+            
+            $total = 0;
+            foreach ($lines as $line) {
+                $total += (float) ($line['debit'] ?? 0);
+            }
 
-        return response()->json([
-            'next_code' => $prefix . $nextNumber,
-        ]);
+            $journalEntry = JournalEntry::create([
+                'entry_code' => $code,
+                'entry_type' => $data['entry_type'] ?? 'Manual', // Default type
+                'reference' => $data['reference'] ?? null,
+                'date' => $data['date'],
+                'description' => $data['description'] ?? null,
+                'total_amount' => $total,
+                'status' => $data['status'] ?? 'UnPost',
+            ]);
+
+            foreach ($lines as $line) {
+                JournalEntryLine::create([
+                    'journal_entry_code' => $code,
+                    'account_id' => $line['account_id'],
+                    'debit' => $line['debit'] ?? 0,
+                    'credit' => $line['credit'] ?? 0,
+                    'related_id_name' => $line['related_id_name'] ?? null,
+                    'related_name_details' => $line['related_name_details'] ?? null,
+                    'description' => $line['description'] ?? null,
+                    'cost_center_code' => $line['cost_center_code'] ?? null,
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Journal entry created successfully.',
+                'data' => $journalEntry,
+            ]);
+        });
     }
 
     public function show(string $entryCode)
@@ -70,19 +99,25 @@ class JournalController extends Controller
             ]);
         }
 
+        // Keep existing logic for flexible account ID handling but updated for new column names
         $numericIds = [];
-        
+        $codeValues = [];
+
         foreach ($lines as $line) {
             $value = $line->account_id;
             if ($value === null || $value === '') {
                 continue;
             }
+            // Always treat as potential code
+            $codeValues[] = (string) $value;
+
             if (is_numeric($value)) {
                 $numericIds[] = (int) $value;
             }
         }
 
         $numericIds = array_values(array_unique($numericIds));
+        $codeValues = array_values(array_unique($codeValues));
 
         $accountsQuery = DB::table('accounts');
 
@@ -90,27 +125,47 @@ class JournalController extends Controller
             $accountsQuery->whereIn('AccID', $numericIds);
         }
 
+        if (!empty($codeValues)) {
+            if (!empty($numericIds)) {
+                $accountsQuery->orWhereIn('AccCode', $codeValues);
+            } else {
+                $accountsQuery->whereIn('AccCode', $codeValues);
+            }
+        }
+
         $accounts = $accountsQuery->get(['AccID', 'AccCode']);
 
         $accountsById = [];
+        $accountsByCode = [];
 
         foreach ($accounts as $account) {
             $accountsById[$account->AccID] = $account;
+            $accountsByCode[$account->AccCode] = $account;
         }
 
-        $mappedLines = $lines->map(function ($line) use ($accountsById) {
+        $mappedLines = $lines->map(function ($line) use ($accountsById, $accountsByCode) {
             $value = $line->account_id;
             $mappedAccID = null;
 
             if ($value !== null && $value !== '') {
+                // Try to match as AccID first
                 if (is_numeric($value)) {
                     $key = (int) $value;
                     if (array_key_exists($key, $accountsById)) {
                         $mappedAccID = $accountsById[$key]->AccID;
                     }
                 }
+                
+                // If not found as ID, try to match as AccCode
+                if ($mappedAccID === null) {
+                    $key = (string) $value;
+                    if (array_key_exists($key, $accountsByCode)) {
+                        $mappedAccID = $accountsByCode[$key]->AccID;
+                    }
+                }
             }
 
+            // Append mapped AccountAccID for frontend use
             $line->AccountAccID = $mappedAccID;
 
             return $line;
@@ -128,25 +183,15 @@ class JournalController extends Controller
         $totalCredit = 0;
 
         foreach ($lines as $line) {
-            $debit = (float) ($line['debit'] ?? 0);
-            $credit = (float) ($line['credit'] ?? 0);
-
-            if ($debit > 0 && $credit > 0) {
-                abort(
-                    response()->json([
-                        'message' => 'Each journal line must have either debit or credit, not both.',
-                    ], 422)
-                );
-            }
-
             $totalDebit += (float) ($line['debit'] ?? 0);
             $totalCredit += (float) ($line['credit'] ?? 0);
         }
 
-        if (round($totalDebit, 2) !== round($totalCredit, 2)) {
+        // Allow small floating point differences
+        if (abs($totalDebit - $totalCredit) > 0.01) {
             abort(
                 response()->json([
-                    'message' => 'Journal entry is not balanced. Total Debit must equal Total Credit.',
+                    'message' => 'Journal entry is not balanced. Total Debit: ' . $totalDebit . ', Total Credit: ' . $totalCredit,
                 ], 422)
             );
         }
@@ -197,75 +242,12 @@ class JournalController extends Controller
         }
     }
 
-    public function store(StoreJournalRequest $request)
+    protected function nextNumericPart(string $lastCode, int $start): string
     {
-        // We assume the request validation has been updated to use new field names
-        // But the request class might still be using old names if we don't update it.
-        // For now, we'll map manually if needed, or assume frontend sends new names.
-        // Given "Update the whole project", we should expect frontend to send new names.
-        
-        $data = $request->validated();
-        $lines = $data['lines'] ?? [];
-
-        $this->ensureAccountsPostable($lines);
-        $this->ensureBalanced($lines);
-
-        $total = 0;
-        foreach ($lines as $line) {
-            $total += (float) ($line['debit'] ?? 0);
+        if (preg_match('/(\d+)$/', $lastCode, $matches)) {
+            return (string) ((int) $matches[1] + 1);
         }
-
-        return DB::transaction(function () use ($data, $lines, $total) {
-            $nextCode = $this->generateNextEntryCode();
-
-            $header = JournalEntry::create([
-                'entry_code' => $nextCode,
-                'entry_type' => 'Qmanual',
-                'reference' => $data['reference'] ?? null,
-                'date' => $data['date'],
-                'description' => $data['description'] ?? null,
-                'total_amount' => $total,
-                'status' => $data['status'],
-            ]);
-
-            foreach ($lines as $line) {
-                JournalEntryLine::create([
-                    'journal_entry_code' => $nextCode,
-                    'account_id' => $line['account_id'],
-                    'debit' => $line['debit'],
-                    'credit' => $line['credit'],
-                    'related_id_name' => $line['related_id_name'] ?? null,
-                    'related_name_details' => $line['related_name_details'] ?? null,
-                    'description' => $line['description'] ?? null,
-                    'cost_center_code' => $line['cost_center_code'] ?? null,
-                ]);
-            }
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Journal entry created successfully.',
-                'code' => $nextCode,
-            ]);
-        });
-    }
-
-    protected function nextNumericPart(?string $lastCode, int $start): int
-    {
-        if (!$lastCode) {
-            return $start;
-        }
-
-        $digits = preg_replace('/\D+/', '', (string) $lastCode);
-        if ($digits === '' || $digits === null) {
-            return $start;
-        }
-
-        $number = (int) $digits;
-        if ($number < $start) {
-            return $start;
-        }
-
-        return $number + 1;
+        return (string) $start;
     }
 
     protected function generateNextEntryCode(): string
@@ -273,14 +255,13 @@ class JournalController extends Controller
         $prefix = $this->journalCodePrefix;
         $start = $this->journalCodeStart;
 
-        $lastCode = JournalEntry::query()
-            ->whereNotNull('entry_code')
+        $lastCode = JournalEntry::whereNotNull('entry_code')
             ->where('entry_code', '!=', '')
             ->orderByDesc('id')
             ->lockForUpdate()
             ->value('entry_code');
 
-        $nextNumber = $this->nextNumericPart($lastCode, $start);
+        $nextNumber = $this->nextNumericPart($lastCode ?? '', $start);
 
         return $prefix . $nextNumber;
     }
@@ -307,14 +288,15 @@ class JournalController extends Controller
             $total += (float) ($line['debit'] ?? 0);
         }
 
-        return DB::transaction(function () use ($entryCode, $header, $data, $lines, $total) {
-            $header->update([
-                'reference' => $data['reference'] ?? null,
-                'date' => $data['date'],
-                'description' => $data['description'] ?? null,
-                'total_amount' => $total,
-                'status' => $data['status'],
-            ]);
+        return DB::transaction(function () use ($entryCode, $data, $lines, $total) {
+            JournalEntry::where('entry_code', $entryCode)
+                ->update([
+                    'reference' => $data['reference'] ?? null,
+                    'date' => $data['date'],
+                    'description' => $data['description'] ?? null,
+                    'total_amount' => $total,
+                    'status' => $data['status'],
+                ]);
 
             JournalEntryLine::where('journal_entry_code', $entryCode)->delete();
 
@@ -322,8 +304,8 @@ class JournalController extends Controller
                 JournalEntryLine::create([
                     'journal_entry_code' => $entryCode,
                     'account_id' => $line['account_id'],
-                    'debit' => $line['debit'],
-                    'credit' => $line['credit'],
+                    'debit' => $line['debit'] ?? 0,
+                    'credit' => $line['credit'] ?? 0,
                     'related_id_name' => $line['related_id_name'] ?? null,
                     'related_name_details' => $line['related_name_details'] ?? null,
                     'description' => $line['description'] ?? null,
@@ -388,7 +370,8 @@ class JournalController extends Controller
 
         $applyAccountFilter = function ($query) use ($account) {
             $query->where(function ($q) use ($account) {
-                $q->where('b.account_id', $account->AccID);
+                $q->where('b.account_id', $account->AccID)
+                    ->orWhere('b.account_id', $account->AccCode);
             });
         };
 
@@ -468,7 +451,6 @@ class JournalController extends Controller
             $row->credit = round($credit, 2);
             $row->running_balance = round($runningBalance, 2);
             $row->description = $row->line_description ?: $row->header_description;
-
             unset($row->header_description, $row->line_description);
 
             return $row;

@@ -83,7 +83,7 @@ class Budget extends Model
 
     public function branch(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\BranchInfo::class, 'branch_id'); // Assuming BranchInfo matches branches table id
+        return $this->belongsTo(\App\Models\Branch::class, 'branch_id'); // Assuming Branch matches branches table id
     }
 
     /*

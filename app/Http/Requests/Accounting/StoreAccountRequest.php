@@ -62,7 +62,7 @@ class StoreAccountRequest extends FormRequest
             'AccBranch' => [
                 'nullable',
                 'integer',
-                'exists:branch_infos,id',
+                'exists:branches,id',
             ],
             'AccStopped' => [
                 'boolean',

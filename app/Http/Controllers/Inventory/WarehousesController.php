@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\Warehouses;
-use App\Models\BranchInfo;
+use App\Models\Branch;
 use App\Http\Requests\Inventory\StoreWarehouseRequest;
 use App\Http\Requests\Inventory\UpdateWarehouseRequest;
 use Illuminate\Http\Request;
@@ -33,7 +33,7 @@ class WarehousesController extends Controller
         $warehouses = $query->latest()->get();
         
         // Fetch branches for the dropdown in create/edit modal
-        $branches = BranchInfo::select('id', 'branch_name')->get();
+        $branches = Branch::select('id', 'branch_name')->get();
 
         if ($request->wantsJson()) {
             return response()->json([

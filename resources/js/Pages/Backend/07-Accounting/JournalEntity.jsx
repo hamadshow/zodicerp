@@ -52,9 +52,9 @@ export default function JournalEntity() {
     }
     return data.sort((a, b) => {
       const direction = sort.direction === 'asc' ? 1 : -1;
-      if (sort.column === 'QaidTotal') {
-        const aNum = Number(a.QaidTotal || 0);
-        const bNum = Number(b.QaidTotal || 0);
+      if (sort.column === 'total_amount') {
+        const aNum = Number(a.total_amount || 0);
+        const bNum = Number(b.total_amount || 0);
         if (aNum < bNum) return -1 * direction;
         if (aNum > bNum) return 1 * direction;
         return 0;

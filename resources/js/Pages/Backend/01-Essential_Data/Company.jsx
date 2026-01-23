@@ -1,14 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/CompanyInfo.css';
+import '../../../../css/backend/Company.css';
 
-const CompanyInfo = ({ companies }) => {
+const Company = ({ companies }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
     const handleDelete = (id) => {
-        if (confirm('Are you sure you want to delete this company info?')) {
-            router.delete(route('admin.company_info.destroy', id));
+        if (confirm('Are you sure you want to delete this company?')) {
+            router.delete(route('admin.companies.destroy', id));
         }
     };
 
@@ -62,7 +62,7 @@ const CompanyInfo = ({ companies }) => {
     }, [companies, searchTerm]);
 
     return (
-        <AdminLayout activeMenu="Company Info">
+        <AdminLayout activeMenu="Companies">
             <Head title="Company Information" />
             <div className="Essential-Data-Container">
                 <div className="page-header">
@@ -137,7 +137,7 @@ const CompanyInfo = ({ companies }) => {
                         </div>
                         <div className="tasks-actions">
                             <Link
-                                href={route('admin.company_info.create')}
+                                href={route('admin.companies.create')}
                                 className="btn btn-primary no-underline"
                             >
                                 <span className="material-icons-outlined">add_business</span>
@@ -176,7 +176,7 @@ const CompanyInfo = ({ companies }) => {
                                                     title="Edit"
                                                     onClick={() =>
                                                         router.get(
-                                                            route('admin.company_info.edit', company.id)
+                                                            route('admin.companies.edit', company.id)
                                                         )
                                                     }
                                                 >
@@ -224,4 +224,4 @@ const CompanyInfo = ({ companies }) => {
     );
 };
 
-export default CompanyInfo;
+export default Company;

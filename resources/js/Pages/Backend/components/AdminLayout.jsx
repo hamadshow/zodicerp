@@ -46,8 +46,8 @@ const AdminLayout = ({
         { icon: 'location_on', label: 'Location', href: route('admin.location') },
         { icon: 'monetization_on', label: 'Currencies', href: route('admin.currencies.index') },
         { icon: 'currency_exchange', label: 'Exchange Rates', href: route('admin.exchange_rates.index') },
-        { icon: 'assessment', label: 'Company Info', href: route('admin.company_info.index') },
-        { icon: 'receipt', label: 'Branch Info', href: route('admin.branch_info.index') },
+        { icon: 'assessment', label: 'Companies', href: route('admin.companies.index') },
+        { icon: 'store', label: 'Branches', href: route('admin.branches.index') },
       ],
     },
     {

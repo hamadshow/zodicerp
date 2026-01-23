@@ -51,8 +51,8 @@ class TaxSettlement extends Model
 
     public function entity(): BelongsTo
     {
-        // Maps to companies or company_infos table. Assuming CompanyInfo model for now.
-        return $this->belongsTo(\App\Models\CompanyInfo::class, 'entity_id');
+        // Maps to companies table.
+        return $this->belongsTo(\App\Models\Company::class, 'entity_id');
     }
 
     public function calculatedBy(): BelongsTo

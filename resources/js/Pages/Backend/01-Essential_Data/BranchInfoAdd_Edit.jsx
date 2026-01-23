@@ -169,12 +169,12 @@ const BranchInfoAdd_Edit = ({ branch, companies }) => {
         }
 
         if (isEdit) {
-            router.post(route('admin.branch_info.update', branch.id), {
+            router.post(route('admin.branches.update', branch.id), {
                 ...data,
                 _method: 'put',
             });
         } else {
-            post(route('admin.branch_info.store'));
+            post(route('admin.branches.store'));
         }
     };
 
@@ -443,7 +443,7 @@ const BranchInfoAdd_Edit = ({ branch, companies }) => {
 
                         <div className="mt-8 pt-4 border-t border-gray-200 flex justify-end gap-4">
                             <Link
-                                href={route('admin.branch_info.index')}
+                                href={route('admin.branches.index')}
                                 className="px-6 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
                             >
                                 Cancel

@@ -6,7 +6,7 @@ import '../../../../css/backend/BranchInfo.css';
 const BranchInfo = ({ branches }) => {
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this branch info?')) {
-            router.delete(route('admin.branch_info.destroy', id));
+            router.delete(route('admin.branches.destroy', id));
         }
     };
 
@@ -17,7 +17,7 @@ const BranchInfo = ({ branches }) => {
                 <div className="flex justify-between items-center mb-6">
                     <h1 className="text-2xl font-bold text-gray-800">Branch Information</h1>
                     <Link
-                        href={route('admin.branch_info.create')}
+                        href={route('admin.branches.create')}
                         className="btn btn-primary no-underline"
                     >
                         Add Branch Info
@@ -50,7 +50,7 @@ const BranchInfo = ({ branches }) => {
                                         <td className="p-4">
                                             <div className="flex gap-2">
                                                 <Link
-                                                    href={route('admin.branch_info.edit', branch.id)}
+                                                    href={route('admin.branches.edit', branch.id)}
                                                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
                                                     title="Edit"
                                                 >

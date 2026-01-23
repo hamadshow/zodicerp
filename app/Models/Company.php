@@ -5,16 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class BranchInfo extends Model
+class Company extends Model
 {
     use HasFactory;
 
     protected $guarded = [];
-
-    public function company()
-    {
-        return $this->belongsTo(CompanyInfo::class, 'company_id');
-    }
 
     public function countryData()
     {
