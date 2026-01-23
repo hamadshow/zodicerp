@@ -165,14 +165,14 @@ export default function JournalEntity() {
           <table className="journal-table">
             <thead>
               <tr>
-                <th onClick={() => handleSort('QaidCode')}>
+                <th onClick={() => handleSort('entry_code')}>
                   <span className="sortable-header">
                     <span>Journal Code</span>
                     <span className="sort-icons">
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'QaidCode' &&
+                          (sort.column === 'entry_code' &&
                           sort.direction === 'asc'
                             ? ' active'
                             : '')
@@ -183,7 +183,7 @@ export default function JournalEntity() {
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'QaidCode' &&
+                          (sort.column === 'entry_code' &&
                           sort.direction === 'desc'
                             ? ' active'
                             : '')
@@ -194,14 +194,14 @@ export default function JournalEntity() {
                     </span>
                   </span>
                 </th>
-                <th onClick={() => handleSort('QaidType')}>
+                <th onClick={() => handleSort('entry_type')}>
                   <span className="sortable-header">
                     <span>Type</span>
                     <span className="sort-icons">
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'QaidType' &&
+                          (sort.column === 'entry_type' &&
                           sort.direction === 'asc'
                             ? ' active'
                             : '')
@@ -212,7 +212,7 @@ export default function JournalEntity() {
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'QaidType' &&
+                          (sort.column === 'entry_type' &&
                           sort.direction === 'desc'
                             ? ' active'
                             : '')
@@ -223,14 +223,14 @@ export default function JournalEntity() {
                     </span>
                   </span>
                 </th>
-                <th onClick={() => handleSort('QaidRef')}>
+                <th onClick={() => handleSort('reference')}>
                   <span className="sortable-header">
                     <span>Reference</span>
                     <span className="sort-icons">
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'QaidRef' &&
+                          (sort.column === 'reference' &&
                           sort.direction === 'asc'
                             ? ' active'
                             : '')
@@ -241,7 +241,7 @@ export default function JournalEntity() {
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'QaidRef' &&
+                          (sort.column === 'reference' &&
                           sort.direction === 'desc'
                             ? ' active'
                             : '')
@@ -252,14 +252,14 @@ export default function JournalEntity() {
                     </span>
                   </span>
                 </th>
-                <th onClick={() => handleSort('QaidDate')}>
+                <th onClick={() => handleSort('date')}>
                   <span className="sortable-header">
                     <span>Date</span>
                     <span className="sort-icons">
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'QaidDate' &&
+                          (sort.column === 'date' &&
                           sort.direction === 'asc'
                             ? ' active'
                             : '')
@@ -270,7 +270,7 @@ export default function JournalEntity() {
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'QaidDate' &&
+                          (sort.column === 'date' &&
                           sort.direction === 'desc'
                             ? ' active'
                             : '')
@@ -281,14 +281,14 @@ export default function JournalEntity() {
                     </span>
                   </span>
                 </th>
-                <th onClick={() => handleSort('QaidTotal')}>
+                <th onClick={() => handleSort('total_amount')}>
                   <span className="sortable-header">
                     <span>Total Amount</span>
                     <span className="sort-icons">
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'QaidTotal' &&
+                          (sort.column === 'total_amount' &&
                           sort.direction === 'asc'
                             ? ' active'
                             : '')
@@ -299,7 +299,7 @@ export default function JournalEntity() {
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'QaidTotal' &&
+                          (sort.column === 'total_amount' &&
                           sort.direction === 'desc'
                             ? ' active'
                             : '')
@@ -310,14 +310,14 @@ export default function JournalEntity() {
                     </span>
                   </span>
                 </th>
-                <th onClick={() => handleSort('QaidStatus')}>
+                <th onClick={() => handleSort('status')}>
                   <span className="sortable-header">
                     <span>Status</span>
                     <span className="sort-icons">
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'QaidStatus' &&
+                          (sort.column === 'status' &&
                           sort.direction === 'asc'
                             ? ' active'
                             : '')
@@ -328,7 +328,7 @@ export default function JournalEntity() {
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'QaidStatus' &&
+                          (sort.column === 'status' &&
                           sort.direction === 'desc'
                             ? ' active'
                             : '')
@@ -359,43 +359,43 @@ export default function JournalEntity() {
               )}
               {!loading &&
                 sortedJournals.map((journal) => (
-                  <tr key={journal.QaidID}>
-                    <td>{journal.QaidCode}</td>
-                    <td>{journal.QaidType}</td>
-                    <td>{journal.QaidRef}</td>
-                    <td>{journal.QaidDate}</td>
-                    <td>{Number(journal.QaidTotal || 0).toFixed(2)}</td>
+                  <tr key={journal.id}>
+                    <td>{journal.entry_code}</td>
+                    <td>{journal.entry_type}</td>
+                    <td>{journal.reference}</td>
+                    <td>{journal.date}</td>
+                    <td>{Number(journal.total_amount || 0).toFixed(2)}</td>
                     <td>
                       <span
                         className={`journal-status-pill ${
-                          journal.QaidStatus === 'Post' ||
-                          journal.QaidStatus === 'Posted'
+                          journal.status === 'Post' ||
+                          journal.status === 'Posted'
                             ? 'status-posted'
                             : 'status-unpost'
                         }`}
                       >
-                        {journal.QaidStatus}
+                        {journal.status}
                       </span>
                     </td>
                     <td>
                       <button
                         type="button"
                         className="icon-btn view"
-                        onClick={() => navigateToView(journal.QaidCode)}
+                        onClick={() => navigateToView(journal.entry_code)}
                       >
                         <span className="material-icons-outlined">visibility</span>
                       </button>
                       <button
                         type="button"
                         className="icon-btn edit"
-                        onClick={() => navigateToEdit(journal.QaidCode)}
+                        onClick={() => navigateToEdit(journal.entry_code)}
                       >
                         <span className="material-icons-outlined">edit</span>
                       </button>
                       <button
                         type="button"
                         className="icon-btn delete"
-                        onClick={() => handleDelete(journal.QaidCode)}
+                        onClick={() => handleDelete(journal.entry_code)}
                       >
                         <span className="material-icons-outlined">delete</span>
                       </button>

@@ -140,12 +140,6 @@ export default function ChartOfAccounts() {
       .sort((a, b) => Number(a.AccCode || 0) - Number(b.AccCode || 0));
   }, [allAccounts]);
 
-  const selectAccountOptions = useMemo(() => {
-    return [...allAccounts]
-      .filter((a) => Number(a.AccType ?? 0) === 1)
-      .sort((a, b) => Number(a.AccCode || 0) - Number(b.AccCode || 0));
-  }, [allAccounts]);
-
   const toggleNode = (id) => {
     setExpanded((prev) => ({
       ...prev,

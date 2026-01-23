@@ -72,7 +72,7 @@ return [
 
         'suppliers' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Supplier::class,
+            'model' => App\Models\Vendor_Purchases\Supplier::class,
         ],
 
         // 'users' => [

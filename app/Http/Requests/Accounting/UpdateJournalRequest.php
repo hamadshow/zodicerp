@@ -14,21 +14,21 @@ class UpdateJournalRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'QaidRef' => [
+            'reference' => [
                 'nullable',
                 'string',
                 'max:500',
             ],
-            'QaidDate' => [
+            'date' => [
                 'required',
                 'date',
             ],
-            'QaidDetails' => [
+            'description' => [
                 'nullable',
                 'string',
                 'max:500',
             ],
-            'QaidStatus' => [
+            'status' => [
                 'required',
                 'string',
                 'max:50',
@@ -38,37 +38,37 @@ class UpdateJournalRequest extends FormRequest
                 'array',
                 'min:1',
             ],
-            'lines.*.QaidBodyAccID' => [
+            'lines.*.account_id' => [
                 'required',
                 'integer',
                 'exists:accounts,AccID',
             ],
-            'lines.*.QaidDebit' => [
+            'lines.*.debit' => [
                 'required',
                 'numeric',
                 'min:0',
             ],
-            'lines.*.QaidCredit' => [
+            'lines.*.credit' => [
                 'required',
                 'numeric',
                 'min:0',
             ],
-            'lines.*.QaidBodyDetails' => [
+            'lines.*.description' => [
                 'nullable',
                 'string',
                 'max:500',
             ],
-            'lines.*.idName' => [
+            'lines.*.related_id_name' => [
                 'nullable',
                 'string',
                 'max:30',
             ],
-            'lines.*.NameDetails' => [
+            'lines.*.related_name_details' => [
                 'nullable',
                 'string',
                 'max:100',
             ],
-            'lines.*.copCode' => [
+            'lines.*.cost_center_code' => [
                 'nullable',
                 'string',
                 'max:50',

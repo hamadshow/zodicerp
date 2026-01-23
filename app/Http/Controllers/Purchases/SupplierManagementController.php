@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Purchases;
 
 use App\Http\Controllers\Controller;
-use App\Models\Supplier;
+use App\Models\Vendor_Purchases\Supplier;
 use App\Models\Products;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;

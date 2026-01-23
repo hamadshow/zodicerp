@@ -7,6 +7,8 @@ use App\Models\BankAccount;
 use App\Models\BankPayment;
 use App\Models\BankReceipt;
 use App\Models\Account;
+use App\Models\Accounting\JournalEntry;
+use App\Models\Accounting\JournalEntryLine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -231,81 +233,74 @@ class BankTransactionController extends Controller
         $qaidType = $type === 'payment' ? 'BnkPayment' : 'BnkReceipt';
         $details = $payload['notes'] ?: $payload['reference'];
 
-        $header = DB::table('tblqaid')
-            ->where('QaidRef', $code)
-            ->where('QaidType', $qaidType)
+        $header = JournalEntry::where('reference', $code)
+            ->where('entry_type', $qaidType)
             ->lockForUpdate()
             ->first();
 
         if ($header) {
-            DB::table('tblqaid')
-                ->where('QaidRef', $code)
-                ->where('QaidType', $qaidType)
-                ->update([
-                    'QaidDate' => $payload['date'],
-                    'QaidDetails' => $details,
-                    'QaidTotal' => $amount,
-                    'QaidStatus' => $qaidStatus,
-                ]);
+            $header->update([
+                'date' => $payload['date'],
+                'description' => $details,
+                'total_amount' => $amount,
+                'status' => $qaidStatus,
+            ]);
 
-            DB::table('tblqaidbody')
-                ->where('QaidCode', $header->QaidCode)
-                ->delete();
-
-            $qaidCode = $header->QaidCode;
+            JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
+            $entryCode = $header->entry_code;
         } else {
-            $qaidCode = $this->generateNextQaidCode();
-            DB::table('tblqaid')->insert([
-                'QaidCode' => $qaidCode,
-                'QaidType' => $qaidType,
-                'QaidRef' => $code,
-                'QaidDate' => $payload['date'],
-                'QaidDetails' => $details,
-                'QaidTotal' => $amount,
-                'QaidStatus' => $qaidStatus,
+            $entryCode = $this->generateNextEntryCode();
+            JournalEntry::create([
+                'entry_code' => $entryCode,
+                'entry_type' => $qaidType,
+                'reference' => $code,
+                'date' => $payload['date'],
+                'description' => $details,
+                'total_amount' => $amount,
+                'status' => $qaidStatus,
             ]);
         }
 
         $lines = $type === 'payment'
             ? [
                 [
-                    'QaidBodyAccID' => $counterAccountId,
-                    'QaidDebit' => $amount,
-                    'QaidCredit' => 0,
-                    'QaidBodyDetails' => $details,
+                    'account_id' => $counterAccountId,
+                    'debit' => $amount,
+                    'credit' => 0,
+                    'description' => $details,
                 ],
                 [
-                    'QaidBodyAccID' => $bankGlAccountId,
-                    'QaidDebit' => 0,
-                    'QaidCredit' => $amount,
-                    'QaidBodyDetails' => $details,
+                    'account_id' => $bankGlAccountId,
+                    'debit' => 0,
+                    'credit' => $amount,
+                    'description' => $details,
                 ],
             ]
             : [
                 [
-                    'QaidBodyAccID' => $bankGlAccountId,
-                    'QaidDebit' => $amount,
-                    'QaidCredit' => 0,
-                    'QaidBodyDetails' => $details,
+                    'account_id' => $bankGlAccountId,
+                    'debit' => $amount,
+                    'credit' => 0,
+                    'description' => $details,
                 ],
                 [
-                    'QaidBodyAccID' => $counterAccountId,
-                    'QaidDebit' => 0,
-                    'QaidCredit' => $amount,
-                    'QaidBodyDetails' => $details,
+                    'account_id' => $counterAccountId,
+                    'debit' => 0,
+                    'credit' => $amount,
+                    'description' => $details,
                 ],
             ];
 
         foreach ($lines as $line) {
-            DB::table('tblqaidbody')->insert([
-                'QaidCode' => $qaidCode,
-                'QaidBodyAccID' => $line['QaidBodyAccID'],
-                'QaidDebit' => $line['QaidDebit'],
-                'QaidCredit' => $line['QaidCredit'],
-                'idName' => $qaidType,
-                'NameDetails' => $code,
-                'QaidBodyDetails' => $line['QaidBodyDetails'],
-                'copCode' => null,
+            JournalEntryLine::create([
+                'journal_entry_code' => $entryCode,
+                'account_id' => $line['account_id'],
+                'debit' => $line['debit'],
+                'credit' => $line['credit'],
+                'related_id_name' => $qaidType,
+                'related_name_details' => $code,
+                'description' => $line['description'],
+                'cost_center_code' => null,
             ]);
         }
     }
@@ -314,17 +309,16 @@ class BankTransactionController extends Controller
     {
         $qaidType = $type === 'payment' ? 'BnkPayment' : 'BnkReceipt';
 
-        $header = DB::table('tblqaid')
-            ->where('QaidRef', $code)
-            ->where('QaidType', $qaidType)
+        $header = JournalEntry::where('reference', $code)
+            ->where('entry_type', $qaidType)
             ->first();
 
         if (!$header) {
             return;
         }
 
-        DB::table('tblqaidbody')->where('QaidCode', $header->QaidCode)->delete();
-        DB::table('tblqaid')->where('QaidCode', $header->QaidCode)->delete();
+        JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
+        JournalEntry::where('entry_code', $header->entry_code)->delete();
     }
 
     protected function generateNextTransactionCode(): string
@@ -352,14 +346,13 @@ class BankTransactionController extends Controller
         return $prefix . max($lastNumber + 1, $start);
     }
 
-    protected function generateNextQaidCode(): string
+    protected function generateNextEntryCode(): string
     {
-        $lastCode = DB::table('tblqaid')
-            ->whereNotNull('QaidCode')
-            ->where('QaidCode', '!=', '')
-            ->orderByDesc('QaidID')
+        $lastCode = JournalEntry::whereNotNull('entry_code')
+            ->where('entry_code', '!=', '')
+            ->orderByDesc('id')
             ->lockForUpdate()
-            ->value('QaidCode');
+            ->value('entry_code');
 
         $nextNumber = $this->nextNumericPart($lastCode, 10001);
 

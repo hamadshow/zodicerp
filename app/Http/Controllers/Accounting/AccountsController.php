@@ -164,9 +164,9 @@ class AccountsController extends Controller
             ], 422);
         }
 
-        if (Schema::hasTable('tblqaidbody')) {
-            $hasEntries = DB::table('tblqaidbody')
-                ->whereIn('QaidBodyAccID', [$account->AccID, $account->AccCode])
+        if (Schema::hasTable('journal_entry_lines')) {
+            $hasEntries = DB::table('journal_entry_lines')
+                ->where('account_id', $account->AccID)
                 ->exists();
 
             if ($hasEntries) {

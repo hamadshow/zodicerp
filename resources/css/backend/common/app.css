@@ -4,6 +4,7 @@
 @import '../components/stats.css';
 @import '../components/table.css';
 @import '../Location.css';
+@import '../04-Purchases/style.css';
 
 /* Tailwind base styles would normally be injected here by PostCSS; kept as comment for reference */
 /* @tailwind components; */

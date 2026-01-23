@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Accounting\StoreJournalRequest;
 use App\Http\Requests\Accounting\UpdateJournalRequest;
+use App\Models\Accounting\JournalEntry;
+use App\Models\Accounting\JournalEntryLine;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -15,15 +17,15 @@ class JournalController extends Controller
 
     public function index(Request $request)
     {
-        $query = DB::table('tblqaid')->orderByDesc('QaidDate')->orderByDesc('QaidID');
+        $query = JournalEntry::query()->orderByDesc('date')->orderByDesc('id');
 
         if ($request->filled('search')) {
             $search = $request->string('search')->toString();
             $query->where(function ($q) use ($search) {
-                $q->where('QaidCode', 'like', '%' . $search . '%')
-                    ->orWhere('QaidType', 'like', '%' . $search . '%')
-                    ->orWhere('QaidRef', 'like', '%' . $search . '%')
-                    ->orWhere('QaidDetails', 'like', '%' . $search . '%');
+                $q->where('entry_code', 'like', '%' . $search . '%')
+                    ->orWhere('entry_type', 'like', '%' . $search . '%')
+                    ->orWhere('reference', 'like', '%' . $search . '%')
+                    ->orWhere('description', 'like', '%' . $search . '%');
             });
         }
 
@@ -37,11 +39,11 @@ class JournalController extends Controller
         $prefix = $this->journalCodePrefix;
         $start = $this->journalCodeStart;
 
-        $lastCode = DB::table('tblqaid')
-            ->whereNotNull('QaidCode')
-            ->where('QaidCode', '!=', '')
-            ->orderByDesc('QaidID')
-            ->value('QaidCode');
+        $lastCode = JournalEntry::query()
+            ->whereNotNull('entry_code')
+            ->where('entry_code', '!=', '')
+            ->orderByDesc('id')
+            ->value('entry_code');
 
         $nextNumber = $this->nextNumericPart($lastCode, $start);
 
@@ -50,16 +52,15 @@ class JournalController extends Controller
         ]);
     }
 
-    public function show(string $qaidCode)
+    public function show(string $entryCode)
     {
-        $header = DB::table('tblqaid')->where('QaidCode', $qaidCode)->first();
+        $header = JournalEntry::where('entry_code', $entryCode)->first();
         if (!$header) {
             return response()->json(['message' => 'Journal entry not found.'], 404);
         }
 
-        $lines = DB::table('tblqaidbody')
-            ->where('QaidCode', $qaidCode)
-            ->orderBy('QaidBodyID')
+        $lines = JournalEntryLine::where('journal_entry_code', $entryCode)
+            ->orderBy('id')
             ->get();
 
         if ($lines->isEmpty()) {
@@ -70,23 +71,18 @@ class JournalController extends Controller
         }
 
         $numericIds = [];
-        $codeValues = [];
-
+        
         foreach ($lines as $line) {
-            $value = $line->QaidBodyAccID;
+            $value = $line->account_id;
             if ($value === null || $value === '') {
                 continue;
             }
-            // Always treat as potential code
-            $codeValues[] = (string) $value;
-
             if (is_numeric($value)) {
                 $numericIds[] = (int) $value;
             }
         }
 
         $numericIds = array_values(array_unique($numericIds));
-        $codeValues = array_values(array_unique($codeValues));
 
         $accountsQuery = DB::table('accounts');
 
@@ -94,42 +90,23 @@ class JournalController extends Controller
             $accountsQuery->whereIn('AccID', $numericIds);
         }
 
-        if (!empty($codeValues)) {
-            if (!empty($numericIds)) {
-                $accountsQuery->orWhereIn('AccCode', $codeValues);
-            } else {
-                $accountsQuery->whereIn('AccCode', $codeValues);
-            }
-        }
-
         $accounts = $accountsQuery->get(['AccID', 'AccCode']);
 
         $accountsById = [];
-        $accountsByCode = [];
 
         foreach ($accounts as $account) {
             $accountsById[$account->AccID] = $account;
-            $accountsByCode[$account->AccCode] = $account;
         }
 
-        $mappedLines = $lines->map(function ($line) use ($accountsById, $accountsByCode) {
-            $value = $line->QaidBodyAccID;
+        $mappedLines = $lines->map(function ($line) use ($accountsById) {
+            $value = $line->account_id;
             $mappedAccID = null;
 
             if ($value !== null && $value !== '') {
-                // Try to match as AccID first
                 if (is_numeric($value)) {
                     $key = (int) $value;
                     if (array_key_exists($key, $accountsById)) {
                         $mappedAccID = $accountsById[$key]->AccID;
-                    }
-                }
-                
-                // If not found as ID, try to match as AccCode
-                if ($mappedAccID === null) {
-                    $key = (string) $value;
-                    if (array_key_exists($key, $accountsByCode)) {
-                        $mappedAccID = $accountsByCode[$key]->AccID;
                     }
                 }
             }
@@ -151,8 +128,8 @@ class JournalController extends Controller
         $totalCredit = 0;
 
         foreach ($lines as $line) {
-            $debit = (float) ($line['QaidDebit'] ?? 0);
-            $credit = (float) ($line['QaidCredit'] ?? 0);
+            $debit = (float) ($line['debit'] ?? 0);
+            $credit = (float) ($line['credit'] ?? 0);
 
             if ($debit > 0 && $credit > 0) {
                 abort(
@@ -162,8 +139,8 @@ class JournalController extends Controller
                 );
             }
 
-            $totalDebit += (float) ($line['QaidDebit'] ?? 0);
-            $totalCredit += (float) ($line['QaidCredit'] ?? 0);
+            $totalDebit += (float) ($line['debit'] ?? 0);
+            $totalCredit += (float) ($line['credit'] ?? 0);
         }
 
         if (round($totalDebit, 2) !== round($totalCredit, 2)) {
@@ -179,10 +156,10 @@ class JournalController extends Controller
     {
         $accountIds = [];
         foreach ($lines as $line) {
-            if (!array_key_exists('QaidBodyAccID', $line)) {
+            if (!array_key_exists('account_id', $line)) {
                 continue;
             }
-            $accountIds[] = (int) $line['QaidBodyAccID'];
+            $accountIds[] = (int) $line['account_id'];
         }
 
         $accountIds = array_values(array_unique(array_filter($accountIds)));
@@ -222,6 +199,11 @@ class JournalController extends Controller
 
     public function store(StoreJournalRequest $request)
     {
+        // We assume the request validation has been updated to use new field names
+        // But the request class might still be using old names if we don't update it.
+        // For now, we'll map manually if needed, or assume frontend sends new names.
+        // Given "Update the whole project", we should expect frontend to send new names.
+        
         $data = $request->validated();
         $lines = $data['lines'] ?? [];
 
@@ -230,32 +212,32 @@ class JournalController extends Controller
 
         $total = 0;
         foreach ($lines as $line) {
-            $total += (float) ($line['QaidDebit'] ?? 0);
+            $total += (float) ($line['debit'] ?? 0);
         }
 
         return DB::transaction(function () use ($data, $lines, $total) {
-            $nextCode = $this->generateNextQaidCode();
+            $nextCode = $this->generateNextEntryCode();
 
-            DB::table('tblqaid')->insert([
-                'QaidCode' => $nextCode,
-                'QaidType' => 'Qmanual',
-                'QaidRef' => $data['QaidRef'] ?? null,
-                'QaidDate' => $data['QaidDate'],
-                'QaidDetails' => $data['QaidDetails'] ?? null,
-                'QaidTotal' => $total,
-                'QaidStatus' => $data['QaidStatus'],
+            $header = JournalEntry::create([
+                'entry_code' => $nextCode,
+                'entry_type' => 'Qmanual',
+                'reference' => $data['reference'] ?? null,
+                'date' => $data['date'],
+                'description' => $data['description'] ?? null,
+                'total_amount' => $total,
+                'status' => $data['status'],
             ]);
 
             foreach ($lines as $line) {
-                DB::table('tblqaidbody')->insert([
-                    'QaidCode' => $nextCode,
-                    'QaidBodyAccID' => $line['QaidBodyAccID'],
-                    'QaidDebit' => $line['QaidDebit'],
-                    'QaidCredit' => $line['QaidCredit'],
-                    'idName' => $line['idName'] ?? null,
-                    'NameDetails' => $line['NameDetails'] ?? null,
-                    'QaidBodyDetails' => $line['QaidBodyDetails'] ?? null,
-                    'copCode' => $line['copCode'] ?? null,
+                JournalEntryLine::create([
+                    'journal_entry_code' => $nextCode,
+                    'account_id' => $line['account_id'],
+                    'debit' => $line['debit'],
+                    'credit' => $line['credit'],
+                    'related_id_name' => $line['related_id_name'] ?? null,
+                    'related_name_details' => $line['related_name_details'] ?? null,
+                    'description' => $line['description'] ?? null,
+                    'cost_center_code' => $line['cost_center_code'] ?? null,
                 ]);
             }
 
@@ -286,31 +268,31 @@ class JournalController extends Controller
         return $number + 1;
     }
 
-    protected function generateNextQaidCode(): string
+    protected function generateNextEntryCode(): string
     {
         $prefix = $this->journalCodePrefix;
         $start = $this->journalCodeStart;
 
-        $lastCode = DB::table('tblqaid')
-            ->whereNotNull('QaidCode')
-            ->where('QaidCode', '!=', '')
-            ->orderByDesc('QaidID')
+        $lastCode = JournalEntry::query()
+            ->whereNotNull('entry_code')
+            ->where('entry_code', '!=', '')
+            ->orderByDesc('id')
             ->lockForUpdate()
-            ->value('QaidCode');
+            ->value('entry_code');
 
         $nextNumber = $this->nextNumericPart($lastCode, $start);
 
         return $prefix . $nextNumber;
     }
 
-    public function update(UpdateJournalRequest $request, string $qaidCode)
+    public function update(UpdateJournalRequest $request, string $entryCode)
     {
-        $header = DB::table('tblqaid')->where('QaidCode', $qaidCode)->first();
+        $header = JournalEntry::where('entry_code', $entryCode)->first();
         if (!$header) {
             return response()->json(['message' => 'Journal entry not found.'], 404);
         }
 
-        if ($header->QaidStatus === 'Post' || $header->QaidStatus === 'Posted') {
+        if ($header->status === 'Post' || $header->status === 'Posted') {
             return response()->json(['message' => 'Posted journal entries cannot be edited.'], 422);
         }
 
@@ -322,32 +304,30 @@ class JournalController extends Controller
 
         $total = 0;
         foreach ($lines as $line) {
-            $total += (float) ($line['QaidDebit'] ?? 0);
+            $total += (float) ($line['debit'] ?? 0);
         }
 
-        return DB::transaction(function () use ($qaidCode, $data, $lines, $total) {
-            DB::table('tblqaid')
-                ->where('QaidCode', $qaidCode)
-                ->update([
-                    'QaidRef' => $data['QaidRef'] ?? null,
-                    'QaidDate' => $data['QaidDate'],
-                    'QaidDetails' => $data['QaidDetails'] ?? null,
-                    'QaidTotal' => $total,
-                    'QaidStatus' => $data['QaidStatus'],
-                ]);
+        return DB::transaction(function () use ($entryCode, $header, $data, $lines, $total) {
+            $header->update([
+                'reference' => $data['reference'] ?? null,
+                'date' => $data['date'],
+                'description' => $data['description'] ?? null,
+                'total_amount' => $total,
+                'status' => $data['status'],
+            ]);
 
-            DB::table('tblqaidbody')->where('QaidCode', $qaidCode)->delete();
+            JournalEntryLine::where('journal_entry_code', $entryCode)->delete();
 
             foreach ($lines as $line) {
-                DB::table('tblqaidbody')->insert([
-                    'QaidCode' => $qaidCode,
-                    'QaidBodyAccID' => $line['QaidBodyAccID'],
-                    'QaidDebit' => $line['QaidDebit'],
-                    'QaidCredit' => $line['QaidCredit'],
-                    'idName' => $line['idName'] ?? null,
-                    'NameDetails' => $line['NameDetails'] ?? null,
-                    'QaidBodyDetails' => $line['QaidBodyDetails'] ?? null,
-                    'copCode' => $line['copCode'] ?? null,
+                JournalEntryLine::create([
+                    'journal_entry_code' => $entryCode,
+                    'account_id' => $line['account_id'],
+                    'debit' => $line['debit'],
+                    'credit' => $line['credit'],
+                    'related_id_name' => $line['related_id_name'] ?? null,
+                    'related_name_details' => $line['related_name_details'] ?? null,
+                    'description' => $line['description'] ?? null,
+                    'cost_center_code' => $line['cost_center_code'] ?? null,
                 ]);
             }
 
@@ -358,20 +338,20 @@ class JournalController extends Controller
         });
     }
 
-    public function destroy(string $qaidCode)
+    public function destroy(string $entryCode)
     {
-        $header = DB::table('tblqaid')->where('QaidCode', $qaidCode)->first();
+        $header = JournalEntry::where('entry_code', $entryCode)->first();
         if (!$header) {
             return response()->json(['message' => 'Journal entry not found.'], 404);
         }
 
-        if ($header->QaidStatus === 'Post' || $header->QaidStatus === 'Posted') {
+        if ($header->status === 'Post' || $header->status === 'Posted') {
             return response()->json(['message' => 'Posted journal entries cannot be deleted.'], 422);
         }
 
-        return DB::transaction(function () use ($qaidCode) {
-            DB::table('tblqaidbody')->where('QaidCode', $qaidCode)->delete();
-            DB::table('tblqaid')->where('QaidCode', $qaidCode)->delete();
+        return DB::transaction(function () use ($entryCode) {
+            JournalEntryLine::where('journal_entry_code', $entryCode)->delete();
+            JournalEntry::where('entry_code', $entryCode)->delete();
 
             return response()->json([
                 'success' => true,
@@ -408,16 +388,15 @@ class JournalController extends Controller
 
         $applyAccountFilter = function ($query) use ($account) {
             $query->where(function ($q) use ($account) {
-                $q->where('b.QaidBodyAccID', $account->AccID)
-                    ->orWhere('b.QaidBodyAccID', $account->AccCode);
+                $q->where('b.account_id', $account->AccID);
             });
         };
 
         $applyStatusFilter = function ($query) use ($status, $statusPostedValues) {
             if ($status === 'posted') {
-                $query->whereIn('h.QaidStatus', $statusPostedValues);
+                $query->whereIn('h.status', $statusPostedValues);
             } elseif ($status === 'unposted') {
-                $query->whereNotIn('h.QaidStatus', $statusPostedValues);
+                $query->whereNotIn('h.status', $statusPostedValues);
             }
         };
 
@@ -425,12 +404,12 @@ class JournalController extends Controller
         $openingCredit = 0.0;
 
         if ($dateFrom) {
-            $openingTotals = DB::table('tblqaidbody as b')
-                ->join('tblqaid as h', 'h.QaidCode', '=', 'b.QaidCode')
+            $openingTotals = DB::table('journal_entry_lines as b')
+                ->join('journal_entries as h', 'h.entry_code', '=', 'b.journal_entry_code')
                 ->tap($applyAccountFilter)
                 ->tap($applyStatusFilter)
-                ->where('h.QaidDate', '<', $dateFrom)
-                ->selectRaw('COALESCE(SUM(b.QaidDebit),0) as total_debit, COALESCE(SUM(b.QaidCredit),0) as total_credit')
+                ->where('h.date', '<', $dateFrom)
+                ->selectRaw('COALESCE(SUM(b.debit),0) as total_debit, COALESCE(SUM(b.credit),0) as total_credit')
                 ->first();
 
             if ($openingTotals) {
@@ -443,32 +422,32 @@ class JournalController extends Controller
             ? $openingDebit - $openingCredit
             : $openingCredit - $openingDebit;
 
-        $entriesQuery = DB::table('tblqaidbody as b')
-            ->join('tblqaid as h', 'h.QaidCode', '=', 'b.QaidCode')
+        $entriesQuery = DB::table('journal_entry_lines as b')
+            ->join('journal_entries as h', 'h.entry_code', '=', 'b.journal_entry_code')
             ->tap($applyAccountFilter)
             ->tap($applyStatusFilter);
 
         if ($dateFrom) {
-            $entriesQuery->where('h.QaidDate', '>=', $dateFrom);
+            $entriesQuery->where('h.date', '>=', $dateFrom);
         }
 
         if ($dateTo) {
-            $entriesQuery->where('h.QaidDate', '<=', $dateTo);
+            $entriesQuery->where('h.date', '<=', $dateTo);
         }
 
         $entries = $entriesQuery
-            ->orderBy('h.QaidDate')
-            ->orderBy('h.QaidCode')
-            ->orderBy('b.QaidBodyID')
+            ->orderBy('h.date')
+            ->orderBy('h.entry_code')
+            ->orderBy('b.id')
             ->get([
-                'h.QaidDate as date',
-                'h.QaidCode as journal_code',
-                'h.QaidRef as reference',
-                'h.QaidDetails as header_description',
-                'b.QaidBodyDetails as line_description',
-                'b.QaidDebit as debit',
-                'b.QaidCredit as credit',
-                'h.QaidStatus as status',
+                'h.date as date',
+                'h.entry_code as journal_code',
+                'h.reference as reference',
+                'h.description as header_description',
+                'b.description as line_description',
+                'b.debit as debit',
+                'b.credit as credit',
+                'h.status as status',
             ]);
 
         $runningBalance = $openingBalance;

@@ -28,7 +28,8 @@ Route::prefix('supplier')->name('supplier.')->group(function () {
         Route::post('register', [SupplierController::class, 'store'])->name('store');
         Route::get('login', [SupplierController::class, 'login'])->name('login');
         Route::post('login', [SupplierController::class, 'authenticate'])->name('authenticate');
-    });
+});
+
 
     Route::middleware('auth:supplier')->group(function () {
         Route::get('dashboard', [SupplierController::class, 'dashboard'])->name('dashboard');
@@ -356,10 +357,10 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/journals', [JournalController::class, 'index']);
         Route::get('/journals/next-code', [JournalController::class, 'nextCode']);
-        Route::get('/journals/{qaidCode}', [JournalController::class, 'show']);
+        Route::get('/journals/{entryCode}', [JournalController::class, 'show']);
         Route::post('/journals', [JournalController::class, 'store']);
-        Route::put('/journals/{qaidCode}', [JournalController::class, 'update']);
-        Route::delete('/journals/{qaidCode}', [JournalController::class, 'destroy']);
+        Route::put('/journals/{entryCode}', [JournalController::class, 'update']);
+        Route::delete('/journals/{entryCode}', [JournalController::class, 'destroy']);
 
         Route::get('/reports/general-ledger', [JournalController::class, 'generalLedger']);
 
@@ -376,6 +377,58 @@ Route::middleware('auth')->group(function () {
         Route::post('/ads/bulk-delete', [AdsController::class, 'bulkDelete']);
         Route::post('/ads/bulk-status', [AdsController::class, 'bulkStatus']);
         Route::post('/ads/{ad}/click', [AdsController::class, 'click']);
+    });
+
+    
+    // Purchase Module Routes
+    Route::prefix('admin/purchases')->middleware('admin')->name('admin.purchases.')->group(function () {
+        Route::get('dashboard', [\App\Http\Controllers\Purchases\PurchaseDashboardController::class, 'index'])->name('dashboard');
+        
+        // Quotations
+        Route::get('quotations/approval', [\App\Http\Controllers\Purchases\PurchaseQuotationController::class, 'approval'])->name('quotations.approval');
+        Route::resource('quotations', \App\Http\Controllers\Purchases\PurchaseQuotationController::class);
+
+        // Orders
+        Route::get('orders/tracking', [\App\Http\Controllers\Purchases\PurchaseOrderController::class, 'tracking'])->name('orders.tracking');
+        Route::resource('orders', \App\Http\Controllers\Purchases\PurchaseOrderController::class);
+
+        // Invoices
+        Route::get('invoices/pending', [\App\Http\Controllers\Purchases\PurchaseInvoiceController::class, 'pending'])->name('invoices.pending');
+        Route::get('invoices/overdue', [\App\Http\Controllers\Purchases\PurchaseInvoiceController::class, 'overdue'])->name('invoices.overdue');
+        Route::resource('invoices', \App\Http\Controllers\Purchases\PurchaseInvoiceController::class);
+
+        // Goods Receipts
+        Route::resource('goods-receipts', \App\Http\Controllers\Purchases\GoodsReceiptController::class);
+
+        // Returns
+        Route::resource('returns', \App\Http\Controllers\Purchases\PurchaseReturnController::class);
+
+        // Payments & Finance
+        Route::get('payments/reconciliation', [\App\Http\Controllers\Purchases\SupplierPaymentController::class, 'reconciliation'])->name('payments.reconciliation');
+        Route::get('payments/allocation', [\App\Http\Controllers\Purchases\SupplierPaymentController::class, 'allocation'])->name('payments.allocation');
+        Route::resource('payments', \App\Http\Controllers\Purchases\SupplierPaymentController::class);
+        Route::resource('credit-notes', \App\Http\Controllers\Purchases\CreditNoteController::class);
+        Route::resource('debit-notes', \App\Http\Controllers\Purchases\DebitNoteController::class);
+
+        // Discounts & Taxes
+        Route::get('discounts/rules', [\App\Http\Controllers\Purchases\PurchaseDiscountController::class, 'rules'])->name('discounts.rules');
+        Route::resource('discounts', \App\Http\Controllers\Purchases\PurchaseDiscountController::class);
+        Route::get('taxes/calculations', [\App\Http\Controllers\Purchases\PurchaseTaxController::class, 'calculations'])->name('taxes.calculations');
+        Route::resource('taxes', \App\Http\Controllers\Purchases\PurchaseTaxController::class);
+
+        // Costing
+        Route::resource('costing', \App\Http\Controllers\Purchases\PurchaseCostingController::class);
+        Route::resource('expenses', \App\Http\Controllers\Purchases\PurchaseExpenseController::class);
+        Route::resource('landed-costs', \App\Http\Controllers\Purchases\LandedCostController::class);
+        Route::resource('cost-allocation', \App\Http\Controllers\Purchases\CostAllocationController::class);
+
+        // Suppliers Submodules
+        Route::resource('suppliers', \App\Http\Controllers\Purchases\SupplierController::class);
+        Route::resource('supplier-groups', \App\Http\Controllers\Purchases\SupplierGroupController::class);
+        Route::resource('supplier-contacts', \App\Http\Controllers\Purchases\SupplierContactController::class);
+        Route::resource('supplier-addresses', \App\Http\Controllers\Purchases\SupplierAddressController::class);
+        Route::resource('supplier-opening-balances', \App\Http\Controllers\Purchases\SupplierOpeningBalanceController::class);
+        Route::resource('supplier-statements', \App\Http\Controllers\Purchases\SupplierStatementController::class);
     });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

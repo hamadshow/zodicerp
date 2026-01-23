@@ -6,10 +6,10 @@ import SearchableComboBox from '../components/SearchableComboBox';
 import { apiService } from '../../../services/api';
 
 const emptyLine = () => ({
-  QaidBodyAccID: '',
-  QaidDebit: '',
-  QaidCredit: '',
-  QaidBodyDetails: '',
+  account_id: '',
+  debit: '',
+  credit: '',
+  description: '',
 });
 
 export default function JournalEntityCE() {
@@ -35,11 +35,11 @@ export default function JournalEntityCE() {
   const readOnly = !!(codeFromUrl && !isEdit);
 
   const [header, setHeader] = useState({
-    QaidCode: '',
-    QaidDate: '',
-    QaidRef: '',
-    QaidDetails: '',
-    QaidStatus: 'UnPost',
+    entry_code: '',
+    date: '',
+    reference: '',
+    description: '',
+    status: 'UnPost',
   });
   const [lines, setLines] = useState([emptyLine()]);
   const [accounts, setAccounts] = useState([]);
@@ -78,7 +78,7 @@ export default function JournalEntityCE() {
       const nextCode = response?.data?.next_code;
       setHeader((prev) => ({
         ...prev,
-        QaidCode: nextCode ? String(nextCode) : 'QID-10001',
+        entry_code: nextCode ? String(nextCode) : 'QID-10001',
       }));
     } catch (e) {
       console.error('Failed to fetch next journal code', e);
@@ -95,26 +95,26 @@ export default function JournalEntityCE() {
       const headerData = data.header || {};
       const lineData = Array.isArray(data.lines) ? data.lines : [];
       setHeader({
-        QaidCode: headerData.QaidCode || '',
-        QaidDate: headerData.QaidDate || '',
-        QaidRef: headerData.QaidRef || '',
-        QaidDetails: headerData.QaidDetails || '',
-        QaidStatus: headerData.QaidStatus || 'UnPost',
+        entry_code: headerData.entry_code || '',
+        date: headerData.date || '',
+        reference: headerData.reference || '',
+        description: headerData.description || '',
+        status: headerData.status || 'UnPost',
       });
       setLines(
         lineData.length > 0
           ? lineData.map((l) => ({
-              QaidBodyAccID:
-                (l.AccountAccID ?? l.QaidBodyAccID)?.toString() || '',
-              QaidDebit: l.QaidDebit?.toString() || '',
-              QaidCredit: l.QaidCredit?.toString() || '',
-              QaidBodyDetails: l.QaidBodyDetails || '',
+              account_id:
+                (l.AccountAccID ?? l.account_id)?.toString() || '',
+              debit: l.debit?.toString() || '',
+              credit: l.credit?.toString() || '',
+              description: l.description || '',
             }))
           : [emptyLine()],
       );
       if (ensureAccounts && lineData.length > 0) {
         const usedIds = lineData
-          .map((l) => l.AccountAccID ?? l.QaidBodyAccID)
+          .map((l) => l.AccountAccID ?? l.account_id)
           .filter((id) => id != null && id !== '');
         await loadAccounts(usedIds);
       }
@@ -138,7 +138,7 @@ export default function JournalEntityCE() {
   }, []);
 
   const handleHeaderChange = (field, value) => {
-    if (readOnly && field !== 'QaidStatus') return;
+    if (readOnly && field !== 'status') return;
     setHeader((prev) => ({
       ...prev,
       [field]: value,
@@ -174,8 +174,8 @@ export default function JournalEntityCE() {
     let debit = 0;
     let credit = 0;
     lines.forEach((line) => {
-      debit += Number(line.QaidDebit || 0);
-      credit += Number(line.QaidCredit || 0);
+      debit += Number(line.debit || 0);
+      credit += Number(line.credit || 0);
     });
     return {
       debit,
@@ -205,14 +205,14 @@ export default function JournalEntityCE() {
       lines: lines
         .filter(
           (l) =>
-            l.QaidBodyAccID &&
-            (Number(l.QaidDebit || 0) > 0 || Number(l.QaidCredit || 0) > 0),
+            l.account_id &&
+            (Number(l.debit || 0) > 0 || Number(l.credit || 0) > 0),
         )
         .map((l) => ({
-          QaidBodyAccID: Number(l.QaidBodyAccID),
-          QaidDebit: Number(l.QaidDebit || 0),
-          QaidCredit: Number(l.QaidCredit || 0),
-          QaidBodyDetails: l.QaidBodyDetails || null,
+          account_id: Number(l.account_id),
+          debit: Number(l.debit || 0),
+          credit: Number(l.credit || 0),
+          description: l.description || null,
         })),
     };
 
@@ -273,7 +273,7 @@ export default function JournalEntityCE() {
                   id="qaid-code"
                   type="text"
                   className="form-control"
-                  value={header.QaidCode}
+                  value={header.entry_code}
                   disabled
                 />
               </div>
@@ -285,9 +285,9 @@ export default function JournalEntityCE() {
                   id="qaid-date"
                   type="date"
                   className="form-control"
-                  value={header.QaidDate}
+                  value={header.date}
                   onChange={(e) =>
-                    handleHeaderChange('QaidDate', e.target.value)
+                    handleHeaderChange('date', e.target.value)
                   }
                   disabled={readOnly}
                   required
@@ -301,9 +301,9 @@ export default function JournalEntityCE() {
                   id="qaid-ref"
                   type="text"
                   className="form-control"
-                  value={header.QaidRef}
+                  value={header.reference}
                   onChange={(e) =>
-                    handleHeaderChange('QaidRef', e.target.value)
+                    handleHeaderChange('reference', e.target.value)
                   }
                   disabled={readOnly}
                 />
@@ -317,9 +317,9 @@ export default function JournalEntityCE() {
                 <textarea
                   id="qaid-details"
                   className="form-control form-textarea"
-                  value={header.QaidDetails}
+                  value={header.description}
                   onChange={(e) =>
-                    handleHeaderChange('QaidDetails', e.target.value)
+                    handleHeaderChange('description', e.target.value)
                   }
                   disabled={readOnly}
                 />
@@ -362,9 +362,9 @@ export default function JournalEntityCE() {
                         <div className="account-select-cell">
                           <SearchableComboBox
                             options={accountOptions}
-                            value={line.QaidBodyAccID}
+                            value={line.account_id}
                             onChange={(val) =>
-                              handleLineChange(index, 'QaidBodyAccID', val)
+                              handleLineChange(index, 'account_id', val)
                             }
                             disabled={readOnly}
                             placeholder="Select account"
@@ -377,9 +377,9 @@ export default function JournalEntityCE() {
                           min="0"
                           step="0.01"
                           className="form-control"
-                          value={line.QaidDebit}
+                          value={line.debit}
                           onChange={(e) =>
-                            handleLineChange(index, 'QaidDebit', e.target.value)
+                            handleLineChange(index, 'debit', e.target.value)
                           }
                           disabled={readOnly}
                         />
@@ -390,9 +390,9 @@ export default function JournalEntityCE() {
                           min="0"
                           step="0.01"
                           className="form-control"
-                          value={line.QaidCredit}
+                          value={line.credit}
                           onChange={(e) =>
-                            handleLineChange(index, 'QaidCredit', e.target.value)
+                            handleLineChange(index, 'credit', e.target.value)
                           }
                           disabled={readOnly}
                         />
@@ -401,11 +401,11 @@ export default function JournalEntityCE() {
                         <input
                           type="text"
                           className="form-control"
-                          value={line.QaidBodyDetails}
+                          value={line.description}
                           onChange={(e) =>
                             handleLineChange(
                               index,
-                              'QaidBodyDetails',
+                              'description',
                               e.target.value,
                             )
                           }
