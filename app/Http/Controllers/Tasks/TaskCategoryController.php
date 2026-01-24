@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Tasks;
 
 use App\Http\Controllers\Controller;
-use App\Models\TaskCategory;
+use App\Models\Tasks\TaskCategory;
 use App\Http\Requests\StoreTaskCategoryRequest;
 use App\Http\Requests\UpdateTaskCategoryRequest;
 use Illuminate\Http\Request;

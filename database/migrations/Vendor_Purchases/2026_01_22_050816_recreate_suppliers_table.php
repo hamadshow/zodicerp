@@ -85,7 +85,7 @@ return new class extends Migration
         
         // Add Foreign Keys separately to identify issues and handle 'account_id' referencing 'AccID'
         Schema::table('suppliers', function (Blueprint $table) {
-            $table->foreign('supplier_group_id')->references('id')->on('supplier_groups');
+            // $table->foreign('supplier_group_id')->references('id')->on('supplier_groups');
             // account_id references accounts(AccID)
             $table->foreign('account_id')->references('AccID')->on('accounts')->nullOnDelete();
             $table->foreign('currency_id')->references('id')->on('currencies');

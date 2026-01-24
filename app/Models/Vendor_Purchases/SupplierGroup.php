@@ -5,12 +5,13 @@ namespace App\Models\Vendor_Purchases;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Account;
 use App\Models\User;
 
 class SupplierGroup extends Model
 {
     use HasFactory, SoftDeletes;
+
+    protected $table = 'supplier_groups';
 
     protected $fillable = [
         'code',
@@ -27,51 +28,24 @@ class SupplierGroup extends Model
     ];
 
     protected $casts = [
-        'parent_id' => 'integer',
-        'account_id' => 'integer',
-        'payment_terms' => 'integer',
-        'default_credit_limit' => 'decimal:2',
-        'default_tax_id' => 'integer',
         'is_active' => 'boolean',
-        'created_by' => 'integer',
+        'default_credit_limit' => 'decimal:2',
+        'payment_terms' => 'integer',
+        'account_id' => 'integer',
+        'parent_id' => 'integer',
+        'default_tax_id' => 'integer',
     ];
 
-    /**
-     * Get the account associated with the supplier group.
-     */
-    public function account()
-    {
-        // Referenced to 'AccID' in accounts table based on known schema
-        return $this->belongsTo(Account::class, 'account_id', 'AccID');
-    }
-
-    /**
-     * Get the parent supplier group.
-     */
     public function parent()
     {
-        return $this->belongsTo(self::class, 'parent_id');
+        return $this->belongsTo(SupplierGroup::class, 'parent_id');
     }
 
-    /**
-     * Get the child supplier groups.
-     */
     public function children()
     {
-        return $this->hasMany(self::class, 'parent_id');
+        return $this->hasMany(SupplierGroup::class, 'parent_id');
     }
 
-    /**
-     * Get the suppliers in this group.
-     */
-    public function suppliers()
-    {
-        return $this->hasMany(Supplier::class, 'supplier_group_id');
-    }
-    
-    /**
-     * Get the creator of the group.
-     */
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');

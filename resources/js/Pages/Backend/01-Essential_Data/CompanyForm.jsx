@@ -413,7 +413,6 @@ const CompanyForm = ({ company }) => {
                                                 style={{
                                                     fontSize: '48px',
                                                     color: '#94a3b8',
-                                                    marginBottom: '10px',
                                                 }}
                                             >
                                                 add_photo_alternate

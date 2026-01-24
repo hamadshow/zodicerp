@@ -148,8 +148,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/admin/employees', [EmployeeController::class, 'index'])->middleware('admin')->name('admin.employees');
 
-    Route::get('/admin/suppliers', [\App\Http\Controllers\Purchases\SupplierManagementController::class, 'index'])->middleware('admin')->name('admin.suppliers.index');
-    Route::get('/admin/suppliers/{supplier}/profile', [\App\Http\Controllers\Purchases\SupplierManagementController::class, 'profile'])->middleware('admin')->name('admin.suppliers.profile');
+    // Removed legacy SupplierManagement routes (controller deleted)
 
     Route::get('/admin/permissions', function () {
         return Inertia::render('Backend/02_human_resource/Permissions');
@@ -299,7 +298,15 @@ Route::middleware('auth')->group(function () {
             'show' => 'admin.categories.show',
             'update' => 'admin.categories.update',
             'destroy' => 'admin.categories.destroy',
-        ])->except(['create', 'edit']);
+        ]);
+
+    Route::resource('/admin/purchases/quotations', \App\Http\Controllers\Purchases\PurchaseQuotationController::class)
+        ->names([
+            'index' => 'admin.purchases.quotations.index',
+            'store' => 'admin.purchases.quotations.store',
+            'update' => 'admin.purchases.quotations.update',
+            'destroy' => 'admin.purchases.quotations.destroy',
+        ])->except(['create', 'edit', 'show']);
 
     Route::prefix('api/tasks')->group(function () {
         Route::middleware('auth')->group(function () {
@@ -335,17 +342,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/employees/bulk-status', [EmployeeController::class, 'bulkUpdateStatus']);
         Route::post('/employees/bulk-delete', [EmployeeController::class, 'bulkDelete']);
 
-        // Admin API for Suppliers
-        Route::get('/admin/suppliers/data', [\App\Http\Controllers\Purchases\SupplierManagementController::class, 'getSuppliers']);
-        Route::post('/admin/suppliers', [\App\Http\Controllers\Purchases\SupplierManagementController::class, 'store']);
-        Route::post('/admin/suppliers/import', [\App\Http\Controllers\Purchases\SupplierManagementController::class, 'import']);
-        Route::post('/admin/suppliers/{supplier}', [\App\Http\Controllers\Purchases\SupplierManagementController::class, 'update']);
-        Route::get('/admin/suppliers/{supplier}', [\App\Http\Controllers\Purchases\SupplierManagementController::class, 'show']);
-        Route::put('/admin/suppliers/{supplier}', [\App\Http\Controllers\Purchases\SupplierManagementController::class, 'update']);
-        Route::delete('/admin/suppliers/{supplier}', [\App\Http\Controllers\Purchases\SupplierManagementController::class, 'destroy']);
-        Route::post('/admin/suppliers/bulk-status', [\App\Http\Controllers\Purchases\SupplierManagementController::class, 'bulkUpdateStatus']);
-        Route::post('/admin/suppliers/bulk-delete', [\App\Http\Controllers\Purchases\SupplierManagementController::class, 'bulkDelete']);
-        Route::post('/admin/suppliers/{supplier}/products', [\App\Http\Controllers\Purchases\SupplierManagementController::class, 'assignProducts']);
+        // Removed legacy SupplierManagement API routes (controller deleted)
         Route::get('/accounts', [AccountsController::class, 'index']);
         Route::get('/accounts/tree', [AccountsController::class, 'tree']);
         Route::get('/accounts/{account}', [AccountsController::class, 'show']);
@@ -380,55 +377,23 @@ Route::middleware('auth')->group(function () {
     });
 
     
-    // Purchase Module Routes
+    // Purchase Module Routes (trimmed to active controllers)
     Route::prefix('admin/purchases')->middleware('admin')->name('admin.purchases.')->group(function () {
-        Route::get('dashboard', [\App\Http\Controllers\Purchases\PurchaseDashboardController::class, 'index'])->name('dashboard');
-        
         // Quotations
-        Route::get('quotations/approval', [\App\Http\Controllers\Purchases\PurchaseQuotationController::class, 'approval'])->name('quotations.approval');
+        Route::post('quotations/{quotation}/convert', [\App\Http\Controllers\Purchases\PurchaseQuotationController::class, 'convertToPo'])->name('quotations.convert');
         Route::resource('quotations', \App\Http\Controllers\Purchases\PurchaseQuotationController::class);
 
-        // Orders
-        Route::get('orders/tracking', [\App\Http\Controllers\Purchases\PurchaseOrderController::class, 'tracking'])->name('orders.tracking');
-        Route::resource('orders', \App\Http\Controllers\Purchases\PurchaseOrderController::class);
-
-        // Invoices
-        Route::get('invoices/pending', [\App\Http\Controllers\Purchases\PurchaseInvoiceController::class, 'pending'])->name('invoices.pending');
-        Route::get('invoices/overdue', [\App\Http\Controllers\Purchases\PurchaseInvoiceController::class, 'overdue'])->name('invoices.overdue');
-        Route::resource('invoices', \App\Http\Controllers\Purchases\PurchaseInvoiceController::class);
-
-        // Goods Receipts
-        Route::resource('goods-receipts', \App\Http\Controllers\Purchases\GoodsReceiptController::class);
-
-        // Returns
-        Route::resource('returns', \App\Http\Controllers\Purchases\PurchaseReturnController::class);
-
-        // Payments & Finance
-        Route::get('payments/reconciliation', [\App\Http\Controllers\Purchases\SupplierPaymentController::class, 'reconciliation'])->name('payments.reconciliation');
-        Route::get('payments/allocation', [\App\Http\Controllers\Purchases\SupplierPaymentController::class, 'allocation'])->name('payments.allocation');
-        Route::resource('payments', \App\Http\Controllers\Purchases\SupplierPaymentController::class);
-        Route::resource('credit-notes', \App\Http\Controllers\Purchases\CreditNoteController::class);
-        Route::resource('debit-notes', \App\Http\Controllers\Purchases\DebitNoteController::class);
-
-        // Discounts & Taxes
-        Route::get('discounts/rules', [\App\Http\Controllers\Purchases\PurchaseDiscountController::class, 'rules'])->name('discounts.rules');
-        Route::resource('discounts', \App\Http\Controllers\Purchases\PurchaseDiscountController::class);
-        Route::get('taxes/calculations', [\App\Http\Controllers\Purchases\PurchaseTaxController::class, 'calculations'])->name('taxes.calculations');
-        Route::resource('taxes', \App\Http\Controllers\Purchases\PurchaseTaxController::class);
-
-        // Costing
-        Route::resource('costing', \App\Http\Controllers\Purchases\PurchaseCostingController::class);
-        Route::resource('expenses', \App\Http\Controllers\Purchases\PurchaseExpenseController::class);
-        Route::resource('landed-costs', \App\Http\Controllers\Purchases\LandedCostController::class);
-        Route::resource('cost-allocation', \App\Http\Controllers\Purchases\CostAllocationController::class);
+        // Purchase Orders
+        Route::resource('orders', \App\Http\Controllers\Purchases\PurchaseOrderController::class)
+            ->except(['create', 'edit', 'show']);
 
         // Suppliers Submodules
         Route::resource('suppliers', \App\Http\Controllers\Purchases\SupplierController::class);
-        Route::resource('supplier-groups', \App\Http\Controllers\Purchases\SupplierGroupController::class);
-        Route::resource('supplier-contacts', \App\Http\Controllers\Purchases\SupplierContactController::class);
-        Route::resource('supplier-addresses', \App\Http\Controllers\Purchases\SupplierAddressController::class);
-        Route::resource('supplier-opening-balances', \App\Http\Controllers\Purchases\SupplierOpeningBalanceController::class);
-        Route::resource('supplier-statements', \App\Http\Controllers\Purchases\SupplierStatementController::class);
+
+        Route::resource('supplier-groups', \App\Http\Controllers\Purchases\SupplierGroupController::class)
+            ->except(['create', 'edit', 'show']);
+
+        // Removed routes for deleted supplier submodules: contacts, addresses, opening-balances, statements.
     });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

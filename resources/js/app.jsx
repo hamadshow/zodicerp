@@ -4,6 +4,7 @@ import './bootstrap';
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { Suspense } from 'react';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -42,16 +43,21 @@ createInertiaApp({
     const root = createRoot(el);
 
     root.render(
-      <Suspense
-        fallback={
-          <div className="loading-container">
-            <div className="spinner"></div>
-            <p>Loading...</p>
-          </div>
-        }
-      >
-        <ResolvedApp {...props} />
-      </Suspense>
+      <BrowserRouter>
+        <Suspense
+          fallback={
+            <div className="loading-container">
+              <div className="spinner"></div>
+              <p>Loading...</p>
+            </div>
+          }
+        >
+          <Routes>
+            <Route path="/admin/warehouses" element={<ResolvedApp {...props} />} />
+            <Route path="*" element={<ResolvedApp {...props} />} />
+          </Routes>
+        </Suspense>
+      </BrowserRouter>
     );
   },
   progress: {

@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\TaskCategory;
-use App\Models\TaskPriority;
-use App\Models\TaskStatus;
+use App\Models\Tasks\TaskCategory;
+use App\Models\Tasks\TaskPriority;
+use App\Models\Tasks\TaskStatus;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 

@@ -6,65 +6,70 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Currency;
-use App\Models\Warehouses;
 use App\Models\User;
 
 class PurchaseOrder extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $table = 'purchase_orders';
+
     protected $fillable = [
-        'order_number',
-        'supplier_id',
+        'po_number',
+        'po_date',
+        'expected_delivery_date',
         'quotation_id',
+        'vendor_id',
+        'vendor_contact_person',
+        'vendor_phone',
+        'vendor_email',
+        'status',
+        'priority',
         'currency_id',
         'exchange_rate',
-        'order_date',
-        'expected_delivery_date',
-        'actual_delivery_date',
-        'warehouse_id',
         'subtotal',
         'discount_amount',
         'tax_amount',
-        'shipping_cost',
-        'total_amount',
-        'advance_payment',
-        'status',
-        'priority',
+        'shipping_charges',
+        'other_charges',
+        'grand_total',
+        'payment_terms_id',
+        'delivery_terms_id',
         'shipping_method',
-        'shipping_terms',
-        'payment_terms',
+        'shipping_address',
         'notes',
         'internal_notes',
         'created_by',
+        'updated_by',
         'approved_by',
-        'approved_at',
+        'approved_date',
+        'sent_date',
     ];
 
     protected $casts = [
-        'order_date' => 'date',
+        'po_date' => 'date',
         'expected_delivery_date' => 'date',
-        'actual_delivery_date' => 'date',
-        'approved_at' => 'datetime',
+        'approved_date' => 'datetime',
+        'sent_date' => 'datetime',
         'exchange_rate' => 'decimal:6',
         'subtotal' => 'decimal:2',
         'discount_amount' => 'decimal:2',
         'tax_amount' => 'decimal:2',
-        'shipping_cost' => 'decimal:2',
-        'total_amount' => 'decimal:2',
-        'base_total' => 'decimal:2', // Generated column
-        'advance_payment' => 'decimal:2',
-        'supplier_id' => 'integer',
-        'quotation_id' => 'integer',
-        'currency_id' => 'integer',
-        'warehouse_id' => 'integer',
-        'created_by' => 'integer',
-        'approved_by' => 'integer',
+        'shipping_charges' => 'decimal:2',
+        'other_charges' => 'decimal:2',
+        'grand_total' => 'decimal:2',
     ];
 
-    public function supplier()
+    // Relationships
+
+    public function items()
     {
-        return $this->belongsTo(Supplier::class, 'supplier_id', 'supplier_id');
+        return $this->hasMany(PurchaseOrderItem::class, 'purchase_order_id');
+    }
+
+    public function vendor()
+    {
+        return $this->belongsTo(Supplier::class, 'vendor_id');
     }
 
     public function quotation()
@@ -77,20 +82,13 @@ class PurchaseOrder extends Model
         return $this->belongsTo(Currency::class, 'currency_id');
     }
 
-    public function warehouse()
-    {
-        return $this->belongsTo(Warehouses::class, 'warehouse_id');
-    }
-
     public function creator()
     {
-        // Assuming User model is in App\Models\User
         return $this->belongsTo(User::class, 'created_by');
     }
 
     public function approver()
     {
-        // Assuming User model is in App\Models\User
         return $this->belongsTo(User::class, 'approved_by');
     }
 }

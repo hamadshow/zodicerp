@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Tasks;
 
-use App\Models\TaskPriority;
+use App\Models\Tasks\TaskPriority;
 use App\Http\Requests\StoreTaskPriorityRequest;
 use App\Http\Requests\UpdateTaskPriorityRequest;
 use Illuminate\Http\Request;

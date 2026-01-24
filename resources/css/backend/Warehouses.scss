@@ -7,6 +7,28 @@
     margin-bottom: 24px;
 }
 
+.warehouses-card .modal {
+    width: 100%;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
+    animation: none;
+}
+
+.warehouses-form-page {
+    width: 100%;
+}
+
+.warehouses-form-page .modal {
+    width: 100%;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
+    animation: none;
+}
+
 .warehouses-actions {
     display: flex;
     gap: 12px;

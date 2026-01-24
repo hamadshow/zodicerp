@@ -83,37 +83,24 @@ const TaskManager = () => {
   const fetchTasks = async (page = 1, perPage = rowsPerPage) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        per_page: perPage.toString(),
-      });
+      const params = {
+        page: page,
+        per_page: perPage,
+        search: searchTerm,
+        status_id: statusFilter,
+        priority_id: priorityFilter,
+        category_id: categoryFilter,
+        assignee_id: assigneeFilter,
+      };
 
-      if (searchTerm) params.append('search', searchTerm);
-      if (statusFilter) params.append('status_id', statusFilter);
-      if (priorityFilter) params.append('priority_id', priorityFilter);
-      if (categoryFilter) params.append('category_id', categoryFilter);
-      if (assigneeFilter) params.append('assignee_id', assigneeFilter);
-
-      const response = await fetch(`/api/tasks?${params}`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        if (
-          response.headers.get('content-type')?.includes('application/json')
-        ) {
-          const data = await response.json();
-          setTasks(data.data);
-          setPagination(data);
-          setCurrentPage(data.current_page);
-        } else {
-          console.error('Tasks response is not JSON:', await response.text());
-          showToast('Error loading tasks. Please try again.', 'error');
-        }
-      } else {
-        showToast('Error loading tasks. Please try again.', 'error');
-      }
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
+      const response = await apiService.get('/tasks', params);
+      const data = response.data;
+      setTasks(data.data);
+      setPagination(data);
+      setCurrentPage(data.current_page);
+    } catch {
+      // Error handling is done in api.js interceptor, but we can add specific toast here if needed
+      // console.error('Error fetching tasks:', error); // api.js already logs it
       showToast('Error loading tasks. Please try again.', 'error');
     } finally {
       setLoading(false);
@@ -249,73 +236,56 @@ const TaskManager = () => {
     setDetailsLoading(true);
 
     try {
-      const response = await fetch(`/api/tasks/${task.id}`, {
-        credentials: 'include',
+      const response = await apiService.get(`/tasks/${task.id}`);
+      const detailedTask = response.data;
+      setTaskDetails(detailedTask);
+      setTaskComments(detailedTask.comments || []);
+      setTaskAttachments(detailedTask.attachments || []);
+
+      // Build history timeline
+      const history = [];
+      history.push({
+        type: 'created',
+        date: detailedTask.created_at,
+        user: detailedTask.creator,
+        description: 'Task created',
       });
-      if (response.ok) {
-        if (
-          response.headers.get('content-type')?.includes('application/json')
-        ) {
-          const detailedTask = await response.json();
-          setTaskDetails(detailedTask);
-          setTaskComments(detailedTask.comments || []);
-          setTaskAttachments(detailedTask.attachments || []);
 
-          // Build history timeline
-          const history = [];
-          history.push({
-            type: 'created',
-            date: detailedTask.created_at,
-            user: detailedTask.creator,
-            description: 'Task created',
-          });
-
-          if (detailedTask.updated_at !== detailedTask.created_at) {
-            history.push({
-              type: 'updated',
-              date: detailedTask.updated_at,
-              user: detailedTask.creator,
-              description: 'Task updated',
-            });
-          }
-
-          // Add comments to history
-          detailedTask.comments?.forEach((comment) => {
-            history.push({
-              type: 'comment',
-              date: comment.created_at,
-              user: comment.user,
-              description: 'Added a comment',
-              content: comment.comment,
-            });
-          });
-
-          // Add attachments to history
-          detailedTask.attachments?.forEach((attachment) => {
-            history.push({
-              type: 'attachment',
-              date: attachment.created_at,
-              user: detailedTask.creator, // Attachments don't have direct user, use task creator
-              description: 'Uploaded attachment',
-              content: attachment.file_name,
-            });
-          });
-
-          // Sort history by date
-          history.sort((a, b) => new Date(b.date) - new Date(a.date));
-          setTaskHistory(history);
-        } else {
-          console.error(
-            'Task details response is not JSON:',
-            await response.text()
-          );
-          showToast('Error loading task details. Please try again.', 'error');
-        }
-      } else {
-        showToast('Error loading task details. Please try again.', 'error');
+      if (detailedTask.updated_at !== detailedTask.created_at) {
+        history.push({
+          type: 'updated',
+          date: detailedTask.updated_at,
+          user: detailedTask.creator,
+          description: 'Task updated',
+        });
       }
-    } catch (error) {
-      console.error('Error fetching task details:', error);
+
+      // Add comments to history
+      detailedTask.comments?.forEach((comment) => {
+        history.push({
+          type: 'comment',
+          date: comment.created_at,
+          user: comment.user,
+          description: 'Added a comment',
+          content: comment.comment,
+        });
+      });
+
+      // Add attachments to history
+      detailedTask.attachments?.forEach((attachment) => {
+        history.push({
+          type: 'attachment',
+          date: attachment.created_at,
+          user: detailedTask.creator, // Attachments don't have direct user, use task creator
+          description: 'Uploaded attachment',
+          content: attachment.file_name,
+        });
+      });
+
+      // Sort history by date
+      history.sort((a, b) => new Date(b.date) - new Date(a.date));
+      setTaskHistory(history);
+    } catch {
       showToast('Error loading task details. Please try again.', 'error');
     } finally {
       setDetailsLoading(false);
@@ -338,48 +308,26 @@ const TaskManager = () => {
 
     setCommentLoading(true);
     try {
-      const response = await fetch('/api/comments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document
-            .querySelector('meta[name="csrf-token"]')
-            .getAttribute('content'),
-        },
-        body: JSON.stringify({
-          task_id: taskDetails.id,
-          comment: newComment.trim(),
-        }),
-        credentials: 'include',
+      const response = await apiService.post('/comments', {
+        task_id: taskDetails.id,
+        comment: newComment.trim(),
       });
 
-      if (response.ok) {
-        if (
-          response.headers.get('content-type')?.includes('application/json')
-        ) {
-          const newCommentData = await response.json();
-          setTaskComments((prev) => [newCommentData, ...prev]);
-          setTaskHistory((prev) => [
-            {
-              type: 'comment',
-              date: newCommentData.created_at,
-              user: newCommentData.user,
-              description: 'Added a comment',
-              content: newCommentData.comment,
-            },
-            ...prev,
-          ]);
-          setNewComment('');
-          showToast('Comment added successfully!', 'success');
-        } else {
-          console.error('Comment response is not JSON:', await response.text());
-          showToast('Error adding comment. Please try again.', 'error');
-        }
-      } else {
-        showToast('Error adding comment. Please try again.', 'error');
-      }
-    } catch (error) {
-      console.error('Error adding comment:', error);
+      const newCommentData = response.data;
+      setTaskComments((prev) => [newCommentData, ...prev]);
+      setTaskHistory((prev) => [
+        {
+          type: 'comment',
+          date: newCommentData.created_at,
+          user: newCommentData.user,
+          description: 'Added a comment',
+          content: newCommentData.comment,
+        },
+        ...prev,
+      ]);
+      setNewComment('');
+      showToast('Comment added successfully!', 'success');
+    } catch {
       showToast('Error adding comment. Please try again.', 'error');
     } finally {
       setCommentLoading(false);
@@ -399,46 +347,24 @@ const TaskManager = () => {
       formData.append('file_name', file.name);
 
       try {
-        const response = await fetch('/api/attachments', {
-          method: 'POST',
-          headers: {
-            'X-CSRF-TOKEN': document
-              .querySelector('meta[name="csrf-token"]')
-              .getAttribute('content'),
-          },
-          body: formData,
-          credentials: 'include',
-        });
+        // apiService.post handles FormData correctly if passed directly
+        // axios automatically sets Content-Type to multipart/form-data when data is FormData
+        const response = await apiService.post('/attachments', formData);
+        const newAttachment = response.data;
 
-        if (response.ok) {
-          if (
-            response.headers.get('content-type')?.includes('application/json')
-          ) {
-            const newAttachment = await response.json();
-            setTaskAttachments((prev) => [newAttachment, ...prev]);
-            setTaskHistory((prev) => [
-              {
-                type: 'attachment',
-                date: newAttachment.created_at,
-                user: newAttachment.user || taskDetails.creator,
-                description: 'Uploaded attachment',
-                content: newAttachment.filename,
-              },
-              ...prev,
-            ]);
-            showToast('File uploaded successfully!', 'success');
-          } else {
-            console.error(
-              'Attachment response is not JSON:',
-              await response.text()
-            );
-            showToast('Error uploading file. Please try again.', 'error');
-          }
-        } else {
-          showToast('Error uploading file. Please try again.', 'error');
-        }
-      } catch (error) {
-        console.error('Error uploading file:', error);
+        setTaskAttachments((prev) => [newAttachment, ...prev]);
+        setTaskHistory((prev) => [
+          {
+            type: 'attachment',
+            date: newAttachment.created_at,
+            user: newAttachment.user || taskDetails.creator,
+            description: 'Uploaded attachment',
+            content: newAttachment.filename,
+          },
+          ...prev,
+        ]);
+        showToast('File uploaded successfully!', 'success');
+      } catch {
         showToast('Error uploading file. Please try again.', 'error');
       } finally {
         setAttachmentLoading(false);
@@ -489,23 +415,8 @@ const TaskManager = () => {
   const handleAssignments = useCallback(async (taskId, assignedUserIds) => {
     try {
       // Get current assignments by fetching the task
-      const taskRes = await fetch(`/api/tasks/${taskId}`, {
-        credentials: 'include',
-      });
-      let currentAssignments = [];
-      if (taskRes.ok) {
-        if (taskRes.headers.get('content-type')?.includes('application/json')) {
-          const taskData = await taskRes.json();
-          currentAssignments = taskData.assignments || [];
-        } else {
-          console.error(
-            'Task assignments response is not JSON:',
-            await taskRes.text()
-          );
-          showToast('Error handling assignments. Please try again.', 'error');
-          return;
-        }
-      }
+      const taskRes = await apiService.get(`/tasks/${taskId}`);
+      const currentAssignments = taskRes.data.assignments || [];
 
       const currentUserIds = currentAssignments.map((a) =>
         a.user_id.toString()
@@ -519,36 +430,22 @@ const TaskManager = () => {
 
       // Remove old assignments
       for (const assignment of removedAssignments) {
-        await fetch(`/api/assignments/${assignment.id}`, {
-          method: 'DELETE',
-          headers: {
-            'X-CSRF-TOKEN': document
-              .querySelector('meta[name="csrf-token"]')
-              .getAttribute('content'),
-          },
-          credentials: 'include',
-        });
+        await apiService.delete(`/assignments/${assignment.id}`);
       }
 
       // Add new assignments
       for (const userId of newUserIds) {
-        await fetch('/api/assignments', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': document
-              .querySelector('meta[name="csrf-token"]')
-              .getAttribute('content'),
-          },
-          body: JSON.stringify({
-            task_id: taskId,
-            user_id: parseInt(userId),
-          }),
-          credentials: 'include',
+        await apiService.post('/assignments', {
+          task_id: taskId,
+          user_id: parseInt(userId),
         });
       }
     } catch (error) {
       console.error('Error handling assignments:', error);
+      if (error.response) {
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+      }
       showToast('Error updating assignments. Please try again.', 'error');
     }
   }, []);
@@ -581,71 +478,25 @@ const TaskManager = () => {
         let response;
         if (editingTask) {
           // Update existing task
-          response = await fetch(`/api/tasks/${editingTask.id}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-TOKEN': document
-                .querySelector('meta[name="csrf-token"]')
-                .getAttribute('content'),
-            },
-            body: JSON.stringify(taskData),
-            credentials: 'include',
-          });
+          response = await apiService.put(`/tasks/${editingTask.id}`, taskData);
         } else {
           // Create new task
-          response = await fetch('/api/tasks', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-TOKEN': document
-                .querySelector('meta[name="csrf-token"]')
-                .getAttribute('content'),
-            },
-            body: JSON.stringify(taskData),
-            credentials: 'include',
-          });
+          response = await apiService.post('/tasks', taskData);
         }
 
-        const contentType = response.headers.get('content-type') || '';
-        let responseData;
-        if (response.ok) {
-          if (contentType.includes('application/json')) {
-            responseData = await response.json();
-          } else {
-            console.error(
-              'Task save response is not JSON:',
-              await response.text()
-            );
-            showToast('Error saving task. Please try again.', 'error');
-            return;
-          }
-          const task = responseData;
+        const task = response.data;
 
-          // Handle assignments
-          await handleAssignments(task.id, formData.assigned_users);
+        // Handle assignments
+        await handleAssignments(task.id, formData.assigned_users);
 
-          if (editingTask) {
-            showToast('Task updated successfully!', 'success');
-          } else {
-            showToast('Task created successfully!', 'success');
-          }
-          closeModal();
-          // Refetch tasks to get updated pagination
-          fetchTasks(currentPage, rowsPerPage);
+        if (editingTask) {
+          showToast('Task updated successfully!', 'success');
         } else {
-          if (contentType.includes('application/json')) {
-            const error = await response.json();
-            showToast(
-              error.message || 'Error saving task. Please try again.',
-              'error'
-            );
-          } else {
-            const errorText = await response.text();
-            console.error('Task save error response is not JSON:', errorText);
-            showToast('Error saving task. Please try again.', 'error');
-          }
+          showToast('Task created successfully!', 'success');
         }
+        closeModal();
+        // Refetch tasks to get updated pagination
+        fetchTasks(currentPage, rowsPerPage);
       } catch (error) {
         showToast('Error saving task. Please try again.', 'error');
         console.error('Error saving task:', error);
@@ -665,45 +516,13 @@ const TaskManager = () => {
     }
 
     try {
-      const response = await fetch(`/api/tasks/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'X-CSRF-TOKEN': document
-            .querySelector('meta[name="csrf-token"]')
-            .getAttribute('content'),
-        },
-        credentials: 'include',
-      });
+      await apiService.delete(`/tasks/${id}`);
 
-      if (response.ok) {
-        if (
-          response.headers.get('content-type')?.includes('application/json')
-        ) {
-          await response.json(); // Consume the response to avoid unhandled promise rejection
-        }
-        showToast('Task deleted successfully!', 'success');
-        // Refetch tasks to get updated pagination
-        fetchTasks(currentPage, rowsPerPage);
-      } else {
-        if (
-          response.headers.get('content-type')?.includes('application/json')
-        ) {
-          const error = await response.json();
-          showToast(
-            error.message || 'Error deleting task. Please try again.',
-            'error'
-          );
-        } else {
-          console.error(
-            'Task delete error response is not JSON:',
-            await response.text()
-          );
-          showToast('Error deleting task. Please try again.', 'error');
-        }
-      }
-    } catch (error) {
+      showToast('Task deleted successfully!', 'success');
+      // Refetch tasks to get updated pagination
+      fetchTasks(currentPage, rowsPerPage);
+    } catch {
       showToast('Error deleting task. Please try again.', 'error');
-      console.error('Error deleting task:', error);
     }
   }, []);
 

@@ -1,15 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router } from '@inertiajs/react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/Warehouses.scss';
 
 const Warehouses = ({ warehouses = [], branches = [] }) => {
     const [filteredWarehouses, setFilteredWarehouses] = useState(warehouses);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentWarehouse, setCurrentWarehouse] = useState(null);
     const [selectedIcon, setSelectedIcon] = useState('warehouse');
     const [selectedColor, setSelectedColor] = useState('#3b82f6');
+    const navigate = useNavigate();
+    const location = useLocation();
     const [stats, setStats] = useState({
         total: 0,
         active: 0,
@@ -73,26 +75,51 @@ const Warehouses = ({ warehouses = [], branches = [] }) => {
         setSearchTerm(e.target.value);
     };
 
-    const openModal = (wh = null) => {
-        if (wh) {
-            setCurrentWarehouse(wh);
-            setSelectedIcon(wh.icon || 'warehouse');
-            setSelectedColor(wh.color || '#3b82f6');
-        } else {
+    const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
+    const mode = query.get('mode');
+    const warehouseId = query.get('id');
+    const isFormOpen = mode === 'create' || mode === 'edit' || mode === 'view';
+    const isViewMode = mode === 'view';
+
+    useEffect(() => {
+        if ((mode === 'edit' || mode === 'view') && warehouseId) {
+            const warehouse = warehouses.find((w) => String(w.id) === String(warehouseId));
+            setCurrentWarehouse(warehouse || null);
+            setSelectedIcon(warehouse?.icon || 'warehouse');
+            setSelectedColor(warehouse?.color || '#3b82f6');
+            return;
+        }
+        if (mode === 'create') {
             setCurrentWarehouse(null);
             setSelectedIcon('warehouse');
             setSelectedColor('#3b82f6');
+            return;
         }
-        setIsModalOpen(true);
+        setCurrentWarehouse(null);
+    }, [mode, warehouseId, warehouses]);
+
+    const openCreateForm = () => {
+        navigate(`${location.pathname}?mode=create`);
     };
 
-    const closeModal = () => {
-        setIsModalOpen(false);
-        setCurrentWarehouse(null);
+    const openEditForm = (wh) => {
+        navigate(`${location.pathname}?mode=edit&id=${wh.id}`);
     };
+
+    const openViewForm = (wh) => {
+        navigate(`${location.pathname}?mode=view&id=${wh.id}`);
+    };
+
+    const closeForm = () => {
+        navigate(location.pathname, { replace: true });
+    };
+
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        if (isViewMode) {
+            return;
+        }
         const formData = new FormData(e.target);
         
         const data = {
@@ -109,11 +136,11 @@ const Warehouses = ({ warehouses = [], branches = [] }) => {
 
         if (currentWarehouse) {
             router.put(route('admin.warehouses.update', currentWarehouse.id), data, {
-                onSuccess: () => closeModal(),
+                onSuccess: () => closeForm(),
             });
         } else {
             router.post(route('admin.warehouses.store'), data, {
-                onSuccess: () => closeModal(),
+                onSuccess: () => closeForm(),
             });
         }
     };
@@ -175,289 +202,309 @@ const Warehouses = ({ warehouses = [], branches = [] }) => {
                 </div>
             </div>
 
-            {/* Main Card */}
-            <div className="warehouses-card fade-in">
-                <div className="card-header">
-                    <div className="warehouses-actions">
-                        <select className="btn btn-outline" defaultValue="">
-                            <option disabled value="">Bulk Actions</option>
-                            <option value="activate">Activate Selected</option>
-                            <option value="deactivate">Deactivate Selected</option>
-                            <option value="maintenance">Set Maintenance</option>
-                            <option value="delete">Delete Selected</option>
-                        </select>
-                        <button className="btn btn-outline">
-                            <span className="material-icons-outlined">play_arrow</span>
-                            <span>Apply</span>
-                        </button>
-                        <div className="search-bar light">
-                            <input 
-                                type="text" 
-                                placeholder="Search warehouses..." 
-                                value={searchTerm}
-                                onChange={handleSearch}
-                            />
-                            <button>
-                                <span className="material-icons-outlined">search</span>
+            {isFormOpen ? (
+                <div className="warehouses-card fade-in warehouses-form-page">
+                    <div className="modal">
+                        <div className="modal-header">
+                            <div className="modal-title">
+                                {isViewMode ? 'View Warehouse' : currentWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}
+                            </div>
+                            <button className="modal-close" onClick={closeForm}>
+                                <span className="material-icons-outlined">close</span>
                             </button>
                         </div>
-                    </div>
-                    <div className="actions">
-                        <button className="btn btn-primary" onClick={() => openModal()}>
-                            <span className="material-icons-outlined">add</span>
-                            <span>Add Warehouse</span>
-                        </button>
-                        <button className="btn btn-outline" onClick={() => window.location.reload()}>
-                            <span className="material-icons-outlined">refresh</span>
-                            <span>Refresh</span>
-                        </button>
-                    </div>
-                </div>
-
-                <div className="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th><input type="checkbox" /></th>
-                                <th>ID <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>WAREHOUSE <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>MANAGER <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>CAPACITY <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>UTILIZATION <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>LOCATION <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>STATUS <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>OPERATIONS</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredWarehouses.length > 0 ? (
-                                filteredWarehouses.map(wh => (
-                                    <tr key={wh.id}>
-                                        <td><input type="checkbox" className="warehouse-checkbox" /></td>
-                                        <td>{wh.warehouse_code || wh.id}</td>
-                                        <td>
-                                            <div className="warehouse-info">
-                                                <div className="warehouse-icon" style={{ backgroundColor: wh.color }}>
-                                                    <span className="material-icons-outlined">{wh.icon}</span>
-                                                </div>
-                                                <div className="warehouse-details">
-                                                    <div className="warehouse-name">{wh.name}</div>
-                                                    <div className="warehouse-description text-xs text-gray-500">{wh.description}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>{wh.manager || '-'}</td>
-                                        <td>
-                                            <span className="capacity-badge">{wh.capacity.toLocaleString()} units</span>
-                                        </td>
-                                        <td>
-                                            <div className="flex flex-col">
-                                                <div className="utilization-display">{wh.capacity > 0 ? Math.round((wh.used_capacity / wh.capacity) * 100) : 0}%</div>
-                                                <div className="w-24 bg-gray-200 rounded-full h-1.5 mt-1">
-                                                    <div 
-                                                        className="bg-blue-600 h-1.5 rounded-full" 
-                                                        style={{ width: `${wh.capacity > 0 ? (wh.used_capacity / wh.capacity) * 100 : 0}%` }}
-                                                    ></div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>{wh.location || '-'}</td>
-                                        <td>
-                                            <span className={`warehouse-status status-${wh.status}`}>
-                                                {wh.status.charAt(0).toUpperCase() + wh.status.slice(1)}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <button className="icon-btn edit" onClick={() => openModal(wh)}>
-                                                <span className="material-icons-outlined">edit</span>
-                                            </button>
-                                            <button className="icon-btn delete" onClick={() => handleDelete(wh.id)}>
-                                                <span className="material-icons-outlined">delete</span>
-                                            </button>
-                                            <button className="icon-btn" style={{ color: 'var(--info-color)' }}>
-                                                <span className="material-icons-outlined">visibility</span>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="9" className="text-center py-4">No warehouses found.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Modal */}
-            <div className={`modal-overlay ${isModalOpen ? 'active' : ''}`} onClick={(e) => {
-                if(e.target.className.includes('modal-overlay')) closeModal();
-            }}>
-                <div className="modal">
-                    <div className="modal-header">
-                        <div className="modal-title">{currentWarehouse ? 'Edit Warehouse' : 'Add New Warehouse'}</div>
-                        <button className="modal-close" onClick={closeModal}>
-                            <span className="material-icons-outlined">close</span>
-                        </button>
-                    </div>
-                    <form onSubmit={handleSubmit}>
-                        <div className="modal-body">
-                            <div className="form-group">
-                                <label className="form-label">Warehouse Name</label>
-                                <input 
-                                    type="text" 
-                                    name="name" 
-                                    className="form-control" 
-                                    defaultValue={currentWarehouse?.name}
-                                    placeholder="e.g. Main Distribution Center"
-                                    required 
-                                />
-                            </div>
-
-                            <div className="form-row">
+                        <form onSubmit={handleSubmit}>
+                            <div className="modal-body">
                                 <div className="form-group">
-                                    <label className="form-label">Branch</label>
-                                    <select 
-                                        name="branch_id" 
-                                        className="form-control" 
-                                        defaultValue={currentWarehouse?.branch_id || ''}
+                                    <label className="form-label">Warehouse Name</label>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        className="form-control"
+                                        defaultValue={currentWarehouse?.name}
+                                        placeholder="e.g. Main Distribution Center"
                                         required
+                                        disabled={isViewMode}
+                                    />
+                                </div>
+
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">Branch</label>
+                                        <select
+                                            name="branch_id"
+                                            className="form-control"
+                                            defaultValue={currentWarehouse?.branch_id || ''}
+                                            required
+                                            disabled={isViewMode}
+                                        >
+                                            <option value="" disabled>Select Branch</option>
+                                            {branches.map(branch => (
+                                                <option key={branch.id} value={branch.id}>{branch.branch_name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Capacity</label>
+                                        <input
+                                            type="number"
+                                            name="capacity"
+                                            className="form-control"
+                                            defaultValue={currentWarehouse?.capacity}
+                                            placeholder="Total capacity"
+                                            required
+                                            disabled={isViewMode}
+                                        />
+                                    </div>
+                                </div>
+
+                                {currentWarehouse && (
+                                    <div className="form-group">
+                                        <label className="form-label">Warehouse Code</label>
+                                        <input
+                                            type="text"
+                                            name="code"
+                                            className="form-control"
+                                            defaultValue={currentWarehouse?.warehouse_code}
+                                            disabled
+                                        />
+                                    </div>
+                                )}
+
+                                {currentWarehouse && (
+                                    <div className="mb-4">
+                                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                                            <span>Capacity Utilization</span>
+                                            <span className="font-medium">{currentWarehouse.capacity > 0 ? Math.round((currentWarehouse.used_capacity / currentWarehouse.capacity) * 100) : 0}%</span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div
+                                                className="bg-blue-600 h-2 rounded-full"
+                                                style={{ width: `${currentWarehouse.capacity > 0 ? (currentWarehouse.used_capacity / currentWarehouse.capacity) * 100 : 0}%` }}
+                                            ></div>
+                                        </div>
+                                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                            <span>{currentWarehouse.used_capacity.toLocaleString()} used</span>
+                                            <span>{currentWarehouse.capacity.toLocaleString()} total</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label className="form-label">Manager</label>
+                                        <input
+                                            type="text"
+                                            name="manager"
+                                            className="form-control"
+                                            defaultValue={currentWarehouse?.manager}
+                                            placeholder="Warehouse Manager Name"
+                                            disabled={isViewMode}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label className="form-label">Location Details</label>
+                                        <input
+                                            type="text"
+                                            name="location"
+                                            className="form-control"
+                                            defaultValue={currentWarehouse?.location}
+                                            placeholder="Specific location (e.g. Zone A)"
+                                            disabled={isViewMode}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Status</label>
+                                    <select
+                                        name="status"
+                                        className="form-control"
+                                        defaultValue={currentWarehouse?.status || 'active'}
+                                        disabled={isViewMode}
                                     >
-                                        <option value="" disabled>Select Branch</option>
-                                        {branches.map(branch => (
-                                            <option key={branch.id} value={branch.id}>{branch.branch_name}</option>
-                                        ))}
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                        <option value="maintenance">Maintenance</option>
                                     </select>
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Capacity</label>
-                                    <input 
-                                        type="number" 
-                                        name="capacity" 
-                                        className="form-control" 
-                                        defaultValue={currentWarehouse?.capacity}
-                                        placeholder="Total capacity"
-                                        required 
-                                    />
+                                    <label className="form-label">Description</label>
+                                    <textarea
+                                        name="description"
+                                        className="form-control form-textarea"
+                                        defaultValue={currentWarehouse?.description}
+                                        placeholder="Enter warehouse description..."
+                                        disabled={isViewMode}
+                                    ></textarea>
                                 </div>
-                            </div>
 
-                            {currentWarehouse && (
                                 <div className="form-group">
-                                    <label className="form-label">Warehouse Code</label>
-                                    <input 
-                                        type="text" 
-                                        name="code" 
-                                        className="form-control" 
-                                        defaultValue={currentWarehouse?.warehouse_code}
-                                        disabled
-                                    />
-                                </div>
-                            )}
-
-                            {currentWarehouse && (
-                                <div className="mb-4">
-                                    <div className="flex justify-between text-sm text-gray-600 mb-1">
-                                        <span>Capacity Utilization</span>
-                                        <span className="font-medium">{currentWarehouse.capacity > 0 ? Math.round((currentWarehouse.used_capacity / currentWarehouse.capacity) * 100) : 0}%</span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                        <div 
-                                            className="bg-blue-600 h-2 rounded-full" 
-                                            style={{ width: `${currentWarehouse.capacity > 0 ? (currentWarehouse.used_capacity / currentWarehouse.capacity) * 100 : 0}%` }}
-                                        ></div>
-                                    </div>
-                                    <div className="flex justify-between text-xs text-gray-500 mt-1">
-                                        <span>{currentWarehouse.used_capacity.toLocaleString()} used</span>
-                                        <span>{currentWarehouse.capacity.toLocaleString()} total</span>
+                                    <label className="form-label">Icon</label>
+                                    <div className="icon-selector">
+                                        {icons.map(item => (
+                                            <div
+                                                key={item.icon}
+                                                className={`icon-option ${selectedIcon === item.icon ? 'selected' : ''}`}
+                                                onClick={() => {
+                                                    if (!isViewMode) {
+                                                        setSelectedIcon(item.icon);
+                                                    }
+                                                }}
+                                            >
+                                                <span className="material-icons-outlined">{item.icon}</span>
+                                                <span className="icon-name">{item.name}</span>
+                                            </div>
+                                        ))}
                                     </div>
                                 </div>
-                            )}
 
-                            <div className="form-row">
                                 <div className="form-group">
-                                    <label className="form-label">Manager</label>
-                                    <input 
-                                        type="text" 
-                                        name="manager" 
-                                        className="form-control" 
-                                        defaultValue={currentWarehouse?.manager}
-                                        placeholder="Warehouse Manager Name"
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Location Details</label>
-                                    <input 
-                                        type="text" 
-                                        name="location" 
-                                        className="form-control" 
-                                        defaultValue={currentWarehouse?.location}
-                                        placeholder="Specific location (e.g. Zone A)"
-                                    />
+                                    <label className="form-label">Color Theme</label>
+                                    <div className="color-picker">
+                                        {colors.map(color => (
+                                            <div
+                                                key={color}
+                                                className={`color-option ${selectedColor === color ? 'selected' : ''}`}
+                                                style={{ backgroundColor: color }}
+                                                onClick={() => {
+                                                    if (!isViewMode) {
+                                                        setSelectedColor(color);
+                                                    }
+                                                }}
+                                            ></div>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                            <div className="form-group">
-                                <label className="form-label">Status</label>
-                                <select 
-                                    name="status" 
-                                    className="form-control" 
-                                    defaultValue={currentWarehouse?.status || 'active'}
-                                >
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
-                                    <option value="maintenance">Maintenance</option>
-                                </select>
+                            <div className="modal-actions">
+                                <button type="button" className="btn btn-outline" onClick={closeForm}>
+                                    {isViewMode ? 'Close' : 'Cancel'}
+                                </button>
+                                {!isViewMode && (
+                                    <button type="submit" className="btn btn-primary">
+                                        {currentWarehouse ? 'Update Warehouse' : 'Create Warehouse'}
+                                    </button>
+                                )}
                             </div>
-                            <div className="form-group">
-                                <label className="form-label">Description</label>
-                                <textarea 
-                                    name="description" 
-                                    className="form-control form-textarea" 
-                                    defaultValue={currentWarehouse?.description}
-                                    placeholder="Enter warehouse description..."
-                                ></textarea>
-                            </div>
-                            
-                            <div className="form-group">
-                                <label className="form-label">Icon</label>
-                                <div className="icon-selector">
-                                    {icons.map(item => (
-                                        <div 
-                                            key={item.icon}
-                                            className={`icon-option ${selectedIcon === item.icon ? 'selected' : ''}`}
-                                            onClick={() => setSelectedIcon(item.icon)}
-                                        >
-                                            <span className="material-icons-outlined">{item.icon}</span>
-                                            <span className="icon-name">{item.name}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">Color Theme</label>
-                                <div className="color-picker">
-                                    {colors.map(color => (
-                                        <div 
-                                            key={color}
-                                            className={`color-option ${selectedColor === color ? 'selected' : ''}`}
-                                            style={{ backgroundColor: color }}
-                                            onClick={() => setSelectedColor(color)}
-                                        ></div>
-                                    ))}
-                                </div>
+                        </form>
+                    </div>
+                </div>
+            ) : (
+                <div className="warehouses-card fade-in">
+                    <div className="card-header">
+                        <div className="warehouses-actions">
+                            <select className="btn btn-outline" defaultValue="">
+                                <option disabled value="">Bulk Actions</option>
+                                <option value="activate">Activate Selected</option>
+                                <option value="deactivate">Deactivate Selected</option>
+                                <option value="maintenance">Set Maintenance</option>
+                                <option value="delete">Delete Selected</option>
+                            </select>
+                            <button className="btn btn-outline">
+                                <span className="material-icons-outlined">play_arrow</span>
+                                <span>Apply</span>
+                            </button>
+                            <div className="search-bar light">
+                                <input
+                                    type="text"
+                                    placeholder="Search warehouses..."
+                                    value={searchTerm}
+                                    onChange={handleSearch}
+                                />
+                                <button>
+                                    <span className="material-icons-outlined">search</span>
+                                </button>
                             </div>
                         </div>
-                        <div className="modal-actions">
-                            <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button>
-                            <button type="submit" className="btn btn-primary">
-                                {currentWarehouse ? 'Update Warehouse' : 'Create Warehouse'}
+                        <div className="actions">
+                            <button className="btn btn-primary" onClick={openCreateForm}>
+                                <span className="material-icons-outlined">add</span>
+                                <span>Add Warehouse</span>
+                            </button>
+                            <button className="btn btn-outline" onClick={() => window.location.reload()}>
+                                <span className="material-icons-outlined">refresh</span>
+                                <span>Refresh</span>
                             </button>
                         </div>
-                    </form>
+                    </div>
+
+                    <div className="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style={{ width: '40px' }}><input type="checkbox" className="header-checkbox" /></th>
+                                    <th>CODE <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
+                                    <th>WAREHOUSE NAME <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
+                                    <th>MANAGER <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
+                                    <th>CAPACITY <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
+                                    <th>UTILIZATION <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
+                                    <th>LOCATION <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
+                                    <th>STATUS <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
+                                    <th>OPERATIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredWarehouses.length > 0 ? (
+                                    filteredWarehouses.map(wh => (
+                                        <tr key={wh.id}>
+                                            <td><input type="checkbox" className="warehouse-checkbox" /></td>
+                                            <td>{wh.warehouse_code || wh.id}</td>
+                                            <td>
+                                                <div className="warehouse-info">
+                                                    <div className="warehouse-icon" style={{ backgroundColor: wh.color }}>
+                                                        <span className="material-icons-outlined">{wh.icon}</span>
+                                                    </div>
+                                                    <div className="warehouse-details">
+                                                        <div className="warehouse-name">{wh.name}</div>
+                                                        <div className="warehouse-description text-xs text-gray-500">{wh.description}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{wh.manager || '-'}</td>
+                                            <td>
+                                                <span className="capacity-badge">{wh.capacity.toLocaleString()} units</span>
+                                            </td>
+                                            <td>
+                                                <div className="flex flex-col">
+                                                    <div className="utilization-display">{wh.capacity > 0 ? Math.round((wh.used_capacity / wh.capacity) * 100) : 0}%</div>
+                                                    <div className="w-24 bg-gray-200 rounded-full h-1.5 mt-1">
+                                                        <div
+                                                            className="bg-blue-600 h-1.5 rounded-full"
+                                                            style={{ width: `${wh.capacity > 0 ? (wh.used_capacity / wh.capacity) * 100 : 0}%` }}
+                                                        ></div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{wh.location || '-'}</td>
+                                            <td>
+                                                <span className={`warehouse-status status-${wh.status}`}>
+                                                    {wh.status.charAt(0).toUpperCase() + wh.status.slice(1)}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button className="icon-btn edit" onClick={() => openEditForm(wh)}>
+                                                    <span className="material-icons-outlined">edit</span>
+                                                </button>
+                                                <button className="icon-btn delete" onClick={() => handleDelete(wh.id)}>
+                                                    <span className="material-icons-outlined">delete</span>
+                                                </button>
+                                                <button className="icon-btn" style={{ color: 'var(--info-color)' }} onClick={() => openViewForm(wh)}>
+                                                    <span className="material-icons-outlined">visibility</span>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="9" className="text-center py-4">No warehouses found.</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            )}
+
         </AdminLayout>
     );
 };

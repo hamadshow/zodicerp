@@ -15,16 +15,19 @@ class BranchController extends Controller
     public function index()
     {
         $branches = Branch::with(['company', 'countryData', 'cityData', 'areaData'])->latest()->get();
-        return Inertia::render('Backend/01-Essential_Data/Branch', [
-            'branches' => $branches
+        $companies = Company::select('id', 'company_name')->get();
+        return Inertia::render('Backend/01-Essential_Data/BranchInfo', [
+            'branches' => $branches,
+            'companies' => $companies,
         ]);
     }
 
     public function create()
     {
         $companies = Company::select('id', 'company_name')->get();
-        return Inertia::render('Backend/01-Essential_Data/BranchAddEdit', [
-            'companies' => $companies
+        return Inertia::render('Backend/01-Essential_Data/BranchInfo', [
+            'companies' => $companies,
+            'formMode' => 'create',
         ]);
     }
 
@@ -96,9 +99,10 @@ class BranchController extends Controller
     public function edit(Branch $branch)
     {
         $companies = Company::select('id', 'company_name')->get();
-        return Inertia::render('Backend/01-Essential_Data/BranchAddEdit', [
+        return Inertia::render('Backend/01-Essential_Data/BranchInfo', [
             'branch' => $branch,
-            'companies' => $companies
+            'companies' => $companies,
+            'formMode' => 'edit',
         ]);
     }
 

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Tasks;
 
 use App\Http\Controllers\Controller;
-use App\Models\TaskComment;
-use App\Models\Task;
+use App\Models\Tasks\TaskComment;
+use App\Models\Tasks\Task;
 use App\Http\Requests\StoreTaskCommentRequest;
 use App\Http\Requests\UpdateTaskCommentRequest;
 use Illuminate\Http\Request;

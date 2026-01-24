@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Tasks;
 
 use App\Http\Controllers\Controller;
-use App\Models\Task;
-use App\Models\TaskStatus;
+use App\Models\Tasks\Task;
+use App\Models\Tasks\TaskStatus;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
 use Illuminate\Http\Request;
@@ -96,9 +96,9 @@ class TaskController extends Controller
 
     public function destroy(Task $task)
     {
-        if ($task->created_by !== Auth::id()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
+        // if ($task->created_by !== Auth::id()) {
+        //     return response()->json(['error' => 'Unauthorized'], 403);
+        // }
 
         $task->delete();
 

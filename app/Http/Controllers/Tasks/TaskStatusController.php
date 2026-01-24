@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Tasks;
 
-use App\Models\TaskStatus;
+use App\Models\Tasks\TaskStatus;
 use App\Http\Requests\StoreTaskStatusRequest;
 use App\Http\Requests\UpdateTaskStatusRequest;
 use Illuminate\Http\Request;

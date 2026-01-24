@@ -230,13 +230,13 @@ const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
                 <div className="stat-card">
                     <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
                         <span className="material-icons-outlined">today</span>
-                    </div>
+                        icon={<Calendar className="h-6 w-6" />}
                     <div className="stat-content">
                         <div className="stat-value">{stats.today}</div>
                         <div className="stat-label">Added Today</div>
                     </div>
                 </div>
-                <div className="stat-card">
+                        icon={<Activity className="h-6 w-6" />}
                     <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
                         <span className="material-icons-outlined">compare_arrows</span>
                     </div>

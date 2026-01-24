@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Tasks;
 
 use App\Http\Controllers\Controller;
-use App\Models\TaskAttachment;
-use App\Models\Task;
+use App\Models\Tasks\TaskAttachment;
+use App\Models\Tasks\Task;
 use App\Http\Requests\StoreTaskAttachmentRequest;
 use App\Http\Requests\UpdateTaskAttachmentRequest;
 use Illuminate\Http\Request;
