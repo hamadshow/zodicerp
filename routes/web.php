@@ -388,6 +388,7 @@ Route::middleware('auth')->group(function () {
             ->except(['create', 'edit', 'show']);
 
         // Suppliers Submodules
+        Route::post('suppliers/bulk-import', [\App\Http\Controllers\Purchases\SupplierController::class, 'bulkImport'])->name('suppliers.bulkImport');
         Route::resource('suppliers', \App\Http\Controllers\Purchases\SupplierController::class);
 
         Route::resource('supplier-groups', \App\Http\Controllers\Purchases\SupplierGroupController::class)

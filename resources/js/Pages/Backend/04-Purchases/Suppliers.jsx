@@ -1,11 +1,21 @@
-import React, { useState } from 'react';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import React, { useState, useRef } from 'react';
+import { Head, useForm, usePage, router } from '@inertiajs/react';
+import * as XLSX from 'xlsx';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/04-Purchases/Suppliers.scss';
 
 export default function Suppliers({ suppliers, groups, countries, cities, currencies, accounts }) {
     const [mode, setMode] = useState('list'); // list, create, edit
     const [activeTab, setActiveTab] = useState('general');
+    
+    // Import System State
+    const [showImport, setShowImport] = useState(false);
+    const [excelRows, setExcelRows] = useState([]);
+    const [invalidRows, setInvalidRows] = useState([]);
+    const [importSummary, setImportSummary] = useState({});
+    const [importLoading, setImportLoading] = useState(false);
+    const fileInputRef = useRef(null);
+
     const { props } = usePage();
     const flash = (props && props.flash) ? props.flash : {};
 
@@ -506,6 +516,125 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                     </form>
                 )}
             </div>
+            {/* IMPORT MODAL */}
+            {showImport && (
+                <div className="import-modal-overlay">
+                    <div className="import-modal">
+                        <div className="import-modal__header">
+                            <h2>Import Suppliers from Excel</h2>
+                            <button className="close-btn" onClick={() => setShowImport(false)}>&times;</button>
+                        </div>
+                        <div className="import-modal__content">
+                            {!importSummary.total ? (
+                                <>
+                                    <div 
+                                        className="drop-zone"
+                                        onDragOver={e => e.preventDefault()}
+                                        onDrop={handleFileDrop}
+                                        onClick={() => fileInputRef.current.click()}
+                                    >
+                                        <p>Drag & Drop your Excel file here or click to browse</p>
+                                        <input 
+                                            type="file" 
+                                            hidden 
+                                            ref={fileInputRef} 
+                                            accept=".xlsx, .xls"
+                                            onChange={e => handleFileUpload(e.target.files[0])}
+                                        />
+                                    </div>
+                                    <div style={{ textAlign: 'center' }}>
+                                        <button className="btn-secondary" onClick={downloadTemplate}>
+                                            Download Template
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="preview-stats">
+                                        <span className="stat-badge total">Total: {importSummary.total}</span>
+                                        <span className="stat-badge valid">Valid: {importSummary.valid}</span>
+                                        {importSummary.invalid > 0 && (
+                                            <span className="stat-badge invalid">Invalid: {importSummary.invalid}</span>
+                                        )}
+                                    </div>
+
+                                    {importLoading && (
+                                        <div className="progress-bar">
+                                            <div className="progress-bar__fill" style={{ width: '100%' }}></div>
+                                        </div>
+                                    )}
+
+                                    <div className="table-wrapper" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                        <table className="import-preview-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Code</th>
+                                                    <th>Name (EN)</th>
+                                                    <th>Email</th>
+                                                    <th>Status</th>
+                                                    <th>Errors</th>
+                                                    <th>Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {/* Invalid Rows First */}
+                                                {invalidRows.map((row, i) => (
+                                                    <tr key={`inv-${i}`} className="invalid-row">
+                                                        <td>{row.supplier_code}</td>
+                                                        <td>{row.name_en}</td>
+                                                        <td>{row.email}</td>
+                                                        <td>-</td>
+                                                        <td>
+                                                            {row._errors.map((e, idx) => (
+                                                                <span key={idx} className="row-error">{e}</span>
+                                                            ))}
+                                                        </td>
+                                                        <td>Skipped</td>
+                                                    </tr>
+                                                ))}
+                                                {/* Valid Rows */}
+                                                {excelRows.map((row, i) => (
+                                                    <tr key={`val-${i}`}>
+                                                        <td>{row.supplier_code}</td>
+                                                        <td>{row.name_en}</td>
+                                                        <td>{row.email}</td>
+                                                        <td>{row.is_active ? 'Active' : 'Inactive'}</td>
+                                                        <td>-</td>
+                                                        <td>
+                                                            <button className="btn-danger" onClick={() => removeImportRow(i)}>
+                                                                &times;
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                        <div className="import-modal__footer">
+                            <button className="btn-secondary" onClick={() => {
+                                setShowImport(false);
+                                setExcelRows([]);
+                                setInvalidRows([]);
+                                setImportSummary({});
+                            }}>
+                                Cancel
+                            </button>
+                            {importSummary.valid > 0 && (
+                                <button 
+                                    className="btn-primary" 
+                                    onClick={submitImport}
+                                    disabled={importLoading}
+                                >
+                                    {importLoading ? 'Importing...' : `Import ${importSummary.valid} Suppliers`}
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </AdminLayout>
     );
 }

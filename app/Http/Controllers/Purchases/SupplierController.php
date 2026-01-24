@@ -42,6 +42,77 @@ class SupplierController extends Controller
         ]);
     }
 
+    public function bulkImport(Request $request)
+    {
+        $rows = $request->input('rows');
+        if (empty($rows)) {
+             return redirect()->back()->with('error', 'No valid rows to import.');
+        }
+
+        $created = 0;
+        $errors = [];
+
+        DB::beginTransaction();
+        try {
+            foreach ($rows as $index => $row) {
+                // Prepare data
+                $data = [
+                    'supplier_code' => $row['supplier_code'] ?? null,
+                    'name_ar' => $row['name_ar'] ?? null,
+                    'name_en' => $row['name_en'] ?? null,
+                    'primary_phone' => $row['primary_phone'] ?? null,
+                    'email' => $row['email'] ?? null,
+                    'is_active' => isset($row['is_active']) ? (bool)$row['is_active'] : true,
+                    'created_by' => Auth::id(),
+                    'password' => Str::random(12),
+                ];
+
+                // Foreign Key Lookups
+                if (!empty($row['currency_code'])) {
+                    $curr = Currency::where('code', $row['currency_code'])->first();
+                    if ($curr) $data['currency_id'] = $curr->id;
+                }
+                
+                if (!empty($row['account_code'])) {
+                    $acc = Account::where('AccCode', $row['account_code'])->first();
+                    if ($acc) $data['account_id'] = $acc->AccID;
+                }
+
+                // Basic Validation
+                $validator = \Illuminate\Support\Facades\Validator::make($data, [
+                    'supplier_code' => 'required|unique:suppliers,supplier_code',
+                    'name_en' => 'required',
+                    'email' => 'nullable|email|unique:suppliers,email',
+                ]);
+
+                if ($validator->fails()) {
+                    $errors[] = "Row " . ($index + 1) . " (" . ($data['name_en'] ?? 'Unknown') . "): " . implode(', ', $validator->errors()->all());
+                    continue;
+                }
+
+                Supplier::create($data);
+                $created++;
+            }
+
+            if ($created > 0) {
+                DB::commit();
+                $msg = "Successfully imported $created suppliers.";
+                if (count($errors) > 0) {
+                    $msg .= " Skipped " . count($errors) . " rows due to errors.";
+                    return redirect()->back()->with('warning', $msg); // Using warning for partial success
+                }
+                return redirect()->back()->with('success', $msg);
+            } else {
+                DB::rollBack();
+                return redirect()->back()->with('error', 'No suppliers imported. Errors: ' . implode(' | ', $errors));
+            }
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Server Error: ' . $e->getMessage());
+        }
+    }
+
     public function store(StoreSupplierRequest $request)
     {
         DB::beginTransaction();
