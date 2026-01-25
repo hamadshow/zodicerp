@@ -317,7 +317,7 @@ Route::middleware('auth')->group(function () {
             'destroy' => 'admin.purchases.quotations.destroy',
         ])->except(['create', 'edit', 'show']);
 
-    Route::prefix('api/tasks')->group(function () {
+    Route::prefix('api/tasks')->name('tasks.')->group(function () {
         Route::middleware('auth')->group(function () {
             // Specific subpaths FIRST to avoid matching by /{task}
             Route::get('/statistics', [\App\Http\Controllers\Tasks\TaskController::class, 'statistics']);
