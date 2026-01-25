@@ -125,7 +125,7 @@ const AdminLayout = ({
         { icon: 'request_quote', label: 'Quotations', href: route('admin.purchases.quotations.index') },
         { icon: 'shopping_bag', label: 'Purchase Orders', href: route('admin.purchases.orders.index') },
         // { icon: 'inventory', label: 'Goods Receipts', href: route('admin.purchases.goods-receipts.index') },
-        // { icon: 'receipt', label: 'Purchase Invoices', href: route('admin.purchases.invoices.index') },
+        { icon: 'receipt', label: 'Purchase Invoices', href: route('admin.purchases.invoices.index') },
         // { icon: 'keyboard_return', label: 'Purchase Returns', href: route('admin.purchases.returns.index') },
       ],
     },

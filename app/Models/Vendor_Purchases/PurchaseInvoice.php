@@ -97,4 +97,9 @@ class PurchaseInvoice extends Model
         // Assuming User model is in App\Models\User
         return $this->belongsTo(User::class, 'posted_by');
     }
+
+    public function items()
+    {
+        return $this->hasMany(PurchaseInvoiceDetail::class, 'invoice_id');
+    }
 }

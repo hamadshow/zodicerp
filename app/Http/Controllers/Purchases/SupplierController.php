@@ -25,9 +25,11 @@ class SupplierController extends Controller
 {
     public function index()
     {
+        $perPage = request('per_page', 10);
         $suppliers = Supplier::with(['group', 'currency', 'country', 'city', 'addresses', 'contacts', 'openingBalances'])
-            ->orderBy('id', 'desc')
-            ->paginate(10);
+            ->orderBy('supplier_code', 'asc')
+            ->paginate($perPage)
+            ->withQueryString();
 
         return Inertia::render('Backend/04-Purchases/Suppliers', [
             'suppliers' => $suppliers,
@@ -44,6 +46,8 @@ class SupplierController extends Controller
 
     public function bulkImport(Request $request)
     {
+        set_time_limit(300); // Increase execution time to 5 minutes
+
         $rows = $request->input('rows');
         if (empty($rows)) {
              return redirect()->back()->with('error', 'No valid rows to import.');
@@ -52,46 +56,107 @@ class SupplierController extends Controller
         $created = 0;
         $errors = [];
 
+        // Get Default Supplier Group (or create one if none exists)
+        $defaultGroup = SupplierGroup::firstOrCreate(
+            ['code' => 'GRP-001'],
+            ['name_ar' => 'عام', 'name_en' => 'General', 'is_active' => true]
+        );
+        $defaultGroupId = $defaultGroup->id;
+
+        // Pre-fetch related data for faster lookups
+        $currencies = Currency::pluck('id', 'code')->toArray();
+        $accounts = Account::pluck('AccID', 'AccCode')->toArray();
+        $groups = SupplierGroup::pluck('id', 'code')->toArray();
+
+        // Bulk duplicate checks
+        $supplierCodes = collect($rows)->pluck('supplier_code')->filter()->toArray();
+        $emails = collect($rows)->pluck('email')->filter()->toArray();
+
+        $existingCodes = [];
+        if (!empty($supplierCodes)) {
+            $existingCodes = Supplier::whereIn('supplier_code', $supplierCodes)
+                ->pluck('supplier_code')
+                ->flip()
+                ->toArray();
+        }
+
+        $existingEmails = [];
+        if (!empty($emails)) {
+            $existingEmails = Supplier::whereIn('email', $emails)
+                ->pluck('email')
+                ->flip()
+                ->toArray();
+        }
+
+        $insertData = [];
+        $now = now();
+        $userId = Auth::id();
+
         DB::beginTransaction();
         try {
             foreach ($rows as $index => $row) {
-                // Prepare data
-                $data = [
-                    'supplier_code' => $row['supplier_code'] ?? null,
-                    'name_ar' => $row['name_ar'] ?? null,
-                    'name_en' => $row['name_en'] ?? null,
-                    'primary_phone' => $row['primary_phone'] ?? null,
-                    'email' => $row['email'] ?? null,
-                    'is_active' => isset($row['is_active']) ? (bool)$row['is_active'] : true,
-                    'created_by' => Auth::id(),
-                    'password' => Str::random(12),
-                ];
-
-                // Foreign Key Lookups
-                if (!empty($row['currency_code'])) {
-                    $curr = Currency::where('code', $row['currency_code'])->first();
-                    if ($curr) $data['currency_id'] = $curr->id;
-                }
-                
-                if (!empty($row['account_code'])) {
-                    $acc = Account::where('AccCode', $row['account_code'])->first();
-                    if ($acc) $data['account_id'] = $acc->AccID;
-                }
-
-                // Basic Validation
-                $validator = \Illuminate\Support\Facades\Validator::make($data, [
-                    'supplier_code' => 'required|unique:suppliers,supplier_code',
-                    'name_en' => 'required',
-                    'email' => 'nullable|email|unique:suppliers,email',
-                ]);
-
-                if ($validator->fails()) {
-                    $errors[] = "Row " . ($index + 1) . " (" . ($data['name_en'] ?? 'Unknown') . "): " . implode(', ', $validator->errors()->all());
+                // Skip if supplier_code already exists
+                $code = $row['supplier_code'] ?? null;
+                if ($code && isset($existingCodes[$code])) {
+                    $errors[] = "Row " . ($index + 1) . ": Supplier Code '$code' already exists.";
                     continue;
                 }
 
-                Supplier::create($data);
+                // Handle Email Duplication (Set to null if exists)
+                $email = !empty($row['email']) ? $row['email'] : null;
+                if ($email && isset($existingEmails[$email])) {
+                    $email = null; // Clear email to avoid unique constraint violation
+                }
+
+                // Prepare data
+                $data = [
+                    'supplier_code' => $code,
+                    'name_ar' => $row['name_ar'] ?? null,
+                    'name_en' => $row['name_en'] ?? null,
+                    'supplier_group_id' => $defaultGroupId,
+                    'primary_phone' => $row['primary_phone'] ?? null,
+                    'email' => $email,
+                    'is_active' => isset($row['is_active']) ? (bool)$row['is_active'] : true,
+                    'created_by' => $userId,
+                    'password' => \Illuminate\Support\Facades\Hash::make(Str::random(12)), // Manually hash for bulk insert
+                    'currency_id' => null,
+                    'account_id' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+
+                // Foreign Key Lookups (Memory-based)
+                if (!empty($row['group_code']) && isset($groups[$row['group_code']])) {
+                    $data['supplier_group_id'] = $groups[$row['group_code']];
+                }
+
+                if (!empty($row['currency_code']) && isset($currencies[$row['currency_code']])) {
+                    $data['currency_id'] = $currencies[$row['currency_code']];
+                }
+                
+                if (!empty($row['account_code']) && isset($accounts[$row['account_code']])) {
+                    $data['account_id'] = $accounts[$row['account_code']];
+                }
+
+                // Basic Validation (Manual check to avoid Validator overhead)
+                if (empty($data['supplier_code'])) {
+                    $errors[] = "Row " . ($index + 1) . ": Supplier Code is required.";
+                    continue;
+                }
+                if (empty($data['name_en'])) {
+                    $errors[] = "Row " . ($index + 1) . ": Name (EN) is required.";
+                    continue;
+                }
+
+                $insertData[] = $data;
                 $created++;
+            }
+
+            // Bulk Insert in Chunks
+            if (!empty($insertData)) {
+                foreach (array_chunk($insertData, 500) as $chunk) {
+                    Supplier::insert($chunk);
+                }
             }
 
             if ($created > 0) {
@@ -99,12 +164,12 @@ class SupplierController extends Controller
                 $msg = "Successfully imported $created suppliers.";
                 if (count($errors) > 0) {
                     $msg .= " Skipped " . count($errors) . " rows due to errors.";
-                    return redirect()->back()->with('warning', $msg); // Using warning for partial success
+                    return redirect()->back()->with('warning', $msg);
                 }
                 return redirect()->back()->with('success', $msg);
             } else {
                 DB::rollBack();
-                return redirect()->back()->with('error', 'No suppliers imported. Errors: ' . implode(' | ', $errors));
+                return redirect()->back()->with('error', 'No suppliers imported. Errors: ' . implode(' | ', array_slice($errors, 0, 10)) . (count($errors) > 10 ? '...' : ''));
             }
 
         } catch (\Exception $e) {

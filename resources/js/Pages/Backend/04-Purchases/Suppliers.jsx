@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Head, useForm, usePage, router } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../components/AdminLayout';
+import Pagination from '../components/Pagination';
 import '../../../../css/backend/04-Purchases/Suppliers.scss';
 
 export default function Suppliers({ suppliers, groups, countries, cities, currencies, accounts }) {
@@ -134,6 +135,147 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         setData(field, list);
     };
 
+    // --- IMPORT SYSTEM LOGIC ---
+    const downloadTemplate = () => {
+        const headers = ['supplier_code', 'name_ar', 'name_en', 'group_code', 'primary_phone', 'email', 'currency_code', 'account_code', 'is_active'];
+        const sample = ['SUP-10001', 'مورد 1', 'Supplier 1', 'GRP-001', '01000000001', 'sup1@example.com', 'EGP', '2101', '1'];
+        const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template");
+        XLSX.writeFile(wb, "suppliers_template.xlsx");
+    };
+
+    const handleFileUpload = (file) => {
+        if (!file) return;
+        setImportLoading(true);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                processExcelData(jsonData);
+            } catch (err) {
+                alert(err?.message || 'Error reading file');
+                setImportLoading(false);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    const handleFileDrop = (e) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+            handleFileUpload(file);
+        } else {
+            alert('Please upload a valid Excel file (.xlsx, .xls)');
+        }
+    };
+
+    const processExcelData = (rows) => {
+        if (rows.length < 2) {
+            alert('File is empty or missing headers');
+            setImportLoading(false);
+            return;
+        }
+
+        const headers = rows[0].map(h => String(h).trim().toLowerCase());
+        const dataRows = rows.slice(1);
+        const valid = [];
+        const invalid = [];
+
+        // Column mapping
+        const map = {
+            'supplier_code': headers.indexOf('supplier_code'),
+            'name_ar': headers.indexOf('name_ar'),
+            'name_en': headers.indexOf('name_en'),
+            'group_code': headers.indexOf('group_code'),
+            'primary_phone': headers.indexOf('primary_phone'),
+            'email': headers.indexOf('email'),
+            'currency_code': headers.indexOf('currency_code'),
+            'account_code': headers.indexOf('account_code'),
+            'is_active': headers.indexOf('is_active'),
+        };
+
+        dataRows.forEach((row) => {
+            const getVal = (key) => {
+                const colIdx = map[key];
+                return colIdx !== -1 && row[colIdx] !== undefined ? String(row[colIdx]).trim() : '';
+            };
+
+            const item = {
+                supplier_code: getVal('supplier_code'),
+                name_ar: getVal('name_ar'),
+                name_en: getVal('name_en'),
+                group_code: getVal('group_code'),
+                primary_phone: getVal('primary_phone'),
+                email: getVal('email'),
+                currency_code: getVal('currency_code'),
+                account_code: getVal('account_code'),
+                is_active: getVal('is_active') === '' || ['1', 'yes', 'true'].includes(getVal('is_active').toLowerCase()),
+                _errors: []
+            };
+
+            // Client-side Validation
+            if (!item.name_en) item._errors.push('Name (EN) is required');
+            if (item.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.email)) item._errors.push('Invalid email format');
+            
+            // Validate Group Code (Optional: if provided, check if it exists in props.groups)
+            // Assuming groups have 'code' field. If not, we might need to skip this check or use name.
+            // Let's assume groups prop has { id, code, name_en } structure.
+            if (item.group_code && groups && groups.length > 0) {
+                const groupExists = groups.some(g => g.code === item.group_code);
+                if (!groupExists) item._errors.push('Group Code not found');
+            }
+
+            // Check duplicates in current batch
+            if (valid.find(v => v.supplier_code === item.supplier_code && item.supplier_code)) {
+                item._errors.push('Duplicate Supplier Code in file');
+            }
+
+            if (item._errors.length > 0) {
+                invalid.push(item);
+            } else {
+                valid.push(item);
+            }
+        });
+
+        setExcelRows(valid);
+        setInvalidRows(invalid);
+        setImportSummary({
+            total: dataRows.length,
+            valid: valid.length,
+            invalid: invalid.length
+        });
+        setImportLoading(false);
+    };
+
+    const removeImportRow = (index) => {
+        const rows = [...excelRows];
+        rows.splice(index, 1);
+        setExcelRows(rows);
+        setImportSummary(prev => ({ ...prev, valid: rows.length }));
+    };
+
+    const submitImport = () => {
+        if (excelRows.length === 0) return;
+        const batch_id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        router.post(route('admin.purchases.suppliers.bulkImport'), {
+            rows: excelRows,
+            batch_id: batch_id
+        }, {
+            onSuccess: () => {
+                setShowImport(false);
+                setExcelRows([]);
+                setInvalidRows([]);
+                setImportSummary({});
+                // Optional: Force reload or show success message via flash
+            }
+        });
+    };
+
     return (
         <AdminLayout>
             <Head title="Suppliers Management" />
@@ -142,19 +284,24 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                 <div className="suppliers-module__header">
                     <h1>Suppliers Management</h1>
                     {mode === 'list' && (
-                        <button className="btn-add" onClick={handleCreate}>
-                            + Add Supplier
-                        </button>
+                        <div className="header-actions">
+                             <button className="btn-import" onClick={() => setShowImport(true)}>
+                                <i className="icon-upload"></i> Import Excel
+                            </button>
+                            <button className="btn-add" onClick={handleCreate}>
+                                + Add Supplier
+                            </button>
+                        </div>
                     )}
 
                 </div>
                 {flash.success && (
-                    <div style={{ backgroundColor: '#dcfce7', color: '#166534', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem' }}>
+                    <div className="alert alert--success">
                         {flash.success}
                     </div>
                 )}
                 {flash.error && (
-                    <div style={{ backgroundColor: '#fee2e2', color: '#7f1d1d', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem' }}>
+                    <div className="alert alert--error">
                         {flash.error}
                     </div>
                 )}
@@ -194,11 +341,19 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                 ))}
                                 {suppliers.data.length === 0 && (
                                     <tr>
-                                        <td colSpan="7" style={{ textAlign: 'center' }}>No suppliers found.</td>
+                                        <td colSpan="7" className="empty-state">No suppliers found.</td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
+                        <Pagination
+                            currentPage={suppliers.current_page}
+                            totalPages={suppliers.last_page}
+                            totalRecords={suppliers.total}
+                            recordsPerPage={suppliers.per_page}
+                            onPageChange={(page) => router.get(route('admin.purchases.suppliers.index'), { page, per_page: suppliers.per_page }, { preserveState: true })}
+                            onRecordsPerPageChange={(perPage) => router.get(route('admin.purchases.suppliers.index'), { page: 1, per_page: perPage }, { preserveState: true })}
+                        />
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className="suppliers-module__form-container">
@@ -508,8 +663,8 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                         </div>
 
                         <div className="suppliers-module__actions">
-                            <button type="button" className="btn btn-cancel" onClick={() => setMode('list')}>Cancel</button>
-                            <button type="submit" className="btn btn-save" disabled={processing}>
+                            <button type="button" className="btn-secondary" onClick={() => setMode('list')}>Cancel</button>
+                            <button type="submit" className="btn-primary" disabled={processing}>
                                 {mode === 'create' ? 'Create Supplier' : 'Update Supplier'}
                             </button>
                         </div>

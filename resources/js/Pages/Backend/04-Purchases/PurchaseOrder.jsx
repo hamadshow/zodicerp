@@ -1,11 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/04-Purchases/PurchaseOrder.scss';
+import * as XLSX from 'xlsx';
+import html2pdf from 'html2pdf.js';
 
 export default function PurchaseOrder({ orders, vendors, currencies, products, units, paymentTerms, deliveryTerms }) {
     const [mode, setMode] = useState('list'); // list, create, edit
-    const [activeTab, setActiveTab] = useState('general');
+    const invoiceRef = useRef(null);
+    const printRef = useRef(null);
     const { props } = usePage();
     const flash = (props && props.flash) ? props.flash : {};
     const { errors } = props;
@@ -15,7 +18,7 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
         id: '',
         po_number: '',
         po_date: new Date().toISOString().split('T')[0],
-        expected_delivery_date: '',
+        expected_delivery_date: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0],
         vendor_id: '',
         currency_id: '',
         exchange_rate: 1.000000,
@@ -38,6 +41,7 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
         delivery_terms_id: '',
         shipping_method: '',
         shipping_address: '',
+        terms_and_conditions: '',
     });
 
     // Helper to calculate totals
@@ -48,9 +52,11 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
     const handleCreate = () => {
         reset();
         const today = new Date();
+        const delivery = new Date(new Date().setDate(today.getDate() + 30));
         setData(prev => ({
             ...prev,
             po_date: today.toISOString().split('T')[0],
+            expected_delivery_date: delivery.toISOString().split('T')[0],
             items: [{
                 id: null,
                 line_number: 1,
@@ -69,7 +75,6 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
             }]
         }));
         setMode('create');
-        setActiveTab('general');
     };
 
     const handleEdit = (order) => {
@@ -77,10 +82,10 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
         setData({
             ...order,
             items: (order.items || []).map(it => {
-                const qty = toNum(it.ordered_quantity);
+                const qty = toNum(it.quantity || it.ordered_quantity);
                 const unitPrice = toNum(it.unit_price);
                 const discountAmount = toNum(it.discount_amount);
-                const taxAmount = toNum(it.tax_total); // Note: using tax_total from backend
+                const taxAmount = toNum(it.tax_amount || it.tax_total);
                 
                 const netPrice = unitPrice - discountAmount;
                 const taxableAmount = qty * netPrice;
@@ -92,13 +97,13 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
 
                 return {
                     ...it,
-                    quantity: qty, // Map ordered_quantity to quantity for form
+                    quantity: qty,
                     unit_price: unitPrice,
                     discount_amount: discountAmount,
                     tax_amount: taxAmount,
                     line_total: toNum(it.line_total),
-                    unit_id: it.unit_id || '',
-                    tax_percent: toNum(it.tax_percent) || taxPercent.toFixed(2)
+                    unit_id: it.unit_id,
+                    tax_percent: taxPercent.toFixed(2)
                 };
             }),
             po_date: order.po_date ? order.po_date.split('T')[0] : '',
@@ -111,38 +116,25 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
             exchange_rate: toNum(order.exchange_rate),
         });
         setMode('edit');
-        setActiveTab('general');
     };
 
     const handleDelete = (id) => {
-        if (confirm('Are you sure you want to delete this purchase order?')) {
+        if (confirm('Are you sure you want to delete this order?')) {
             destroy(route('admin.purchases.orders.destroy', { order: id }));
         }
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const handleError = (errors) => {
-            if (Object.keys(errors).some(k => k.startsWith('items.'))) {
-                setActiveTab('items');
-            } else if (Object.keys(errors).some(k => ['payment_terms_id', 'delivery_terms_id', 'shipping_method', 'shipping_address'].includes(k))) {
-                setActiveTab('terms');
-            } else {
-                setActiveTab('general');
-            }
-        };
-
         if (mode === 'create') {
             post(route('admin.purchases.orders.store'), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
-                onError: handleError,
             });
         } else {
             put(route('admin.purchases.orders.update', { order: data.id }), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
-                onError: handleError,
             });
         }
     };
@@ -232,6 +224,76 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
         }
     };
 
+    // Export Features
+    const handlePrint = () => {
+        window.print();
+    };
+
+    const handleExportPDF = () => {
+        const element = printRef.current;
+        if (!element) return;
+        
+        // Apply class to parent to toggle visibility
+        const module = element.closest('.purchase-orders-module');
+        if (module) module.classList.add('generating-pdf');
+        
+        const opt = {
+            margin: [5, 5],
+            filename: `PurchaseOrder_${data.po_number || 'New'}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, logging: false },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(element).save().then(() => {
+            if (module) module.classList.remove('generating-pdf');
+        });
+    };
+
+    const handleExportExcel = () => {
+        // Prepare data
+        const itemsData = data.items.map((item, index) => ({
+            '#': index + 1,
+            'Product': products.find(p => p.id == item.product_id)?.name_en || '',
+            'Description': item.item_name_ar || '',
+            'Quantity': Number(item.quantity),
+            'Unit': units.find(u => u.id == item.unit_id)?.name_en || '',
+            'Price': Number(item.unit_price),
+            'Discount': Number(item.discount_amount),
+            'Tax %': Number(item.tax_percent),
+            'Tax Amount': Number(item.tax_amount),
+            'Total': Number(item.line_total)
+        }));
+
+        // Add Totals rows
+        itemsData.push({}); // Empty row
+        itemsData.push({ 'Product': 'Subtotal', 'Total': Number(data.subtotal) });
+        itemsData.push({ 'Product': 'Tax', 'Total': Number(data.tax_amount) });
+        itemsData.push({ 'Product': 'Discount', 'Total': Number(data.discount_amount) });
+        itemsData.push({ 'Product': 'Shipping', 'Total': Number(data.shipping_charges) });
+        itemsData.push({ 'Product': 'Grand Total', 'Total': Number(data.grand_total) });
+
+        const worksheet = XLSX.utils.json_to_sheet(itemsData);
+        
+        // Auto-width for columns
+        const wscols = [
+            {wch: 5}, // #
+            {wch: 20}, // Product
+            {wch: 30}, // Description
+            {wch: 10}, // Qty
+            {wch: 10}, // Unit
+            {wch: 10}, // Price
+            {wch: 10}, // Discount
+            {wch: 10}, // Tax %
+            {wch: 10}, // Tax Amt
+            {wch: 15}  // Total
+        ];
+        worksheet['!cols'] = wscols;
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Purchase Order");
+        XLSX.writeFile(workbook, `PurchaseOrder_${data.po_number || 'New'}.xlsx`);
+    };
+
     return (
         <AdminLayout>
             <Head title="Purchase Orders" />
@@ -240,11 +302,24 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
                 <div className="purchase-orders-module__header">
                     <h1>Purchase Orders</h1>
                     {mode === 'list' && (
-                        <button className="btn-add" onClick={handleCreate}>
-                            + Create Order
+                    <button className="btn-add" onClick={handleCreate}>
+                        + Create Order
+                    </button>
+                )}
+                {mode !== 'list' && (
+                    <div className="header-actions" style={{display: 'flex', gap: '10px'}}>
+                        <button type="button" className="btn-action btn-print" onClick={handlePrint} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                            <span>🖨</span> Print
                         </button>
-                    )}
-                </div>
+                        <button type="button" className="btn-action btn-pdf" onClick={handleExportPDF} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                            <span>📄</span> PDF
+                        </button>
+                        <button type="button" className="btn-action btn-excel" onClick={handleExportExcel} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                            <span>📊</span> Excel
+                        </button>
+                    </div>
+                )}
+            </div>
 
                 {flash.success && (
                     <div className="alert alert-success">{flash.success}</div>
@@ -286,65 +361,52 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
                                 ))}
                                 {orders.data.length === 0 && (
                                     <tr>
-                                        <td colSpan="6" style={{ textAlign: 'center' }}>No purchase orders found.</td>
+                                        <td colSpan="6" style={{ textAlign: 'center' }}>No orders found.</td>
                                     </tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
                 ) : (
-                    <form onSubmit={handleSubmit} className="purchase-orders-module__form-container">
-                        <div className="purchase-orders-module__tabs">
-                            {['general', 'items', 'terms'].map(tab => (
-                                <button
-                                    key={tab}
-                                    type="button"
-                                    className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-                                    onClick={() => setActiveTab(tab)}
-                                >
-                                    {tab.toUpperCase()}
-                                </button>
-                            ))}
+                    <>
+                    <form ref={invoiceRef} onSubmit={handleSubmit} className="invoice-container">
+                        
+                        {/* 1. Invoice Header */}
+                        <div className="invoice-header">
+                            <div className="company-info">
+                                <h2>PURCHASE ORDER</h2>
+                                <p>Zodic ERP System</p>
+                            </div>
+                            <div className="invoice-meta">
+                                <label>Order #</label>
+                                <input type="text" value={data.po_number} disabled placeholder="Auto-generated" />
+                                
+                                <label>Date <span className="required">*</span></label>
+                                <input 
+                                    type="date" 
+                                    value={data.po_date} 
+                                    onChange={e => setData('po_date', e.target.value)}
+                                    className={errors.po_date ? 'error' : ''}
+                                />
+                                
+                                <label>Expected Delivery</label>
+                                <input 
+                                    type="date" 
+                                    value={data.expected_delivery_date} 
+                                    onChange={e => setData('expected_delivery_date', e.target.value)} 
+                                />
+                            </div>
                         </div>
 
-                        {/* GENERAL TAB */}
-                        <div className={`purchase-orders-module__tab-content ${activeTab === 'general' ? 'active' : ''}`}>
-                            <div className="purchase-orders-module__grid">
+                        {/* 2. Info Grid (Vendor, Currency, Status) */}
+                        <div className="invoice-info-grid">
+                            <div className="info-section">
+                                <h3>Vendor Details</h3>
                                 <div className="form-group">
-                                    <label>Order #</label>
-                                    <input type="text" value={data.po_number} disabled placeholder="Auto-generated" />
-                                </div>
-                                <div className="form-group">
-                                    <label>Date <span className="required">*</span></label>
-                                    <input 
-                                        type="date" 
-                                        value={data.po_date} 
-                                        onChange={e => setData('po_date', e.target.value)}
-                                        className={errors.po_date ? 'error' : ''}
-                                    />
-                                    {errors.po_date && <span className="error-msg">{errors.po_date}</span>}
-                                </div>
-                                <div className="form-group">
-                                    <label>Expected Delivery</label>
-                                    <input 
-                                        type="date" 
-                                        value={data.expected_delivery_date} 
-                                        onChange={e => setData('expected_delivery_date', e.target.value)} 
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Vendor <span className="required">*</span></label>
+                                    <label>Vendor Name <span className="required">*</span></label>
                                     <select 
                                         value={data.vendor_id} 
-                                        onChange={e => {
-                                            const selectedVendorId = e.target.value;
-                                            const selectedVendor = vendors.find(v => v.id == selectedVendorId);
-                                            setData(prev => ({
-                                                ...prev,
-                                                vendor_id: selectedVendorId,
-                                                currency_id: selectedVendor?.currency_id || prev.currency_id
-                                            }));
-                                        }}
+                                        onChange={e => setData('vendor_id', e.target.value)}
                                         className={errors.vendor_id ? 'error' : ''}
                                     >
                                         <option value="">Select Vendor</option>
@@ -354,216 +416,192 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
                                     </select>
                                     {errors.vendor_id && <span className="error-msg">{errors.vendor_id}</span>}
                                 </div>
-                                <div className="form-group">
-                                    <label>Currency <span className="required">*</span></label>
-                                    <select 
-                                        value={data.currency_id} 
-                                        onChange={e => setData('currency_id', e.target.value)}
-                                        className={errors.currency_id ? 'error' : ''}
-                                    >
-                                        <option value="">Select Currency</option>
-                                        {currencies.map(c => (
-                                            <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
-                                        ))}
-                                    </select>
-                                    {errors.currency_id && <span className="error-msg">{errors.currency_id}</span>}
-                                </div>
-                                <div className="form-group">
-                                    <label>Exchange Rate <span className="required">*</span></label>
-                                    <input 
-                                        type="number" 
-                                        step="0.000001" 
-                                        value={data.exchange_rate} 
-                                        onChange={e => setData('exchange_rate', e.target.value)}
-                                        className={errors.exchange_rate ? 'error' : ''} 
-                                    />
-                                    {errors.exchange_rate && <span className="error-msg">{errors.exchange_rate}</span>}
-                                </div>
-                                <div className="form-group">
-                                    <label>Status <span className="required">*</span></label>
-                                    <select 
-                                        value={data.status} 
-                                        onChange={e => setData('status', e.target.value)}
-                                        className={errors.status ? 'error' : ''}
-                                    >
-                                        <option value="draft">Draft</option>
-                                        <option value="pending_approval">Pending Approval</option>
-                                        <option value="approved">Approved</option>
-                                        <option value="sent_to_vendor">Sent to Vendor</option>
-                                        <option value="partially_received">Partially Received</option>
-                                        <option value="fully_received">Fully Received</option>
-                                        <option value="invoiced">Invoiced</option>
-                                        <option value="closed">Closed</option>
-                                        <option value="cancelled">Cancelled</option>
-                                    </select>
-                                </div>
-                                <div className="form-group full-width">
+                                <div className="form-group" style={{marginTop: '1rem'}}>
                                     <label>Notes</label>
-                                    <textarea value={data.notes} onChange={e => setData('notes', e.target.value)} rows="3"></textarea>
+                                    <textarea 
+                                        value={data.notes} 
+                                        onChange={e => setData('notes', e.target.value)} 
+                                        rows="2"
+                                        placeholder="Internal notes..."
+                                    ></textarea>
+                                </div>
+                            </div>
+
+                            <div className="info-section">
+                                <h3>Settings & Currency</h3>
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label>Currency</label>
+                                        <select value={data.currency_id} onChange={e => setData('currency_id', e.target.value)}>
+                                            <option value="">Select Currency</option>
+                                            {currencies.map(c => (
+                                                <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Exchange Rate</label>
+                                        <input type="number" step="0.000001" value={data.exchange_rate} onChange={e => setData('exchange_rate', e.target.value)} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Status</label>
+                                        <select value={data.status} onChange={e => setData('status', e.target.value)}>
+                                            <option value="draft">Draft</option>
+                                            <option value="pending_approval">Pending Approval</option>
+                                            <option value="approved">Approved</option>
+                                            <option value="sent_to_vendor">Sent to Vendor</option>
+                                            <option value="partially_received">Partially Received</option>
+                                            <option value="fully_received">Fully Received</option>
+                                            <option value="invoiced">Invoiced</option>
+                                            <option value="closed">Closed</option>
+                                            <option value="cancelled">Cancelled</option>
+                                        </select>
+                                    </div>
+                                     <div className="form-group">
+                                        <label>Priority</label>
+                                        <select value={data.priority} onChange={e => setData('priority', e.target.value)}>
+                                            <option value="low">Low</option>
+                                            <option value="medium">Medium</option>
+                                            <option value="high">High</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* ITEMS TAB */}
-                        <div className={`purchase-orders-module__tab-content ${activeTab === 'items' ? 'active' : ''}`}>
-                            <div className="items-table-container">
-                                <table className="items-table">
+                        {/* 3. Items Table */}
+                        <div className="invoice-items-section">
+                            <div className="items-table-wrapper">
+                                <table>
                                     <thead>
                                         <tr>
-                                            <th>#</th>
+                                            <th className="text-center" style={{width: '50px'}}>#</th>
                                             <th style={{width: '25%'}}>Product</th>
-                                            <th>Quantity</th>
-                                            <th>Unit</th>
-                                            <th>Price</th>
-                                            <th>Discount</th>
-                                            <th>Tax %</th>
-                                            <th>Total</th>
-                                            <th>Action</th>
+                                            <th>Description</th>
+                                            <th className="text-center" style={{width: '80px'}}>Qty</th>
+                                            <th style={{width: '100px'}}>Unit</th>
+                                            <th className="text-right" style={{width: '120px'}}>Price</th>
+                                            <th className="text-right" style={{width: '100px'}}>Discount</th>
+                                            <th className="text-center" style={{width: '80px'}}>Tax %</th>
+                                            <th className="text-right" style={{width: '100px'}}>Tax Amt</th>
+                                            <th className="text-right" style={{width: '120px'}}>Total</th>
+                                            <th className="text-center" style={{width: '50px'}}></th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {data.items.map((item, index) => (
                                             <tr key={index}>
-                                                <td>{index + 1}</td>
+                                                <td className="text-center">{index + 1}</td>
                                                 <td>
                                                     <select 
                                                         value={item.product_id} 
                                                         onChange={e => handleItemChange(index, 'product_id', e.target.value)}
-                                                        className={`input-sm ${errors[`items.${index}.product_id`] ? 'error' : ''}`}
                                                     >
                                                         <option value="">Select Product</option>
                                                         {products.map(p => (
                                                             <option key={p.id} value={p.id}>{p.name_en}</option>
                                                         ))}
                                                     </select>
-                                                    {errors[`items.${index}.product_id`] && <div className="error-msg">{errors[`items.${index}.product_id`]}</div>}
+                                                </td>
+                                                <td>
                                                     <input 
                                                         type="text" 
-                                                        placeholder="Item Name (AR)" 
+                                                        placeholder="Description" 
                                                         value={item.item_name_ar} 
                                                         onChange={e => handleItemChange(index, 'item_name_ar', e.target.value)}
-                                                        className={`input-sm mt-1 ${errors[`items.${index}.item_name_ar`] ? 'error' : ''}`}
                                                     />
-                                                    {errors[`items.${index}.item_name_ar`] && <div className="error-msg">{errors[`items.${index}.item_name_ar`]}</div>}
                                                 </td>
                                                 <td>
                                                     <input 
                                                         type="number" 
+                                                        className="text-center"
                                                         value={item.quantity} 
                                                         onChange={e => handleItemChange(index, 'quantity', e.target.value)}
-                                                        className={`input-sm ${errors[`items.${index}.quantity`] ? 'error' : ''}`}
                                                     />
-                                                    {errors[`items.${index}.quantity`] && <div className="error-msg">{errors[`items.${index}.quantity`]}</div>}
                                                 </td>
                                                 <td>
                                                     <select 
                                                         value={item.unit_id} 
                                                         onChange={e => handleItemChange(index, 'unit_id', e.target.value)}
-                                                        className={`input-sm ${errors[`items.${index}.unit_id`] ? 'error' : ''}`}
                                                     >
                                                         <option value="">Unit</option>
                                                         {units.map(u => <option key={u.id} value={u.id}>{u.name_en}</option>)}
                                                     </select>
-                                                    {errors[`items.${index}.unit_id`] && <div className="error-msg">{errors[`items.${index}.unit_id`]}</div>}
                                                 </td>
                                                 <td>
                                                     <input 
                                                         type="number" 
+                                                        className="text-right"
                                                         value={item.unit_price} 
                                                         onChange={e => handleItemChange(index, 'unit_price', e.target.value)}
-                                                        className={`input-sm ${errors[`items.${index}.unit_price`] ? 'error' : ''}`}
                                                     />
-                                                    {errors[`items.${index}.unit_price`] && <div className="error-msg">{errors[`items.${index}.unit_price`]}</div>}
                                                 </td>
                                                 <td>
                                                     <input 
                                                         type="number" 
+                                                        className="text-right"
                                                         value={item.discount_amount} 
-                                                        placeholder="Amt"
                                                         onChange={e => handleItemChange(index, 'discount_amount', e.target.value)}
-                                                        className="input-sm"
                                                     />
                                                 </td>
                                                 <td>
                                                     <input 
                                                         type="number" 
+                                                        className="text-center"
                                                         value={item.tax_percent} 
-                                                        placeholder="%"
                                                         onChange={e => handleItemChange(index, 'tax_percent', e.target.value)}
-                                                        className="input-sm"
                                                     />
                                                 </td>
-                                                <td>{item.line_total}</td>
-                                                <td>
-                                                    <button type="button" className="btn-remove" onClick={() => removeItem(index)}>×</button>
+                                                <td className="text-right">
+                                                    {Number(item.tax_amount || 0).toFixed(2)}
+                                                </td>
+                                                <td className="text-right font-bold">
+                                                    {Number(item.line_total || 0).toFixed(2)}
+                                                </td>
+                                                <td className="text-center">
+                                                    <button type="button" className="btn-remove" onClick={() => removeItem(index)} style={{color: 'var(--danger-color)', border:'none', background:'none', cursor:'pointer', fontSize:'1.2rem'}}>×</button>
                                                 </td>
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
-                                <button type="button" className="btn-add-item" onClick={addItem}>+ Add Item</button>
                             </div>
-                            
-                            <div className="totals-section">
-                                <div className="total-row">
-                                    <span>Subtotal:</span>
-                                    <span>{Number(data.subtotal || 0).toFixed(2)}</span>
-                                </div>
-                                <div className="total-row">
-                                    <span>Tax:</span>
-                                    <span>{Number(data.tax_amount || 0).toFixed(2)}</span>
-                                </div>
-                                <div className="total-row">
-                                    <span>Discount:</span>
-                                    <input 
-                                        type="number" 
-                                        value={data.discount_amount} 
-                                        onChange={e => setData('discount_amount', e.target.value)}
-                                        className="input-sm text-right"
-                                    />
-                                </div>
-                                <div className="total-row">
-                                    <span>Shipping:</span>
-                                    <input 
-                                        type="number" 
-                                        value={data.shipping_charges} 
-                                        onChange={e => setData('shipping_charges', e.target.value)}
-                                        className="input-sm text-right"
-                                    />
-                                </div>
-                                <div className="total-row grand-total">
-                                    <span>Grand Total:</span>
-                                    <span>{Number(data.grand_total || 0).toFixed(2)}</span>
-                                </div>
+                            <div className="add-item-row">
+                                <button type="button" className="btn-add-item" onClick={addItem}>
+                                    <span>+ Add Line Item</span>
+                                </button>
                             </div>
                         </div>
 
-                        {/* TERMS TAB */}
-                        <div className={`purchase-orders-module__tab-content ${activeTab === 'terms' ? 'active' : ''}`}>
-                             <div className="purchase-orders-module__grid">
-                                <div className="form-group">
-                                    <label>Payment Terms</label>
-                                    <select 
-                                        value={data.payment_terms_id} 
-                                        onChange={e => setData('payment_terms_id', e.target.value)}
-                                    >
-                                        <option value="">Select Terms</option>
-                                        {paymentTerms && paymentTerms.map(t => (
-                                            <option key={t.id} value={t.id}>{t.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label>Delivery Terms</label>
-                                    <select 
-                                        value={data.delivery_terms_id} 
-                                        onChange={e => setData('delivery_terms_id', e.target.value)}
-                                    >
-                                        <option value="">Select Terms</option>
-                                        {deliveryTerms && deliveryTerms.map(t => (
-                                            <option key={t.id} value={t.id}>{t.name}</option>
-                                        ))}
-                                    </select>
+                        {/* 4. Footer Section (Terms & Totals) */}
+                        <div className="invoice-footer-section">
+                            <div className="invoice-terms">
+                                <h4>Terms & Conditions</h4>
+                                <div className="terms-grid">
+                                    <div className="form-group">
+                                        <label>Payment Terms</label>
+                                        <select 
+                                            value={data.payment_terms_id} 
+                                            onChange={e => setData('payment_terms_id', e.target.value)}
+                                        >
+                                            <option value="">Select Terms</option>
+                                            {paymentTerms && paymentTerms.map(t => (
+                                                <option key={t.id} value={t.id}>{t.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Delivery Terms</label>
+                                        <select 
+                                            value={data.delivery_terms_id} 
+                                            onChange={e => setData('delivery_terms_id', e.target.value)}
+                                        >
+                                            <option value="">Select Terms</option>
+                                            {deliveryTerms && deliveryTerms.map(t => (
+                                                <option key={t.id} value={t.id}>{t.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                                 <div className="form-group">
                                     <label>Shipping Method</label>
@@ -571,27 +609,167 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
                                         type="text" 
                                         value={data.shipping_method} 
                                         onChange={e => setData('shipping_method', e.target.value)} 
-                                        placeholder="e.g. Air Freight, Truck"
+                                        placeholder="e.g. Air Freight"
                                     />
                                 </div>
-                                <div className="form-group full-width">
-                                    <label>Shipping Address</label>
+                                <div className="form-group">
+                                    <label>Additional Terms</label>
                                     <textarea 
-                                        value={data.shipping_address} 
-                                        onChange={e => setData('shipping_address', e.target.value)} 
-                                        rows="3"
+                                        value={data.terms_and_conditions} 
+                                        onChange={e => setData('terms_and_conditions', e.target.value)} 
+                                        placeholder="Enter any specific terms and conditions..."
                                     ></textarea>
                                 </div>
-                             </div>
+                            </div>
+
+                            <div className="invoice-totals">
+                                <div className="total-row">
+                                    <span className="label">Subtotal</span>
+                                    <span>{Number(data.subtotal || 0).toFixed(2)}</span>
+                                </div>
+                                <div className="total-row">
+                                    <span className="label">Tax</span>
+                                    <span>{Number(data.tax_amount || 0).toFixed(2)}</span>
+                                </div>
+                                <div className="total-row">
+                                    <span className="label">Discount</span>
+                                    <input 
+                                        type="number" 
+                                        value={data.discount_amount} 
+                                        onChange={e => setData('discount_amount', e.target.value)}
+                                    />
+                                </div>
+                                <div className="total-row">
+                                    <span className="label">Shipping</span>
+                                    <input 
+                                        type="number" 
+                                        value={data.shipping_charges} 
+                                        onChange={e => setData('shipping_charges', e.target.value)}
+                                    />
+                                </div>
+                                <div className="total-row grand-total">
+                                    <span className="label">Grand Total</span>
+                                    <input type="text" value={Number(data.grand_total || 0).toFixed(2)} readOnly />
+                                </div>
+                            </div>
                         </div>
 
-                        <div className="purchase-orders-module__actions">
+                        {/* 5. Sticky Actions Footer */}
+                        <div className="sticky-actions-footer">
                             <button type="button" className="btn btn-cancel" onClick={() => setMode('list')}>Cancel</button>
                             <button type="submit" className="btn btn-save" disabled={processing}>
                                 {processing ? 'Saving...' : 'Save Order'}
                             </button>
                         </div>
                     </form>
+
+                    {/* HIDDEN PRINTABLE INVOICE - Only Visible on Print/PDF */}
+                    <div className="printable-invoice" ref={printRef}>
+                        {/* Header */}
+                        <div className="print-header">
+                            <div className="company-branding">
+                                <h1>Zodic ERP System</h1>
+                                <p>123 Business Road, City, Country</p>
+                                <p>Phone: +1 234 567 890</p>
+                            </div>
+                            <div className="doc-info">
+                                <h2>PURCHASE ORDER</h2>
+                                <div className="meta-row"><span className="label">Order #:</span> {data.po_number || 'DRAFT'}</div>
+                                <div className="meta-row"><span className="label">Date:</span> {data.po_date}</div>
+                                <div className="meta-row"><span className="label">Expected Delivery:</span> {data.expected_delivery_date}</div>
+                            </div>
+                        </div>
+
+                        {/* Meta Grid */}
+                        <div className="print-meta-grid">
+                            <div className="meta-box">
+                                <h3>Vendor Details</h3>
+                                <p><strong>Name:</strong> {vendors.find(v => v.id == data.vendor_id)?.name_en || 'N/A'}</p>
+                                <p><strong>Phone:</strong> {vendors.find(v => v.id == data.vendor_id)?.phone || 'N/A'}</p>
+                                <p><strong>Address:</strong> {vendors.find(v => v.id == data.vendor_id)?.address || 'N/A'}</p>
+                            </div>
+                            <div className="meta-box" style={{textAlign: 'right'}}>
+                                <h3>Order Details</h3>
+                                <p><strong>Currency:</strong> {currencies.find(c => c.id == data.currency_id)?.code || 'N/A'}</p>
+                                <p><strong>Exchange Rate:</strong> {data.exchange_rate}</p>
+                                <p><strong>Status:</strong> <span style={{textTransform: 'uppercase'}}>{data.status}</span></p>
+                            </div>
+                        </div>
+
+                        {/* Table */}
+                        <table className="print-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Product / Description</th>
+                                    <th className="text-center">Qty</th>
+                                    <th className="text-center">Unit</th>
+                                    <th className="text-right">Price</th>
+                                    <th className="text-right">Disc.</th>
+                                    <th className="text-center">Tax %</th>
+                                    <th className="text-right">Tax Amt</th>
+                                    <th className="text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.items.map((item, index) => (
+                                    <tr key={index}>
+                                        <td>{index + 1}</td>
+                                        <td>
+                                            <div className="font-bold">{products.find(p => p.id == item.product_id)?.name_en || ''}</div>
+                                            <div style={{fontSize: '9pt', color: '#666'}}>{item.item_name_ar}</div>
+                                        </td>
+                                        <td className="text-center">{Number(item.quantity)}</td>
+                                        <td className="text-center">{units.find(u => u.id == item.unit_id)?.name_en || ''}</td>
+                                        <td className="text-right">{Number(item.unit_price).toFixed(2)}</td>
+                                        <td className="text-right">{Number(item.discount_amount).toFixed(2)}</td>
+                                        <td className="text-center">{Number(item.tax_percent)}%</td>
+                                        <td className="text-right">{Number(item.tax_amount).toFixed(2)}</td>
+                                        <td className="text-right font-bold">{Number(item.line_total).toFixed(2)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+
+                        {/* Totals */}
+                        <div className="print-totals">
+                            <div className="totals-box">
+                                <div className="row">
+                                    <span>Subtotal:</span>
+                                    <span>{Number(data.subtotal).toFixed(2)}</span>
+                                </div>
+                                <div className="row">
+                                    <span>Tax:</span>
+                                    <span>{Number(data.tax_amount).toFixed(2)}</span>
+                                </div>
+                                <div className="row">
+                                    <span>Discount:</span>
+                                    <span>{Number(data.discount_amount).toFixed(2)}</span>
+                                </div>
+                                <div className="row">
+                                    <span>Shipping:</span>
+                                    <span>{Number(data.shipping_charges).toFixed(2)}</span>
+                                </div>
+                                <div className="row grand-total">
+                                    <span>Grand Total:</span>
+                                    <span>{Number(data.grand_total).toFixed(2)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="print-footer">
+                            <div className="notes-section">
+                                <h4>Terms & Conditions / Notes</h4>
+                                <p>{data.terms_and_conditions || data.notes || 'No specific terms.'}</p>
+                            </div>
+                            <div className="signatures">
+                                <div className="sign-box">Authorized Signature</div>
+                                <div className="sign-box">Vendor Acceptance</div>
+                            </div>
+                        </div>
+                    </div>
+                    </>
                 )}
             </div>
         </AdminLayout>
