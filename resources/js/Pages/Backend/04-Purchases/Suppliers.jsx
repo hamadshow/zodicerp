@@ -5,9 +5,15 @@ import AdminLayout from '../components/AdminLayout';
 import Pagination from '../components/Pagination';
 import '../../../../css/backend/04-Purchases/Suppliers.scss';
 
-export default function Suppliers({ suppliers, groups, countries, cities, currencies, accounts }) {
+export default function Suppliers({ suppliers, groups, countries, cities, currencies, accounts, filters }) {
     const [mode, setMode] = useState('list'); // list, create, edit
     const [activeTab, setActiveTab] = useState('general');
+    const [search, setSearch] = useState(filters?.search || '');
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        router.get(route('admin.purchases.suppliers.index'), { search }, { preserveState: true });
+    };
     
     // Import System State
     const [showImport, setShowImport] = useState(false);
@@ -285,6 +291,15 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                     <h1>Suppliers Management</h1>
                     {mode === 'list' && (
                         <div className="header-actions">
+                            <form onSubmit={handleSearch} className="search-form" style={{ marginRight: '1rem' }}>
+                                <input
+                                    type="text"
+                                    placeholder="Search suppliers..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0' }}
+                                />
+                            </form>
                              <button className="btn-import" onClick={() => setShowImport(true)}>
                                 <i className="icon-upload"></i> Import Excel
                             </button>

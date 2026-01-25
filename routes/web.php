@@ -20,22 +20,22 @@ use Inertia\Inertia;
 
 
 // Supplier Routes
-Route::get('/suppliers', [SupplierController::class, 'index'])->name('suppliers.index');
+// Route::get('/suppliers', [SupplierController::class, 'index'])->name('suppliers.index');
 
-Route::prefix('supplier')->name('supplier.')->group(function () {
-    Route::middleware('guest:supplier')->group(function () {
-        Route::get('register', [SupplierController::class, 'create'])->name('register');
-        Route::post('register', [SupplierController::class, 'store'])->name('store');
-        Route::get('login', [SupplierController::class, 'login'])->name('login');
-        Route::post('login', [SupplierController::class, 'authenticate'])->name('authenticate');
-});
+// Route::prefix('supplier')->name('supplier.')->group(function () {
+//    Route::middleware('guest:supplier')->group(function () {
+//        Route::get('register', [SupplierController::class, 'create'])->name('register');
+//        Route::post('register', [SupplierController::class, 'store'])->name('store');
+//        Route::get('login', [SupplierController::class, 'login'])->name('login');
+//        Route::post('login', [SupplierController::class, 'authenticate'])->name('authenticate');
+//    });
 
 
-    Route::middleware('auth:supplier')->group(function () {
-        Route::get('dashboard', [SupplierController::class, 'dashboard'])->name('dashboard');
-        Route::post('logout', [SupplierController::class, 'logout'])->name('logout');
-    });
-});
+//    Route::middleware('auth:supplier')->group(function () {
+//        Route::get('dashboard', [SupplierController::class, 'dashboard'])->name('dashboard');
+//        Route::post('logout', [SupplierController::class, 'logout'])->name('logout');
+//    });
+// });
 
 Route::middleware('auth')->group(function () {
     Route::get('/admin', [AdminController::class, 'index'])
@@ -402,7 +402,8 @@ Route::middleware('auth')->group(function () {
 
         // Suppliers Submodules
         Route::post('suppliers/bulk-import', [\App\Http\Controllers\Purchases\SupplierController::class, 'bulkImport'])->name('suppliers.bulkImport');
-        Route::resource('suppliers', \App\Http\Controllers\Purchases\SupplierController::class);
+        Route::resource('suppliers', \App\Http\Controllers\Purchases\SupplierController::class)
+            ->except(['create', 'edit']);
 
         Route::resource('supplier-groups', \App\Http\Controllers\Purchases\SupplierGroupController::class)
             ->except(['create', 'edit', 'show']);

@@ -27,6 +27,16 @@ class SupplierController extends Controller
     {
         $perPage = request('per_page', 10);
         $suppliers = Supplier::with(['group', 'currency', 'country', 'city', 'addresses', 'contacts', 'openingBalances'])
+            ->when(request('search'), function ($query, $search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('supplier_code', 'like', "%{$search}%")
+                      ->orWhere('name_ar', 'like', "%{$search}%")
+                      ->orWhere('name_en', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('primary_phone', 'like', "%{$search}%")
+                      ->orWhere('secondary_phone', 'like', "%{$search}%");
+                });
+            })
             ->orderBy('supplier_code', 'asc')
             ->paginate($perPage)
             ->withQueryString();

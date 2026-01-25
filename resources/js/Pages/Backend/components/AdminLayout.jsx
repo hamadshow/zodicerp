@@ -129,19 +129,7 @@ const AdminLayout = ({
         // { icon: 'keyboard_return', label: 'Purchase Returns', href: route('admin.purchases.returns.index') },
       ],
     },
-    {
-      icon: 'credit_card',
-      label: 'Payments & Finance',
-      hasSubmenu: true,
-      submenuItems: [
-        // { icon: 'payment', label: 'Supplier Payments', href: route('admin.purchases.payments.index') },
-        // { icon: 'sync', label: 'Reconciliation', href: route('admin.purchases.payments.reconciliation') },
-        // { icon: 'call_split', label: 'Allocation', href: route('admin.purchases.payments.allocation') },
-        { icon: 'account_balance', label: 'Bank Transactions', href: route('admin.bank-transactions.index') },
-        // { icon: 'note_add', label: 'Credit Notes', href: route('admin.purchases.credit-notes.index') },
-        // { icon: 'note_remove', label: 'Debit Notes', href: route('admin.purchases.debit-notes.index') },
-      ],
-    },
+
     {
       icon: 'percent',
       label: 'Discounts & Taxes',
@@ -166,15 +154,13 @@ const AdminLayout = ({
     },
     {
       icon: 'point_of_sale',
-      label: 'Sales',
+      label: 'Client & Sales',
       hasSubmenu: true,
       submenuItems: [
         { icon: 'person_add', label: 'Clients', href: route('admin.client-sales.customers.index') },
         { icon: 'groups', label: 'Client Group', href: route('admin.client-sales.customer-groups.index') },
-        { icon: 'post_add', label: 'New Quotation', href: route('admin.client-sales.quotations.index') },
-            { icon: 'request_quote', label: 'Sales Quotations', href: route('admin.client-sales.quotations.index') },
-            { icon: 'note_add', label: 'New Sale', href: route('admin.client-sales.orders.index') },
-            { icon: 'receipt_long', label: 'Sales Orders', href: route('admin.client-sales.orders.index') },
+        { icon: 'request_quote', label: 'Sales Quotations', href: route('admin.client-sales.quotations.index') },
+        { icon: 'receipt_long', label: 'Sales Orders', href: route('admin.client-sales.orders.index') },
         { icon: 'bolt', label: 'Flash Sales' },
       ],
     },
@@ -183,9 +169,15 @@ const AdminLayout = ({
       label: 'Fixed Assets',
       hasSubmenu: true,
       submenuItems: [
-        { icon: 'add_circle', label: 'Assets', href: '#' },
-        { icon: 'category', label: 'Assets Category', href: '#' },
-        { icon: 'location_on', label: 'Assets Location', href: '#' },
+        { icon: 'category', label: 'Asset Categories', href: '#' },
+        { icon: 'tune', label: 'Asset Attributes', href: '#' },
+        { icon: 'web_asset', label: 'Assets Register', href: '#' },
+        { icon: 'swap_horiz', label: 'Asset Movements', href: '#' },
+        { icon: 'trending_up', label: 'Asset Revaluation', href: '#' },
+        { icon: 'delete_forever', label: 'Asset Disposal', href: '#' },
+        { icon: 'calculate', label: 'Run Depreciation', href: '#' },
+        { icon: 'calendar_today', label: 'Depreciation Schedule', href: '#' },
+        { icon: 'assessment', label: 'Depreciation Report', href: '#' },
       ],
     },
     {
