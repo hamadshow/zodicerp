@@ -130,19 +130,6 @@ const AdminLayout = ({
       ],
     },
     {
-      icon: 'credit_card',
-      label: 'Payments & Finance',
-      hasSubmenu: true,
-      submenuItems: [
-        // { icon: 'payment', label: 'Supplier Payments', href: route('admin.purchases.payments.index') },
-        // { icon: 'sync', label: 'Reconciliation', href: route('admin.purchases.payments.reconciliation') },
-        // { icon: 'call_split', label: 'Allocation', href: route('admin.purchases.payments.allocation') },
-        { icon: 'account_balance', label: 'Bank Transactions', href: route('admin.bank-transactions.index') },
-        // { icon: 'note_add', label: 'Credit Notes', href: route('admin.purchases.credit-notes.index') },
-        // { icon: 'note_remove', label: 'Debit Notes', href: route('admin.purchases.debit-notes.index') },
-      ],
-    },
-    {
       icon: 'percent',
       label: 'Discounts & Taxes',
       hasSubmenu: true,
