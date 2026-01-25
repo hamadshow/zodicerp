@@ -1,9 +1,9 @@
-@import './footer.scss';
-@import './Header.scss';
-@import './notifications.scss';
-@import './pagination.scss';
-@import './stats.scss';
-@import './table.scss';
+@use './footer.scss';
+@use './Header.scss';
+@use './notifications.scss';
+@use './pagination.scss';
+@use './stats.scss';
+@use './table.scss';
 
 :root {
     /* Colors - Merged from admin.css and Sidebar.css */

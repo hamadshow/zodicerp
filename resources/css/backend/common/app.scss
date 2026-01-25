@@ -1,9 +1,9 @@
-@import '../components/footer.scss';
-@import '../components/notifications.scss';
-@import '../components/pagination.scss';
-@import '../components/stats.scss';
-@import '../components/table.scss';
-@import '../Location.scss';
+@use '../components/footer.scss';
+@use '../components/notifications.scss';
+@use '../components/pagination.scss';
+@use '../components/stats.scss';
+@use '../components/table.scss';
+@use '../Location.scss';
 /* @import '../04-Purchases/style.scss'; */
 
 /* Tailwind base styles would normally be injected here by PostCSS; kept as comment for reference */
