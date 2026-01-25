@@ -169,9 +169,10 @@ const AdminLayout = ({
       label: 'Sales',
       hasSubmenu: true,
       submenuItems: [
-        { icon: 'person_add', label: 'Clients', href: route('customers.dashboard') },
-        { icon: 'note_add', label: 'New Sale' },
-        { icon: 'receipt_long', label: 'Sales Orders' },
+        { icon: 'person_add', label: 'Clients', href: route('admin.client-sales.customers.index') },
+        { icon: 'groups', label: 'Client Group', href: route('admin.client-sales.customer-groups.index') },
+            { icon: 'request_quote', label: 'Sales Quotations', href: route('admin.client-sales.quotations.index') },
+            { icon: 'receipt_long', label: 'Sales Orders', href: route('admin.client-sales.orders.index') },
         { icon: 'bolt', label: 'Flash Sales' },
       ],
     },

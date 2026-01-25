@@ -5,71 +5,65 @@ namespace App\Models\Client_Sales;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Client_Sales\SalesQuotation;
 use App\Models\Currency;
-use App\Models\Vendor_Purchases\PriceList;
 use App\Models\Warehouses;
-use App\Models\Vendor_Purchases\SalesAgent;
 use App\Models\User;
+use App\Models\Vendor_Purchases\PriceList;
+use App\Models\Vendor_Purchases\SalesAgent;
 
-class SalesOrder extends Model
+class SalesQuotation extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $table = 'sales_quotations';
+
     protected $fillable = [
-        'order_number',
+        'quotation_number',
         'customer_id',
-        'quotation_id',
         'currency_id',
         'exchange_rate',
-        'order_date',
-        'delivery_date',
-        'actual_delivery_date',
+        'quotation_date',
+        'expiry_date',
+        'valid_days',
         'price_list_id',
         'warehouse_id',
         'subtotal',
+        'discount_percentage',
         'discount_amount',
         'tax_amount',
         'shipping_cost',
         'total_amount',
-        'base_total', // Generated column
-        'advance_payment',
+        'base_total',
         'status',
         'sales_agent_id',
-        'priority',
-        'shipping_method',
-        'shipping_address_id',
-        'payment_terms',
+        'probability_percentage',
+        'followup_date',
+        'sent_date',
+        'sent_method',
         'customer_notes',
         'internal_notes',
         'created_by',
-        'confirmed_by',
-        'confirmed_at',
     ];
 
     protected $casts = [
+        'quotation_date' => 'date',
+        'expiry_date' => 'date',
+        'followup_date' => 'date',
+        'sent_date' => 'date',
         'exchange_rate' => 'decimal:6',
-        'order_date' => 'date',
-        'delivery_date' => 'date',
-        'actual_delivery_date' => 'date',
         'subtotal' => 'decimal:2',
+        'discount_percentage' => 'decimal:2',
         'discount_amount' => 'decimal:2',
         'tax_amount' => 'decimal:2',
         'shipping_cost' => 'decimal:2',
         'total_amount' => 'decimal:2',
         'base_total' => 'decimal:2',
-        'advance_payment' => 'decimal:2',
-        'confirmed_at' => 'datetime',
+        'probability_percentage' => 'decimal:2',
     ];
 
     public function customer()
     {
         return $this->belongsTo(Customer::class);
-    }
-
-    public function quotation()
-    {
-        return $this->belongsTo(SalesQuotation::class);
     }
 
     public function currency()
@@ -92,23 +86,13 @@ class SalesOrder extends Model
         return $this->belongsTo(SalesAgent::class);
     }
 
-    public function shippingAddress()
+    public function items()
     {
-        return $this->belongsTo(CustomerAddress::class, 'shipping_address_id');
+        return $this->hasMany(SalesQuotationDetail::class, 'quotation_id');
     }
 
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function confirmer()
-    {
-        return $this->belongsTo(User::class, 'confirmed_by');
-    }
-
-    public function details()
-    {
-        return $this->hasMany(SalesOrderDetail::class, 'order_id');
     }
 }

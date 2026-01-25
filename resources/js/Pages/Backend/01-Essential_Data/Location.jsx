@@ -1,18 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Head, router } from '@inertiajs/react';
 import '../../../../css/backend/Location.scss';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import AdminLayout from '../components/AdminLayout';
+import * as XLSX from 'xlsx';
 
 const Location = ({
   countries: initialCountries,
   cities: initialCities,
   areas: initialAreas,
 }) => {
-  // Admin layout state - Removed redundant state
-
-
   // State for locations
   const [locations, setLocations] = useState({
     countries: [],
@@ -23,9 +21,8 @@ const Location = ({
   // State for UI
   const [currentMode, setCurrentMode] = useState('country'); // 'country', 'city', or 'area'
   const [editingId, setEditingId] = useState(null);
-  const [editingType, setEditingType] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize] = useState(10);
   const [currentListView, setCurrentListView] = useState('countries');
   const [activeTab, setActiveTab] = useState('tree');
   const [showModal, setShowModal] = useState(false);
@@ -35,6 +32,26 @@ const Location = ({
   const [selectedLocations, setSelectedLocations] = useState([]);
   const [allSelected, setAllSelected] = useState(false);
   const [mapType, setMapType] = useState('countries');
+
+  // Import/Export State
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importStep, setImportStep] = useState('upload');
+  const [importData, setImportData] = useState({ countries: [], cities: [], areas: [] });
+  const [importStats, setImportStats] = useState({
+    countries: { added: 0, updated: 0, skipped: 0, failed: 0 },
+    cities: { added: 0, updated: 0, skipped: 0, failed: 0 },
+    areas: { added: 0, updated: 0, skipped: 0, failed: 0 },
+    errors: [],
+    validationErrors: 0,
+  });
+  const [importOptions, setImportOptions] = useState({
+    updateExisting: true,
+    createMissingCountries: false,
+    createMissingCities: false,
+  });
+  const [importProgress, setImportProgress] = useState(0);
+  const [toast, setToast] = useState(null);
+  const fileInputRef = useRef(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -49,8 +66,6 @@ const Location = ({
     countryId: '',
     cityId: '',
   });
-
-  // Admin layout functions - Removed
 
   // Initialize data from props
   useEffect(() => {
@@ -76,6 +91,50 @@ const Location = ({
       activeLocations: activeCount,
     };
   }, [locations]);
+
+  const getEmptyImportStats = () => ({
+    countries: { added: 0, updated: 0, skipped: 0, failed: 0 },
+    cities: { added: 0, updated: 0, skipped: 0, failed: 0 },
+    areas: { added: 0, updated: 0, skipped: 0, failed: 0 },
+    errors: [],
+    validationErrors: 0,
+  });
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const resetImportState = () => {
+    setImportStep('upload');
+    setImportData({ countries: [], cities: [], areas: [] });
+    setImportStats(getEmptyImportStats());
+    setImportProgress(0);
+  };
+
+  const openImportModal = () => {
+    resetImportState();
+    setShowImportModal(true);
+  };
+
+  const closeImportModal = (refresh = false) => {
+    setShowImportModal(false);
+    resetImportState();
+    if (refresh) {
+      router.reload({ only: ['countries', 'cities', 'areas'] });
+    }
+  };
+
+  useEffect(() => {
+    if (importStep !== 'processing') return;
+    let progress = 10;
+    setImportProgress(progress);
+    const interval = setInterval(() => {
+      progress = Math.min(progress + 10, 90);
+      setImportProgress(progress);
+    }, 400);
+    return () => clearInterval(interval);
+  }, [importStep]);
 
   // Handle form input changes
   const handleInputChange = (e) => {
@@ -107,7 +166,6 @@ const Location = ({
     setCurrentMode('country');
     resetForm();
     setEditingId(null);
-    setEditingType(null);
     setShowModal(true);
   };
 
@@ -116,7 +174,6 @@ const Location = ({
     setCurrentMode('city');
     resetForm();
     setEditingId(null);
-    setEditingType(null);
     setShowModal(true);
   };
 
@@ -125,7 +182,6 @@ const Location = ({
     setCurrentMode('area');
     resetForm();
     setEditingId(null);
-    setEditingType(null);
     setShowModal(true);
   };
 
@@ -178,7 +234,6 @@ const Location = ({
         setShowModal(false);
         resetForm();
         setEditingId(null);
-        setEditingType(null);
       },
       onError: (errors) => {
         console.error('Save failed:', errors);
@@ -205,7 +260,6 @@ const Location = ({
     if (!location) return;
 
     setEditingId(id);
-    setEditingType(type);
     setCurrentMode(type);
 
     setFormData({
@@ -262,7 +316,6 @@ const Location = ({
     setShowModal(false);
     resetForm();
     setEditingId(null);
-    setEditingType(null);
   };
 
   // Switch tab
@@ -270,7 +323,210 @@ const Location = ({
     setActiveTab(tabId);
   };
 
-  // Render tree view
+  const resolveExportScope = () => {
+    let countriesToExport = locations.countries;
+    let citiesToExport = locations.cities;
+    let areasToExport = locations.areas;
+
+    if (selectedLocations.length > 0) {
+      if (currentListView === 'countries') {
+        countriesToExport = locations.countries.filter((c) =>
+          selectedLocations.includes(c.id)
+        );
+        const countryIds = countriesToExport.map((c) => c.id);
+        citiesToExport = locations.cities.filter((c) =>
+          countryIds.includes(c.country_id)
+        );
+        const cityIds = citiesToExport.map((c) => c.id);
+        areasToExport = locations.areas.filter((a) =>
+          cityIds.includes(a.city_id)
+        );
+      } else if (currentListView === 'cities') {
+        citiesToExport = locations.cities.filter((c) =>
+          selectedLocations.includes(c.id)
+        );
+        const cityIds = citiesToExport.map((c) => c.id);
+        areasToExport = locations.areas.filter((a) =>
+          cityIds.includes(a.city_id)
+        );
+        const countryIds = [...new Set(citiesToExport.map((c) => c.country_id))];
+        countriesToExport = locations.countries.filter((c) =>
+          countryIds.includes(c.id)
+        );
+      } else if (currentListView === 'areas') {
+        areasToExport = locations.areas.filter((a) =>
+          selectedLocations.includes(a.id)
+        );
+        const cityIds = [...new Set(areasToExport.map((a) => a.city_id))];
+        citiesToExport = locations.cities.filter((c) =>
+          cityIds.includes(c.id)
+        );
+        const countryIds = [...new Set(citiesToExport.map((c) => c.country_id))];
+        countriesToExport = locations.countries.filter((c) =>
+          countryIds.includes(c.id)
+        );
+      }
+    }
+
+    return {
+      countries: countriesToExport,
+      cities: citiesToExport,
+      areas: areasToExport,
+    };
+  };
+
+  const handleExport = () => {
+    const scope = resolveExportScope();
+    const wb = XLSX.utils.book_new();
+
+    const countriesData = scope.countries.map((c) => ({
+      name: c.name,
+      code: c.code,
+      currency: c.currency,
+      timezone: c.timezone,
+      phone_code: c.phone_code,
+      status: c.status,
+    }));
+    const citiesData = scope.cities.map((c) => ({
+      name: c.name,
+      code: c.code,
+      country_code: c.country?.code || '',
+      country_name: c.country?.name || '',
+      status: c.status,
+    }));
+    const areasData = scope.areas.map((a) => ({
+      name: a.name,
+      code: a.code,
+      city_name: a.city?.name || '',
+      country_code: a.country?.code || '',
+      country_name: a.country?.name || '',
+      status: a.status,
+    }));
+
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(countriesData), 'Countries');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(citiesData), 'Cities');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(areasData), 'Areas');
+    XLSX.writeFile(wb, 'locations_export.xlsx');
+
+    showToast('Export completed successfully', 'success');
+  };
+
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer ? e.dataTransfer.files[0] : e.target.files[0];
+    if (file) processFile(file);
+  };
+
+  const processFile = (file) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+
+      const parsedData = { countries: [], cities: [], areas: [] };
+
+      workbook.SheetNames.forEach((sheetName) => {
+        const sheet = workbook.Sheets[sheetName];
+        const json = XLSX.utils.sheet_to_json(sheet);
+        const lowerName = sheetName.toLowerCase();
+
+        if (lowerName.includes('countr')) parsedData.countries = json;
+        else if (lowerName.includes('cit') || lowerName.includes('state'))
+          parsedData.cities = json;
+        else if (lowerName.includes('area')) parsedData.areas = json;
+      });
+
+      if (workbook.SheetNames.length === 1 && parsedData.countries.length === 0) {
+        const json = XLSX.utils.sheet_to_json(
+          workbook.Sheets[workbook.SheetNames[0]]
+        );
+        if (json.length > 0) {
+          const keys = Object.keys(json[0]).map((k) => k.toLowerCase());
+          if (keys.includes('city_name') || keys.includes('city'))
+            parsedData.areas = json;
+          else if (keys.includes('country_name') || keys.includes('country'))
+            parsedData.cities = json;
+          else parsedData.countries = json;
+        }
+      }
+
+      const normalize = (value) =>
+        value === null || value === undefined
+          ? ''
+          : String(value).trim().toLowerCase();
+
+      const seen = {
+        countries: new Set(),
+        cities: new Set(),
+        areas: new Set(),
+      };
+
+      let errorCount = 0;
+      ['countries', 'cities', 'areas'].forEach((type) => {
+        parsedData[type] = parsedData[type].map((row) => {
+          const errors = [];
+          const name = normalize(row.name);
+          const code = normalize(row.code);
+
+          if (!name) errors.push('Name missing');
+          if (type === 'cities' && !row.country_code && !row.country_name && !row.country_id)
+            errors.push('Country missing');
+          if (type === 'areas' && !row.city_name && !row.city_id)
+            errors.push('City missing');
+
+          const key = code ? `code:${code}` : name ? `name:${name}` : '';
+          if (key) {
+            if (seen[type].has(key)) errors.push('Duplicate in file');
+            else seen[type].add(key);
+          }
+
+          if (errors.length > 0) errorCount++;
+          return { ...row, _errors: errors };
+        });
+      });
+
+      setImportData(parsedData);
+      const nextStats = getEmptyImportStats();
+      nextStats.validationErrors = errorCount;
+      setImportStats(nextStats);
+      setImportStep('preview');
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const submitImport = () => {
+    setImportStep('processing');
+    router.post(
+      '/admin/location/bulk-import',
+      { ...importData, options: importOptions },
+      {
+        onSuccess: (page) => {
+          const flash = page.props.flash || {};
+          if (flash.importStats) {
+            setImportStats({ ...flash.importStats, validationErrors: 0 });
+          }
+          setImportProgress(100);
+          setImportStep('success');
+          showToast('Import completed successfully', 'success');
+        },
+        onError: () => {
+          setImportStep('preview');
+          showToast('Import failed. Please review errors.', 'error');
+        },
+      }
+    );
+  };
+
+  const downloadTemplate = () => {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ name: 'Egypt', code: 'EG', currency: 'EGP', phone_code: '20' }]), "Countries");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ name: 'Cairo', code: 'CAI', country_code: 'EG' }]), "Cities");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ name: 'Nasr City', code: 'NC', city_name: 'Cairo', country_code: 'EG' }]), "Areas");
+    XLSX.writeFile(wb, "location_import_template.xlsx");
+  };
+
+  // --- Render Components ---
+
   const renderTreeView = () => {
     if (locations.countries.length === 0) {
       return (
@@ -605,6 +861,7 @@ const Location = ({
           type: currentListView,
           ids: selectedLocations,
           status: status,
+          
         },
         {
           onSuccess: () => {
@@ -696,489 +953,280 @@ const Location = ({
       <div className="action-buttons">
         <button className="btn btn-primary" onClick={addCountry}>
           <span className="material-icons-outlined">add</span>
-          <span>Add Country</span>
+          Add Country
         </button>
-        <button className="btn btn-outline" onClick={addCity}>
-          <span className="material-icons-outlined">location_city</span>
-          <span>Add City</span>
+        <button className="btn btn-secondary" onClick={addCity}>
+          <span className="material-icons-outlined">add</span>
+          Add City
         </button>
-        <button className="btn btn-outline" onClick={addArea}>
-          <span className="material-icons-outlined">map</span>
-          <span>Add Area</span>
+        <button className="btn btn-secondary" onClick={addArea}>
+          <span className="material-icons-outlined">add</span>
+          Add Area
         </button>
-        <button
-          className="btn btn-outline"
-          onClick={() => {
-            // Refresh functionality
-          }}
-        >
-          <span className="material-icons-outlined">refresh</span>
-          <span>Refresh</span>
+        <div className="spacer"></div>
+        <button className="btn btn-outline" onClick={openImportModal}>
+          <span className="material-icons-outlined">upload</span>
+          Import Excel
         </button>
-        <button
-          className="btn btn-outline"
-          onClick={() => {
-            // Export functionality
-            const data = {
-              countries: locations.countries,
-              cities: locations.cities,
-              areas: locations.areas,
-            };
-
-            const dataStr = JSON.stringify(data, null, 2);
-            const dataUri =
-              'data:application/json;charset=utf-8,' +
-              encodeURIComponent(dataStr);
-
-            const exportFileDefaultName = `locations_${new Date().toISOString().split('T')[0]}.json`;
-
-            const linkElement = document.createElement('a');
-            linkElement.setAttribute('href', dataUri);
-            linkElement.setAttribute('download', exportFileDefaultName);
-            linkElement.click();
-          }}
-        >
+        <button className="btn btn-outline" onClick={handleExport}>
           <span className="material-icons-outlined">download</span>
-          <span>Export</span>
+          Export Excel
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="tabs">
-        <div
-          className={`tab ${activeTab === 'tree' ? 'active' : ''}`}
-          data-tab="tree"
-          onClick={() => switchTab('tree')}
-        >
-          Tree View
+      {/* Main Content */}
+      <div className="card">
+        <div className="card-header">
+          <div className="tabs">
+            <button
+              className={`tab ${activeTab === 'tree' ? 'active' : ''}`}
+              onClick={() => switchTab('tree')}
+            >
+              <span className="material-icons-outlined">account_tree</span>
+              Tree View
+            </button>
+            <button
+              className={`tab ${activeTab === 'list' ? 'active' : ''}`}
+              onClick={() => switchTab('list')}
+            >
+              <span className="material-icons-outlined">list</span>
+              List View
+            </button>
+            <button
+              className={`tab ${activeTab === 'map' ? 'active' : ''}`}
+              onClick={() => switchTab('map')}
+            >
+              <span className="material-icons-outlined">public</span>
+              Map View
+            </button>
+          </div>
         </div>
-        <div
-          className={`tab ${activeTab === 'list' ? 'active' : ''}`}
-          data-tab="list"
-          onClick={() => switchTab('list')}
-        >
-          List View
-        </div>
-        <div
-          className={`tab ${activeTab === 'map' ? 'active' : ''}`}
-          data-tab="map"
-          onClick={() => switchTab('map')}
-        >
-          Map View
-        </div>
-      </div>
 
-      {/* Tree View Tab */}
-      <div
-        id="treeTab"
-        className={`tab-content ${activeTab === 'tree' ? 'active' : ''}`}
-      >
-        <div className="tree-view">{renderTreeView()}</div>
-      </div>
+        <div className="card-body">
+          {activeTab === 'tree' && renderTreeView()}
 
-      {/* List View Tab */}
-      <div
-        id="listTab"
-        className={`tab-content ${activeTab === 'list' ? 'active' : ''}`}
-      >
-        <div className="card fade-in">
-          <div className="card-header">
-            <div className="actions">
-              <select
-                className="btn btn-outline"
-                id="bulkActions"
-                onChange={(e) => {
-                  if (e.target.value !== 'Bulk Actions') {
-                    applyBulkAction(e.target.value);
-                    e.target.value = 'Bulk Actions';
-                  }
-                }}
-              >
-                <option>Bulk Actions</option>
-                <option value="activate">Activate Selected</option>
-                <option value="deactivate">Deactivate Selected</option>
-                <option value="delete">Delete Selected</option>
-              </select>
-              <div className="search-bar light">
-                <input
-                  type="text"
-                  id="searchLocations"
-                  placeholder="Search locations..."
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setCurrentPage(1); // Reset to first page when searching
-                  }}
-                />
+          {activeTab === 'list' && (
+            <div className="list-view">
+              <div className="toolbar">
+                <div className="search-box">
+                  <span className="material-icons-outlined search-icon">
+                    search
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Search locations..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="filter-group">
+                  <select
+                    value={currentListView}
+                    onChange={(e) => {
+                      setCurrentListView(e.target.value);
+                      setCurrentPage(1);
+                      setSelectedLocations([]);
+                      setAllSelected(false);
+                    }}
+                  >
+                    <option value="countries">Countries</option>
+                    <option value="cities">Cities</option>
+                    <option value="areas">Areas</option>
+                  </select>
+                </div>
+                {selectedLocations.length > 0 && (
+                  <div className="bulk-actions">
+                    <button
+                      className="btn btn-sm btn-success"
+                      onClick={() => applyBulkAction('activate')}
+                    >
+                      Activate
+                    </button>
+                    <button
+                      className="btn btn-sm btn-warning"
+                      onClick={() => applyBulkAction('deactivate')}
+                    >
+                      Deactivate
+                    </button>
+                    <button
+                      className="btn btn-sm btn-danger"
+                      onClick={() => applyBulkAction('delete')}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="table-responsive">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '40px' }}>
+                        <input
+                          type="checkbox"
+                          className="location-checkbox"
+                          checked={allSelected}
+                          onChange={(e) => {
+                            setAllSelected(e.target.checked);
+                            if (e.target.checked) {
+                              if (currentListView === 'countries')
+                                setSelectedLocations(
+                                  locations.countries.map((c) => c.id)
+                                );
+                              else if (currentListView === 'cities')
+                                setSelectedLocations(
+                                  locations.cities.map((c) => c.id)
+                                );
+                              else if (currentListView === 'areas')
+                                setSelectedLocations(
+                                  locations.areas.map((a) => a.id)
+                                );
+                            } else {
+                              setSelectedLocations([]);
+                            }
+                          }}
+                        />
+                      </th>
+                      <th>ID</th>
+                      <th>Name</th>
+                      <th>Type</th>
+                      <th>Parent</th>
+                      <th>Code</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>{renderListView()}</tbody>
+                </table>
+              </div>
+
+              <div className="pagination">
+                <div className="pagination-info">
+                  Showing {paginationInfo.start} to {paginationInfo.end} of{' '}
+                  {paginationInfo.total} entries
+                </div>
+                <div className="pagination-controls">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((prev) => prev - 1)}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    disabled={
+                      currentPage * pageSize >= paginationInfo.total
+                    }
+                    onClick={() => setCurrentPage((prev) => prev + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'map' && (
+            <div className="map-view">
+              <div className="map-controls">
                 <select
-                  className="btn btn-outline"
-                  id="viewType"
-                  value={currentListView}
-                  onChange={(e) => {
-                    setCurrentListView(e.target.value);
-                    setCurrentPage(1); // Reset to first page when changing view
-                    setSelectedLocations([]); // Clear selections
-                    setAllSelected(false);
-                  }}
+                  value={mapType}
+                  onChange={(e) => setMapType(e.target.value)}
                 >
                   <option value="countries">Countries</option>
                   <option value="cities">Cities</option>
-                  <option value="areas">Areas</option>
                 </select>
               </div>
-            </div>
-          </div>
-
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>
-                    <input
-                      type="checkbox"
-                      id="selectAllList"
-                      checked={allSelected}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          let items = [];
-                          if (currentListView === 'countries')
-                            items = locations.countries;
-                          else if (currentListView === 'cities')
-                            items = locations.cities;
-                          else if (currentListView === 'areas')
-                            items = locations.areas;
-
-                          if (searchTerm) {
-                            items = items.filter((item) =>
-                              item.name
-                                .toLowerCase()
-                                .includes(searchTerm.toLowerCase())
-                            );
-                          }
-
-                          setSelectedLocations(items.map((item) => item.id));
-                          setAllSelected(true);
-                        } else {
-                          setSelectedLocations([]);
-                          setAllSelected(false);
-                        }
-                      }}
-                    />
-                  </th>
-                  <th>ID</th>
-                  <th>NAME</th>
-                  <th>TYPE</th>
-                  <th>PARENT</th>
-                  <th>CODE</th>
-                  <th>STATUS</th>
-                  <th>OPERATIONS</th>
-                </tr>
-              </thead>
-              <tbody id="locationTable">{renderListView()}</tbody>
-            </table>
-          </div>
-
-          <div className="pagination">
-            <div className="pagination-info">
-              <select
-                className="select-dropdown"
-                id="rowsPerPage"
-                value={pageSize}
-                onChange={(e) => {
-                  setPageSize(Number(e.target.value));
-                  setCurrentPage(1); // Reset to first page when changing page size
-                }}
-              >
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-              </select>
-              <span>
-                Show from <span id="pageStart">{paginationInfo.start}</span> to{' '}
-                <span id="pageEnd">{paginationInfo.end}</span> in{' '}
-                <span
-                  style={{
-                    backgroundColor: '#64748b',
-                    color: 'white',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    fontWeight: '600',
-                  }}
-                  id="totalRecords"
+              <div className="map-container">
+                <MapContainer
+                  center={[30.0444, 31.2357]}
+                  zoom={2}
+                  style={{ height: '100%', width: '100%' }}
                 >
-                  {paginationInfo.total}
-                </span>{' '}
-                records
-              </span>
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  />
+                  {mapType === 'countries' &&
+                    locations.countries.map(
+                      (country) =>
+                        country.latitude &&
+                        country.longitude && (
+                          <Marker
+                            key={country.id}
+                            position={[country.latitude, country.longitude]}
+                          >
+                            <Popup>
+                              <strong>{country.name}</strong>
+                              <br />
+                              Code: {country.code}
+                            </Popup>
+                          </Marker>
+                        )
+                    )}
+                  {mapType === 'cities' &&
+                    locations.cities.map(
+                      (city) =>
+                        city.latitude &&
+                        city.longitude && ( // Assuming city has lat/long if we added it to model
+                          <Marker
+                            key={city.id}
+                            position={[city.latitude, city.longitude]}
+                          >
+                            <Popup>
+                              <strong>{city.name}</strong>
+                              <br />
+                              Country: {city.country?.name}
+                            </Popup>
+                          </Marker>
+                        )
+                    )}
+                </MapContainer>
+              </div>
             </div>
-            <div className="pagination-controls">
-              <button
-                className="page-btn"
-                onClick={() => {
-                  if (currentPage > 1) setCurrentPage(currentPage - 1);
-                }}
-                disabled={currentPage === 1}
-              >
-                « Previous
-              </button>
-
-              {/* Page buttons would go here */}
-
-              <button
-                className="page-btn"
-                onClick={() => {
-                  const totalPages = Math.ceil(paginationInfo.total / pageSize);
-                  if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-                }}
-                disabled={
-                  currentPage >= Math.ceil(paginationInfo.total / pageSize)
-                }
-              >
-                Next »
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Map View Tab */}
-      <div
-        id="mapTab"
-        className={`tab-content ${activeTab === 'map' ? 'active' : ''}`}
-      >
-        <div className="card fade-in">
-          <div className="card-header">
-            <div className="actions">
-              <select
-                className="btn btn-outline"
-                id="mapType"
-                value={mapType}
-                onChange={(e) => setMapType(e.target.value)}
-              >
-                <option value="countries">Countries</option>
-                <option value="cities">Cities</option>
-                <option value="areas">Areas</option>
-              </select>
-            </div>
-          </div>
-          <div
-            style={{ height: '500px', borderRadius: '8px', overflow: 'hidden' }}
-          >
-            <MapComponent locations={locations} mapType={mapType} />
-          </div>
-        </div>
-      </div>
-
-      {/* Location Modal */}
+      {/* Create/Edit Modal */}
       {showModal && (
-        <div className="modal-overlay active" id="locationModal">
+        <div className="modal-overlay active">
           <div className="modal">
             <div className="modal-header">
-              <h3 className="modal-title" id="modalTitle">
-                {editingId
-                  ? `Edit ${editingType.charAt(0).toUpperCase() + editingType.slice(1)}`
-                  : `Add ${currentMode.charAt(0).toUpperCase() + currentMode.slice(1)}`}
+              <h3>
+                {editingId ? 'Edit' : 'Add'}{' '}
+                {currentMode.charAt(0).toUpperCase() + currentMode.slice(1)}
               </h3>
-              <button
-                className="modal-close"
-                id="modalClose"
-                onClick={closeModal}
-              >
+              <button className="close-btn" onClick={closeModal}>
                 <span className="material-icons-outlined">close</span>
               </button>
             </div>
             <div className="modal-body">
-              <form id="locationForm">
+              <div className="form-group">
+                <label>Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  placeholder="Enter name"
+                />
+              </div>
+
+              <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label" htmlFor="parentType">
-                    Parent Type
-                  </label>
-                  <select
-                    className="form-select"
-                    id="parentType"
-                    disabled
-                    value={currentMode}
-                  >
-                    <option value="country">Country</option>
-                    <option value="city">City</option>
-                    <option value="area">Area</option>
-                  </select>
-                </div>
-
-                {(currentMode === 'city' || currentMode === 'area') && (
-                  <div className="form-group" id="countryField">
-                    <label className="form-label" htmlFor="countrySelect">
-                      Country *
-                    </label>
-                    <select
-                      className="form-select"
-                      id="countrySelect"
-                      name="countryId"
-                      value={formData.countryId}
-                      onChange={handleInputChange}
-                      required={
-                        currentMode === 'city' || currentMode === 'area'
-                      }
-                    >
-                      <option value="">Select Country</option>
-                      {locations.countries.map((country) => (
-                        <option key={country.id} value={country.id}>
-                          {country.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {currentMode === 'area' && (
-                  <div className="form-group" id="cityField">
-                    <label className="form-label" htmlFor="citySelect">
-                      City *
-                    </label>
-                    <select
-                      className="form-select"
-                      id="citySelect"
-                      name="cityId"
-                      value={formData.cityId}
-                      onChange={handleInputChange}
-                      required={currentMode === 'area'}
-                    >
-                      <option value="">Select City</option>
-                      {locations.cities
-                        .filter(
-                          (city) =>
-                            !formData.countryId ||
-                            city.country_id === parseInt(formData.countryId)
-                        )
-                        .map((city) => (
-                          <option key={city.id} value={city.id}>
-                            {city.name}
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="name">
-                    Name *
-                  </label>
+                  <label>Code</label>
                   <input
                     type="text"
-                    className="form-control"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    placeholder="Enter name"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="code">
-                    Code
-                  </label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    id="code"
                     name="code"
                     value={formData.code}
                     onChange={handleInputChange}
-                    placeholder="e.g., EG, US, CA"
+                    placeholder="e.g. EG, CAI"
                   />
                 </div>
-
-                {currentMode === 'country' && (
-                  <>
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="currency">
-                        Currency
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="currency"
-                        name="currency"
-                        value={formData.currency}
-                        onChange={handleInputChange}
-                        placeholder="e.g., EGP, USD, EUR"
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="timezone">
-                        Timezone
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="timezone"
-                        name="timezone"
-                        value={formData.timezone}
-                        onChange={handleInputChange}
-                        placeholder="e.g., Africa/Cairo, America/New_York"
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label className="form-label" htmlFor="phoneCode">
-                        Phone Code
-                      </label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="phoneCode"
-                        name="phoneCode"
-                        value={formData.phoneCode}
-                        onChange={handleInputChange}
-                        placeholder="e.g., +20, +1"
-                      />
-                    </div>
-                  </>
-                )}
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="latitude">
-                      Latitude
-                    </label>
-                    <input
-                      type="number"
-                      step="0.000001"
-                      className="form-control"
-                      id="latitude"
-                      name="latitude"
-                      value={formData.latitude}
-                      onChange={handleInputChange}
-                      placeholder="e.g., 30.0444"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="longitude">
-                      Longitude
-                    </label>
-                    <input
-                      type="number"
-                      step="0.000001"
-                      className="form-control"
-                      id="longitude"
-                      name="longitude"
-                      value={formData.longitude}
-                      onChange={handleInputChange}
-                      placeholder="e.g., 31.2357"
-                    />
-                  </div>
-                </div>
-
                 <div className="form-group">
-                  <label className="form-label" htmlFor="status">
-                    Status
-                  </label>
+                  <label>Status</label>
                   <select
-                    className="form-select"
-                    id="status"
                     name="status"
                     value={formData.status}
                     onChange={handleInputChange}
@@ -1187,18 +1235,113 @@ const Location = ({
                     <option value="inactive">Inactive</option>
                   </select>
                 </div>
-              </form>
+              </div>
+
+              {currentMode === 'country' && (
+                <>
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Currency</label>
+                      <input
+                        type="text"
+                        name="currency"
+                        value={formData.currency}
+                        onChange={handleInputChange}
+                        placeholder="e.g. EGP"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Phone Code</label>
+                      <input
+                        type="text"
+                        name="phoneCode"
+                        value={formData.phoneCode}
+                        onChange={handleInputChange}
+                        placeholder="e.g. 20"
+                      />
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>Timezone</label>
+                    <input
+                      type="text"
+                      name="timezone"
+                      value={formData.timezone}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Africa/Cairo"
+                    />
+                  </div>
+                </>
+              )}
+
+              {(currentMode === 'city' || currentMode === 'area') && (
+                <div className="form-group">
+                  <label>Country</label>
+                  <select
+                    name="countryId"
+                    value={formData.countryId}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select Country</option>
+                    {locations.countries.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {currentMode === 'area' && (
+                <div className="form-group">
+                  <label>City</label>
+                  <select
+                    name="cityId"
+                    value={formData.cityId}
+                    onChange={handleInputChange}
+                    disabled={!formData.countryId}
+                  >
+                    <option value="">Select City</option>
+                    {locations.cities
+                      .filter(
+                        (c) => c.country_id === parseInt(formData.countryId)
+                      )
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Latitude</label>
+                  <input
+                    type="text"
+                    name="latitude"
+                    value={formData.latitude}
+                    onChange={handleInputChange}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>Longitude</label>
+                  <input
+                    type="text"
+                    name="longitude"
+                    value={formData.longitude}
+                    onChange={handleInputChange}
+                  />
+                </div>
+              </div>
             </div>
-            <div className="modal-actions">
-              <button type="button" className="btn" onClick={closeModal}>
+            <div className="modal-footer">
+              <button className="btn btn-text" onClick={closeModal}>
                 Cancel
               </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={saveLocation}
-              >
-                Save Location
+              <button className="btn btn-primary" onClick={saveLocation}>
+                Save
               </button>
             </div>
           </div>
@@ -1208,219 +1351,278 @@ const Location = ({
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="modal-overlay active">
-          <div className="modal">
+          <div className="modal modal-sm">
             <div className="modal-header">
-              <h3 className="modal-title">Confirm Delete</h3>
-              <button className="modal-close" onClick={cancelDelete}>
+              <h3>Confirm Delete</h3>
+              <button className="close-btn" onClick={cancelDelete}>
                 <span className="material-icons-outlined">close</span>
               </button>
             </div>
             <div className="modal-body">
-              <p>
-                Are you sure you want to delete this {deleteItem?.type}? This
-                will also delete all child locations.
-              </p>
+              <p>Are you sure you want to delete this location?</p>
+              <p className="text-danger">This action cannot be undone.</p>
             </div>
-            <div className="modal-actions">
-              <button type="button" className="btn" onClick={cancelDelete}>
+            <div className="modal-footer">
+              <button className="btn btn-text" onClick={cancelDelete}>
                 Cancel
               </button>
-              <button
-                type="button"
-                className="btn btn-danger"
-                onClick={confirmDelete}
-              >
+              <button className="btn btn-danger" onClick={confirmDelete}>
                 Delete
               </button>
             </div>
           </div>
         </div>
       )}
-    </AdminLayout>
-  );
-};
 
-// Map Component
-const MapComponent = ({ locations, mapType }) => {
-  const getMapData = () => {
-    switch (mapType) {
-      case 'countries':
-        return locations.countries.filter(
-          (country) => country.latitude && country.longitude
-        );
-      case 'cities':
-        return locations.cities.filter(
-          (city) => city.latitude && city.longitude
-        );
-      case 'areas':
-        return locations.areas.filter(
-          (area) => area.latitude && area.longitude
-        );
-      default:
-        return [];
-    }
-  };
-
-  const mapData = getMapData();
-
-  // Default center (Egypt)
-  const defaultCenter = [26.096306, 30.128669];
-  const defaultZoom = 3;
-
-  // Calculate center based on available data
-  const getCenter = () => {
-    if (mapData.length > 0) {
-      const avgLat =
-        mapData.reduce((sum, item) => sum + parseFloat(item.latitude), 0) /
-        mapData.length;
-      const avgLng =
-        mapData.reduce((sum, item) => sum + parseFloat(item.longitude), 0) /
-        mapData.length;
-      return [avgLat, avgLng];
-    }
-    return defaultCenter;
-  };
-
-  const getZoom = () => {
-    if (mapData.length === 1) return 8;
-    if (mapData.length <= 3) return 5;
-    return defaultZoom;
-  };
-
-  const getIcon = (type) => {
-    const iconUrl =
-      type === 'countries'
-        ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png'
-        : type === 'cities'
-          ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png'
-          : 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png';
-
-    return L.icon({
-      iconUrl: iconUrl,
-      shadowUrl:
-        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-      iconSize: [25, 41],
-      iconAnchor: [12, 41],
-      popupAnchor: [1, -34],
-      shadowSize: [41, 41],
-    });
-  };
-
-  if (mapData.length === 0) {
-    return (
-      <div
-        style={{
-          height: '100%',
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: '#f8fafc',
-          borderRadius: '8px',
-          flexDirection: 'column',
-        }}
-      >
-        <span
-          className="material-icons-outlined"
-          style={{ fontSize: '48px', color: '#cbd5e1', marginBottom: '16px' }}
-        >
-          location_off
-        </span>
-        <h3 style={{ color: 'var(--dark-color)', marginBottom: '8px' }}>
-          No Locations with Coordinates
-        </h3>
-        <p style={{ color: 'var(--gray-color)', textAlign: 'center' }}>
-          Add latitude and longitude coordinates to {mapType} to see them on the
-          map.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <MapContainer
-      center={getCenter()}
-      zoom={getZoom()}
-      style={{ height: '100%', width: '100%', minHeight: '400px' }}
-      scrollWheelZoom={true}
-      whenReady={() => {
-        // Force map to invalidate size after render
-        setTimeout(() => {
-          window.dispatchEvent(new Event('resize'));
-        }, 100);
-      }}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {mapData.map((item) => (
-        <Marker
-          key={`${mapType}-${item.id}`}
-          position={[parseFloat(item.latitude), parseFloat(item.longitude)]}
-          icon={getIcon(mapType)}
-        >
-          <Popup>
-            <div
-              style={{ minWidth: '200px', fontFamily: 'Segoe UI, sans-serif' }}
-            >
-              <h4
-                style={{
-                  margin: '0 0 8px 0',
-                  color: 'var(--dark-color)',
-                  fontSize: '1.1rem',
-                }}
-              >
-                {item.name}
-              </h4>
-              {item.code && (
-                <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
-                  <strong>Code:</strong> {item.code}
-                </p>
-              )}
-              {mapType === 'countries' && item.currency && (
-                <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
-                  <strong>Currency:</strong> {item.currency}
-                </p>
-              )}
-              {mapType === 'countries' && item.phone_code && (
-                <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
-                  <strong>Phone:</strong> {item.phone_code}
-                </p>
-              )}
-              <p style={{ margin: '4px 0', fontSize: '0.9rem' }}>
-                <strong>Status:</strong>
-                <span
-                  style={{
-                    display: 'inline-block',
-                    padding: '2px 8px',
-                    borderRadius: '12px',
-                    fontSize: '0.75rem',
-                    fontWeight: '600',
-                    backgroundColor:
-                      item.status === 'active' ? '#10b981' : '#ef4444',
-                    color: 'white',
-                    marginLeft: '8px',
-                  }}
-                >
-                  {item.status}
-                </span>
-              </p>
-              <p
-                style={{
-                  margin: '4px 0',
-                  fontSize: '0.8rem',
-                  color: 'var(--gray-color)',
-                }}
-              >
-                Lat: {parseFloat(item.latitude).toFixed(4)}, Lng:{' '}
-                {parseFloat(item.longitude).toFixed(4)}
-              </p>
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="modal-overlay active">
+          <div className="modal modal-lg">
+            <div className="modal-header">
+              <h3>Import Locations</h3>
+              <button className="close-btn" onClick={() => closeImportModal(false)}>
+                <span className="material-icons-outlined">close</span>
+              </button>
             </div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+            <div className="modal-body">
+              <div className="steps-indicator mb-4" style={{display: 'flex', justifyContent: 'space-between', padding: '0 20px'}}>
+                  <div className={`step ${importStep === 'upload' ? 'active' : 'completed'}`} style={{fontWeight: importStep === 'upload' ? 'bold' : 'normal'}}>1. Upload</div>
+                  <div className={`step ${importStep === 'preview' ? 'active' : ''}`} style={{fontWeight: importStep === 'preview' ? 'bold' : 'normal'}}>2. Preview</div>
+                  <div className={`step ${importStep === 'processing' ? 'active' : ''}`} style={{fontWeight: importStep === 'processing' ? 'bold' : 'normal'}}>3. Process</div>
+                  <div className={`step ${importStep === 'success' ? 'active' : ''}`} style={{fontWeight: importStep === 'success' ? 'bold' : 'normal'}}>4. Result</div>
+              </div>
+
+              {importStep === 'upload' && (
+                <div className="import-upload-step">
+                  <div 
+                    className="dropzone"
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={handleFileDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <span className="material-icons-outlined" style={{fontSize: '48px', color: '#cbd5e1'}}>cloud_upload</span>
+                    <p>Drag & Drop your file here or click to browse</p>
+                    <p className="text-muted text-sm">Supports .xlsx, .csv</p>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      style={{display: 'none'}} 
+                      accept=".xlsx,.xls,.csv"
+                      onChange={handleFileDrop}
+                    />
+                  </div>
+                  <div className="text-center mt-4">
+                    <p className="text-muted small mb-2">Need the correct format?</p>
+                    <button className="btn btn-outline" onClick={downloadTemplate}>
+                      <span className="material-icons-outlined">download</span>
+                      Download Template
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {importStep === 'preview' && (
+                <div className="import-preview-step">
+                  {importStats.validationErrors > 0 && (
+                    <div className="alert alert-danger mb-3">
+                      Found {importStats.validationErrors} validation errors. Please fix the file and try again.
+                    </div>
+                  )}
+
+                  <div className="import-options mb-3">
+                    <label className="import-option">
+                      <input
+                        type="checkbox"
+                        checked={importOptions.updateExisting}
+                        onChange={(e) =>
+                          setImportOptions((prev) => ({
+                            ...prev,
+                            updateExisting: e.target.checked,
+                          }))
+                        }
+                      />
+                      Update existing records
+                    </label>
+                    <label className="import-option">
+                      <input
+                        type="checkbox"
+                        checked={importOptions.createMissingCountries}
+                        onChange={(e) =>
+                          setImportOptions((prev) => ({
+                            ...prev,
+                            createMissingCountries: e.target.checked,
+                          }))
+                        }
+                      />
+                      Create missing countries
+                    </label>
+                    <label className="import-option">
+                      <input
+                        type="checkbox"
+                        checked={importOptions.createMissingCities}
+                        onChange={(e) =>
+                          setImportOptions((prev) => ({
+                            ...prev,
+                            createMissingCities: e.target.checked,
+                          }))
+                        }
+                      />
+                      Create missing cities
+                    </label>
+                  </div>
+
+                  <div className="preview-tabs" style={{maxHeight: '400px', overflowY: 'auto'}}>
+                    {['countries', 'cities', 'areas'].map(type => (
+                      importData[type].length > 0 && (
+                        <div key={type} className="mb-4">
+                          <h5 className="capitalize mb-2" style={{textTransform: 'capitalize'}}>{type} ({importData[type].length})</h5>
+                          <div className="table-responsive">
+                            <table className="table table-bordered table-sm">
+                              <thead>
+                                <tr>
+                                  <th style={{width: '50px'}}>#</th>
+                                  <th>Name</th>
+                                  <th>Code</th>
+                                  {type !== 'countries' && <th>Parent</th>}
+                                  <th>Status</th>
+                                  <th>Validation</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {importData[type].map((row, idx) => (
+                                  <tr key={idx} className={row._errors && row._errors.length > 0 ? 'import-error-row' : ''}>
+                                    <td>{idx + 1}</td>
+                                    <td>{row.name}</td>
+                                    <td>{row.code}</td>
+                                    {type !== 'countries' && (
+                                      <td>
+                                        {type === 'cities' ? (row.country_code || row.country_name || row.country_id) : (row.city_name || row.city_id)}
+                                      </td>
+                                    )}
+                                    <td>{row.status || 'active'}</td>
+                                    <td>
+                                      {row._errors && row._errors.length > 0 ? (
+                                        <span className="text-danger small">{row._errors.join(', ')}</span>
+                                      ) : (
+                                        <span className="text-success small">OK</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )
+                    ))}
+                    {importData.countries.length === 0 && importData.cities.length === 0 && importData.areas.length === 0 && (
+                        <div className="text-center text-muted">No valid data found in file.</div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {importStep === 'processing' && (
+                <div className="import-processing-step text-center py-5">
+                  <div className="spinner"></div>
+                  <p className="mt-3">Processing import...</p>
+                  <p className="text-muted small">This may take a moment. Do not close this window.</p>
+                  <div className="progress mt-3">
+                    <div className="progress-bar" style={{ width: `${importProgress}%` }}></div>
+                  </div>
+                  <div className="progress-value">{importProgress}%</div>
+                </div>
+              )}
+
+              {importStep === 'success' && (
+                <div className="import-success-step text-center">
+                  <span className="material-icons-outlined text-success" style={{fontSize: '48px'}}>check_circle</span>
+                  <h3>Import Successful!</h3>
+                  
+                  <div className="stats-summary mt-4">
+                    <table className="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Entity</th>
+                                <th>Added</th>
+                                <th>Updated</th>
+                                <th>Skipped</th>
+                                <th>Failed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Countries</td>
+                                <td className="text-success">{importStats.countries?.added || 0}</td>
+                                <td className="text-info">{importStats.countries?.updated || 0}</td>
+                                <td className="text-warning">{importStats.countries?.skipped || 0}</td>
+                                <td className="text-danger">{importStats.countries?.failed || 0}</td>
+                            </tr>
+                            <tr>
+                                <td>Cities</td>
+                                <td className="text-success">{importStats.cities?.added || 0}</td>
+                                <td className="text-info">{importStats.cities?.updated || 0}</td>
+                                <td className="text-warning">{importStats.cities?.skipped || 0}</td>
+                                <td className="text-danger">{importStats.cities?.failed || 0}</td>
+                            </tr>
+                            <tr>
+                                <td>Areas</td>
+                                <td className="text-success">{importStats.areas?.added || 0}</td>
+                                <td className="text-info">{importStats.areas?.updated || 0}</td>
+                                <td className="text-warning">{importStats.areas?.skipped || 0}</td>
+                                <td className="text-danger">{importStats.areas?.failed || 0}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    {importStats.errors && importStats.errors.length > 0 && (
+                        <div className="mt-3 text-left">
+                            <h5 className="text-danger">Errors:</h5>
+                            <ul className="text-danger small" style={{maxHeight: '150px', overflowY: 'auto', textAlign: 'left'}}>
+                                {importStats.errors.map((err, i) => <li key={i}>{err}</li>)}
+                            </ul>
+                        </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-text" onClick={() => closeImportModal(importStep === 'success')}>
+                {importStep === 'success' ? 'Close' : 'Cancel'}
+              </button>
+              
+              {importStep === 'preview' && (
+                <>
+                    <button className="btn btn-secondary" onClick={() => setImportStep('upload')}>Back</button>
+                    <button 
+                        className="btn btn-primary" 
+                        onClick={submitImport}
+                        disabled={importStats.validationErrors > 0}
+                    >
+                      Confirm Import
+                    </button>
+                </>
+              )}
+              
+              {importStep === 'success' && (
+                  <button className="btn btn-primary" onClick={() => closeImportModal(true)}>
+                      Done
+                  </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      {toast && (
+        <div className={`toast toast-${toast.type}`}>
+          <span className="material-icons-outlined">
+            {toast.type === 'success' ? 'check_circle' : toast.type === 'error' ? 'error' : 'info'}
+          </span>
+          <span>{toast.message}</span>
+        </div>
+      )}
+    </AdminLayout>
   );
 };
 

@@ -3,7 +3,7 @@ import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/04-Purchases/PurchaseInvoice.scss';
 
-export default function PurchaseInvoice({ invoices, suppliers, orders, currencies, products, units, paymentTerms }) {
+export default function PurchaseInvoice({ invoices, suppliers, orders, currencies, products, paymentTerms }) {
     const [mode, setMode] = useState('list'); // list, create, edit
     const [activeTab, setActiveTab] = useState('general');
     const { props } = usePage();
@@ -199,9 +199,6 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
     };
 
     const calculateTotals = (items) => {
-        const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.line_total) || 0) - (parseFloat(item.tax_amount) || 0), 0);
-        const taxTotal = items.reduce((sum, item) => sum + (parseFloat(item.tax_amount) || 0), 0);
-        
         // Global calculations
         const globalDiscount = parseFloat(data.discount_amount) || 0;
         const shipping = parseFloat(data.shipping_cost) || 0;

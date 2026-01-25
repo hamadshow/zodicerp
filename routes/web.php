@@ -69,6 +69,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/admin/location/areas/{area}', [LocationController::class, 'destroyArea']);
     Route::post('/admin/location/bulk-status', [LocationController::class, 'bulkUpdateStatus']);
     Route::post('/admin/location/bulk-delete', [LocationController::class, 'bulkDelete']);
+    Route::post('/admin/location/bulk-import', [LocationController::class, 'bulkImport']);
 
     Route::resource('/admin/currencies', \App\Http\Controllers\Essential_Data_Controllers\CurrencyController::class)
         ->names([
@@ -197,6 +198,14 @@ Route::middleware('auth')->group(function () {
             'update' => 'admin.petty-cash.update',
             'destroy' => 'admin.petty-cash.destroy',
         ])->except(['create', 'edit', 'show']);
+
+    Route::prefix('admin/client-sales')->name('admin.client-sales.')->group(function () {
+        Route::resource('customer-groups', \App\Http\Controllers\Client_Sales\CustomerGroupController::class);
+        
+        Route::post('customers/bulk-delete', [\App\Http\Controllers\Client_Sales\CustomerController::class, 'bulkDelete'])->name('customers.bulk-delete');
+        Route::post('customers/bulk-store', [\App\Http\Controllers\Client_Sales\CustomerController::class, 'bulkStore'])->name('customers.bulk-store');
+        Route::resource('customers', \App\Http\Controllers\Client_Sales\CustomerController::class);
+    });
 
     Route::post('/admin/banks/accounts', [\App\Http\Controllers\Cash\BankController::class, 'storeAccount'])->name('admin.banks.accounts.store');
     Route::put('/admin/banks/accounts/{bankAccount}', [\App\Http\Controllers\Cash\BankController::class, 'updateAccount'])->name('admin.banks.accounts.update');
@@ -399,6 +408,18 @@ Route::middleware('auth')->group(function () {
             ->except(['create', 'edit', 'show']);
 
         // Removed routes for deleted supplier submodules: contacts, addresses, opening-balances, statements.
+    });
+
+    // Client Sales Module Routes
+    Route::prefix('admin/client-sales')->middleware('admin')->name('admin.client-sales.')->group(function () {
+        Route::resource('customer-groups', \App\Http\Controllers\Client_Sales\CustomerGroupController::class)
+            ->except(['create', 'edit', 'show']);
+        
+        Route::resource('quotations', \App\Http\Controllers\Client_Sales\SalesQuotationController::class)
+            ->except(['create', 'edit', 'show']);
+
+        Route::resource('orders', \App\Http\Controllers\Client_Sales\SalesOrderController::class)
+            ->except(['create', 'edit', 'show']);
     });
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
