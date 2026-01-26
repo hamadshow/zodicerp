@@ -26,7 +26,7 @@ class ItemAttributeController extends Controller
 
     public function create()
     {
-        return Inertia::render('Backend/03-Inventory/ItemAttributesCE');
+        return Inertia::render('Backend/03-Inventory/ItemAttributes');
     }
 
     public function store(Request $request)
@@ -78,7 +78,7 @@ class ItemAttributeController extends Controller
     {
         try {
             $attribute = ItemAttribute::with('details')->findOrFail($id);
-            return Inertia::render('Backend/03-Inventory/ItemAttributesCE', [
+            return Inertia::render('Backend/03-Inventory/ItemAttributes', [
                 'attribute' => $attribute
             ]);
         } catch (ModelNotFoundException $e) {

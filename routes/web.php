@@ -111,6 +111,13 @@ Route::middleware('auth')->group(function () {
             'destroy' => 'admin.categories.destroy',
         ]);
 
+    Route::prefix('admin/assets')->name('admin.assets.')->group(function () {
+        Route::resource('asset-categories', \App\Http\Controllers\Assets\AssetCategoryController::class)
+            ->except(['create', 'edit', 'show']);
+        Route::resource('asset-attributes', \App\Http\Controllers\Assets\AssetAttributeController::class)
+            ->except(['show']);
+    });
+
     Route::resource('/admin/brands', \App\Http\Controllers\Inventory\BrandsController::class)
         ->names([
             'index' => 'admin.brands.index',
@@ -411,7 +418,11 @@ Route::middleware('auth')->group(function () {
         // Removed routes for deleted supplier submodules: contacts, addresses, opening-balances, statements.
     });
 
-    // Client Sales Module Routes
+    Route::prefix('admin/assets')->name('admin.assets.')->group(function () {
+        Route::resource('asset-categories', \App\Http\Controllers\Assets\AssetCategoryController::class)
+            ->except(['create', 'edit', 'show']);
+    });
+
     Route::prefix('admin/client-sales')->middleware('admin')->name('admin.client-sales.')->group(function () {
         Route::resource('customer-groups', \App\Http\Controllers\Client_Sales\CustomerGroupController::class)
             ->except(['create', 'edit', 'show']);

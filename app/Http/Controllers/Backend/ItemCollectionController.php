@@ -90,7 +90,7 @@ class ItemCollectionController extends Controller
             ->select('id', 'name')
             ->get();
 
-        return Inertia::render('Backend/03-Inventory/ItemCollectionsCE', [
+        return Inertia::render('Backend/03-Inventory/ItemCollections', [
             'collection' => $collection,
             'collections' => $collections
         ]);

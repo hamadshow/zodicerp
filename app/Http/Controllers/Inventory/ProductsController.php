@@ -98,7 +98,7 @@ class ProductsController extends Controller
         $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
         $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
 
-        return Inertia::render('Backend/03-Inventory/ProductsCE', [
+        return Inertia::render('Backend/03-Inventory/Products', [
             'product' => null,
             'brands' => $brands,
             'categories' => $categories,
@@ -112,7 +112,7 @@ class ProductsController extends Controller
         $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
         $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
 
-        return Inertia::render('Backend/03-Inventory/ProductsCE', [
+        return Inertia::render('Backend/03-Inventory/Products', [
             'product' => $product,
             'brands' => $brands,
             'categories' => $categories,
