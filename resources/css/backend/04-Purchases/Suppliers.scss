@@ -1,6 +1,7 @@
 /* Suppliers Module Styles - Professional Enterprise Theme */
 
 :root {
+  color-scheme: light;
   /* Brand Colors */
   --primary-color: #2563eb;       /* Royal Blue */
   --primary-hover: #1d4ed8;
@@ -36,6 +37,7 @@
 }
 
 [data-theme='dark'] {
+  color-scheme: dark;
   --background-light: #0f172a;
   --surface-light: #1e293b;
   --text-primary: #f8fafc;
@@ -306,7 +308,6 @@
       width: 100%;
       
       /* Ensure native controls match the theme */
-      color-scheme: normal; 
 
       &:hover {
         border-color: #cbd5e1; /* Slate 300 */
@@ -330,12 +331,96 @@
         cursor: not-allowed;
         opacity: 0.7;
       }
+    }
 
-      /* Consistent option styling */
-      option {
-        background-color: var(--surface-light);
-        color: var(--text-primary);
-      }
+    .select-dropdown {
+      position: relative;
+      width: 100%;
+    }
+
+    .select-dropdown__button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      background-color: var(--input-bg);
+      color: var(--text-primary);
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      text-align: left;
+    }
+
+    .select-dropdown__button:hover {
+      border-color: #cbd5e1;
+    }
+
+    .select-dropdown__button:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .select-dropdown__button.is-placeholder {
+      color: #777777;
+    }
+
+    .select-dropdown__chevron {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+    }
+
+    .select-dropdown__menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      width: 100%;
+      background-color: #ffffff;
+      color: #333333;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-md);
+      padding: 0.25rem;
+      max-height: 240px;
+      overflow-y: auto;
+      z-index: 20;
+    }
+
+    .select-dropdown__option {
+      all: unset;
+      display: block;
+      width: 100%;
+      background-color: #ffffff !important;
+      color: #333333 !important;
+      padding: 0.5rem 0.75rem;
+      border-radius: 0.375rem;
+      text-align: left;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-family: inherit;
+      line-height: 1.25rem;
+    }
+
+    .select-dropdown__option:hover,
+    .select-dropdown__option:focus,
+    .select-dropdown__option:focus-visible {
+      outline: none;
+      background-color: #E6F0FA !important;
+      color: #333333 !important;
+    }
+
+    .select-dropdown__option.is-selected {
+      background-color: #0078D4 !important;
+      color: #ffffff !important;
+    }
+
+    .select-dropdown__option.is-selected:hover,
+    .select-dropdown__option.is-selected:focus {
+      background-color: #0078D4 !important;
+      color: #ffffff !important;
     }
     
     .error-msg {

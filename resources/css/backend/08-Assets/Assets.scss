@@ -1,15 +1,15 @@
 :root {
-    --product-primary: #3b82f6;
-    --product-primary-hover: #2563eb;
-    --product-danger: #ef4444;
-    --product-danger-hover: #dc2626;
-    --product-success: #22c55e;
-    --product-warning: #f59e0b;
-    --product-gray-50: #f8fafc;
+    --asset-primary: #3b82f6;
+    --asset-primary-hover: #2563eb;
+    --asset-danger: #ef4444;
+    --asset-danger-hover: #dc2626;
+    --asset-success: #22c55e;
+    --asset-warning: #f59e0b;
+    --asset-gray-50: #f8fafc;
 }
 
 /* ---------------------------------------------------
-    Products Page Specific Styles
+    Assets Page Specific Styles
 --------------------------------------------------- */
 
 .content {
@@ -59,7 +59,7 @@
     border: 1px solid #f5c2c7;
 }
 
-/* Stats Cards - Specific to Products Dashboard styling */
+/* Stats Cards - Specific to Assets Dashboard styling */
 .stats-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -258,21 +258,21 @@ tr:hover td {
     background-color: #f8fafc;
 }
 
-/* Product Specific Table Styles */
-.product-cell {
+/* Asset Specific Table Styles */
+.asset-cell {
     display: flex;
     align-items: center;
     gap: 10px;
 }
 
-.product-thumb {
+.asset-thumb {
     width: 40px;
     height: 40px;
     object-fit: cover;
     border-radius: 4px;
 }
 
-.product-thumb-placeholder {
+.asset-thumb-placeholder {
     width: 40px;
     height: 40px;
     background: #f1f5f9;
@@ -391,7 +391,7 @@ tr:hover td {
 
 /* Utilities */
 .text-error {
-    color: var(--product-danger);
+    color: var(--asset-danger);
     font-size: 0.8rem;
     margin-top: 4px;
 }
@@ -546,7 +546,7 @@ tr:hover td {
 }
 
 /* ---------------------------------------------------
-    Products Create/Edit Modal Styles
+    Assets Create/Edit Modal Styles
 --------------------------------------------------- */
 
 /* Modals */
@@ -800,15 +800,15 @@ tr:hover td {
 }
 
 /* ---------------------------------------------------
-    Products Create/Edit Page Layout
+    Assets Create/Edit Page Layout
 --------------------------------------------------- */
 
-.products-ce-page {
+.assets-ce-page {
     padding: 24px;
     background: #f8fafc;
 }
 
-.products-ce-card {
+.assets-ce-card {
     background: #ffffff;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
@@ -816,44 +816,44 @@ tr:hover td {
     margin-bottom: 16px;
 }
 
-.products-ce-header {
+.assets-ce-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
 }
 
-.products-ce-title {
+.assets-ce-title {
     margin: 0;
     font-size: 1.25rem;
     font-weight: 600;
     color: #0f172a;
 }
 
-.products-ce-body {
+.assets-ce-body {
     margin-top: 8px;
 }
 
-.products-layout {
+.assets-layout {
     display: grid;
     grid-template-columns: minmax(0, 2.25fr) minmax(0, 1fr);
     gap: 24px;
     align-items: flex-start;
 }
 
-.products-main {
+.assets-main {
     display: flex;
     flex-direction: column;
     gap: 16px;
 }
 
-.products-sidebar {
+.assets-sidebar {
     display: flex;
     flex-direction: column;
     gap: 16px;
 }
 
-.products-ce-actions {
+.assets-ce-actions {
     display: flex;
     justify-content: flex-end;
     gap: 8px;
@@ -872,12 +872,12 @@ tr:hover td {
         grid-template-columns: 1fr;
     }
 
-    .products-layout {
+    .assets-layout {
         grid-template-columns: 1fr;
     }
 }
 
-.products-section-card {
+.assets-section-card {
     background: #ffffff;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
@@ -885,21 +885,21 @@ tr:hover td {
     margin-bottom: 16px;
 }
 
-.products-section-header {
+.assets-section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
 }
 
-.products-section-title {
+.assets-section-title {
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
     color: #0f172a;
 }
 
-.products-section-content {
+.assets-section-content {
     display: flex;
     flex-direction: column;
     gap: 12px;

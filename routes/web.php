@@ -47,6 +47,7 @@ Route::middleware('auth')->group(function () {
             ->where('tab', 'images|videos|documents')
             ->name('index');
         Route::post('/store', [MediaController::class, 'store'])->name('store');
+        Route::post('/import-products', [MediaController::class, 'importProductImages'])->name('import-products');
         Route::post('/folder', [MediaController::class, 'storeFolder'])->name('folder.store');
         Route::post('/destroy', [MediaController::class, 'destroy'])->name('destroy');
         Route::post('/rename', [MediaController::class, 'rename'])->name('rename');
@@ -117,6 +118,17 @@ Route::middleware('auth')->group(function () {
         Route::resource('asset-attributes', \App\Http\Controllers\Assets\AssetAttributeController::class)
             ->except(['show']);
     });
+
+    // Explicitly allow POST for asset updates to handle file uploads without method spoofing issues
+    Route::post('/admin/assets/{asset}', [\App\Http\Controllers\Assets\AssetController::class, 'update'])->name('admin.assets.update');
+    Route::resource('/admin/assets', \App\Http\Controllers\Assets\AssetController::class)
+        ->names([
+            'index' => 'admin.assets.index',
+            'create' => 'admin.assets.create',
+            'store' => 'admin.assets.store',
+            'edit' => 'admin.assets.edit',
+            'destroy' => 'admin.assets.destroy',
+        ])->except(['update']);
 
     Route::resource('/admin/brands', \App\Http\Controllers\Inventory\BrandsController::class)
         ->names([
@@ -212,6 +224,9 @@ Route::middleware('auth')->group(function () {
         Route::post('customers/bulk-delete', [\App\Http\Controllers\Client_Sales\CustomerController::class, 'bulkDelete'])->name('customers.bulk-delete');
         Route::post('customers/bulk-store', [\App\Http\Controllers\Client_Sales\CustomerController::class, 'bulkStore'])->name('customers.bulk-store');
         Route::resource('customers', \App\Http\Controllers\Client_Sales\CustomerController::class);
+
+        Route::resource('invoices', \App\Http\Controllers\Client_Sales\SalesInvoiceController::class)
+            ->except(['show']);
     });
 
     Route::post('/admin/banks/accounts', [\App\Http\Controllers\Cash\BankController::class, 'storeAccount'])->name('admin.banks.accounts.store');
@@ -409,6 +424,7 @@ Route::middleware('auth')->group(function () {
 
         // Suppliers Submodules
         Route::post('suppliers/bulk-import', [\App\Http\Controllers\Purchases\SupplierController::class, 'bulkImport'])->name('suppliers.bulkImport');
+        Route::post('suppliers/{supplier}/toggle-favorite', [\App\Http\Controllers\Purchases\SupplierController::class, 'toggleFavorite'])->name('suppliers.toggleFavorite');
         Route::resource('suppliers', \App\Http\Controllers\Purchases\SupplierController::class)
             ->except(['create', 'edit']);
 

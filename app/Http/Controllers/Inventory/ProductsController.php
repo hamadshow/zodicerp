@@ -284,8 +284,8 @@ class ProductsController extends Controller
             } else {
                 $data['category_id'] = null;
             }
-            $data['updated_by_id'] = $user->id;
-            $data['updated_by_type'] = get_class($user);
+            // $data['updated_by_id'] = $user->id;
+            // $data['updated_by_type'] = get_class($user);
 
             // Update slug if name changed and slug not manually provided (optional logic, sticking to auto for now)
             if ($product->name !== $request->name) {

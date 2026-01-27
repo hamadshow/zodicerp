@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import axios from 'axios';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import Pagination from '../components/Pagination';
@@ -19,8 +20,15 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [viewMode, setViewMode] = useState('grid');
     const activeFilter = filters.type || 'all';
+    const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+    const [importFiles, setImportFiles] = useState([]);
+    const [importProgress, setImportProgress] = useState(null);
+    const [importSummary, setImportSummary] = useState(null);
+    const [importErrors, setImportErrors] = useState([]);
+    const [navigatingFolderId, setNavigatingFolderId] = useState(null);
     
     const fileInputRef = useRef(null);
+    const importInputRef = useRef(null);
     const { flash } = usePage().props;
 
     // Use local file list to handle pagination data structure
@@ -86,12 +94,19 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
     };
 
     const navigateToFolder = (folderId) => {
+        if (navigatingFolderId === folderId) return; // Prevent double-click navigation to same folder
+        
+        setNavigatingFolderId(folderId);
         router.get(buildIndexUrl(), { 
             folder_id: folderId,
             sort_by: filters.sort_by,
             sort_order: filters.sort_order,
             search: searchQuery
-        }, { preserveState: true, preserveScroll: true });
+        }, { 
+            preserveState: true, 
+            preserveScroll: true,
+            onFinish: () => setNavigatingFolderId(null)
+        });
     };
 
     const handlePageChange = (page) => {
@@ -231,6 +246,52 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
         }
     };
 
+    const openImportModal = () => {
+        setIsImportModalOpen(true);
+        setImportFiles([]);
+        setImportProgress(null);
+        setImportSummary(null);
+        setImportErrors([]);
+    };
+
+    const handleImportFolderChange = (e) => {
+        const files = Array.from(e.target.files || []);
+        const allowed = ['jpg', 'jpeg', 'png', 'gif'];
+        const filtered = files.filter(file => {
+            const ext = file.name.split('.').pop()?.toLowerCase();
+            return allowed.includes(ext);
+        });
+        setImportFiles(filtered);
+    };
+
+    const startImport = async () => {
+        if (importFiles.length === 0) return;
+        const formData = new FormData();
+        importFiles.forEach(file => {
+            formData.append('files[]', file);
+            formData.append('paths[]', file.webkitRelativePath || file.name);
+        });
+        try {
+            setImportProgress(0);
+            setImportSummary(null);
+            setImportErrors([]);
+            const response = await axios.post(route('admin.media.import-products'), formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+                onUploadProgress: (progressEvent) => {
+                    const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    setImportProgress(percent);
+                }
+            });
+            setImportProgress(null);
+            setImportSummary(response.data);
+        } catch (error) {
+            setImportProgress(null);
+            const message = error?.response?.data?.message || 'Import failed';
+            const details = error?.response?.data?.errors || [];
+            setImportErrors(Array.isArray(details) ? details : [message]);
+        }
+    };
+
     // --- Selection Handlers ---
 
     const handleToggleSelect = (item, type) => {
@@ -343,6 +404,7 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
                             ) : (
                                 <MediaToolbar 
                                     onUploadClick={() => fileInputRef.current.click()}
+                                    onImportClick={openImportModal}
                                     onCreateFolderClick={() => setIsCreateFolderModalOpen(true)}
                                     searchQuery={searchQuery}
                                     onSearchChange={handleSearch}
@@ -401,7 +463,74 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
                     </div>
                 </div>
 
-            {/* Create Folder Modal */}
+            {isImportModalOpen && (
+                <div className="modal-overlay active">
+                    <div className="modal-card">
+                        <div className="modal-header">
+                            <h3>Import Product Images</h3>
+                            <button className="close-btn" onClick={() => setIsImportModalOpen(false)}>
+                                <span className="material-icons-outlined">close</span>
+                            </button>
+                        </div>
+                        <div className="modal-body">
+                            <div className="form-group">
+                                <label>Select Folders</label>
+                                <div className="d-flex gap-2 align-items-center">
+                                    <button type="button" className="btn btn-outline" onClick={() => importInputRef.current.click()}>
+                                        Choose Folders
+                                    </button>
+                                    <span>{importFiles.length} files ready</span>
+                                </div>
+                            </div>
+                            <input
+                                type="file"
+                                ref={importInputRef}
+                                className="hidden-input"
+                                onChange={handleImportFolderChange}
+                                multiple
+                                webkitdirectory="true"
+                                directory="true"
+                            />
+                            {importProgress !== null && (
+                                <div className="upload-progress-container upload-progress-index">
+                                    <div className="progress-bar-wrapper large">
+                                        <div className="progress-bar" style={{ width: `${importProgress}%` }}></div>
+                                    </div>
+                                    <div className="upload-status-text">
+                                        Importing... {importProgress}%
+                                    </div>
+                                </div>
+                            )}
+                            {importErrors.length > 0 && (
+                                <div className="alert alert-danger">
+                                    {importErrors.slice(0, 3).map((err, i) => (
+                                        <div key={i}>{String(err)}</div>
+                                    ))}
+                                </div>
+                            )}
+                            {importSummary && (
+                                <div className="alert alert-success">
+                                    <div>Copied: {importSummary.copied}</div>
+                                    <div>Skipped: {importSummary.skipped}</div>
+                                    <div>Errors: {importSummary.errors?.length || 0}</div>
+                                    {importSummary.mapping_url && (
+                                        <div>
+                                            <a href={importSummary.mapping_url} target="_blank" rel="noreferrer">Download Mapping</a>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                        <div className="modal-footer">
+                            <button type="button" className="btn btn-outline" onClick={() => setIsImportModalOpen(false)}>Close</button>
+                            <button type="button" className="btn btn-primary" onClick={startImport} disabled={importFiles.length === 0 || importProgress !== null}>
+                                Start Import
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {isCreateFolderModalOpen && (
                 <div className="modal-overlay active">
                     <div className="modal-card">

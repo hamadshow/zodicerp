@@ -8,33 +8,52 @@ import '../../../../css/backend/Products.scss';
 // Helper Components
 // ==========================================
 
-const CategoryTreeItem = ({ category, selectedIds, onToggle, search }) => {
+const CategoryTreeItem = ({ category, selectedIds, onToggle, level = 0 }) => {
+    const [isOpen, setIsOpen] = useState(false);
     const hasChildren = category.children && category.children.length > 0;
     
+    const handleToggle = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsOpen(!isOpen);
+    };
+
     return (
-        <div className="category-tree-node">
-            <label className="checkbox-option">
-                <input
-                    type="checkbox"
-                    value={category.id}
-                    checked={selectedIds.includes(String(category.id))}
-                    onChange={() => onToggle(String(category.id))}
-                />
-                <span>{category.name}</span>
-            </label>
-            {hasChildren && (
-                <div className="category-tree-children" style={{ paddingLeft: '20px' }}>
-                    {category.children.map(child => (
-                        <CategoryTreeItem
-                            key={child.id}
-                            category={child}
-                            selectedIds={selectedIds}
-                            onToggle={onToggle}
-                            search={search}
-                        />
-                    ))}
-                </div>
-            )}
+        <div className="category-tree-item" style={{ '--level': level }}>
+            <div className="category-row">
+                {hasChildren ? (
+                    <span 
+                        className={`toggle-icon ${isOpen ? 'open' : ''}`}
+                        onClick={handleToggle}
+                    >
+                        {isOpen ? '▼' : '▶'}
+                    </span>
+                ) : (
+                    <span className="toggle-placeholder"></span>
+                )}
+                
+                <label className="checkbox-label">
+                    <input
+                        type="checkbox"
+                        value={category.id}
+                        checked={selectedIds.includes(String(category.id))}
+                        onChange={() => onToggle(String(category.id))}
+                    />
+                    <span className="category-name">{category.name}</span>
+                </label>
+            </div>
+
+            <div className={`category-children ${isOpen ? 'expanded' : ''}`}>
+                {hasChildren && category.children.map(child => (
+                    <CategoryTreeItem
+                        key={child.id}
+                        category={child}
+                        selectedIds={selectedIds}
+                        onToggle={onToggle}
+                        level={level + 1}
+                    />
+                ))}
+            </div>
         </div>
     );
 };

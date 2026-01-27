@@ -7,7 +7,9 @@ use App\Models\MediaFile;
 use App\Models\MediaFolder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Exception;
 
 class MediaController extends Controller
 {
@@ -138,6 +140,80 @@ class MediaController extends Controller
         }
 
         return redirect()->back()->with('success', 'Files uploaded successfully');
+    }
+
+    public function importProductImages(Request $request)
+    {
+        $request->validate([
+            'files' => 'required|array',
+            'files.*' => 'file|max:51200',
+            'paths' => 'nullable|array',
+        ]);
+
+        set_time_limit(0);
+
+        $files = $request->file('files', []);
+        $paths = $request->input('paths', []);
+        $allowed = ['jpg', 'jpeg', 'png', 'gif'];
+        $copied = 0;
+        $skipped = 0;
+        $errors = [];
+        $mapping = [];
+
+        foreach ($files as $index => $file) {
+            try {
+                $originalName = $file->getClientOriginalName();
+                $extension = strtolower($file->getClientOriginalExtension());
+                if (!in_array($extension, $allowed)) {
+                    $skipped++;
+                    continue;
+                }
+
+                $baseName = pathinfo($originalName, PATHINFO_FILENAME);
+                $targetName = $originalName;
+                $targetPath = 'images/products/' . $targetName;
+
+                if (Storage::disk('public')->exists($targetPath)) {
+                    $unique = $baseName . '-' . Str::random(6) . '-' . time() . '.' . $extension;
+                    $targetName = $unique;
+                    $targetPath = 'images/products/' . $targetName;
+                }
+
+                Storage::disk('public')->putFileAs('images/products', $file, $targetName);
+                $copied++;
+
+                $relativePath = is_array($paths) && array_key_exists($index, $paths) ? $paths[$index] : null;
+                $folderName = null;
+                if ($relativePath) {
+                    $segments = preg_split('/[\/\\\\]+/', $relativePath);
+                    $folderName = $segments && count($segments) > 1 ? $segments[0] : null;
+                }
+                $productKey = $folderName ?: $baseName;
+
+                $mapping[] = [
+                    'product_key' => $productKey,
+                    'source_path' => $relativePath ?: $originalName,
+                    'original_name' => $originalName,
+                    'stored_name' => $targetName,
+                    'stored_url' => Storage::url($targetPath),
+                ];
+            } catch (Exception $e) {
+                $errors[] = $e->getMessage();
+            }
+        }
+
+        $timestamp = now()->format('YmdHis');
+        $mappingPath = 'imports/product-image-mapping-' . $timestamp . '.json';
+        Storage::disk('public')->put($mappingPath, json_encode($mapping, JSON_UNESCAPED_UNICODE));
+
+        return response()->json([
+            'total' => count($files),
+            'copied' => $copied,
+            'skipped' => $skipped,
+            'errors' => $errors,
+            'mapping_url' => Storage::url($mappingPath),
+            'output_folder' => Storage::url('images/products'),
+        ]);
     }
 
     public function storeFolder(Request $request)

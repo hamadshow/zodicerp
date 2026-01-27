@@ -161,6 +161,7 @@ const AdminLayout = ({
         { icon: 'groups', label: 'Client Group', href: route('admin.client-sales.customer-groups.index') },
         { icon: 'request_quote', label: 'Sales Quotations', href: route('admin.client-sales.quotations.index') },
         { icon: 'receipt_long', label: 'Sales Orders', href: route('admin.client-sales.orders.index') },
+        { icon: 'receipt', label: 'Sales Invoices', href: route('admin.client-sales.invoices.index') },
         { icon: 'bolt', label: 'Flash Sales' },
       ],
     },
@@ -171,7 +172,7 @@ const AdminLayout = ({
       submenuItems: [
         { icon: 'category', label: 'Asset Categories', href: route('admin.assets.asset-categories.index') },
         { icon: 'tune', label: 'Asset Attributes', href: route('admin.assets.asset-attributes.index') },
-        { icon: 'web_asset', label: 'Assets Register', href: '#' },
+        { icon: 'web_asset', label: 'Assets Register', href: route('admin.assets.index') },
         { icon: 'swap_horiz', label: 'Asset Movements', href: '#' },
         { icon: 'trending_up', label: 'Asset Revaluation', href: '#' },
         { icon: 'delete_forever', label: 'Asset Disposal', href: '#' },

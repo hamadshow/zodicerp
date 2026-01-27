@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Head, useForm, usePage, router } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../components/AdminLayout';
@@ -9,6 +9,8 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
     const [mode, setMode] = useState('list'); // list, create, edit
     const [activeTab, setActiveTab] = useState('general');
     const [search, setSearch] = useState(filters?.search || '');
+    const [accountOpen, setAccountOpen] = useState(false);
+    const accountDropdownRef = useRef(null);
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -66,6 +68,22 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         }
     });
 
+    const selectedAccount = accounts.find(a => String(a.AccID) === String(data.account_id));
+    const handleAccountSelect = (value) => {
+        setData('account_id', value);
+        setAccountOpen(false);
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (accountDropdownRef.current && !accountDropdownRef.current.contains(event.target)) {
+                setAccountOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const handleCreate = () => {
         reset();
         setMode('create');
@@ -107,6 +125,13 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         }
     };
 
+    const handleToggleFavorite = (supplier) => {
+        router.post(route('admin.purchases.suppliers.toggleFavorite', { supplier: supplier.id }), {}, {
+            preserveScroll: true,
+            preserveState: true,
+        });
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
         if (mode === 'create') {
@@ -144,7 +169,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
     // --- IMPORT SYSTEM LOGIC ---
     const downloadTemplate = () => {
         const headers = ['supplier_code', 'name_ar', 'name_en', 'group_code', 'primary_phone', 'email', 'currency_code', 'account_code', 'is_active'];
-        const sample = ['SUP-10001', 'مورد 1', 'Supplier 1', 'GRP-001', '01000000001', 'sup1@example.com', 'EGP', '2101', '1'];
+        const sample = ['SUP-10001', 'مورد 1', 'Supplier 1', 'GRP-001', '01000000001', 'supplier1@example.com', 'EGP', '2101', '1'];
         const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Template");
@@ -226,7 +251,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
             // Client-side Validation
             if (!item.name_en) item._errors.push('Name (EN) is required');
-            if (item.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.email)) item._errors.push('Invalid email format');
+            // if (item.telegram && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.telegram)) item._errors.push('Invalid telegram format');
             
             // Validate Group Code (Optional: if provided, check if it exists in props.groups)
             // Assuming groups have 'code' field. If not, we might need to skip this check or use name.
@@ -331,6 +356,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     <th>Group</th>
                                     <th>Phone</th>
                                     <th>Email</th>
+                                    <th>Telegram</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -342,13 +368,40 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                         <td>{supplier.name_en}</td>
                                         <td>{supplier.group?.name_en || '-'}</td>
                                         <td>{supplier.primary_phone}</td>
-                                        <td>{supplier.email}</td>
+                                        <td>{supplier.email || '-'}</td>
+                                        <td>
+                                            {(() => {
+                                                const contact = supplier.contacts?.find(c => c.is_primary && c.telegram) || supplier.contacts?.find(c => c.telegram);
+                                                if (!contact) return '-';
+                                                let link = contact.telegram;
+                                                if (!link.startsWith('http') && !link.startsWith('t.me')) {
+                                                    link = `https://t.me/${link.replace('@', '')}`;
+                                                } else if (link.startsWith('t.me')) {
+                                                    link = `https://${link}`;
+                                                }
+                                                return (
+                                                    <a href={link} target="_blank" rel="noopener noreferrer" title="Open Telegram">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512" width="20" height="20" fill="#229ED9">
+                                                            <path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm121.8 169.9l-40.7 191.8c-3 13.6-11.1 16.9-22.4 10.5l-62-45.7-29.9 28.8c-3.3 3.3-6.1 6.1-12.5 6.1l4.4-63.1 114.9-103.8c5-4.4-1.1-6.9-7.7-2.5l-142 89.4-61.2-19.1c-13.3-4.2-13.6-13.3 2.8-19.7l239.1-92.2c11.1-4 20.8 2.7 17.2 19.5z"/>
+                                                        </svg>
+                                                    </a>
+                                                );
+                                            })()}
+                                        </td>
                                         <td>
                                             <span className={`status-badge ${supplier.is_active ? 'active' : 'inactive'}`}>
                                                 {supplier.is_active ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
                                         <td className="actions">
+                                            <button 
+                                                className="btn-icon"
+                                                onClick={() => handleToggleFavorite(supplier)}
+                                                title={supplier.favorite ? "Unfavorite" : "Favorite"}
+                                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: supplier.favorite ? '#FFD700' : '#ccc', marginRight: '5px' }}
+                                            >
+                                                {supplier.favorite ? '★' : '☆'}
+                                            </button>
                                             <button className="edit" onClick={() => handleEdit(supplier)}>Edit</button>
                                             <button className="delete" onClick={() => handleDelete(supplier.id)}>Delete</button>
                                         </td>
@@ -356,7 +409,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                 ))}
                                 {suppliers.data.length === 0 && (
                                     <tr>
-                                        <td colSpan="7" className="empty-state">No suppliers found.</td>
+                                        <td colSpan="8" className="empty-state">No suppliers found.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -434,10 +487,53 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                 </div>
                                 <div className="suppliers-module__group">
                                     <label>Account</label>
-                                    <select value={data.account_id} onChange={e => setData('account_id', e.target.value)}>
-                                        <option value="">Select Account</option>
-                                        {accounts.map(a => <option key={a.AccID} value={a.AccID}>{a.Name_en}</option>)}
-                                    </select>
+                                    <div className="select-dropdown" ref={accountDropdownRef}>
+                                        <button
+                                            type="button"
+                                            className={`select-dropdown__button ${!data.account_id ? 'is-placeholder' : ''}`}
+                                            onClick={() => setAccountOpen(prev => !prev)}
+                                        >
+                                            <span>{selectedAccount ? selectedAccount.Name_en : 'Select Account'}</span>
+                                            <span className="select-dropdown__chevron">▾</span>
+                                        </button>
+                                        {accountOpen && (
+                                            <div className="select-dropdown__menu" role="listbox">
+                                                <div
+                                                    role="option"
+                                                    tabIndex={0}
+                                                    aria-selected={!data.account_id}
+                                                    className={`select-dropdown__option ${!data.account_id ? 'is-selected' : ''}`}
+                                                    onClick={() => handleAccountSelect('')}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' || e.key === ' ') {
+                                                            e.preventDefault();
+                                                            handleAccountSelect('');
+                                                        }
+                                                    }}
+                                                >
+                                                    Select Account
+                                                </div>
+                                                {accounts.map(a => (
+                                                    <div
+                                                        role="option"
+                                                        tabIndex={0}
+                                                        aria-selected={String(data.account_id) === String(a.AccID)}
+                                                        key={a.AccID}
+                                                        className={`select-dropdown__option ${String(data.account_id) === String(a.AccID) ? 'is-selected' : ''}`}
+                                                        onClick={() => handleAccountSelect(a.AccID)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                                e.preventDefault();
+                                                                handleAccountSelect(a.AccID);
+                                                            }
+                                                        }}
+                                                    >
+                                                        {a.Name_en}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                                 <div className="suppliers-module__group">
                                     <label>Tax Number</label>
@@ -583,8 +679,8 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                 <input type="text" value={contact.whatsapp || ''} onChange={e => updateNested('contacts', index, 'whatsapp', e.target.value)} />
                                             </div>
                                             <div className="suppliers-module__group">
-                                                <label>Email</label>
-                                                <input type="email" value={contact.email || ''} onChange={e => updateNested('contacts', index, 'email', e.target.value)} />
+                                                <label>Telegram</label>
+                                                <input type="text" value={contact.telegram || ''} onChange={e => updateNested('contacts', index, 'telegram', e.target.value)} />
                                             </div>
                                             
                                             {/* Booleans */}
@@ -767,7 +863,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                     <tr key={`val-${i}`}>
                                                         <td>{row.supplier_code}</td>
                                                         <td>{row.name_en}</td>
-                                                        <td>{row.email}</td>
+                                                        <td>{row.telegram}</td>
                                                         <td>{row.is_active ? 'Active' : 'Inactive'}</td>
                                                         <td>-</td>
                                                         <td>

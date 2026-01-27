@@ -37,6 +37,7 @@ class SupplierController extends Controller
                       ->orWhere('secondary_phone', 'like', "%{$search}%");
                 });
             })
+            ->orderBy('favorite', 'desc')
             ->orderBy('supplier_code', 'asc')
             ->paginate($perPage)
             ->withQueryString();
@@ -52,6 +53,15 @@ class SupplierController extends Controller
             'warehouses' => Warehouses::all(), // Assuming model name is Warehouses
             'accounts' => Account::where('AccStopped', false)->get(),
         ]);
+    }
+
+    public function toggleFavorite($id)
+    {
+        $supplier = Supplier::findOrFail($id);
+        $supplier->favorite = !$supplier->favorite;
+        $supplier->save();
+
+        return redirect()->back()->with('success', 'Supplier favorite status updated.');
     }
 
     public function bulkImport(Request $request)
@@ -112,10 +122,10 @@ class SupplierController extends Controller
                     continue;
                 }
 
-                // Handle Email Duplication (Set to null if exists)
-                $email = !empty($row['email']) ? $row['email'] : null;
-                if ($email && isset($existingEmails[$email])) {
-                    $email = null; // Clear email to avoid unique constraint violation
+                // Handle Telegram Duplication (Set to null if exists)
+                $telegram = !empty($row['telegram']) ? $row['telegram'] : null;
+                if ($telegram && isset($existingTelegrams[$telegram])) {
+                    $telegram = null; // Clear telegram to avoid unique constraint violation
                 }
 
                 // Prepare data
@@ -125,7 +135,7 @@ class SupplierController extends Controller
                     'name_en' => $row['name_en'] ?? null,
                     'supplier_group_id' => $defaultGroupId,
                     'primary_phone' => $row['primary_phone'] ?? null,
-                    'email' => $email,
+                    'telegram' => $telegram,
                     'is_active' => isset($row['is_active']) ? (bool)$row['is_active'] : true,
                     'created_by' => $userId,
                     'password' => \Illuminate\Support\Facades\Hash::make(Str::random(12)), // Manually hash for bulk insert

@@ -24,7 +24,7 @@ class StoreSupplierRequest extends FormRequest
             'tax_number' => 'nullable|string|max:50',
             'commercial_register' => 'nullable|string|max:50',
             'credit_limit' => 'nullable|numeric|min:0',
-            'email' => 'required|email|max:255',
+            'email' => 'nullable|email|max:255',
             'primary_phone' => 'nullable|string|max:20',
             'is_active' => 'boolean',
 
@@ -43,7 +43,7 @@ class StoreSupplierRequest extends FormRequest
             'contacts.*.department' => 'nullable|string|max:100',
             'contacts.*.phone' => 'nullable|string|max:20',
             'contacts.*.mobile' => 'nullable|string|max:20',
-            'contacts.*.email' => 'nullable|email|max:100',
+            'contacts.*.telegram' => 'nullable|string|max:100',
             'contacts.*.whatsapp' => 'nullable|string|max:20',
             'contacts.*.is_primary' => 'boolean',
             'contacts.*.receive_statements' => 'boolean',

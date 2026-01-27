@@ -50,6 +50,7 @@ class Supplier extends Model
         'is_active',
         'rating',
         'notes',
+        'favorite',
         'created_by',
     ];
 
@@ -67,6 +68,7 @@ class Supplier extends Model
         'is_vendor' => 'boolean',
         'is_manufacturer' => 'boolean',
         'is_active' => 'boolean',
+        'favorite' => 'boolean',
         'rating' => 'integer',
         'created_by' => 'integer',
         'password' => 'hashed', // Use hashed cast for password

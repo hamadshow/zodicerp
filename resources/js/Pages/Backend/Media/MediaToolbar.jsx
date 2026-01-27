@@ -2,6 +2,7 @@ import React from 'react';
 
 export default function MediaToolbar({ 
     onUploadClick, 
+    onImportClick,
     onCreateFolderClick, 
     searchQuery, 
     onSearchChange, 
@@ -16,6 +17,11 @@ export default function MediaToolbar({
           <button type="button" className="btn btn-primary" onClick={onUploadClick}>
             <span className="material-icons-outlined">upload_file</span> <span className="btn-text">Upload</span>
           </button>
+          {onImportClick && (
+            <button type="button" className="btn btn-outline" onClick={onImportClick}>
+              <span className="material-icons-outlined">drive_folder_upload</span> <span className="btn-text">Import Folders</span>
+            </button>
+          )}
           <button type="button" className="btn btn-secondary" onClick={onCreateFolderClick}>
             <span className="material-icons-outlined">create_new_folder</span> <span className="btn-text">New Folder</span>
           </button>

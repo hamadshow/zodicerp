@@ -19,7 +19,7 @@ class SupplierContact extends Model
         'department',
         'phone',
         'mobile',
-        'email',
+        'telegram',
         'whatsapp',
         'is_primary',
         'receive_statements',
