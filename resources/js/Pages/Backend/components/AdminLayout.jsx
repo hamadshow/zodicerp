@@ -193,14 +193,15 @@ const AdminLayout = ({
       ],
     },
     {
-      icon: 'percent',
-      label: 'TAX & VAT',
-      hasSubmenu: true,
-      submenuItems: [
-        { icon: 'settings', label: 'Tax Settings', href: '#' },
-        { icon: 'description', label: 'Tax Reports', href: '#' },
-      ],
-    },
+            icon: 'percent',
+            label: 'TAX & VAT',
+            hasSubmenu: true,
+            submenuItems: [
+                { icon: 'settings', label: 'Tax Types', href: route('admin.taxes.tax-types.index') },
+                { icon: 'settings', label: 'Tax Settings', href: '#' },
+                { icon: 'description', label: 'Tax Reports', href: '#' },
+            ],
+        },
     {
       icon: 'account_balance_wallet',
       label: 'Accounting',

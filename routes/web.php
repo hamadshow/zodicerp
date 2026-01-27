@@ -262,6 +262,10 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Backend/02_human_resource/Salary-Receipt');
     })->name('admin.salary-receipt');
 
+    Route::prefix('admin/taxes')->name('admin.taxes.')->group(function () {
+        Route::resource('tax-types', \App\Http\Controllers\Taxes\TaxTypeController::class);
+    });
+
     Route::get('/admin/tasks', function () {
         return Inertia::render('Backend/Tasks/TaskManager');
     })->middleware('role:admin')->name('admin.tasks');
