@@ -254,25 +254,41 @@ const TaxType = ({ taxTypes = [], countries = [] }) => {
                                 <div className="form-row">
                                     <div className="form-group">
                                         <label className="form-label">Category</label>
-                                        <input
-                                            type="text"
+                                        <select
                                             name="tax_category"
                                             className="form-control"
-                                            defaultValue={currentTaxType?.tax_category}
-                                            placeholder="e.g. VAT, Income Tax"
+                                            defaultValue={currentTaxType?.tax_category || ''}
                                             disabled={isViewMode}
-                                        />
+                                        >
+                                            <option value="">Select Category</option>
+                                            <option value="sales">Sales</option>
+                                            <option value="purchase">Purchase</option>
+                                            <option value="income">Income</option>
+                                            <option value="withholding">Withholding</option>
+                                            <option value="excise">Excise</option>
+                                            <option value="customs">Customs</option>
+                                            <option value="property">Property</option>
+                                            <option value="other">Other</option>
+                                        </select>
                                     </div>
                                     <div className="form-group">
                                         <label className="form-label">Tax Level</label>
-                                        <input
-                                            type="text"
+                                        <select
                                             name="tax_level"
                                             className="form-control"
-                                            defaultValue={currentTaxType?.tax_level}
-                                            placeholder="e.g. Federal, State"
+                                            defaultValue={currentTaxType?.tax_level || ''}
                                             disabled={isViewMode}
-                                        />
+                                            required
+                                        >
+                                            <option value="">Select Level</option>
+                                            <option value="federal">Federal</option>
+                                            <option value="state">State</option>
+                                            <option value="provincial">Provincial</option>
+                                            <option value="county">County</option>
+                                            <option value="city">City</option>
+                                            <option value="municipal">Municipal</option>
+                                            <option value="special">Special</option>
+                                        </select>
                                     </div>
                                 </div>
 

@@ -270,6 +270,9 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Backend/Tasks/TaskManager');
     })->middleware('role:admin')->name('admin.tasks');
 
+    Route::get('/admin/budget', [\App\Http\Controllers\Backend\BudgetController::class, 'index'])->name('admin.budget.index');
+    Route::get('/admin/investing-stack', [\App\Http\Controllers\Backend\InvestingStackController::class, 'index'])->name('admin.investing-stack.index');
+
     Route::resource('/admin/warehouses', \App\Http\Controllers\Inventory\WarehousesController::class)
         ->names([
             'index' => 'admin.warehouses',

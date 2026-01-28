@@ -233,6 +233,8 @@ const AdminLayout = ({
     // { icon: 'reviews', label: 'Reviews' },
     { icon: 'folder', label: 'Media', href: route('admin.media.index') },
     { icon: 'assignment', label: 'Tasks', href: route('admin.tasks') },
+    { icon: 'monetization_on', label: 'Budget', href: route('admin.budget.index') },
+    { icon: 'show_chart', label: 'Investing & Stack', href: route('admin.investing-stack.index') },
     // { icon: 'store', label: 'Marketplace' },
     {
       icon: 'description',
