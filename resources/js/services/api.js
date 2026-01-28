@@ -4,7 +4,7 @@ import { router } from '@inertiajs/react';
 // Create axios instance
 const api = axios.create({
   baseURL: '/api', // Laravel API base URL
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',

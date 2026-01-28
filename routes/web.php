@@ -271,6 +271,14 @@ Route::middleware('auth')->group(function () {
     })->middleware('role:admin')->name('admin.tasks');
 
     Route::get('/admin/budget', [\App\Http\Controllers\Backend\BudgetController::class, 'index'])->name('admin.budget.index');
+    Route::resource('/admin/budget/categories', \App\Http\Controllers\Budget\BudgetCategoryController::class)
+        ->names([
+            'index' => 'admin.budget.categories.index',
+            'store' => 'admin.budget.categories.store',
+            'update' => 'admin.budget.categories.update',
+            'destroy' => 'admin.budget.categories.destroy',
+        ])->except(['create', 'edit', 'show']);
+
     Route::get('/admin/investing-stack', [\App\Http\Controllers\Backend\InvestingStackController::class, 'index'])->name('admin.investing-stack.index');
 
     Route::resource('/admin/warehouses', \App\Http\Controllers\Inventory\WarehousesController::class)
@@ -443,6 +451,15 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('admin/assets')->name('admin.assets.')->group(function () {
         Route::resource('asset-categories', \App\Http\Controllers\Assets\AssetCategoryController::class)
+            ->except(['create', 'edit', 'show']);
+    });
+
+    Route::prefix('admin/investing-stack')->name('admin.investing-stack.')->group(function () {
+        Route::resource('listed-companies', \App\Http\Controllers\InvestingStack\ListedCompanyController::class)
+            ->except(['create', 'edit', 'show']);
+        Route::resource('sectors', \App\Http\Controllers\InvestingStack\SectorController::class)
+            ->except(['create', 'edit', 'show']);
+        Route::resource('industries', \App\Http\Controllers\InvestingStack\IndustryController::class)
             ->except(['create', 'edit', 'show']);
     });
 

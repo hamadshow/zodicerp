@@ -233,8 +233,25 @@ const AdminLayout = ({
     // { icon: 'reviews', label: 'Reviews' },
     { icon: 'folder', label: 'Media', href: route('admin.media.index') },
     { icon: 'assignment', label: 'Tasks', href: route('admin.tasks') },
-    { icon: 'monetization_on', label: 'Budget', href: route('admin.budget.index') },
-    { icon: 'show_chart', label: 'Investing & Stack', href: route('admin.investing-stack.index') },
+    {
+      icon: 'monetization_on',
+      label: 'Budget',
+      hasSubmenu: true,
+      submenuItems: [
+        { icon: 'list', label: 'Budget List', href: route('admin.budget.index') },
+        { icon: 'category', label: 'Budget Categories', href: route('admin.budget.categories.index') },
+      ],
+    },
+    {
+      icon: 'show_chart',
+      label: 'Investing & Stack',
+      hasSubmenu: true,
+      submenuItems: [
+        { icon: 'business', label: 'Listed Companies', href: route('admin.investing-stack.listed-companies.index') },
+        { icon: 'category', label: 'Sectors', href: route('admin.investing-stack.sectors.index') },
+        { icon: 'domain', label: 'Industries', href: route('admin.investing-stack.industries.index') },
+      ],
+    },
     // { icon: 'store', label: 'Marketplace' },
     {
       icon: 'description',

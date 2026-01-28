@@ -116,64 +116,41 @@ const TaskManager = () => {
       );
     };
     try {
-      const [
-        categoriesRes,
-        prioritiesRes,
-        statusesRes,
-        employeesRes,
-        statsRes,
-      ] = await Promise.all([
-        apiService.get('/tasks/categories'),
-        apiService.get('/tasks/priorities'),
-        apiService.get('/tasks/statuses'),
-        apiService.get('/employees', { params: { per_page: 1000 } }),
-        apiService.get('/tasks/statistics'),
-      ]);
-
+      // Fetch data sequentially to avoid timeouts on single-threaded dev server
+      
+      const categoriesRes = await apiService.get('/tasks/categories');
       if (isJsonResponse(categoriesRes)) {
         const categoriesData = categoriesRes.data;
         setCategories(categoriesData.data || categoriesData);
       } else {
-        const raw =
-          typeof categoriesRes.data === 'string' ? categoriesRes.data : '';
-        console.error('Categories response is not JSON:', raw);
-        showToast('Error loading categories. Please try again.', 'error');
-        return;
+        console.error('Categories response is not JSON');
       }
 
+      const prioritiesRes = await apiService.get('/tasks/priorities');
       if (isJsonResponse(prioritiesRes)) {
         const prioritiesData = prioritiesRes.data;
         setPriorities(prioritiesData.data || prioritiesData);
       } else {
-        const raw =
-          typeof prioritiesRes.data === 'string' ? prioritiesRes.data : '';
-        console.error('Priorities response is not JSON:', raw);
-        showToast('Error loading priorities. Please try again.', 'error');
-        return;
+        console.error('Priorities response is not JSON');
       }
 
+      const statusesRes = await apiService.get('/tasks/statuses');
       if (isJsonResponse(statusesRes)) {
         const statusesData = statusesRes.data;
         setStatuses(statusesData.data || statusesData);
       } else {
-        const raw =
-          typeof statusesRes.data === 'string' ? statusesRes.data : '';
-        console.error('Statuses response is not JSON:', raw);
-        showToast('Error loading statuses. Please try again.', 'error');
-        return;
+        console.error('Statuses response is not JSON');
       }
 
+      const employeesRes = await apiService.get('/employees', { params: { per_page: 1000 } });
       if (isJsonResponse(employeesRes)) {
         const employeesData = employeesRes.data;
         setEmployees(employeesData.data || employeesData);
       } else {
-        const raw =
-          typeof employeesRes.data === 'string' ? employeesRes.data : '';
-        console.error('Employees response is not JSON:', raw);
-        showToast('Error loading employees. Please try again.', 'error');
-        return;
+        console.error('Employees response is not JSON');
       }
 
+      const statsRes = await apiService.get('/tasks/statistics');
       if (isJsonResponse(statsRes)) {
         const statsData = statsRes.data;
         setStatsData({
@@ -183,10 +160,7 @@ const TaskManager = () => {
           overdueTasks: statsData.overdue_tasks,
         });
       } else {
-        const raw = typeof statsRes.data === 'string' ? statsRes.data : '';
-        console.error('Statistics response is not JSON:', raw);
-        showToast('Error loading statistics. Please try again.', 'error');
-        return;
+        console.error('Statistics response is not JSON');
       }
 
       await fetchTasks();
