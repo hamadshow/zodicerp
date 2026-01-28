@@ -270,7 +270,13 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Backend/Tasks/TaskManager');
     })->middleware('role:admin')->name('admin.tasks');
 
-    Route::get('/admin/budget', [\App\Http\Controllers\Backend\BudgetController::class, 'index'])->name('admin.budget.index');
+    Route::resource('/admin/budgets', \App\Http\Controllers\Backend\BudgetController::class)
+        ->names([
+            'index' => 'admin.budget.index', // Keep existing name for sidebar compatibility if needed, but Budget.jsx uses admin.budgets.*
+            'store' => 'admin.budgets.store',
+            'update' => 'admin.budgets.update',
+            'destroy' => 'admin.budgets.destroy',
+        ]);
     Route::resource('/admin/budget/categories', \App\Http\Controllers\Budget\BudgetCategoryController::class)
         ->names([
             'index' => 'admin.budget.categories.index',
@@ -404,6 +410,15 @@ Route::middleware('auth')->group(function () {
         Route::post('/journals', [JournalController::class, 'store']);
         Route::put('/journals/{entryCode}', [JournalController::class, 'update']);
         Route::delete('/journals/{entryCode}', [JournalController::class, 'destroy']);
+
+        // Budget
+        Route::resource('/admin/budgets', \App\Http\Controllers\Budget\BudgetController::class)
+            ->names([
+                'index' => 'admin.budgets.index',
+                'store' => 'admin.budgets.store',
+                'update' => 'admin.budgets.update',
+                'destroy' => 'admin.budgets.destroy',
+            ])->except(['create', 'edit', 'show']);
 
         Route::get('/reports/general-ledger', [JournalController::class, 'generalLedger']);
 

@@ -238,7 +238,7 @@ const AdminLayout = ({
       label: 'Budget',
       hasSubmenu: true,
       submenuItems: [
-        { icon: 'list', label: 'Budget List', href: route('admin.budget.index') },
+        { icon: 'list', label: 'Budget', href: route('admin.budget.index') },
         { icon: 'category', label: 'Budget Categories', href: route('admin.budget.categories.index') },
       ],
     },
