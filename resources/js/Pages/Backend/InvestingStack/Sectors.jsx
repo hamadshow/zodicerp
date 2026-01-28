@@ -328,7 +328,7 @@ const Sectors = ({ sectors, parentSectors }) => {
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this sector?')) {
-            router.delete(route('sectors.destroy', id), {
+            router.delete(route('admin.investing-stack.sectors.destroy', id), {
                 preserveScroll: true,
                 onSuccess: () => {
                     // Success notification handled by flash message in layout
@@ -339,11 +339,11 @@ const Sectors = ({ sectors, parentSectors }) => {
 
     const handleSubmit = (data) => {
         if (viewMode === 'edit') {
-            router.put(route('sectors.update', selectedSector.id), data, {
+            router.put(route('admin.investing-stack.sectors.update', selectedSector.id), data, {
                 onSuccess: () => setViewMode('list'),
             });
         } else {
-            router.post(route('sectors.store'), data, {
+            router.post(route('admin.investing-stack.sectors.store'), data, {
                 onSuccess: () => setViewMode('list'),
             });
         }

@@ -317,7 +317,7 @@ const ListedCompanies = ({ companies, countries, currencies }) => {
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this company?')) {
-            router.delete(route('listed-companies.destroy', id), {
+            router.delete(route('admin.investing-stack.listed-companies.destroy', id), {
                 preserveScroll: true,
                 onSuccess: () => {
                     // Success notification handled by flash message in layout
@@ -328,11 +328,11 @@ const ListedCompanies = ({ companies, countries, currencies }) => {
 
     const handleSubmit = (data) => {
         if (viewMode === 'edit') {
-            router.put(route('listed-companies.update', selectedCompany.id), data, {
+            router.put(route('admin.investing-stack.listed-companies.update', selectedCompany.id), data, {
                 onSuccess: () => setViewMode('list'),
             });
         } else {
-            router.post(route('listed-companies.store'), data, {
+            router.post(route('admin.investing-stack.listed-companies.store'), data, {
                 onSuccess: () => setViewMode('list'),
             });
         }
