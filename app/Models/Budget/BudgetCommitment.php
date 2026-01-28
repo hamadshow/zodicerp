@@ -59,7 +59,7 @@ class BudgetCommitment extends Model
         if (class_exists(\App\Models\Vendor_Purchases\Supplier::class)) {
              return $this->belongsTo(\App\Models\Vendor_Purchases\Supplier::class, 'vendor_id');
         }
-        return $this->belongsTo(\App\Models\Vendor::class, 'vendor_id');
+        return $this->belongsTo(\App\Models\Vendor_Purchases\Supplier::class, 'vendor_id');
     }
 
     public function creator(): BelongsTo

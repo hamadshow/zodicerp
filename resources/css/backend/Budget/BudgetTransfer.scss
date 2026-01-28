@@ -1,0 +1,302 @@
+.budget-transfers-page {
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    min-height: 100vh;
+
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+
+        h1 {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            font-weight: 600;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+    }
+
+    .filters-bar {
+        background: white;
+        padding: 1rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        margin-bottom: 1.5rem;
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+
+        .search-input {
+            flex: 1;
+            min-width: 200px;
+            position: relative;
+            
+            input {
+                width: 100%;
+                padding: 0.5rem 1rem 0.5rem 2.5rem;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                
+                &:focus {
+                    outline: none;
+                    border-color: #3b82f6;
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+                }
+            }
+            
+            i {
+                position: absolute;
+                left: 0.75rem;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #94a3b8;
+            }
+        }
+
+        select {
+            padding: 0.5rem 2rem 0.5rem 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background-color: white;
+            cursor: pointer;
+        }
+    }
+
+    .transfers-table {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+
+            th {
+                background: #f8fafc;
+                padding: 1rem;
+                text-align: left;
+                font-weight: 600;
+                color: #475569;
+                border-bottom: 1px solid #e2e8f0;
+                font-size: 0.875rem;
+            }
+
+            td {
+                padding: 1rem;
+                border-bottom: 1px solid #f1f5f9;
+                color: #1e293b;
+                font-size: 0.875rem;
+
+                .status-badge {
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 9999px;
+                    font-size: 0.75rem;
+                    font-weight: 500;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 0.25rem;
+
+                    &.draft { background: #f1f5f9; color: #475569; }
+                    &.pending_approval { background: #fff7ed; color: #c2410c; }
+                    &.approved { background: #f0fdf4; color: #15803d; }
+                    &.rejected { background: #fef2f2; color: #b91c1c; }
+                    &.completed { background: #ecfdf5; color: #047857; }
+                }
+
+                .btn-icon {
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    padding: 0.5rem;
+                    border-radius: 50%;
+                    transition: background-color 0.2s;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+
+                    &:hover {
+                        background-color: rgba(0, 0, 0, 0.05);
+                    }
+                }
+            }
+
+            tr:hover {
+                background-color: #f8fafc;
+            }
+        }
+    }
+
+    .transfer-form-container {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+
+        .form-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 1rem;
+
+            h2 {
+                font-size: 1.25rem;
+                font-weight: 600;
+                color: #1e293b;
+            }
+        }
+
+        .panels-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 2rem;
+
+            @media (max-width: 768px) {
+                grid-template-columns: 1fr;
+            }
+
+            .panel {
+                background: #f8fafc;
+                padding: 1.5rem;
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+
+                h3 {
+                    font-size: 1rem;
+                    font-weight: 600;
+                    color: #334155;
+                    margin-bottom: 1.5rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    
+                    i { color: #64748b; }
+                }
+
+                &.from-panel { border-left: 4px solid #ef4444; }
+                &.to-panel { border-left: 4px solid #22c55e; }
+            }
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+
+            label {
+                display: block;
+                font-size: 0.875rem;
+                font-weight: 500;
+                color: #475569;
+                margin-bottom: 0.5rem;
+            }
+
+            input, select, textarea {
+                width: 100%;
+                padding: 0.625rem;
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                font-size: 0.875rem;
+                transition: all 0.2s;
+
+                &:focus {
+                    border-color: #3b82f6;
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+                    outline: none;
+                }
+
+                &:disabled {
+                    background-color: #f1f5f9;
+                    cursor: not-allowed;
+                }
+            }
+            
+            .balance-info {
+                margin-top: 0.25rem;
+                font-size: 0.75rem;
+                color: #64748b;
+                display: flex;
+                justify-content: space-between;
+                
+                &.warning { color: #dc2626; }
+            }
+        }
+    }
+}
+
+// Dark Mode Support
+:global(.dark) {
+    .budget-transfers-page {
+        background-color: #0f172a;
+
+        .page-header h1 { color: #f8fafc; }
+
+        .filters-bar {
+            background: #1e293b;
+            .search-input input, select {
+                background: #334155;
+                border-color: #475569;
+                color: #f8fafc;
+            }
+            .search-input i { color: #94a3b8; }
+        }
+
+        .transfers-table {
+            background: #1e293b;
+            
+            table {
+                th {
+                    background: #334155;
+                    color: #e2e8f0;
+                    border-bottom-color: #475569;
+                }
+                td {
+                    color: #f1f5f9;
+                    border-bottom-color: #334155;
+                    .btn-icon:hover { background-color: rgba(255, 255, 255, 0.1); }
+                }
+                tr:hover { background-color: #334155; }
+            }
+        }
+
+        .transfer-form-container {
+            background: #1e293b;
+            
+            .form-header {
+                border-bottom-color: #334155;
+                h2 { color: #f8fafc; }
+            }
+
+            .panels-grid .panel {
+                background: #334155;
+                border-color: #475569;
+                h3 { color: #e2e8f0; }
+                
+                &.from-panel { border-left-color: #ef4444; }
+                &.to-panel { border-left-color: #22c55e; }
+            }
+
+            .form-group {
+                label { color: #cbd5e1; }
+                input, select, textarea {
+                    background: #334155;
+                    border-color: #475569;
+                    color: #f8fafc;
+                    &:disabled { background: #475569; }
+                }
+            }
+        }
+    }
+}

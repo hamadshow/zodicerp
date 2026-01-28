@@ -51,6 +51,7 @@
     },
     "dependencies": {
         "@inertiajs/inertia": "^0.11.1",
+        "date-fns": "^4.1.0",
         "html2pdf.js": "^0.14.0",
         "leaflet": "^1.9.4",
         "puppeteer": "^24.34.0",

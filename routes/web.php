@@ -270,13 +270,74 @@ Route::middleware('auth')->group(function () {
         return Inertia::render('Backend/Tasks/TaskManager');
     })->middleware('role:admin')->name('admin.tasks');
 
-    Route::resource('/admin/budgets', \App\Http\Controllers\Backend\BudgetController::class)
+    Route::resource('/admin/budgets', \App\Http\Controllers\Budget\BudgetController::class)
         ->names([
             'index' => 'admin.budget.index', // Keep existing name for sidebar compatibility if needed, but Budget.jsx uses admin.budgets.*
             'store' => 'admin.budgets.store',
             'update' => 'admin.budgets.update',
             'destroy' => 'admin.budgets.destroy',
         ]);
+
+    // Budget Forecast Routes
+    Route::get('/admin/budget/forecasts/items/{budgetId}', [\App\Http\Controllers\Budget\BudgetForecastController::class, 'getBudgetItems']);
+    
+    Route::resource('/admin/budget/forecasts', \App\Http\Controllers\Budget\BudgetForecastController::class)
+        ->names([
+            'index' => 'admin.budget.forecasts.index',
+            'store' => 'admin.budget.forecasts.store',
+            'update' => 'admin.budget.forecasts.update',
+            'destroy' => 'admin.budget.forecasts.destroy',
+        ])->except(['create', 'edit', 'show']);
+
+    Route::post('/admin/budget/forecasts/{id}/submit', [\App\Http\Controllers\Budget\BudgetForecastController::class, 'submitForApproval'])->name('admin.budget.forecasts.submit');
+    Route::post('/admin/budget/forecasts/{id}/approve', [\App\Http\Controllers\Budget\BudgetForecastController::class, 'approve'])->name('admin.budget.forecasts.approve');
+    Route::post('/admin/budget/forecasts/{id}/reject', [\App\Http\Controllers\Budget\BudgetForecastController::class, 'reject'])->name('admin.budget.forecasts.reject');
+    Route::post('/admin/budget/forecasts/{id}/implement', [\App\Http\Controllers\Budget\BudgetForecastController::class, 'implement'])->name('admin.budget.forecasts.implement');
+
+    // Budget Monitoring Routes
+    Route::resource('/admin/budget/monitoring', \App\Http\Controllers\Budget\BudgetMonitoringController::class)
+        ->names([
+            'index' => 'admin.budget.monitoring.index',
+            'store' => 'admin.budget.monitoring.store',
+            'update' => 'admin.budget.monitoring.update',
+            'destroy' => 'admin.budget.monitoring.destroy',
+        ])->except(['create', 'edit', 'show']);
+
+    // Budget Transfer Routes
+    Route::get('/admin/budget/transfers/items/{budgetId}', [\App\Http\Controllers\Budget\BudgetTransferController::class, 'getBudgetItems'])->name('admin.budget.transfers.items');
+    Route::post('/admin/budget/transfers/{transfer}/submit', [\App\Http\Controllers\Budget\BudgetTransferController::class, 'submit'])->name('admin.budget.transfers.submit');
+    Route::post('/admin/budget/transfers/{transfer}/approve', [\App\Http\Controllers\Budget\BudgetTransferController::class, 'approve'])->name('admin.budget.transfers.approve');
+    Route::post('/admin/budget/transfers/{transfer}/reject', [\App\Http\Controllers\Budget\BudgetTransferController::class, 'reject'])->name('admin.budget.transfers.reject');
+    Route::post('/admin/budget/transfers/{transfer}/complete', [\App\Http\Controllers\Budget\BudgetTransferController::class, 'complete'])->name('admin.budget.transfers.complete');
+    
+    Route::resource('/admin/budget/transfers', \App\Http\Controllers\Budget\BudgetTransferController::class)
+        ->names([
+            'index' => 'admin.budget.transfers.index',
+            'store' => 'admin.budget.transfers.store',
+            'update' => 'admin.budget.transfers.update',
+            'destroy' => 'admin.budget.transfers.destroy',
+        ])->except(['create', 'edit', 'show']);
+
+    // Budget Commitment Routes
+    Route::get('/admin/budget/commitments/items/{budgetId}', [\App\Http\Controllers\Budget\BudgetCommitmentController::class, 'getBudgetItems'])->name('admin.budget.commitments.items');
+    Route::get('/admin/budget/commitments/vendors', [\App\Http\Controllers\Budget\BudgetCommitmentController::class, 'getVendors'])->name('admin.budget.commitments.vendors');
+    Route::post('/admin/budget/commitments/{commitment}/utilize', [\App\Http\Controllers\Budget\BudgetCommitmentController::class, 'markUtilized'])->name('admin.budget.commitments.utilize');
+    Route::post('/admin/budget/commitments/{commitment}/close', [\App\Http\Controllers\Budget\BudgetCommitmentController::class, 'close'])->name('admin.budget.commitments.close');
+    
+    Route::resource('/admin/budget/commitments', \App\Http\Controllers\Budget\BudgetCommitmentController::class)
+        ->names([
+            'index' => 'admin.budget.commitments.index',
+            'store' => 'admin.budget.commitments.store',
+            'update' => 'admin.budget.commitments.update',
+            'destroy' => 'admin.budget.commitments.destroy',
+        ])->except(['create', 'edit', 'show']);
+
+    Route::post('/admin/budget/monitoring/{id}/acknowledge', [\App\Http\Controllers\Budget\BudgetMonitoringController::class, 'acknowledge'])->name('admin.budget.monitoring.acknowledge');
+Route::post('/admin/budget/monitoring/{id}/follow-up', [\App\Http\Controllers\Budget\BudgetMonitoringController::class, 'followUp'])->name('admin.budget.monitoring.follow-up');
+Route::post('/admin/budget/monitoring/{id}/mark-done', [\App\Http\Controllers\Budget\BudgetMonitoringController::class, 'markActionDone'])->name('admin.budget.monitoring.mark-done');
+Route::get('/admin/budget/monitoring/export', [\App\Http\Controllers\Budget\BudgetMonitoringController::class, 'export'])->name('admin.budget.monitoring.export');
+Route::get('/admin/budget/monitoring/items/{budgetId}', [\App\Http\Controllers\Budget\BudgetMonitoringController::class, 'getBudgetItems'])->name('admin.budget.monitoring.items');
+
     Route::resource('/admin/budget/categories', \App\Http\Controllers\Budget\BudgetCategoryController::class)
         ->names([
             'index' => 'admin.budget.categories.index',
@@ -285,7 +346,7 @@ Route::middleware('auth')->group(function () {
             'destroy' => 'admin.budget.categories.destroy',
         ])->except(['create', 'edit', 'show']);
 
-    Route::get('/admin/investing-stack', [\App\Http\Controllers\Backend\InvestingStackController::class, 'index'])->name('admin.investing-stack.index');
+    Route::get('/admin/investing-stack', [\App\Http\Controllers\InvestingStack\InvestingStackController::class, 'index'])->name('admin.investing-stack.index');
 
     Route::resource('/admin/warehouses', \App\Http\Controllers\Inventory\WarehousesController::class)
         ->names([
@@ -296,7 +357,7 @@ Route::middleware('auth')->group(function () {
             'destroy' => 'admin.warehouses.destroy',
         ])->except(['create', 'edit']);
 
-    Route::resource('/admin/item-units', \App\Http\Controllers\Backend\ItemUnitController::class)
+    Route::resource('/admin/item-units', \App\Http\Controllers\Inventory\ItemUnitController::class)
         ->names([
             'index' => 'admin.item-units.index',
             'store' => 'admin.item-units.store',
@@ -304,7 +365,7 @@ Route::middleware('auth')->group(function () {
             'destroy' => 'admin.item-units.destroy',
         ])->except(['create', 'edit', 'show']);
 
-    Route::resource('/admin/item-attributes', \App\Http\Controllers\Backend\ItemAttributeController::class)
+    Route::resource('/admin/item-attributes', \App\Http\Controllers\Inventory\ItemAttributeController::class)
         ->names([
             'index' => 'admin.item-attributes.index',
             'create' => 'admin.item-attributes.create',
@@ -314,7 +375,7 @@ Route::middleware('auth')->group(function () {
             'destroy' => 'admin.item-attributes.destroy',
         ])->except(['show']);
 
-    Route::resource('/admin/item-collections', \App\Http\Controllers\Backend\ItemCollectionController::class)
+    Route::resource('/admin/item-collections', \App\Http\Controllers\Inventory\ItemCollectionController::class)
         ->names([
             'index' => 'admin.item-collections.index',
             'create' => 'admin.item-collections.create',

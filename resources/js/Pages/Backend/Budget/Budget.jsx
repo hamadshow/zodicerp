@@ -68,9 +68,14 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                                 <td>{Number(budget.total_revenue).toLocaleString()}</td>
                                 <td>{Number(budget.total_expense).toLocaleString()}</td>
                                 <td>
-                                    <button className="btn-icon" onClick={(e) => { e.stopPropagation(); handleEdit(budget); }}>
-                                        <i className="material-icons">edit</i>
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button className="btn-icon" onClick={(e) => { e.stopPropagation(); handleEdit(budget); }}>
+                                            <i className="material-icons">edit</i>
+                                        </button>
+                                        <button className="btn-icon text-red-500" onClick={(e) => { e.stopPropagation(); handleDelete(budget.id); }}>
+                                            <i className="material-icons">delete</i>
+                                        </button>
+                                    </div>
                                 </td>
                             </tr>
                         ))}
@@ -82,6 +87,12 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
     );
 
     // --- Form Actions ---
+    const handleDelete = (id) => {
+        if (confirm('Are you sure you want to delete this budget?')) {
+            router.delete(route('admin.budgets.destroy', id));
+        }
+    };
+
     const handleCreate = () => {
         reset();
         setData(prev => ({ ...prev, budget_number: `BUD-${new Date().getTime()}` })); // Simple auto-gen
@@ -92,6 +103,8 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
     const handleEdit = (budget) => {
         setData({
             ...budget,
+            start_date: budget.start_date ? budget.start_date.split('T')[0] : '',
+            end_date: budget.end_date ? budget.end_date.split('T')[0] : '',
             items: budget.items || [] // Assuming items are eager loaded or fetched
         });
         setViewMode('edit');
@@ -168,22 +181,22 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
         <div className="form-section animate-fade-in">
             <div className="form-group">
                 <label>Budget Number</label>
-                <input type="text" value={data.budget_number} onChange={e => setData('budget_number', e.target.value)} />
+                <input type="text" value={data.budget_number || ''} onChange={e => setData('budget_number', e.target.value)} />
                 {errors.budget_number && <span className="error">{errors.budget_number}</span>}
             </div>
             <div className="form-group">
                 <label>Budget Name (EN)</label>
-                <input type="text" value={data.budget_name_en} onChange={e => setData('budget_name_en', e.target.value)} />
+                <input type="text" value={data.budget_name_en || ''} onChange={e => setData('budget_name_en', e.target.value)} />
                 {errors.budget_name_en && <span className="error" style={{ color: 'red' }}>{errors.budget_name_en}</span>}
             </div>
             <div className="form-group">
                 <label>Budget Name (AR)</label>
-                <input type="text" value={data.budget_name_ar} onChange={e => setData('budget_name_ar', e.target.value)} />
+                <input type="text" value={data.budget_name_ar || ''} onChange={e => setData('budget_name_ar', e.target.value)} />
                 {errors.budget_name_ar && <span className="error" style={{ color: 'red' }}>{errors.budget_name_ar}</span>}
             </div>
             <div className="form-group">
                 <label>Budget Type</label>
-                <select value={data.budget_type} onChange={e => setData('budget_type', e.target.value)}>
+                <select value={data.budget_type || ''} onChange={e => setData('budget_type', e.target.value)}>
                     <option value="annual">Annual</option>
                     <option value="quarterly">Quarterly</option>
                     <option value="monthly">Monthly</option>
@@ -194,7 +207,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
             </div>
             <div className="form-group">
                 <label>Scope Type</label>
-                <select value={data.scope_type} onChange={e => setData('scope_type', e.target.value)}>
+                <select value={data.scope_type || ''} onChange={e => setData('scope_type', e.target.value)}>
                     <option value="company">Company</option>
                     <option value="department">Department</option>
                     <option value="project">Project</option>
@@ -205,47 +218,47 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
             </div>
             <div className="form-group">
                 <label>Fiscal Year</label>
-                <input type="number" value={data.fiscal_year} onChange={e => setData('fiscal_year', e.target.value)} />
+                <input type="number" value={data.fiscal_year || ''} onChange={e => setData('fiscal_year', e.target.value)} />
             </div>
             <div className="form-group">
                 <label>Start Date</label>
-                <input type="date" value={data.start_date} onChange={e => setData('start_date', e.target.value)} />
+                <input type="date" value={data.start_date || ''} onChange={e => setData('start_date', e.target.value)} />
             </div>
             <div className="form-group">
                 <label>End Date</label>
-                <input type="date" value={data.end_date} onChange={e => setData('end_date', e.target.value)} />
+                <input type="date" value={data.end_date || ''} onChange={e => setData('end_date', e.target.value)} />
             </div>
             <div className="form-group">
                 <label>Department</label>
-                <select value={data.department_id} onChange={e => setData('department_id', e.target.value)}>
+                <select value={data.department_id || ''} onChange={e => setData('department_id', e.target.value)}>
                     <option value="">Select Department</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name_en}</option>)}
                 </select>
             </div>
             <div className="form-group">
                 <label>Currency</label>
-                <select value={data.currency_id} onChange={e => setData('currency_id', e.target.value)}>
+                <select value={data.currency_id || ''} onChange={e => setData('currency_id', e.target.value)}>
                     <option value="">Select Currency</option>
                     {currencies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
                 </select>
             </div>
             <div className="form-group">
                 <label>Branch</label>
-                <select value={data.branch_id} onChange={e => setData('branch_id', e.target.value)}>
+                <select value={data.branch_id || ''} onChange={e => setData('branch_id', e.target.value)}>
                     <option value="">Select Branch</option>
                     {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
             </div>
              <div className="form-group">
                 <label>Project (Optional)</label>
-                 <select value={data.project_id} onChange={e => setData('project_id', e.target.value)}>
+                 <select value={data.project_id || ''} onChange={e => setData('project_id', e.target.value)}>
                     <option value="">Select Project</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
             </div>
              <div className="form-group">
                 <label>Cost Center (Optional)</label>
-                 <select value={data.cost_center_id} onChange={e => setData('cost_center_id', e.target.value)}>
+                 <select value={data.cost_center_id || ''} onChange={e => setData('cost_center_id', e.target.value)}>
                     <option value="">Select Cost Center</option>
                     {costCenters.map(cc => <option key={cc.id} value={cc.id}>{cc.name}</option>)}
                 </select>
@@ -253,13 +266,13 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
             
             <div className="form-group">
                 <label className="toggle-switch">
-                    <input type="checkbox" checked={data.allow_over_budget} onChange={e => setData('allow_over_budget', e.target.checked)} />
+                    <input type="checkbox" checked={data.allow_over_budget || false} onChange={e => setData('allow_over_budget', e.target.checked)} />
                     Allow Over Budget
                 </label>
             </div>
              <div className="form-group">
                 <label className="toggle-switch">
-                    <input type="checkbox" checked={data.require_approval_over_budget} onChange={e => setData('require_approval_over_budget', e.target.checked)} />
+                    <input type="checkbox" checked={data.require_approval_over_budget || false} onChange={e => setData('require_approval_over_budget', e.target.checked)} />
                     Require Approval
                 </label>
             </div>
@@ -290,7 +303,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                             <tr key={index}>
                                 <td>
                                     <select 
-                                        value={item.category_id} 
+                                        value={item.category_id || ''} 
                                         onChange={e => updateItem(index, 'category_id', e.target.value)}
                                         style={{ width: '150px' }}
                                     >
@@ -300,7 +313,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                                 </td>
                                 <td>
                                     <select 
-                                        value={item.account_id} 
+                                        value={item.account_id || ''} 
                                         onChange={e => updateItem(index, 'account_id', e.target.value)}
                                         style={{ width: '150px' }}
                                     >
@@ -310,7 +323,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                                 </td>
                                 <td>
                                     <select
-                                        value={item.calculation_method}
+                                        value={item.calculation_method || ''}
                                         onChange={e => updateItem(index, 'calculation_method', e.target.value)}
                                         style={{ width: '120px' }}
                                     >
@@ -333,7 +346,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                                     <input 
                                         type="number" 
                                         className="grid-input"
-                                        value={item.annual_amount} 
+                                        value={item.annual_amount || 0} 
                                         readOnly 
                                         style={{ background: '#f8f9fa' }}
                                     />
