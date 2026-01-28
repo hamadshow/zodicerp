@@ -174,10 +174,34 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
             <div className="form-group">
                 <label>Budget Name (EN)</label>
                 <input type="text" value={data.budget_name_en} onChange={e => setData('budget_name_en', e.target.value)} />
+                {errors.budget_name_en && <span className="error" style={{ color: 'red' }}>{errors.budget_name_en}</span>}
             </div>
             <div className="form-group">
                 <label>Budget Name (AR)</label>
                 <input type="text" value={data.budget_name_ar} onChange={e => setData('budget_name_ar', e.target.value)} />
+                {errors.budget_name_ar && <span className="error" style={{ color: 'red' }}>{errors.budget_name_ar}</span>}
+            </div>
+            <div className="form-group">
+                <label>Budget Type</label>
+                <select value={data.budget_type} onChange={e => setData('budget_type', e.target.value)}>
+                    <option value="annual">Annual</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="project">Project</option>
+                    <option value="rolling">Rolling</option>
+                </select>
+                {errors.budget_type && <span className="error" style={{ color: 'red' }}>{errors.budget_type}</span>}
+            </div>
+            <div className="form-group">
+                <label>Scope Type</label>
+                <select value={data.scope_type} onChange={e => setData('scope_type', e.target.value)}>
+                    <option value="company">Company</option>
+                    <option value="department">Department</option>
+                    <option value="project">Project</option>
+                    <option value="cost_center">Cost Center</option>
+                    <option value="branch">Branch</option>
+                </select>
+                {errors.scope_type && <span className="error" style={{ color: 'red' }}>{errors.scope_type}</span>}
             </div>
             <div className="form-group">
                 <label>Fiscal Year</label>

@@ -48,10 +48,13 @@ class BudgetController extends Controller
     {
         $request->validate([
             'budget_number' => 'required|string|unique:budgets,budget_number',
+            'budget_name_ar' => 'required|string',
             'budget_name_en' => 'required|string',
             'fiscal_year' => 'required|integer',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date',
+            'budget_type' => 'required|in:annual,quarterly,monthly,project,rolling',
+            'scope_type' => 'required|in:company,department,project,cost_center,branch',
         ]);
 
         DB::transaction(function () use ($request) {
@@ -73,8 +76,11 @@ class BudgetController extends Controller
 
         $request->validate([
             'budget_number' => 'required|string|unique:budgets,budget_number,' . $budget->id,
+            'budget_name_ar' => 'required|string',
             'budget_name_en' => 'required|string',
             'fiscal_year' => 'required|integer',
+            'budget_type' => 'sometimes|in:annual,quarterly,monthly,project,rolling',
+            'scope_type' => 'sometimes|in:company,department,project,cost_center,branch',
         ]);
 
         DB::transaction(function () use ($request, $budget) {
