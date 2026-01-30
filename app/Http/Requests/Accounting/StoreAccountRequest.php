@@ -82,7 +82,20 @@ class StoreAccountRequest extends FormRequest
                 return;
             }
 
+            if ((int) $parentCode === 0) {
+                return;
+            }
+
+            $accCode = (int) $this->input('AccCode');
+            if ($accCode && (int) $parentCode === $accCode) {
+                $validator->errors()->add('AccParent', 'Parent cannot be the same as the account.');
+                return;
+            }
+
             $parent = Account::where('AccCode', $parentCode)->first();
+            if (!$parent) {
+                $validator->errors()->add('AccParent', 'Parent account code does not exist.');
+            }
 
         });
     }

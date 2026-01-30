@@ -14,7 +14,7 @@ export default function BudgetCommitment({ commitments, budgets, filters }) {
     const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
 
     // Form handling
-    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
+    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         budget_id: '',
         budget_item_id: '',
         reference_type: 'purchase_order',
@@ -141,11 +141,12 @@ export default function BudgetCommitment({ commitments, budgets, filters }) {
             case 'close':
                 url = route('admin.budget.commitments.close', commitment.id);
                 break;
-            case 'utilize':
+            case 'utilize': {
                 const amount = prompt("Enter amount to utilize:");
                 if (!amount) return;
                 router.post(route('admin.budget.commitments.utilize', commitment.id), { amount });
                 return;
+            }
         }
 
         router[method](url, {}, { preserveScroll: true });

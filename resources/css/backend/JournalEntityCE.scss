@@ -22,6 +22,10 @@
   flex: 1;
 }
 
+.journal-ce-header-row .form-group .form-control {
+  width: 100%;
+}
+
 .journal-ce-header-row .form-group.full-width {
   flex: 1 1 100%;
 }
@@ -40,6 +44,7 @@
 .journal-ce-lines-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: fixed;
 }
 
 .journal-ce-lines-table th,
@@ -47,12 +52,26 @@
   padding: 8px 10px;
   border-bottom: 1px solid #e2e8f0;
   font-size: 14px;
+  vertical-align: top;
 }
 
 .journal-ce-lines-table th {
   text-align: left;
   background: #f8fafc;
   color: #475569;
+  font-weight: 600;
+}
+
+.journal-ce-lines-table th:nth-child(1) { width: 40px; }
+.journal-ce-lines-table th:nth-child(2) { width: 25%; }
+.journal-ce-lines-table th:nth-child(3) { width: 30%; }
+.journal-ce-lines-table th:nth-child(4) { width: 17%; }
+.journal-ce-lines-table th:nth-child(5) { width: 17%; }
+.journal-ce-lines-table th:nth-child(6) { width: 8%; }
+
+.journal-ce-lines-table .form-control,
+.journal-ce-lines-table .account-select-cell {
+  width: 100%;
 }
 
 .journal-ce-totals {

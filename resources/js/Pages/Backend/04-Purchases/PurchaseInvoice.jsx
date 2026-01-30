@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import SearchableComboBox from '../components/SearchableComboBox';
 import '../../../../css/backend/04-Purchases/PurchaseInvoice.scss';
 
 export default function PurchaseInvoice({ invoices, suppliers, orders, currencies, products, paymentTerms }) {
@@ -9,6 +10,13 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
     const { props } = usePage();
     const flash = (props && props.flash) ? props.flash : {};
     const { errors } = props;
+
+    const productOptions = useMemo(() => {
+        return (products || []).map(p => ({
+            id: String(p.id),
+            label: p.name_en || p.name_ar || ''
+        }));
+    }, [products]);
 
     // Initial Form State
     const { data, setData, post, put, delete: destroy, processing, reset } = useForm({
@@ -467,16 +475,13 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
                                             {data.items.map((item, index) => (
                                                 <tr key={index}>
                                                     <td>
-                                                        <select
-                                                            value={item.product_id}
-                                                            onChange={e => handleItemChange(index, 'product_id', e.target.value)}
-                                                            className={errors[`items.${index}.product_id`] ? 'error' : ''}
-                                                        >
-                                                            <option value="">Select Product</option>
-                                                            {products?.map(p => (
-                                                                <option key={p.id} value={p.id}>{p.name_en || p.name_ar}</option>
-                                                            ))}
-                                                        </select>
+                                                        <SearchableComboBox
+                                                            options={productOptions}
+                                                            value={item.product_id ? String(item.product_id) : ''}
+                                                            onChange={(val) => handleItemChange(index, 'product_id', val)}
+                                                            error={errors[`items.${index}.product_id`]}
+                                                            placeholder="Select Product"
+                                                        />
                                                     </td>
                                                     <td>
                                                         <input

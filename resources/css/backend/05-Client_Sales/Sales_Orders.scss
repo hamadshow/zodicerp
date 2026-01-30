@@ -81,8 +81,9 @@
       text-align: left;
 
       th, td {
-        padding: 0.75rem 1rem;
+        padding: 8px 10px;
         border-bottom: 1px solid var(--border-color);
+        font-size: 14px;
       }
 
       th {
@@ -291,10 +292,10 @@
       }
       
       td {
-        padding: 0.5rem;
-        border-top: 1px solid var(--border-color);
-        vertical-align: top;
-      }
+  padding: 8px 10px;
+  border-top: 1px solid var(--border-color);
+  vertical-align: top;
+}
       
       input, select {
         width: 100%;

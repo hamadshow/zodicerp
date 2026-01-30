@@ -346,7 +346,7 @@ Route::get('/admin/budget/monitoring/items/{budgetId}', [\App\Http\Controllers\B
             'destroy' => 'admin.budget.categories.destroy',
         ])->except(['create', 'edit', 'show']);
 
-    Route::get('/admin/investing-stack', [\App\Http\Controllers\InvestingStack\InvestingStackController::class, 'index'])->name('admin.investing-stack.index');
+
 
     Route::resource('/admin/warehouses', \App\Http\Controllers\Inventory\WarehousesController::class)
         ->names([
@@ -458,6 +458,7 @@ Route::get('/admin/budget/monitoring/items/{budgetId}', [\App\Http\Controllers\B
         // Removed legacy SupplierManagement API routes (controller deleted)
         Route::get('/accounts', [AccountsController::class, 'index']);
         Route::get('/accounts/tree', [AccountsController::class, 'tree']);
+        Route::get('/accounts/valid-parents', [AccountsController::class, 'validParents']);
         Route::get('/accounts/{account}', [AccountsController::class, 'show']);
         Route::post('/accounts', [AccountsController::class, 'store']);
         Route::post('/accounts/{account}', [AccountsController::class, 'update']);
@@ -530,14 +531,7 @@ Route::get('/admin/budget/monitoring/items/{budgetId}', [\App\Http\Controllers\B
             ->except(['create', 'edit', 'show']);
     });
 
-    Route::prefix('admin/investing-stack')->name('admin.investing-stack.')->group(function () {
-        Route::resource('listed-companies', \App\Http\Controllers\InvestingStack\ListedCompanyController::class)
-            ->except(['create', 'edit', 'show']);
-        Route::resource('sectors', \App\Http\Controllers\InvestingStack\SectorController::class)
-            ->except(['create', 'edit', 'show']);
-        Route::resource('industries', \App\Http\Controllers\InvestingStack\IndustryController::class)
-            ->except(['create', 'edit', 'show']);
-    });
+
 
     Route::prefix('admin/client-sales')->middleware('admin')->name('admin.client-sales.')->group(function () {
         Route::resource('customer-groups', \App\Http\Controllers\Client_Sales\CustomerGroupController::class)

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import SearchableComboBox from '../components/SearchableComboBox';
 import '../../../../css/backend/05-Client_Sales/Sales_Orders.scss';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
@@ -50,6 +51,8 @@ export default function SalesOrders({
         payment_terms: '',
         advance_payment: 0,
         
+        // Logistics & Payment
+        
         customer_notes: '',
         internal_notes: '',
         
@@ -65,6 +68,77 @@ export default function SalesOrders({
         // Items
         items: [],
     });
+
+    const productOptions = useMemo(() => 
+        products?.map(p => ({
+            value: String(p.id),
+            label: p.name_en || p.name_ar || ''
+        })) || [], 
+    [products]);
+
+    const unitOptions = useMemo(() => 
+        units?.map(u => ({
+            value: String(u.id),
+            label: u.name_en || u.name_ar || ''
+        })) || [],
+    [units]);
+
+    const priorityOptions = useMemo(() => ([
+        { value: 'low', label: 'Low' },
+        { value: 'normal', label: 'Normal' },
+        { value: 'high', label: 'High' }
+    ]), []);
+
+    const customerOptions = useMemo(() => 
+        customers?.map(c => ({
+            value: String(c.id),
+            label: `${c.name_en} - ${c.name_ar}`
+        })) || [], 
+    [customers]);
+
+    const salesAgentOptions = useMemo(() => 
+        salesAgents?.map(a => ({
+            value: String(a.id),
+            label: a.name_en || a.name || ''
+        })) || [], 
+    [salesAgents]);
+
+    const priceListOptions = useMemo(() => 
+        priceLists?.map(pl => ({
+            value: String(pl.id),
+            label: pl.name || ''
+        })) || [], 
+    [priceLists]);
+
+    const warehouseOptions = useMemo(() => 
+        warehouses?.map(w => ({
+            value: String(w.id),
+            label: w.name || ''
+        })) || [], 
+    [warehouses]);
+
+    const currencyOptions = useMemo(() => 
+        currencies?.map(c => ({
+            value: String(c.id),
+            label: `${c.code} - ${c.name}`
+        })) || [], 
+    [currencies]);
+
+    const quotationOptions = useMemo(() => 
+        openQuotations?.map(q => ({
+            value: String(q.id),
+            label: q.quotation_number || ''
+        })) || [], 
+    [openQuotations]);
+
+    const shippingAddressOptions = useMemo(() => 
+        customerAddresses
+            ?.filter(a => a.customer_id == data.customer_id)
+            .map(a => ({
+                value: String(a.id),
+                label: `${a.address_line_1}, ${a.city?.name_en || ''}`
+            })) || [], 
+    [customerAddresses, data.customer_id]);
 
     // Helper to calculate totals
     useEffect(() => {
@@ -446,12 +520,12 @@ export default function SalesOrders({
                                 />
 
                                 <label>Priority</label>
-                                <select value={data.priority} onChange={e => setData('priority', e.target.value)}>
-                                    <option value="low">Low</option>
-                                    <option value="normal">Normal</option>
-                                    <option value="high">High</option>
-                                    <option value="urgent">Urgent</option>
-                                </select>
+                                <SearchableComboBox
+                                    options={priorityOptions}
+                                    value={data.priority}
+                                    onChange={(val) => setData('priority', val)}
+                                    placeholder="Select Priority"
+                                />
                             </div>
                         </div>
 
@@ -461,64 +535,55 @@ export default function SalesOrders({
                                 <h3>Customer Details</h3>
                                 <div className="form-group">
                                     <label>Customer Name <span className="required">*</span></label>
-                                    <select 
-                                        value={data.customer_id} 
-                                        onChange={e => setData('customer_id', e.target.value)}
-                                        className={errors.customer_id ? 'error' : ''}
-                                    >
-                                        <option value="">Select Customer</option>
-                                        {customers.map(c => (
-                                            <option key={c.id} value={c.id}>{c.name_en} - {c.name_ar}</option>
-                                        ))}
-                                    </select>
+                                    <SearchableComboBox
+                                        options={customerOptions}
+                                        value={data.customer_id ? String(data.customer_id) : ''}
+                                        onChange={(val) => setData('customer_id', val)}
+                                        placeholder="Select Customer"
+                                        error={errors.customer_id}
+                                    />
                                     {errors.customer_id && <span className="error-msg">{errors.customer_id}</span>}
                                 </div>
                                 
                                 <div className="form-grid" style={{marginTop: '1rem'}}>
                                     <div className="form-group">
                                         <label>Sales Agent</label>
-                                        <select value={data.sales_agent_id} onChange={e => setData('sales_agent_id', e.target.value)}>
-                                            <option value="">Select Agent</option>
-                                            {salesAgents.map(a => (
-                                                <option key={a.id} value={a.id}>{a.name_en || a.name}</option>
-                                            ))}
-                                        </select>
+                                        <SearchableComboBox
+                                            options={salesAgentOptions}
+                                            value={data.sales_agent_id ? String(data.sales_agent_id) : ''}
+                                            onChange={(val) => setData('sales_agent_id', val)}
+                                            placeholder="Select Agent"
+                                        />
                                     </div>
                                     <div className="form-group">
                                         <label>Price List</label>
-                                        <select value={data.price_list_id} onChange={e => setData('price_list_id', e.target.value)}>
-                                            <option value="">Select Price List</option>
-                                            {priceLists.map(pl => (
-                                                <option key={pl.id} value={pl.id}>{pl.name}</option>
-                                            ))}
-                                        </select>
+                                        <SearchableComboBox
+                                            options={priceListOptions}
+                                            value={data.price_list_id ? String(data.price_list_id) : ''}
+                                            onChange={(val) => setData('price_list_id', val)}
+                                            placeholder="Select Price List"
+                                        />
                                     </div>
                                     <div className="form-group">
                                         <label>Warehouse <span className="required">*</span></label>
-                                        <select 
-                                            value={data.warehouse_id} 
-                                            onChange={e => setData('warehouse_id', e.target.value)}
-                                            className={errors.warehouse_id ? 'error' : ''}
-                                        >
-                                            <option value="">Select Warehouse</option>
-                                            {warehouses.map(w => (
-                                                <option key={w.id} value={w.id}>{w.name}</option>
-                                            ))}
-                                        </select>
+                                        <SearchableComboBox
+                                            options={warehouseOptions}
+                                            value={data.warehouse_id ? String(data.warehouse_id) : ''}
+                                            onChange={(val) => setData('warehouse_id', val)}
+                                            placeholder="Select Warehouse"
+                                            error={errors.warehouse_id}
+                                        />
                                         {errors.warehouse_id && <span className="error-msg">{errors.warehouse_id}</span>}
                                     </div>
                                     <div className="form-group">
                                         <label>Currency <span className="required">*</span></label>
-                                        <select 
-                                            value={data.currency_id} 
-                                            onChange={e => setData('currency_id', e.target.value)}
-                                            className={errors.currency_id ? 'error' : ''}
-                                        >
-                                            <option value="">Select Currency</option>
-                                            {currencies.map(c => (
-                                                <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
-                                            ))}
-                                        </select>
+                                        <SearchableComboBox
+                                            options={currencyOptions}
+                                            value={data.currency_id ? String(data.currency_id) : ''}
+                                            onChange={(val) => setData('currency_id', val)}
+                                            placeholder="Select Currency"
+                                            error={errors.currency_id}
+                                        />
                                         {errors.currency_id && <span className="error-msg">{errors.currency_id}</span>}
                                     </div>
                                 </div>
@@ -537,17 +602,12 @@ export default function SalesOrders({
                                 </div>
                                 <div className="form-group">
                                     <label>Shipping Address</label>
-                                    <select 
-                                        value={data.shipping_address_id} 
-                                        onChange={e => setData('shipping_address_id', e.target.value)}
-                                    >
-                                        <option value="">Select Address</option>
-                                        {customerAddresses
-                                            .filter(a => a.customer_id == data.customer_id)
-                                            .map(a => (
-                                            <option key={a.id} value={a.id}>{a.address_line_1}, {a.city?.name_en}</option>
-                                        ))}
-                                    </select>
+                                    <SearchableComboBox
+                                        options={shippingAddressOptions}
+                                        value={data.shipping_address_id ? String(data.shipping_address_id) : ''}
+                                        onChange={(val) => setData('shipping_address_id', val)}
+                                        placeholder="Select Address"
+                                    />
                                 </div>
                                 <div className="form-grid">
                                     <div className="form-group">
@@ -560,12 +620,12 @@ export default function SalesOrders({
                                     </div>
                                     <div className="form-group">
                                         <label>Reference Quotation</label>
-                                        <select value={data.quotation_id} onChange={e => setData('quotation_id', e.target.value)}>
-                                            <option value="">Select Quotation</option>
-                                            {openQuotations.map(q => (
-                                                <option key={q.id} value={q.id}>{q.quotation_number}</option>
-                                            ))}
-                                        </select>
+                                        <SearchableComboBox
+                                            options={quotationOptions}
+                                            value={data.quotation_id ? String(data.quotation_id) : ''}
+                                            onChange={(val) => setData('quotation_id', val)}
+                                            placeholder="Select Quotation"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -594,15 +654,14 @@ export default function SalesOrders({
                                             <tr key={index}>
                                                 <td>{index + 1}</td>
                                                 <td>
-                                                    <select 
-                                                        value={item.product_id} 
-                                                        onChange={(e) => handleItemChange(index, 'product_id', e.target.value)}
-                                                    >
-                                                        <option value="">Select Product</option>
-                                                        {products.map(p => (
-                                                            <option key={p.id} value={p.id}>{p.name_en}</option>
-                                                        ))}
-                                                    </select>
+                                                    <div style={{ marginBottom: '5px' }}>
+                                                        <SearchableComboBox
+                                                            options={productOptions}
+                                                            value={item.product_id ? String(item.product_id) : ''}
+                                                            onChange={(val) => handleItemChange(index, 'product_id', val)}
+                                                            placeholder="Select Product"
+                                                        />
+                                                    </div>
                                                 </td>
                                                 <td>
                                                     <input 
@@ -622,15 +681,12 @@ export default function SalesOrders({
                                                     />
                                                 </td>
                                                 <td>
-                                                    <select 
-                                                        value={item.unit_id} 
-                                                        onChange={(e) => handleItemChange(index, 'unit_id', e.target.value)}
-                                                    >
-                                                        <option value="">Unit</option>
-                                                        {units.map(u => (
-                                                            <option key={u.id} value={u.id}>{u.name_en}</option>
-                                                        ))}
-                                                    </select>
+                                                    <SearchableComboBox
+                                                        options={unitOptions}
+                                                        value={item.unit_id ? String(item.unit_id) : ''}
+                                                        onChange={(val) => handleItemChange(index, 'unit_id', val)}
+                                                        placeholder="Unit"
+                                                    />
                                                 </td>
                                                 <td>
                                                     <input 

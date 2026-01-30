@@ -15,11 +15,13 @@ class BudgetForecastController extends Controller
 {
     public function index()
     {
-        $forecasts = BudgetForecast::with(['budget', 'referenceItem', 'creator', 'approver', 'implementer'])
+        $forecasts = BudgetForecast::with(['budget', 'referenceItem', 'destinationItem', 'creator', 'approver', 'implementer'])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
-        $budgets = Budget::select('id', 'budget_name_en', 'budget_name_ar', 'budget_number')->get();
+        $budgets = Budget::select('id', 'budget_name_en', 'budget_name_ar', 'budget_number', 'currency_id')
+            ->with('currency:id,code')
+            ->get();
 
         return Inertia::render('Backend/Budget/BudgetForecast', [
             'forecasts' => $forecasts,
@@ -49,6 +51,7 @@ class BudgetForecastController extends Controller
             'budget_id' => 'required|exists:budgets,id',
             'forecast_type' => 'required|in:revision,forecast,adjustment,transfer',
             'reference_budget_item_id' => 'required_if:forecast_type,revision,adjustment,transfer|nullable|exists:budget_items,id',
+            'destination_budget_item_id' => 'required_if:forecast_type,transfer|nullable|exists:budget_items,id|different:reference_budget_item_id',
             'forecast_date' => 'required|date',
             'effective_date' => 'required|date|after_or_equal:forecast_date',
             'original_amount' => 'required|numeric',
@@ -84,6 +87,7 @@ class BudgetForecastController extends Controller
             'budget_id' => 'required|exists:budgets,id',
             'forecast_type' => 'required|in:revision,forecast,adjustment,transfer',
             'reference_budget_item_id' => 'required_if:forecast_type,revision,adjustment,transfer|nullable|exists:budget_items,id',
+            'destination_budget_item_id' => 'required_if:forecast_type,transfer|nullable|exists:budget_items,id|different:reference_budget_item_id',
             'forecast_date' => 'required|date',
             'effective_date' => 'required|date|after_or_equal:forecast_date',
             'original_amount' => 'required|numeric',
@@ -160,12 +164,24 @@ class BudgetForecastController extends Controller
 
         DB::transaction(function () use ($forecast) {
             // Update the actual budget item if it's a revision or adjustment
-            if ($forecast->reference_budget_item_id && in_array($forecast->forecast_type, ['revision', 'adjustment'])) {
+            if ($forecast->reference_budget_item_id && in_array($forecast->forecast_type, ['revision', 'adjustment', 'transfer'])) {
                 $item = BudgetItem::find($forecast->reference_budget_item_id);
                 if ($item) {
                     $item->annual_amount = $forecast->approved_amount ?? $forecast->revised_amount;
                     // Also update variance if needed, but that might depend on actuals
                     $item->save();
+                }
+            }
+
+            // Handle Transfer Destination
+            if ($forecast->forecast_type === 'transfer' && $forecast->destination_budget_item_id) {
+                $destItem = BudgetItem::find($forecast->destination_budget_item_id);
+                if ($destItem) {
+                    // Transfer Amount = Original (Source) - Revised (Source)
+                    // We add this amount to the destination
+                    $transferAmount = $forecast->original_amount - ($forecast->approved_amount ?? $forecast->revised_amount);
+                    $destItem->annual_amount += $transferAmount;
+                    $destItem->save();
                 }
             }
 

@@ -98,6 +98,7 @@ export default function ChartOfAccounts() {
     inactive: 0,
   });
   const [expanded, setExpanded] = useState({});
+  const [parentOptionsRemote, setParentOptionsRemote] = useState(null);
 
   const loadAccounts = async () => {
     setLoading(true);
@@ -134,11 +135,89 @@ export default function ChartOfAccounts() {
     [tree, searchTerm],
   );
 
-  const parentOptions = useMemo(() => {
-    return [...allAccounts]
-      .filter((a) => Number(a.AccType ?? 0) === 0)
-      .sort((a, b) => Number(a.AccCode || 0) - Number(b.AccCode || 0));
+  const accountCodesSet = useMemo(() => {
+    return new Set(allAccounts.map((a) => String(a.AccCode ?? '')));
   }, [allAccounts]);
+
+  const deriveParentCode = React.useCallback(
+    (codeInput) => {
+      const s = String(codeInput ?? '').trim();
+      if (!s) return '';
+      for (let i = s.length - 1; i >= 1; i--) {
+        const candidate = s.slice(0, i);
+        if (accountCodesSet.has(candidate)) {
+          return candidate;
+        }
+      }
+      return '';
+    },
+    [accountCodesSet],
+  );
+
+  const findNodeByCode = React.useCallback((nodes, code) => {
+    if (!Array.isArray(nodes) || !code) return null;
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i];
+      if (String(n.AccCode) === String(code)) return n;
+      const child = findNodeByCode(n.children || [], code);
+      if (child) return child;
+    }
+    return null;
+  }, []);
+
+  const collectDescendantsCodes = React.useCallback((node) => {
+    const result = new Set();
+    const walk = (n) => {
+      if (!n) return;
+      if (n.children && n.children.length > 0) {
+        for (const c of n.children) {
+          result.add(String(c.AccCode));
+          walk(c);
+        }
+      }
+    };
+    walk(node);
+    return result;
+  }, []);
+
+  const descendantSet = useMemo(() => {
+    if (!currentAccount) return new Set();
+    const node = findNodeByCode(tree, currentAccount.AccCode);
+    if (!node) return new Set();
+    return collectDescendantsCodes(node);
+  }, [tree, currentAccount, findNodeByCode, collectDescendantsCodes]);
+
+  const parentOptions = useMemo(() => {
+    const currentCode = currentAccount?.AccCode != null ? Number(currentAccount.AccCode) : null;
+    return [...allAccounts]
+      .filter((a) => {
+        const code = Number(a.AccCode ?? 0);
+        if (!code) return false;
+        if (currentCode != null && code === currentCode) return false;
+        if (descendantSet.has(String(code))) return false;
+        return true;
+      })
+      .sort((a, b) => Number(a.AccCode || 0) - Number(b.AccCode || 0));
+  }, [allAccounts, currentAccount, descendantSet]);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const code = currentAccount?.AccCode ?? form.AccCode;
+    if (!code) return;
+    const params = { code: Number(code) };
+    if (form.AccBranch && Number(form.AccBranch) > 0) {
+      params.branch = Number(form.AccBranch);
+    }
+    apiService
+      .get('/accounts/valid-parents', params)
+      .then((resp) => {
+        const data = Array.isArray(resp.data) ? resp.data : [];
+        setParentOptionsRemote(data);
+      })
+      .catch(() => {
+        setParentOptionsRemote(null);
+      });
+  }, [isModalOpen, currentAccount, form.AccCode, form.AccBranch]);
 
   const toggleNode = (id) => {
     setExpanded((prev) => ({
@@ -150,11 +229,16 @@ export default function ChartOfAccounts() {
   const openModal = (account = null) => {
     if (account) {
       setCurrentAccount(account);
+      const hasExplicitParent =
+        account.AccParent != null && Number(account.AccParent) > 0;
+      const suggestedParent = hasExplicitParent
+        ? String(account.AccParent)
+        : deriveParentCode(account.AccCode);
       setForm({
         AccCode: account.AccCode ?? '',
         AccName: account.AccName ?? '',
         AccType: Number(account.AccType ?? 0),
-        AccParent: account.AccParent ?? '',
+        AccParent: suggestedParent,
         AccDmType: Number(account.AccDmType ?? 0),
         Nature: account.Nature ?? '',
         AccFinal: Number(account.AccFinal ?? 0) === 1,
@@ -181,6 +265,7 @@ export default function ChartOfAccounts() {
         AccStopped: false,
       });
     }
+    setParentOptionsRemote(null);
     setError('');
     setIsModalOpen(true);
   };
@@ -197,6 +282,17 @@ export default function ChartOfAccounts() {
       [field]: value,
     }));
   };
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const codeStr = form.AccCode != null ? String(form.AccCode) : '';
+    if (!form.AccParent && codeStr) {
+      const derived = deriveParentCode(codeStr);
+      if (derived) {
+        setForm((prev) => ({ ...prev, AccParent: derived }));
+      }
+    }
+  }, [isModalOpen, form.AccCode, form.AccParent, deriveParentCode]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -620,8 +716,8 @@ export default function ChartOfAccounts() {
                     onChange={(e) => handleFieldChange('AccParent', e.target.value)}
                   >
                     <option value="">None</option>
-                    {parentOptions.map((a) => (
-                      <option key={a.AccID} value={a.AccID}>
+                    {(parentOptionsRemote ?? parentOptions).map((a) => (
+                      <option key={a.AccID} value={String(a.AccCode)}>
                         {a.AccCode} - {a.AccName}
                       </option>
                     ))}

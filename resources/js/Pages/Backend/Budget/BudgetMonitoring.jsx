@@ -1,151 +1,505 @@
-import React, { useState, useEffect } from 'react';
-import { Head, useForm, router } from '@inertiajs/react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Head, useForm } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
 import '../../../../css/backend/Budget/BudgetMonitoring.scss';
 import axios from 'axios';
 import { format } from 'date-fns';
 
-export default function BudgetMonitoring({ monitorings, budgets, initialBudgetItems, filters, auth }) {
-    const [budgetItems, setBudgetItems] = useState(initialBudgetItems || []);
-    const [selectedMonitoring, setSelectedMonitoring] = useState(null);
-    const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-    const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'report'
-    const [editingCell, setEditingCell] = useState({ id: null, field: null });
-    const [editValue, setEditValue] = useState('');
+// ==========================================
+// Custom Hooks
+// ==========================================
 
-    const startEdit = (row, field) => {
-        if (row.acknowledged_by) return; // Read-only if acknowledged
-        setEditingCell({ id: row.id, field });
-        setEditValue(row[field] || '');
-    };
-
-    const saveEdit = (row, field) => {
-        if (editValue !== row[field]) {
-             router.put(route('admin.budget.monitoring.update', row.id), {
-                 [field]: editValue
-             }, {
-                 preserveScroll: true,
-                 onSuccess: () => setEditingCell({ id: null, field: null })
-             });
-        } else {
-            setEditingCell({ id: null, field: null });
-        }
-    };
-
-    
-    // Filter Form
-    const { data: filterData, setData: setFilterData, get } = useForm({
-        budget_id: filters.budget_id || '',
-        budget_item_id: filters.budget_item_id || '',
-        period_year: filters.period_year || new Date().getFullYear(),
-        period_type: filters.period_type || '',
-        period_month: filters.period_month || '',
-        variance_status: filters.variance_status || '',
-        threshold_breached: filters.threshold_breached || '',
-        alert_level: filters.alert_level || '',
-        date_from: filters.date_from || '',
-        date_to: filters.date_to || '',
-        sort_by: filters.sort_by || 'monitoring_date',
-        sort_dir: filters.sort_dir || 'desc',
+/**
+ * Hook for managing filter state, URL syncing, and budget item loading
+ */
+const useBudgetMonitoringFilters = (initialFilters, initialBudgetItems) => {
+    // We use a local state for the filters to allow debouncing/management before applying
+    // However, Inertia's useForm is great for keeping form state. 
+    // We'll wrap it to add the budget item fetching logic.
+    const { data, setData, get, processing } = useForm({
+        budget_id: initialFilters.budget_id || '',
+        budget_item_id: initialFilters.budget_item_id || '',
+        period_year: initialFilters.period_year || new Date().getFullYear(),
+        period_type: initialFilters.period_type || 'monthly',
+        period_month: initialFilters.period_month || (new Date().getMonth() + 1),
+        variance_status: initialFilters.variance_status || '',
+        threshold_breached: initialFilters.threshold_breached || '',
+        alert_level: initialFilters.alert_level || '',
+        date_from: initialFilters.date_from || '',
+        date_to: initialFilters.date_to || '',
+        sort_by: initialFilters.sort_by || 'monitoring_date',
+        sort_dir: initialFilters.sort_dir || 'desc',
     });
 
-    const handleSort = (column) => {
-        const newDir = filterData.sort_by === column && filterData.sort_dir === 'desc' ? 'asc' : 'desc';
-        setFilterData(data => ({ ...data, sort_by: column, sort_dir: newDir }));
+    const [budgetItems, setBudgetItems] = useState(initialBudgetItems || []);
+    const [isLoadingItems, setIsLoadingItems] = useState(false);
+
+    // Debounced filter application to prevent duplicate requests if we were auto-filtering
+    // But since we have a "Filter" button, we keep manual trigger for main filters, 
+    // and maybe auto-trigger for sorting only.
+    
+    // Sync form data with initialFilters when they change (e.g. navigation)
+    useEffect(() => {
+        setData(prev => ({
+            ...prev,
+            budget_id: initialFilters.budget_id || '',
+            budget_item_id: initialFilters.budget_item_id || '',
+            period_year: initialFilters.period_year || new Date().getFullYear(),
+            period_type: initialFilters.period_type || 'monthly',
+            period_month: initialFilters.period_month || (new Date().getMonth() + 1),
+            variance_status: initialFilters.variance_status || '',
+            threshold_breached: initialFilters.threshold_breached || '',
+            alert_level: initialFilters.alert_level || '',
+            date_from: initialFilters.date_from || '',
+            date_to: initialFilters.date_to || '',
+            sort_by: initialFilters.sort_by || 'monitoring_date',
+            sort_dir: initialFilters.sort_dir || 'desc',
+        }));
+    }, [initialFilters]);
+
+    // Auto-load budget items when budget changes
+    useEffect(() => {
+        if (data.budget_id) {
+            setIsLoadingItems(true);
+            const fetchItems = async () => {
+                try {
+                    const response = await axios.get(route('admin.budget.monitoring.items', data.budget_id));
+                    setBudgetItems(response.data);
+                } catch (error) {
+                    console.error("Error loading budget items:", error);
+                } finally {
+                    setIsLoadingItems(false);
+                }
+            };
+            fetchItems();
+        } else {
+            setBudgetItems([]);
+        }
+    }, [data.budget_id]);
+
+    const handleFilterChange = useCallback((key, value) => {
+        setData(key, value);
+    }, [setData]);
+
+    const applyFilters = useCallback((e) => {
+        if (e) e.preventDefault();
+        get(route('admin.budget.monitoring.index'), {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    }, [get]);
+
+    const handleSort = useCallback((column) => {
+        const newDir = data.sort_by === column && data.sort_dir === 'desc' ? 'asc' : 'desc';
+        // Optimistically update state
+        setData(prev => ({ ...prev, sort_by: column, sort_dir: newDir }));
         
+        // Trigger fetch
         router.get(route('admin.budget.monitoring.index'), {
-            ...filterData,
+            ...data,
             sort_by: column,
             sort_dir: newDir
         }, {
             preserveState: true,
             preserveScroll: true,
         });
-    };
+    }, [data]);
 
-    // Action Form (for Acknowledge / Follow Up)
-    const { data: actionData, setData: setActionData, post, processing, reset, errors } = useForm({
+    const handleExport = useCallback(() => {
+        const query = new URLSearchParams(data).toString();
+        window.location.href = route('admin.budget.monitoring.export') + '?' + query;
+    }, [data]);
+
+    return {
+        filterData: data,
+        setFilterData: setData,
+        handleFilterChange,
+        applyFilters,
+        handleSort,
+        handleExport,
+        budgetItems,
+        isLoadingItems,
+        processing
+    };
+};
+
+/**
+ * Hook for inline editing with optimistic updates and error rollback
+ */
+const useInlineEdit = (initialData, updateRouteName) => {
+    // Local copy of data for optimistic updates
+    const [localData, setLocalData] = useState(initialData);
+    const [editingCell, setEditingCell] = useState({ id: null, field: null });
+    const [editValue, setEditValue] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    // Sync local data when props change (e.g. after filter reload)
+    useEffect(() => {
+        setLocalData(initialData);
+    }, [initialData]);
+
+    const startEdit = useCallback((row, field) => {
+        if (row.acknowledged_by) return; // Read-only check
+        if (isSaving) return; // Prevent multiple edits while saving
+        
+        setEditingCell({ id: row.id, field });
+        setEditValue(row[field] || '');
+    }, [isSaving]);
+
+    const cancelEdit = useCallback(() => {
+        setEditingCell({ id: null, field: null });
+        setEditValue('');
+    }, []);
+
+    const saveEdit = useCallback((row, field) => {
+        // Validation: Prevent saving if value hasn't changed or is empty (optional)
+        if (editValue === row[field]) {
+            cancelEdit();
+            return;
+        }
+
+        const originalValue = row[field];
+        
+        // Optimistic Update
+        setLocalData(prev => prev.map(item => 
+            item.id === row.id ? { ...item, [field]: editValue } : item
+        ));
+        setEditingCell({ id: null, field: null }); // Exit edit mode immediately
+        setIsSaving(true);
+
+        router.put(route(updateRouteName, row.id), {
+            [field]: editValue
+        }, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+                setIsSaving(false);
+            },
+            onError: (errors) => {
+                console.error("Save failed:", errors);
+                // Rollback
+                setLocalData(prev => prev.map(item => 
+                    item.id === row.id ? { ...item, [field]: originalValue } : item
+                ));
+                setIsSaving(false);
+                alert("Failed to save changes. Please try again.");
+            }
+        });
+    }, [editValue, updateRouteName, cancelEdit]);
+
+    return {
+        localData,
+        editingCell,
+        editValue,
+        setEditValue,
+        startEdit,
+        saveEdit,
+        cancelEdit,
+        isSaving
+    };
+};
+
+/**
+ * Hook for managing the detail drawer
+ */
+const useMonitoringDrawer = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [selectedMonitoring, setSelectedMonitoring] = useState(null);
+
+    // Form for drawer actions
+    const { data: actionData, setData: setActionData, post, processing, reset } = useForm({
         comments: '',
         action_required: '',
         follow_up_date: '',
     });
 
-    // Handle Budget Change to load items
-    useEffect(() => {
-        if (filterData.budget_id) {
-            axios.get(route('admin.budget.monitoring.items', filterData.budget_id))
-                .then(response => {
-                    setBudgetItems(response.data);
-                })
-                .catch(error => console.error("Error loading budget items:", error));
-        } else {
-            setBudgetItems([]);
-        }
-    }, [filterData.budget_id]);
-
-    const handleFilterChange = (key, value) => {
-        setFilterData(key, value);
-    };
-
-    const applyFilters = (e) => {
-        e.preventDefault();
-        get(route('admin.budget.monitoring.index'), {
-            preserveState: true,
-            preserveScroll: true,
-        });
-    };
-
-    const handleExport = () => {
-        const query = new URLSearchParams(filterData).toString();
-        window.location.href = route('admin.budget.monitoring.export') + '?' + query;
-    };
-
-    const handlePrint = () => {
-        window.print();
-    };
-
-    const handleMarkDone = () => {
-        if (!confirm('Mark this action as done?')) return;
-        router.post(route('admin.budget.monitoring.mark-done', selectedMonitoring.id), {}, {
-            onSuccess: () => closeDrawer(),
-        });
-    };
-
-    const handleRowClick = (monitoring) => {
+    const openDrawer = useCallback((monitoring) => {
         setSelectedMonitoring(monitoring);
         setActionData({
             comments: monitoring.comments || '',
             action_required: monitoring.action_required || '',
             follow_up_date: monitoring.follow_up_date || '',
         });
-        setIsDrawerOpen(true);
-    };
+        setIsOpen(true);
+    }, [setActionData]);
 
-    const closeDrawer = () => {
-        setIsDrawerOpen(false);
+    const closeDrawer = useCallback(() => {
+        setIsOpen(false);
         setSelectedMonitoring(null);
         reset();
-    };
+    }, [reset]);
 
-    const handleAcknowledge = () => {
+    const handleAcknowledge = useCallback(() => {
+        if (!selectedMonitoring) return;
         if (!confirm('Are you sure you want to acknowledge this alert?')) return;
         
         post(route('admin.budget.monitoring.acknowledge', selectedMonitoring.id), {
+            preserveScroll: true,
             onSuccess: () => closeDrawer(),
         });
-    };
+    }, [selectedMonitoring, post, closeDrawer]);
 
-    const handleFollowUpSave = () => {
+    const handleFollowUpSave = useCallback(() => {
+        if (!selectedMonitoring) return;
+
         post(route('admin.budget.monitoring.follow-up', selectedMonitoring.id), {
+            preserveScroll: true,
             onSuccess: () => closeDrawer(),
         });
-    };
+    }, [selectedMonitoring, post, closeDrawer]);
 
-    const formatCurrency = (amount) => {
+    const handleMarkDone = useCallback((monitoring) => {
+        if (!confirm('Mark this action as done?')) return;
+        
+        router.post(route('admin.budget.monitoring.mark-done', monitoring.id), {}, {
+            preserveScroll: true,
+        });
+    }, []);
+
+    return {
+        isOpen,
+        selectedMonitoring,
+        actionData,
+        setActionData,
+        processing,
+        openDrawer,
+        closeDrawer,
+        handleAcknowledge,
+        handleFollowUpSave,
+        handleMarkDone
+    };
+};
+
+/**
+ * Hook for calculating statistics
+ */
+const useMonitoringStats = (data) => {
+    return useMemo(() => {
+        const totalActual = data.reduce((sum, r) => sum + parseFloat(r.actual_amount || 0), 0);
+        const totalBudget = data.reduce((sum, r) => sum + (parseFloat(r.actual_amount || 0) + parseFloat(r.available_amount || 0) + parseFloat(r.committed_amount || 0)), 0);
+        const activeAlerts = data.filter(r => r.threshold_breached).length;
+        const avgVariance = data.length > 0 
+            ? (data.reduce((sum, r) => sum + parseFloat(r.variance_percent || 0), 0) / data.length)
+            : 0;
+        const pendingActions = data.filter(r => r.action_required && !r.acknowledged_by).length;
+
+        return {
+            totalActual,
+            totalBudget,
+            activeAlerts,
+            avgVariance,
+            pendingActions
+        };
+    }, [data]);
+};
+
+// ==========================================
+// Helper Components
+// ==========================================
+
+const ReportDashboard = React.memo(({ stats, formatCurrency }) => (
+    <div className="report-dashboard grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">Total Actual (Page)</h3>
+            <div className="mt-2 text-2xl font-bold text-gray-800 dark:text-gray-100">
+                {formatCurrency(stats.totalActual)}
+            </div>
+            <div className="mt-1 text-xs text-gray-400">
+                vs Budget: {formatCurrency(stats.totalBudget)}
+            </div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">Active Alerts</h3>
+            <div className="mt-2 text-2xl font-bold text-red-600 dark:text-red-400">
+                {stats.activeAlerts}
+            </div>
+            <div className="mt-1 text-xs text-gray-400">Records with breached thresholds</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">Avg Variance</h3>
+            <div className="mt-2 text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                {stats.avgVariance.toFixed(1)}%
+            </div>
+            <div className="mt-1 text-xs text-gray-400">Average percentage across page</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
+            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">Pending Actions</h3>
+            <div className="mt-2 text-2xl font-bold text-orange-600 dark:text-orange-400">
+                {stats.pendingActions}
+            </div>
+            <div className="mt-1 text-xs text-gray-400">Require attention</div>
+        </div>
+    </div>
+));
+
+const MonitoringRow = React.memo(({ 
+    row, 
+    formatCurrency, 
+    onRowClick, 
+    onStartEdit, 
+    onSaveEdit, 
+    onMarkDone,
+    editingCell, 
+    editValue, 
+    setEditValue 
+}) => {
+    const isEditingAction = editingCell.id === row.id && editingCell.field === 'action_required';
+    const isEditingComments = editingCell.id === row.id && editingCell.field === 'comments';
+
+    return (
+        <tr 
+            onClick={() => onRowClick(row)}
+            className={`row-status-${row.variance_status || 'normal'} cursor-pointer hover:bg-gray-50`}
+        >
+            <td>{format(new Date(row.monitoring_date), 'MMM dd, yyyy')}</td>
+            <td>
+                <div className="font-medium text-gray-900">
+                    {row.budget_item?.account?.AccName || 'N/A'}
+                </div>
+                <div className="text-xs text-gray-500">
+                    {row.budget_item?.category?.name_en || 'N/A'}
+                </div>
+            </td>
+            <td className="amount-col">
+                {formatCurrency((parseFloat(row.actual_amount) + parseFloat(row.available_amount) + parseFloat(row.committed_amount)))} 
+            </td>
+            <td className="amount-col text-gray-900 font-bold">{formatCurrency(row.actual_amount)}</td>
+            <td className="amount-col text-gray-600">{formatCurrency(row.committed_amount)}</td>
+            <td className="amount-col text-green-600 font-bold">{formatCurrency(row.available_amount)}</td>
+            <td className={`amount-col ${row.variance_amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                {formatCurrency(row.variance_amount)}
+            </td>
+            <td className="amount-col">{row.variance_percent}%</td>
+            <td>
+                <span className={`status-badge ${row.variance_status || 'normal'}`}>
+                    {row.variance_status || 'Normal'}
+                </span>
+            </td>
+            <td>
+                {row.threshold_breached && (
+                    <span className="text-red-500 flex items-center gap-1">
+                        <i className="material-icons-outlined text-sm">warning</i>
+                        {row.alert_level}
+                    </span>
+                )}
+            </td>
+            <td onClick={(e) => { e.stopPropagation(); onStartEdit(row, 'action_required'); }}>
+                {isEditingAction ? (
+                    <input 
+                        autoFocus
+                        type="text" 
+                        className="w-full text-xs border-gray-300 rounded p-1"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => onSaveEdit(row, 'action_required')}
+                        onKeyDown={(e) => e.key === 'Enter' && onSaveEdit(row, 'action_required')}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                ) : (
+                    <div className="flex items-center gap-1 min-h-[20px]">
+                        <span className="text-xs truncate max-w-[150px]">{row.action_required || '-'}</span>
+                        {!row.acknowledged_by && <i className="material-icons-outlined text-[10px] text-gray-400 opacity-0 group-hover:opacity-100">edit</i>}
+                    </div>
+                )}
+            </td>
+            <td onClick={(e) => { e.stopPropagation(); onStartEdit(row, 'comments'); }}>
+                {isEditingComments ? (
+                    <input 
+                        autoFocus
+                        type="text" 
+                        className="w-full text-xs border-gray-300 rounded p-1"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={() => onSaveEdit(row, 'comments')}
+                        onKeyDown={(e) => e.key === 'Enter' && onSaveEdit(row, 'comments')}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                ) : (
+                    <div className="flex items-center gap-1 min-h-[20px]">
+                        <span className="text-xs truncate max-w-[150px]">{row.comments || '-'}</span>
+                        {!row.acknowledged_by && <i className="material-icons-outlined text-[10px] text-gray-400 opacity-0 group-hover:opacity-100">edit</i>}
+                    </div>
+                )}
+            </td>
+            <td>
+                {row.follow_up_date ? format(new Date(row.follow_up_date), 'MMM dd') : '-'}
+            </td>
+            <td onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1">
+                    {row.acknowledged_by ? (
+                        <span className="text-green-600 text-xs flex items-center" title={`Acknowledged by ${row.acknowledger?.name}`}>
+                            <i className="material-icons-outlined text-sm mr-1">check_circle</i>
+                        </span>
+                    ) : (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onMarkDone(row); }}
+                            className="text-gray-400 hover:text-green-600"
+                            title="Mark Action Done"
+                        >
+                            <i className="material-icons-outlined text-sm">check</i>
+                        </button>
+                    )}
+                </div>
+            </td>
+        </tr>
+    );
+});
+
+// ==========================================
+// Main Component
+// ==========================================
+
+export default function BudgetMonitoring({ monitorings, budgets, initialBudgetItems, filters }) {
+    const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'report'
+
+    // 1. Filter Logic
+    const { 
+        filterData, 
+        handleFilterChange, 
+        applyFilters, 
+        handleSort, 
+        handleExport, 
+        budgetItems,
+        processing: filterProcessing
+    } = useBudgetMonitoringFilters(filters, initialBudgetItems);
+
+    // 2. Inline Edit Logic
+    const {
+        localData,
+        editingCell,
+        editValue,
+        setEditValue,
+        startEdit,
+        saveEdit
+    } = useInlineEdit(monitorings.data, 'admin.budget.monitoring.update');
+
+    // 3. Drawer Logic
+    const {
+        isOpen: isDrawerOpen,
+        selectedMonitoring,
+        actionData,
+        setActionData,
+        processing,
+        openDrawer,
+        closeDrawer,
+        handleAcknowledge,
+        handleFollowUpSave,
+        handleMarkDone
+    } = useMonitoringDrawer();
+
+    // 4. Stats Logic
+    const stats = useMonitoringStats(localData);
+
+    const formatCurrency = useCallback((amount) => {
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
-            currency: 'USD', // Or dynamic currency
+            currency: 'USD',
         }).format(amount || 0);
+    }, []);
+
+    const handlePrint = () => {
+        window.print();
     };
 
     return (
@@ -269,180 +623,63 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                     
                     <button 
                         type="submit" 
-                        className="bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 transition h-10"
+                        disabled={filterProcessing}
+                        className={`bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 transition h-10 ${filterProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                        Filter
+                        {filterProcessing ? 'Filtering...' : 'Filter'}
                     </button>
                 </form>
 
                 {/* Content Area */}
                 {viewMode === 'report' ? (
-                    <div className="report-dashboard grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">Total Actual (Page)</h3>
-                            <div className="mt-2 text-2xl font-bold text-gray-800 dark:text-gray-100">
-                                {formatCurrency(monitorings.data.reduce((sum, r) => sum + parseFloat(r.actual_amount), 0))}
-                            </div>
-                            <div className="mt-1 text-xs text-gray-400">
-                                vs Budget: {formatCurrency(monitorings.data.reduce((sum, r) => sum + (parseFloat(r.actual_amount) + parseFloat(r.available_amount) + parseFloat(r.committed_amount)), 0))}
-                            </div>
-                        </div>
-                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">Active Alerts</h3>
-                            <div className="mt-2 text-2xl font-bold text-red-600 dark:text-red-400">
-                                {monitorings.data.filter(r => r.threshold_breached).length}
-                            </div>
-                            <div className="mt-1 text-xs text-gray-400">Records with breached thresholds</div>
-                        </div>
-                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">Avg Variance</h3>
-                            <div className="mt-2 text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                                {(monitorings.data.reduce((sum, r) => sum + parseFloat(r.variance_percent), 0) / (monitorings.data.length || 1)).toFixed(1)}%
-                            </div>
-                            <div className="mt-1 text-xs text-gray-400">Average percentage across page</div>
-                        </div>
-                        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-                            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">Pending Actions</h3>
-                            <div className="mt-2 text-2xl font-bold text-orange-600 dark:text-orange-400">
-                                {monitorings.data.filter(r => r.action_required && !r.acknowledged_by).length}
-                            </div>
-                            <div className="mt-1 text-xs text-gray-400">Require attention</div>
-                        </div>
-                    </div>
+                    <ReportDashboard stats={stats} formatCurrency={formatCurrency} />
                 ) : (
                     <div className="monitoring-grid-container">
                         <div className="overflow-x-auto">
                             <table className="monitoring-table">
                                 <thead>
-                                    <tr>
-                                        <th className="cursor-pointer hover:bg-gray-100" onClick={() => handleSort('monitoring_date')}>
-                                            <div className="flex items-center gap-1">Date {filterData.sort_by === 'monitoring_date' && <span className="text-xs">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
+                                    <tr className="bg-gray-50 border-b border-gray-200">
+                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleSort('monitoring_date')}>
+                                            <div className="flex items-center gap-1">Date {filterData.sort_by === 'monitoring_date' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
                                         </th>
-                                        <th>Budget Item</th>
-                                        <th className="text-right">Budgeted</th>
-                                        <th className="text-right cursor-pointer hover:bg-gray-100" onClick={() => handleSort('actual_amount')}>
-                                            <div className="flex items-center justify-end gap-1">Actual {filterData.sort_by === 'actual_amount' && <span className="text-xs">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
+                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Budget Item</th>
+                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Budgeted</th>
+                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleSort('actual_amount')}>
+                                            <div className="flex items-center justify-end gap-1">Actual {filterData.sort_by === 'actual_amount' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
                                         </th>
-                                        <th className="text-right">Committed</th>
-                                        <th className="text-right cursor-pointer hover:bg-gray-100" onClick={() => handleSort('available_amount')}>
-                                            <div className="flex items-center justify-end gap-1">Available {filterData.sort_by === 'available_amount' && <span className="text-xs">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
+                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Committed</th>
+                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleSort('available_amount')}>
+                                            <div className="flex items-center justify-end gap-1">Available {filterData.sort_by === 'available_amount' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
                                         </th>
-                                        <th className="text-right cursor-pointer hover:bg-gray-100" onClick={() => handleSort('variance_amount')}>
-                                            <div className="flex items-center justify-end gap-1">Variance {filterData.sort_by === 'variance_amount' && <span className="text-xs">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
+                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleSort('variance_amount')}>
+                                            <div className="flex items-center justify-end gap-1">Variance {filterData.sort_by === 'variance_amount' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
                                         </th>
-                                        <th className="text-right cursor-pointer hover:bg-gray-100" onClick={() => handleSort('variance_percent')}>
-                                            <div className="flex items-center justify-end gap-1">Var % {filterData.sort_by === 'variance_percent' && <span className="text-xs">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
+                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleSort('variance_percent')}>
+                                            <div className="flex items-center justify-end gap-1">Var % {filterData.sort_by === 'variance_percent' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
                                         </th>
-                                        <th>Status</th>
-                                        <th>Alert</th>
-                                        <th>Action Required</th>
-                                        <th>Comments</th>
-                                        <th>Follow Up</th>
-                                        <th>Actions</th>
+                                        <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                                        <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Alert</th>
+                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Action Required</th>
+                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Comments</th>
+                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Follow Up</th>
+                                        <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {monitorings.data.length > 0 ? (
-                                        monitorings.data.map((row) => (
-                                            <tr 
-                                                key={row.id} 
-                                                onClick={() => handleRowClick(row)}
-                                                className={`row-status-${row.variance_status || 'normal'} cursor-pointer hover:bg-gray-50`}
-                                            >
-                                                <td>{format(new Date(row.monitoring_date), 'MMM dd, yyyy')}</td>
-                                                <td>
-                                                    <div className="font-medium text-gray-900">
-                                                        {row.budget_item?.account?.AccName || 'N/A'}
-                                                    </div>
-                                                    <div className="text-xs text-gray-500">
-                                                        {row.budget_item?.category?.name_en || 'N/A'}
-                                                    </div>
-                                                </td>
-                                                <td className="amount-col">
-                                                    {formatCurrency((parseFloat(row.actual_amount) + parseFloat(row.available_amount) + parseFloat(row.committed_amount)))} 
-                                                </td>
-                                                <td className="amount-col text-gray-900 font-bold">{formatCurrency(row.actual_amount)}</td>
-                                                <td className="amount-col text-gray-600">{formatCurrency(row.committed_amount)}</td>
-                                                <td className="amount-col text-green-600 font-bold">{formatCurrency(row.available_amount)}</td>
-                                                <td className={`amount-col ${row.variance_amount < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                                    {formatCurrency(row.variance_amount)}
-                                                </td>
-                                                <td className="amount-col">{row.variance_percent}%</td>
-                                                <td>
-                                                    <span className={`status-badge ${row.variance_status || 'normal'}`}>
-                                                        {row.variance_status || 'Normal'}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    {row.threshold_breached && (
-                                                        <span className="text-red-500 flex items-center gap-1">
-                                                            <i className="material-icons-outlined text-sm">warning</i>
-                                                            {row.alert_level}
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td onClick={(e) => { e.stopPropagation(); startEdit(row, 'action_required'); }}>
-                                                    {editingCell.id === row.id && editingCell.field === 'action_required' ? (
-                                                        <input 
-                                                            autoFocus
-                                                            type="text" 
-                                                            className="w-full text-xs border-gray-300 rounded p-1"
-                                                            value={editValue}
-                                                            onChange={(e) => setEditValue(e.target.value)}
-                                                            onBlur={() => saveEdit(row, 'action_required')}
-                                                            onKeyDown={(e) => e.key === 'Enter' && saveEdit(row, 'action_required')}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        />
-                                                    ) : (
-                                                        <div className="flex items-center gap-1 min-h-[20px]">
-                                                            <span className="text-xs truncate max-w-[150px]">{row.action_required || '-'}</span>
-                                                            {!row.acknowledged_by && <i className="material-icons-outlined text-[10px] text-gray-400 opacity-0 group-hover:opacity-100">edit</i>}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td onClick={(e) => { e.stopPropagation(); startEdit(row, 'comments'); }}>
-                                                    {editingCell.id === row.id && editingCell.field === 'comments' ? (
-                                                        <input 
-                                                            autoFocus
-                                                            type="text" 
-                                                            className="w-full text-xs border-gray-300 rounded p-1"
-                                                            value={editValue}
-                                                            onChange={(e) => setEditValue(e.target.value)}
-                                                            onBlur={() => saveEdit(row, 'comments')}
-                                                            onKeyDown={(e) => e.key === 'Enter' && saveEdit(row, 'comments')}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                        />
-                                                    ) : (
-                                                        <div className="flex items-center gap-1 min-h-[20px]">
-                                                            <span className="text-xs truncate max-w-[150px]">{row.comments || '-'}</span>
-                                                            {!row.acknowledged_by && <i className="material-icons-outlined text-[10px] text-gray-400 opacity-0 group-hover:opacity-100">edit</i>}
-                                                        </div>
-                                                    )}
-                                                </td>
-                                                <td>
-                                                    {row.follow_up_date ? format(new Date(row.follow_up_date), 'MMM dd') : '-'}
-                                                </td>
-                                                <td onClick={(e) => e.stopPropagation()}>
-                                                    <div className="flex items-center gap-1">
-                                                        {row.acknowledged_by ? (
-                                                            <span className="text-green-600 text-xs flex items-center" title={`Acknowledged by ${row.acknowledger?.name}`}>
-                                                                <i className="material-icons-outlined text-sm mr-1">check_circle</i>
-                                                            </span>
-                                                        ) : (
-                                                            <button 
-                                                                onClick={() => {
-                                                                    setSelectedMonitoring(row);
-                                                                    handleMarkDone();
-                                                                }}
-                                                                className="text-gray-400 hover:text-green-600"
-                                                                title="Mark Action Done"
-                                                            >
-                                                                <i className="material-icons-outlined text-sm">check</i>
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
+                                    {localData.length > 0 ? (
+                                        localData.map((row) => (
+                                            <MonitoringRow 
+                                                key={row.id}
+                                                row={row}
+                                                formatCurrency={formatCurrency}
+                                                onRowClick={openDrawer}
+                                                onStartEdit={startEdit}
+                                                onSaveEdit={saveEdit}
+                                                onMarkDone={handleMarkDone}
+                                                editingCell={editingCell}
+                                                editValue={editValue}
+                                                setEditValue={setEditValue}
+                                            />
                                         ))
                                     ) : (
                                         <tr>

@@ -15,6 +15,21 @@ class JournalController extends Controller
     protected string $journalCodePrefix = 'QID-';
     protected int $journalCodeStart = 10001;
 
+    public function nextCode()
+    {
+        $prefix = $this->journalCodePrefix;
+        $start = $this->journalCodeStart;
+
+        $lastCode = JournalEntry::whereNotNull('entry_code')
+            ->where('entry_code', '!=', '')
+            ->orderByDesc('id')
+            ->value('entry_code');
+
+        $nextNumber = $this->nextNumericPart($lastCode ?? '', $start);
+
+        return response()->json(['next_code' => $prefix . $nextNumber]);
+    }
+
     public function index(Request $request)
     {
         $query = JournalEntry::orderByDesc('date')->orderByDesc('id');

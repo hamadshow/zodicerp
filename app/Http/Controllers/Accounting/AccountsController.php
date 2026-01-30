@@ -32,6 +32,7 @@ class AccountsController extends Controller
             $query->where('AccType', (int) $request->input('type'));
         }
 
+
         if ($request->filled('branch')) {
             $query->where('AccBranch', (int) $request->input('branch'));
         }
@@ -70,7 +71,7 @@ class AccountsController extends Controller
 
         $byParent = [];
         foreach ($accounts as $account) {
-            $parentKey = $account->AccParent ?: null;
+            $parentKey = ($account->AccParent && (int) $account->AccParent !== 0) ? (int)$account->AccParent : null;
             if (!array_key_exists($parentKey, $byParent)) {
                 $byParent[$parentKey] = [];
             }
@@ -95,7 +96,7 @@ class AccountsController extends Controller
                     'AccBranch' => $account->AccBranch,
                     'AccStopped' => $account->AccStopped,
                     'AccNote' => $account->AccNote,
-                    'children' => $buildTree($account->AccCode),
+                    'children' => $buildTree((int)$account->AccCode),
                 ];
             }, $children);
         };
@@ -103,6 +104,73 @@ class AccountsController extends Controller
         $tree = $buildTree(null);
 
         return response()->json($tree);
+    }
+
+    public function validParents(Request $request)
+    {
+        $code = (int) $request->input('code');
+        $branch = $request->filled('branch') ? (int) $request->input('branch') : null;
+
+        $query = Account::query();
+        if ($branch !== null) {
+            $query->where(function ($q) use ($branch) {
+                $q->where('AccBranch', $branch)
+                  ->orWhereNull('AccBranch')
+                  ->orWhere('AccBranch', 0);
+            });
+        }
+
+        $accounts = $query->orderBy('AccCode')->get([
+            'AccID', 'AccCode', 'AccName', 'AccParent', 'AccStopped', 'AccFinal'
+        ]);
+
+        // Index by parent code (NULL/0 treated as NULL root)
+        $byParent = [];
+        foreach ($accounts as $a) {
+            $parentKey = ($a->AccParent && (int) $a->AccParent !== 0) ? (int)$a->AccParent : null;
+            if (!array_key_exists($parentKey, $byParent)) {
+                $byParent[$parentKey] = [];
+            }
+            $byParent[$parentKey][] = $a;
+        }
+
+        // Collect descendants of the provided code
+        $descendants = [];
+        $queue = [];
+        if ($code > 0) {
+            $queue[] = $code;
+        }
+        while (!empty($queue)) {
+            $p = array_shift($queue);
+            $children = $byParent[$p] ?? [];
+            foreach ($children as $child) {
+                $childCode = (int) $child->AccCode;
+                if (!isset($descendants[$childCode])) {
+                    $descendants[$childCode] = true;
+                    $queue[] = $childCode;
+                }
+            }
+        }
+
+        // Filter valid parents: exclude current code and its descendants
+        $valid = [];
+        foreach ($accounts as $a) {
+            $aCode = (int) $a->AccCode;
+            if ($code > 0 && $aCode === $code) {
+                continue;
+            }
+            if (isset($descendants[$aCode])) {
+                continue;
+            }
+            $valid[] = [
+                'AccID' => $a->AccID,
+                'AccCode' => $a->AccCode,
+                'AccName' => $a->AccName,
+                'AccParent' => $a->AccParent,
+            ];
+        }
+
+        return response()->json($valid);
     }
 
     public function show(Account $account)

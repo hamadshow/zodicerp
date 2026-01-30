@@ -10,11 +10,16 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Budget\BudgetMonitoring;
 use App\Models\Budget\Budget;
 use App\Models\Budget\BudgetItem;
+use App\Models\Budget\BudgetCommitment;
+use App\Models\Accounting\JournalEntryLine;
+use Carbon\Carbon;
 
 class BudgetMonitoringController extends Controller
 {
     public function index(Request $request)
     {
+        $this->ensureMonitoringRecords($request);
+
         $query = BudgetMonitoring::with(['budget', 'budgetItem.account', 'budgetItem.category', 'monitor', 'acknowledger']);
 
         // Filters
@@ -61,6 +66,68 @@ class BudgetMonitoringController extends Controller
         }
 
         $monitorings = $query->paginate(15)->withQueryString();
+        $monitorings->getCollection()->transform(function ($row) use ($request) {
+            $periodType = $request->input('period_type', $row->period_type);
+            $periodYear = (int) $request->input('period_year', $row->period_year);
+            $periodMonth = $request->input('period_month', $row->period_month);
+            $periodQuarter = $request->input('period_quarter', $row->period_quarter);
+
+            [$startDate, $endDate] = $this->resolvePeriodRange($request, $periodType, $periodYear, $periodMonth, $periodQuarter, $row->monitoring_date);
+
+            $accountId = $row->budgetItem?->account_id;
+            $actualAmount = 0;
+            if ($accountId && $startDate && $endDate) {
+                $actualAmount = JournalEntryLine::query()
+                    ->join('journal_entries', 'journal_entries.entry_code', '=', 'journal_entry_lines.journal_entry_code')
+                    ->where('journal_entry_lines.account_id', $accountId)
+                    ->whereDate('journal_entries.date', '>=', $startDate)
+                    ->whereDate('journal_entries.date', '<=', $endDate)
+                    ->sum(DB::raw('COALESCE(journal_entry_lines.debit,0) - COALESCE(journal_entry_lines.credit,0)'));
+            }
+
+            $committedAmount = 0;
+            if ($row->budget_item_id) {
+                $commitmentQuery = BudgetCommitment::where('budget_item_id', $row->budget_item_id)
+                    ->whereIn('status', ['active', 'partially_utilized']);
+                if ($startDate && $endDate) {
+                    $commitmentQuery->whereDate('commitment_date', '>=', $startDate)
+                        ->whereDate('commitment_date', '<=', $endDate);
+                }
+                $committedAmount = $commitmentQuery->sum('remaining_amount');
+            }
+
+            $budgetedAmount = $row->budgetItem
+                ? $this->getBudgetedAmount($row->budgetItem, $periodType, $periodYear, $periodMonth, $periodQuarter)
+                : 0;
+
+            $availableAmount = $budgetedAmount - $actualAmount - $committedAmount;
+            $varianceAmount = $actualAmount - $budgetedAmount;
+            $variancePercent = $budgetedAmount != 0 ? ($varianceAmount / $budgetedAmount) * 100 : 0;
+
+            $threshold = $row->budget?->variance_threshold ?? 10;
+            $absVariance = abs($variancePercent);
+            $varianceStatus = $absVariance >= ($threshold * 2) ? 'critical' : ($absVariance >= $threshold ? 'warning' : 'normal');
+            $thresholdBreached = $absVariance >= $threshold;
+            $alertLevel = null;
+            if ($absVariance >= ($threshold * 2)) {
+                $alertLevel = 'high';
+            } elseif ($absVariance >= ($threshold * 1.5)) {
+                $alertLevel = 'medium';
+            } elseif ($absVariance >= $threshold) {
+                $alertLevel = 'low';
+            }
+
+            $row->actual_amount = $actualAmount;
+            $row->committed_amount = $committedAmount;
+            $row->available_amount = $availableAmount;
+            $row->variance_amount = $varianceAmount;
+            $row->variance_percent = $variancePercent;
+            $row->variance_status = $varianceStatus;
+            $row->threshold_breached = $thresholdBreached;
+            $row->alert_level = $alertLevel;
+
+            return $row;
+        });
 
         $budgets = Budget::select('id', 'budget_name_en', 'budget_name_ar', 'budget_number')->get();
         
@@ -223,5 +290,136 @@ class BudgetMonitoringController extends Controller
         });
 
         return redirect()->back()->with('success', 'Monitoring record created.');
+    }
+
+    private function ensureMonitoringRecords(Request $request)
+    {
+        $year = $request->input('period_year', date('Y'));
+        $month = $request->input('period_month', date('n'));
+        $type = $request->input('period_type', 'monthly');
+        
+        if ($type !== 'monthly' && $type !== 'annual') return;
+
+        $budgetId = $request->input('budget_id');
+        
+        $query = BudgetItem::query();
+        if ($budgetId) {
+            $query->where('budget_id', $budgetId);
+        }
+        
+        $monitoringQuery = BudgetMonitoring::where('period_year', $year)
+            ->where('period_type', $type);
+            
+        if ($type === 'monthly') {
+            $monitoringQuery->where('period_month', $month);
+        }
+
+        if ($budgetId) {
+            $monitoringQuery->where('budget_id', $budgetId);
+        }
+
+        $existingItems = $monitoringQuery->pluck('budget_item_id')->toArray();
+        $itemsToCreate = $query->whereNotIn('id', $existingItems)->get();
+        
+        foreach ($itemsToCreate as $item) {
+             BudgetMonitoring::create([
+                'budget_id' => $item->budget_id,
+                'budget_item_id' => $item->id,
+                'period_year' => $year,
+                'period_month' => $type === 'monthly' ? $month : null,
+                'period_type' => $type,
+                'monitoring_date' => $type === 'monthly' 
+                    ? Carbon::create($year, $month, 1)->endOfMonth() 
+                    : Carbon::create($year, 12, 31),
+                'monitored_by' => Auth::id() ?? 1,
+                'actual_amount' => 0,
+                'committed_amount' => 0,
+                'available_amount' => 0,
+                'variance_amount' => 0,
+                'variance_percent' => 0,
+            ]);
+        }
+    }
+
+    private function resolvePeriodRange(Request $request, $periodType, $periodYear, $periodMonth, $periodQuarter, $monitoringDate)
+    {
+        if ($request->filled('date_from') || $request->filled('date_to')) {
+            $start = $request->filled('date_from') ? Carbon::parse($request->date_from)->startOfDay() : null;
+            $end = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : null;
+            if ($start && !$end) {
+                $end = $start->copy()->endOfDay();
+            }
+            if ($end && !$start) {
+                $start = $end->copy()->startOfDay();
+            }
+            return [$start, $end];
+        }
+
+        $year = $periodYear ?: ($monitoringDate ? Carbon::parse($monitoringDate)->year : now()->year);
+
+        if ($periodType === 'monthly') {
+            $month = $periodMonth ?: now()->month;
+            $start = Carbon::create($year, $month, 1)->startOfMonth();
+            $end = Carbon::create($year, $month, 1)->endOfMonth();
+            return [$start, $end];
+        }
+
+        if ($periodType === 'quarterly') {
+            $quarter = $periodQuarter ?: ($periodMonth ? (int) ceil($periodMonth / 3) : null);
+            if (!$quarter) {
+                $start = Carbon::create($year, 1, 1)->startOfYear();
+                $end = Carbon::create($year, 12, 31)->endOfYear();
+                return [$start, $end];
+            }
+            $startMonth = (($quarter - 1) * 3) + 1;
+            $start = Carbon::create($year, $startMonth, 1)->startOfMonth();
+            $end = Carbon::create($year, $startMonth, 1)->addMonths(2)->endOfMonth();
+            return [$start, $end];
+        }
+
+        $start = Carbon::create($year, 1, 1)->startOfYear();
+        $end = Carbon::create($year, 12, 31)->endOfYear();
+        return [$start, $end];
+    }
+
+    private function getBudgetedAmount(BudgetItem $item, $periodType, $periodYear, $periodMonth, $periodQuarter)
+    {
+        $annual = (float) $item->annual_amount;
+
+        if ($periodType === 'monthly') {
+            if (!$periodMonth) {
+                return $annual / 12;
+            }
+            $monthMap = [
+                1 => 'jan_amount', 2 => 'feb_amount', 3 => 'mar_amount', 4 => 'apr_amount',
+                5 => 'may_amount', 6 => 'jun_amount', 7 => 'jul_amount', 8 => 'aug_amount',
+                9 => 'sep_amount', 10 => 'oct_amount', 11 => 'nov_amount', 12 => 'dec_amount',
+            ];
+            $column = $monthMap[(int) $periodMonth] ?? null;
+            return $column ? (float) ($item->$column ?? 0) : ($annual / 12);
+        }
+
+        if ($periodType === 'quarterly') {
+            if (!$periodQuarter && $periodMonth) {
+                $periodQuarter = (int) ceil($periodMonth / 3);
+            }
+            if (!$periodQuarter) {
+                return $annual / 4;
+            }
+            $quarterMonths = [
+                1 => [1, 2, 3],
+                2 => [4, 5, 6],
+                3 => [7, 8, 9],
+                4 => [10, 11, 12],
+            ];
+            $months = $quarterMonths[(int) $periodQuarter] ?? [];
+            $sum = 0;
+            foreach ($months as $month) {
+                $sum += $this->getBudgetedAmount($item, 'monthly', $periodYear, $month, null);
+            }
+            return $sum ?: ($annual / 4);
+        }
+
+        return $annual;
     }
 }

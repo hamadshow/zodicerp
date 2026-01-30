@@ -19,7 +19,7 @@ return new class extends Migration
                 $table->string('name_ar', 200);
                 $table->string('name_en', 200)->nullable();
                 $table->text('description')->nullable();
-                $table->enum('category_type', ['revenue', 'expense', 'capital', 'operational']);
+                $table->string('category_type');
                 $table->integer('level')->default(1);
                 $table->string('path', 500)->nullable();
                 $table->boolean('is_active')->default(true);

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import SearchableComboBox from '../components/SearchableComboBox';
 import '../../../../css/backend/04-Purchases/Purchase_quotations.scss';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
@@ -12,6 +13,27 @@ export default function PurchaseQuotations({ quotations, vendors, currencies, pr
     const { props } = usePage();
     const flash = (props && props.flash) ? props.flash : {};
     const { errors } = props;
+
+    const productOptions = useMemo(() => {
+        return (products || []).map(p => ({
+            value: String(p.id),
+            label: p.name_en || p.name_ar || ''
+        }));
+    }, [products]);
+
+    const unitOptions = useMemo(() => {
+        return (units || []).map(u => ({
+            value: String(u.id),
+            label: u.name_en || u.name_ar || ''
+        }));
+    }, [units]);
+
+    const currencyOptions = useMemo(() => {
+        return (currencies || []).map(c => ({
+            value: String(c.id),
+            label: `${c.code} - ${c.name}`
+        }));
+    }, [currencies]);
 
     // Initial Form State
     const { data, setData, post, put, delete: destroy, processing, reset } = useForm({
@@ -432,12 +454,12 @@ export default function PurchaseQuotations({ quotations, vendors, currencies, pr
                                 <div className="form-grid">
                                     <div className="form-group">
                                         <label>Currency</label>
-                                        <select value={data.currency_id} onChange={e => setData('currency_id', e.target.value)}>
-                                            <option value="">Select Currency</option>
-                                            {currencies.map(c => (
-                                                <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
-                                            ))}
-                                        </select>
+                                        <SearchableComboBox
+                                            options={currencyOptions}
+                                            value={data.currency_id ? String(data.currency_id) : ''}
+                                            onChange={(val) => setData('currency_id', val)}
+                                            placeholder="Select Currency"
+                                        />
                                     </div>
                                     <div className="form-group">
                                         <label>Exchange Rate</label>
@@ -491,15 +513,12 @@ export default function PurchaseQuotations({ quotations, vendors, currencies, pr
                                             <tr key={index}>
                                                 <td className="text-center">{index + 1}</td>
                                                 <td>
-                                                    <select 
-                                                        value={item.product_id} 
-                                                        onChange={e => handleItemChange(index, 'product_id', e.target.value)}
-                                                    >
-                                                        <option value="">Select Product</option>
-                                                        {products.map(p => (
-                                                            <option key={p.id} value={p.id}>{p.name_en}</option>
-                                                        ))}
-                                                    </select>
+                                                    <SearchableComboBox
+                                                        options={productOptions}
+                                                        value={item.product_id ? String(item.product_id) : ''}
+                                                        onChange={(val) => handleItemChange(index, 'product_id', val)}
+                                                        placeholder="Select Product"
+                                                    />
                                                 </td>
                                                 <td>
                                                     <input 
@@ -518,13 +537,12 @@ export default function PurchaseQuotations({ quotations, vendors, currencies, pr
                                                     />
                                                 </td>
                                                 <td>
-                                                    <select 
-                                                        value={item.unit_id} 
-                                                        onChange={e => handleItemChange(index, 'unit_id', e.target.value)}
-                                                    >
-                                                        <option value="">Unit</option>
-                                                        {units.map(u => <option key={u.id} value={u.id}>{u.name_en}</option>)}
-                                                    </select>
+                                                    <SearchableComboBox
+                                                        options={unitOptions}
+                                                        value={item.unit_id ? String(item.unit_id) : ''}
+                                                        onChange={(val) => handleItemChange(index, 'unit_id', val)}
+                                                        placeholder="Unit"
+                                                    />
                                                 </td>
                                                 <td>
                                                     <input 

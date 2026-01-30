@@ -36,7 +36,7 @@ export default function JournalEntityCE() {
 
   const [header, setHeader] = useState({
     entry_code: '',
-    date: '',
+    date: new Date().toISOString().split('T')[0],
     reference: '',
     description: '',
     status: 'UnPost',
@@ -49,8 +49,7 @@ export default function JournalEntityCE() {
   const loadAccounts = async (extraIds = []) => {
     try {
       const ids = Array.isArray(extraIds) ? extraIds.filter(Boolean) : [];
-      // Always load AccType=1 accounts
-      const typeRespPromise = apiService.get('/accounts', { type: 1 });
+      const typeRespPromise = apiService.get('/accounts');
       let extras = [];
       if (ids.length > 0) {
         const extrasResp = await apiService.get('/accounts', { ids: ids.join(',') });
@@ -235,7 +234,6 @@ export default function JournalEntityCE() {
       const message =
         e?.response?.data?.message || 'Failed to save journal entry.';
       setError(message);
-    } finally {
       setLoading(false);
     }
   };
@@ -348,9 +346,9 @@ export default function JournalEntityCE() {
                   <tr>
                     <th>#</th>
                     <th>Account</th>
+                    <th>Description</th>
                     <th>Debit</th>
                     <th>Credit</th>
-                    <th>Description</th>
                     {!readOnly && <th>Actions</th>}
                   </tr>
                 </thead>
@@ -370,6 +368,21 @@ export default function JournalEntityCE() {
                             placeholder="Select account"
                           />
                         </div>
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={line.description}
+                          onChange={(e) =>
+                            handleLineChange(
+                              index,
+                              'description',
+                              e.target.value,
+                            )
+                          }
+                          disabled={readOnly}
+                        />
                       </td>
                       <td>
                         <input
@@ -393,21 +406,6 @@ export default function JournalEntityCE() {
                           value={line.credit}
                           onChange={(e) =>
                             handleLineChange(index, 'credit', e.target.value)
-                          }
-                          disabled={readOnly}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          className="form-control"
-                          value={line.description}
-                          onChange={(e) =>
-                            handleLineChange(
-                              index,
-                              'description',
-                              e.target.value,
-                            )
                           }
                           disabled={readOnly}
                         />

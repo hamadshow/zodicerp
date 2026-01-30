@@ -223,14 +223,14 @@ export default function JournalEntity() {
                     </span>
                   </span>
                 </th>
-                <th onClick={() => handleSort('reference')}>
+                <th onClick={() => handleSort('description')}>
                   <span className="sortable-header">
-                    <span>Reference</span>
+                    <span>Details</span>
                     <span className="sort-icons">
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'reference' &&
+                          (sort.column === 'description' &&
                           sort.direction === 'asc'
                             ? ' active'
                             : '')
@@ -241,7 +241,7 @@ export default function JournalEntity() {
                       <span
                         className={
                           'sort-icon' +
-                          (sort.column === 'reference' &&
+                          (sort.column === 'description' &&
                           sort.direction === 'desc'
                             ? ' active'
                             : '')
@@ -362,8 +362,18 @@ export default function JournalEntity() {
                   <tr key={journal.id}>
                     <td>{journal.entry_code}</td>
                     <td>{journal.entry_type}</td>
-                    <td>{journal.reference}</td>
-                    <td>{journal.date}</td>
+                    <td>{journal.description}</td>
+                    <td>
+                      {journal.date
+                        ? (() => {
+                            const d = new Date(journal.date);
+                            const day = String(d.getDate()).padStart(2, '0');
+                            const month = String(d.getMonth() + 1).padStart(2, '0');
+                            const year = d.getFullYear();
+                            return `${day}-${month}-${year}`;
+                          })()
+                        : ''}
+                    </td>
                     <td>{Number(journal.total_amount || 0).toFixed(2)}</td>
                     <td>
                       <span

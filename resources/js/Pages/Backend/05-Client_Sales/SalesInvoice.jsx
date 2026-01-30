@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import SearchableComboBox from '../components/SearchableComboBox';
 import '../../../../css/backend/05-Client_Sales/SalesInvoice.scss';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
@@ -12,6 +13,27 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
     const { props } = usePage();
     const flash = (props && props.flash) ? props.flash : {};
     const { errors } = props;
+
+    const orderOptions = useMemo(() => {
+        return (orders || []).map(o => ({
+            value: String(o.id),
+            label: o.order_number || String(o.id)
+        }));
+    }, [orders]);
+
+    const currencyOptions = useMemo(() => {
+        return (currencies || []).map(c => ({
+            value: String(c.id),
+            label: c.code
+        }));
+    }, [currencies]);
+
+    const productOptions = useMemo(() => {
+        return (products || []).map(p => ({
+            value: String(p.id),
+            label: p.name_en || p.name_ar || ''
+        }));
+    }, [products]);
 
     // Initial Form State
     const { data, setData, post, put, delete: destroy, processing, reset } = useForm({
@@ -430,12 +452,12 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                     </div>
                                     <div className="form-group">
                                         <label>Link Order</label>
-                                        <select value={data.order_id} onChange={e => setData('order_id', e.target.value)}>
-                                            <option value="">Select Order</option>
-                                            {orders?.map(o => (
-                                                <option key={o.id} value={o.id}>{o.order_number || o.id}</option>
-                                            ))}
-                                        </select>
+                                        <SearchableComboBox
+                                            options={orderOptions}
+                                            value={data.order_id ? String(data.order_id) : ''}
+                                            onChange={(val) => setData('order_id', val)}
+                                            placeholder="Select Order"
+                                        />
                                     </div>
                                 </div>
                             </div>
@@ -445,12 +467,12 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                 <div className="form-grid">
                                     <div className="form-group">
                                         <label>Currency</label>
-                                        <select value={data.currency_id} onChange={e => setData('currency_id', e.target.value)}>
-                                            <option value="">Select Currency</option>
-                                            {currencies?.map(c => (
-                                                <option key={c.id} value={c.id}>{c.code}</option>
-                                            ))}
-                                        </select>
+                                        <SearchableComboBox
+                                            options={currencyOptions}
+                                            value={data.currency_id ? String(data.currency_id) : ''}
+                                            onChange={(val) => setData('currency_id', val)}
+                                            placeholder="Select Currency"
+                                        />
                                     </div>
                                     <div className="form-group">
                                         <label>Exchange Rate</label>
@@ -503,16 +525,14 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                             <tr key={index}>
                                                 <td className="text-center">{index + 1}</td>
                                                 <td>
-                                                    <select 
-                                                        value={item.product_id} 
-                                                        onChange={e => handleItemChange(index, 'product_id', e.target.value)}
-                                                        style={{marginBottom: '5px'}}
-                                                    >
-                                                        <option value="">Select Product</option>
-                                                        {products?.map(p => (
-                                                            <option key={p.id} value={p.id}>{p.name_en || p.name_ar}</option>
-                                                        ))}
-                                                    </select>
+                                                    <div style={{ marginBottom: '5px' }}>
+                                                        <SearchableComboBox
+                                                            options={productOptions}
+                                                            value={item.product_id ? String(item.product_id) : ''}
+                                                            onChange={(val) => handleItemChange(index, 'product_id', val)}
+                                                            placeholder="Select Product"
+                                                        />
+                                                    </div>
                                                     <input 
                                                         type="text" 
                                                         placeholder="Description"

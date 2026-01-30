@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
+import SearchableComboBox from '@/Pages/Backend/components/SearchableComboBox';
 import '../../../../css/backend/Budget/BudgetForecast.scss';
 import axios from 'axios';
 
-export default function BudgetForecast({ forecasts, budgets, auth }) {
+export default function BudgetForecast({ forecasts, budgets }) {
     const [activeTab, setActiveTab] = useState('info');
     const [budgetItems, setBudgetItems] = useState([]);
     const [selectedForecast, setSelectedForecast] = useState(null);
@@ -14,16 +15,19 @@ export default function BudgetForecast({ forecasts, budgets, auth }) {
         budget_id: '',
         forecast_type: 'revision',
         reference_budget_item_id: '',
+        destination_budget_item_id: '',
         forecast_date: new Date().toISOString().split('T')[0],
         effective_date: new Date().toISOString().split('T')[0],
         original_amount: 0,
         revised_amount: 0,
+        transfer_amount: 0, // Helper for transfer UI
         revision_reason: '',
         approved_amount: 0,
     });
 
     const [difference, setDifference] = useState({ amount: 0, percent: 0 });
 
+    // Fetch budget items when budget changes
     useEffect(() => {
         if (data.budget_id) {
             axios.get(`/admin/budget/forecasts/items/${data.budget_id}`)
@@ -36,7 +40,14 @@ export default function BudgetForecast({ forecasts, budgets, auth }) {
         }
     }, [data.budget_id]);
 
+    // Calculate difference and percent
     useEffect(() => {
+        // If transfer, calculate revised based on transfer amount
+        if (data.forecast_type === 'transfer') {
+             // For transfer, revised amount (source) = original - transfer
+             // But we handle this via transfer_amount input
+        }
+
         const diff = parseFloat(data.revised_amount || 0) - parseFloat(data.original_amount || 0);
         const percent = parseFloat(data.original_amount || 0) !== 0 
             ? (diff / parseFloat(data.original_amount)) * 100 
@@ -48,26 +59,51 @@ export default function BudgetForecast({ forecasts, budgets, auth }) {
         });
     }, [data.original_amount, data.revised_amount]);
 
+    // Set original amount when reference item changes
     useEffect(() => {
         if (data.reference_budget_item_id && budgetItems.length > 0) {
             const item = budgetItems.find(i => i.id == data.reference_budget_item_id);
             if (item && !isEditing) {
-                setData('original_amount', item.amount);
+                setData(prev => ({
+                    ...prev,
+                    original_amount: item.amount,
+                    // Reset revised/transfer when item changes
+                    revised_amount: item.amount, 
+                    transfer_amount: 0
+                }));
             }
         }
     }, [data.reference_budget_item_id, budgetItems]);
 
+    // Handle transfer amount changes
+    useEffect(() => {
+        if (data.forecast_type === 'transfer' && !isEditing) {
+             const transfer = parseFloat(data.transfer_amount || 0);
+             const original = parseFloat(data.original_amount || 0);
+             setData('revised_amount', original - transfer);
+        }
+    }, [data.transfer_amount, data.forecast_type]);
+
     const handleEdit = (forecast) => {
         setSelectedForecast(forecast);
         setIsEditing(true);
+        
+        // Calculate transfer amount if it was a transfer
+        let transferAmt = 0;
+        if (forecast.forecast_type === 'transfer') {
+            transferAmt = parseFloat(forecast.original_amount) - parseFloat(forecast.revised_amount);
+        }
+
         setData({
             budget_id: forecast.budget_id,
             forecast_type: forecast.forecast_type,
             reference_budget_item_id: forecast.reference_budget_item_id,
+            destination_budget_item_id: forecast.destination_budget_item_id || '',
             forecast_date: forecast.forecast_date,
             effective_date: forecast.effective_date,
             original_amount: forecast.original_amount,
             revised_amount: forecast.revised_amount,
+            transfer_amount: transferAmt,
             revision_reason: forecast.revision_reason || '',
             approved_amount: forecast.approved_amount || forecast.revised_amount,
         });
@@ -79,10 +115,23 @@ export default function BudgetForecast({ forecasts, budgets, auth }) {
         reset();
         setData('forecast_date', new Date().toISOString().split('T')[0]);
         setData('effective_date', new Date().toISOString().split('T')[0]);
+        setActiveTab('info');
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        
+        if (data.forecast_type === 'transfer') {
+            if (data.reference_budget_item_id === data.destination_budget_item_id) {
+                alert('Source and Destination items cannot be the same.');
+                return;
+            }
+            if (parseFloat(data.transfer_amount) <= 0) {
+                 alert('Transfer amount must be positive.');
+                 return;
+            }
+        }
+
         if (selectedForecast) {
             put(route('admin.budget.forecasts.update', selectedForecast.id), {
                 onSuccess: () => {
@@ -104,7 +153,6 @@ export default function BudgetForecast({ forecasts, budgets, auth }) {
                 preserveScroll: true,
                 onSuccess: () => {
                     if (selectedForecast && selectedForecast.id === id) {
-                        // Refresh selected forecast data if needed, or just close details
                         setSelectedForecast(null);
                         setIsEditing(false);
                         reset();
@@ -122,9 +170,42 @@ export default function BudgetForecast({ forecasts, budgets, auth }) {
         }
     };
 
-    const formatCurrency = (amount) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    // Dynamic Currency Helper
+    const getCurrencyCode = () => {
+        if (data.budget_id) {
+            const b = budgets.find(x => x.id == data.budget_id);
+            // Assuming budget has currency relationship loaded or code, if not default to USD
+            // The budgets prop in controller selects: id, name, number. 
+            // It might not have currency. I should update controller to include currency_code if possible.
+            // For now, let's use a safe fallback.
+            return b?.currency?.code || 'USD'; 
+        }
+        return 'USD';
     };
+
+    const formatCurrency = (amount) => {
+        const code = getCurrencyCode();
+        try {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).format(amount);
+        } catch {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+        }
+    };
+
+    // Options for SearchableComboBox
+    const budgetOptions = useMemo(() => 
+        budgets.map(b => ({
+            value: String(b.id),
+            label: `${b.budget_name_en} (${b.budget_number})`
+        })), 
+    [budgets]);
+
+    const itemOptions = useMemo(() => 
+        budgetItems.map(item => ({
+            value: String(item.id),
+            label: `${item.name} - ${formatCurrency(item.amount)}`
+        })), 
+    [budgetItems, data.budget_id]); // Re-calc when budgetItems change
 
     return (
         <AdminLayout>
@@ -246,16 +327,15 @@ export default function BudgetForecast({ forecasts, budgets, auth }) {
 
                                     <div className="form-group">
                                         <label>Budget</label>
-                                        <select 
-                                            value={data.budget_id} 
-                                            onChange={e => setData('budget_id', e.target.value)}
-                                            disabled={selectedForecast && selectedForecast.status !== 'draft' && selectedForecast.status !== 'rejected'}
-                                        >
-                                            <option value="">Select Budget</option>
-                                            {budgets.map(b => (
-                                                <option key={b.id} value={b.id}>{b.budget_name_en} ({b.budget_number})</option>
-                                            ))}
-                                        </select>
+                                        <div className="account-select-cell">
+                                            <SearchableComboBox 
+                                                options={budgetOptions}
+                                                value={data.budget_id ? String(data.budget_id) : ''}
+                                                onChange={val => setData('budget_id', val)}
+                                                placeholder="Select Budget"
+                                                disabled={selectedForecast && selectedForecast.status !== 'draft' && selectedForecast.status !== 'rejected'}
+                                            />
+                                        </div>
                                         {errors.budget_id && <span className="error-message">{errors.budget_id}</span>}
                                     </div>
 
@@ -276,18 +356,33 @@ export default function BudgetForecast({ forecasts, budgets, auth }) {
 
                                     {(data.forecast_type === 'revision' || data.forecast_type === 'adjustment' || data.forecast_type === 'transfer') && (
                                         <div className="form-group full-width">
-                                            <label>Reference Budget Item</label>
-                                            <select 
-                                                value={data.reference_budget_item_id} 
-                                                onChange={e => setData('reference_budget_item_id', e.target.value)}
-                                                disabled={selectedForecast && selectedForecast.status !== 'draft' && selectedForecast.status !== 'rejected'}
-                                            >
-                                                <option value="">Select Item</option>
-                                                {budgetItems.map(item => (
-                                                    <option key={item.id} value={item.id}>{item.name} - {formatCurrency(item.amount)}</option>
-                                                ))}
-                                            </select>
+                                            <label>{data.forecast_type === 'transfer' ? 'Source Budget Item' : 'Reference Budget Item'}</label>
+                                            <div className="account-select-cell">
+                                                <SearchableComboBox 
+                                                    options={itemOptions}
+                                                    value={data.reference_budget_item_id ? String(data.reference_budget_item_id) : ''}
+                                                    onChange={val => setData('reference_budget_item_id', val)}
+                                                    placeholder="Select Item"
+                                                    disabled={selectedForecast && selectedForecast.status !== 'draft' && selectedForecast.status !== 'rejected'}
+                                                />
+                                            </div>
                                             {errors.reference_budget_item_id && <span className="error-message">{errors.reference_budget_item_id}</span>}
+                                        </div>
+                                    )}
+
+                                    {data.forecast_type === 'transfer' && (
+                                        <div className="form-group full-width">
+                                            <label>Destination Budget Item</label>
+                                            <div className="account-select-cell">
+                                                <SearchableComboBox 
+                                                    options={itemOptions}
+                                                    value={data.destination_budget_item_id ? String(data.destination_budget_item_id) : ''}
+                                                    onChange={val => setData('destination_budget_item_id', val)}
+                                                    placeholder="Select Destination Item"
+                                                    disabled={selectedForecast && selectedForecast.status !== 'draft' && selectedForecast.status !== 'rejected'}
+                                                />
+                                            </div>
+                                            {errors.destination_budget_item_id && <span className="error-message">{errors.destination_budget_item_id}</span>}
                                         </div>
                                     )}
 
@@ -356,15 +451,34 @@ export default function BudgetForecast({ forecasts, budgets, auth }) {
                                             </div>
                                         </div>
 
+                                        {data.forecast_type === 'transfer' && (
+                                             <div className="amount-column">
+                                                <h3>Transfer Amount</h3>
+                                                <div className="form-group">
+                                                    <input 
+                                                        type="number" 
+                                                        step="0.01"
+                                                        value={data.transfer_amount} 
+                                                        onChange={e => setData('transfer_amount', e.target.value)}
+                                                        disabled={selectedForecast && selectedForecast.status !== 'draft' && selectedForecast.status !== 'rejected'}
+                                                    />
+                                                </div>
+                                                <div className="amount-display">
+                                                    {formatCurrency(data.transfer_amount)}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div className="amount-column">
-                                            <h3>Revised Amount</h3>
+                                            <h3>{data.forecast_type === 'transfer' ? 'Revised Source Amount' : 'Revised Amount'}</h3>
                                             <div className="form-group">
                                                 <input 
                                                     type="number" 
                                                     step="0.01"
                                                     value={data.revised_amount} 
                                                     onChange={e => setData('revised_amount', e.target.value)}
-                                                    disabled={selectedForecast && selectedForecast.status !== 'draft' && selectedForecast.status !== 'rejected'}
+                                                    disabled={data.forecast_type === 'transfer' || (selectedForecast && selectedForecast.status !== 'draft' && selectedForecast.status !== 'rejected')}
+                                                    readOnly={data.forecast_type === 'transfer'}
                                                 />
                                                 {errors.revised_amount && <span className="error-message">{errors.revised_amount}</span>}
                                             </div>
@@ -373,52 +487,74 @@ export default function BudgetForecast({ forecasts, budgets, auth }) {
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className={`diff-indicator ${difference.amount >= 0 ? 'positive' : 'negative'} ${Math.abs(difference.percent) > 10 ? 'warning' : ''}`}>
-                                        <span>Difference: {formatCurrency(difference.amount)}</span>
-                                        <span>{difference.percent}% {difference.amount > 0 ? 'Increase' : 'Decrease'}</span>
+                                    
+                                    <div className="difference-panel">
+                                        <div className="diff-item">
+                                            <label>Difference Amount:</label>
+                                            <span className={difference.amount < 0 ? 'text-danger' : 'text-success'}>
+                                                {formatCurrency(difference.amount)}
+                                            </span>
+                                        </div>
+                                        <div className="diff-item">
+                                            <label>Difference %:</label>
+                                            <span className={difference.amount < 0 ? 'text-danger' : 'text-success'}>
+                                                {difference.percent}%
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             )}
 
                             {activeTab === 'approval' && (
-                                <div className="form-grid">
-                                    <div className="form-group">
-                                        <label>Approved Amount</label>
-                                        <input 
-                                            type="number" 
-                                            step="0.01"
-                                            value={data.approved_amount} 
-                                            onChange={e => setData('approved_amount', e.target.value)}
-                                            disabled={!selectedForecast || selectedForecast.status !== 'pending_approval'}
-                                        />
-                                        {errors.approved_amount && <span className="error-message">{errors.approved_amount}</span>}
-                                    </div>
-
-                                    {selectedForecast && (
-                                        <>
-                                            <div className="form-group">
-                                                <label>Created By</label>
-                                                <input type="text" value={selectedForecast.creator?.name || '-'} readOnly disabled />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Approved By</label>
-                                                <input type="text" value={selectedForecast.approver?.name || '-'} readOnly disabled />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Approved Date</label>
-                                                <input type="text" value={selectedForecast.approved_date || '-'} readOnly disabled />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Implemented By</label>
-                                                <input type="text" value={selectedForecast.implementer?.name || '-'} readOnly disabled />
-                                            </div>
-                                            <div className="form-group">
-                                                <label>Implemented Date</label>
-                                                <input type="text" value={selectedForecast.implemented_date || '-'} readOnly disabled />
-                                            </div>
-                                        </>
+                                <div>
+                                    {selectedForecast && selectedForecast.status === 'pending_approval' && (
+                                        <div className="form-group">
+                                            <label>Approved Amount</label>
+                                            <input 
+                                                type="number" 
+                                                step="0.01"
+                                                value={data.approved_amount} 
+                                                onChange={e => setData('approved_amount', e.target.value)}
+                                            />
+                                        </div>
                                     )}
+                                    
+                                    {/* Audit Trail */}
+                                    <div className="audit-trail mt-4">
+                                        <h3>Audit Trail</h3>
+                                        <table className="audit-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Action</th>
+                                                    <th>User</th>
+                                                    <th>Date</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {selectedForecast && selectedForecast.created_by && (
+                                                    <tr>
+                                                        <td>Created</td>
+                                                        <td>{selectedForecast.creator?.name || selectedForecast.created_by}</td>
+                                                        <td>{selectedForecast.created_at?.split('T')[0]}</td>
+                                                    </tr>
+                                                )}
+                                                {selectedForecast && selectedForecast.approved_by && (
+                                                    <tr>
+                                                        <td>Approved</td>
+                                                        <td>{selectedForecast.approver?.name || selectedForecast.approved_by}</td>
+                                                        <td>{selectedForecast.approved_date}</td>
+                                                    </tr>
+                                                )}
+                                                {selectedForecast && selectedForecast.implemented_by && (
+                                                    <tr>
+                                                        <td>Implemented</td>
+                                                        <td>{selectedForecast.implementer?.name || selectedForecast.implemented_by}</td>
+                                                        <td>{selectedForecast.implemented_date}</td>
+                                                    </tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             )}
                         </div>

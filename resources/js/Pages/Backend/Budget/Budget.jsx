@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import SearchableComboBox from '../components/SearchableComboBox';
 import '../../../../css/backend/Budget/Budget.scss';
 
-const Budget = ({ budgets, departments, branches, currencies, categories, accounts, taxes, projects, costCenters }) => {
+const Budget = ({ budgets, departments, branches, currencies, categories, accounts, projects, costCenters }) => {
     const [viewMode, setViewMode] = useState('list'); // list, create, edit
     const [activeTab, setActiveTab] = useState('info'); // info, items, summary
 
@@ -35,6 +36,21 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
     });
 
     const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+
+    const categoryOptions = useMemo(() => 
+        categories.map(c => ({
+            value: String(c.id),
+            label: c.name_en || c.name_ar || c.name || `Category ${c.id}`
+        })), 
+    [categories]);
+
+    const accountOptions = useMemo(() => 
+        accounts
+            .map(a => ({
+                value: String(a.AccID),
+                label: `${a.AccCode ? a.AccCode + ' - ' : ''}${a.AccName}`
+            })), 
+    [accounts]);
 
     // --- List View Components ---
     const BudgetList = () => (
@@ -119,10 +135,12 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
 
         if (viewMode === 'create') {
             post(route('admin.budgets.store'), {
+                data: finalData,
                 onSuccess: () => setViewMode('list')
             });
         } else {
             put(route('admin.budgets.update', data.id), {
+                data: finalData,
                 onSuccess: () => setViewMode('list')
             });
         }
@@ -302,24 +320,24 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                         {data.items.map((item, index) => (
                             <tr key={index}>
                                 <td>
-                                    <select 
-                                        value={item.category_id || ''} 
-                                        onChange={e => updateItem(index, 'category_id', e.target.value)}
-                                        style={{ width: '150px' }}
-                                    >
-                                        <option value="">Category</option>
-                                        {categories.map(c => <option key={c.id} value={c.id}>{c.name_en || c.name}</option>)}
-                                    </select>
+                                    <div className="account-select-cell">
+                                        <SearchableComboBox
+                                            options={categoryOptions}
+                                            value={item.category_id ? String(item.category_id) : ''}
+                                            onChange={(val) => updateItem(index, 'category_id', val)}
+                                            placeholder="Category"
+                                        />
+                                    </div>
                                 </td>
                                 <td>
-                                    <select 
-                                        value={item.account_id || ''} 
-                                        onChange={e => updateItem(index, 'account_id', e.target.value)}
-                                        style={{ width: '150px' }}
-                                    >
-                                        <option value="">Account</option>
-                                        {accounts.map(a => <option key={a.AccID} value={a.AccID}>{a.AccName}</option>)}
-                                    </select>
+                                    <div className="account-select-cell">
+                                        <SearchableComboBox
+                                            options={accountOptions}
+                                            value={item.account_id ? String(item.account_id) : ''}
+                                            onChange={(val) => updateItem(index, 'account_id', val)}
+                                            placeholder={'Account'}
+                                        />
+                                    </div>
                                 </td>
                                 <td>
                                     <select

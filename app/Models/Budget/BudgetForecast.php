@@ -57,6 +57,11 @@ class BudgetForecast extends Model
         return $this->belongsTo(BudgetItem::class, 'reference_budget_item_id');
     }
 
+    public function destinationItem(): BelongsTo
+    {
+        return $this->belongsTo(BudgetItem::class, 'destination_budget_item_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(\App\Models\User::class, 'created_by');

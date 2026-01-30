@@ -12,7 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('supplier_contacts', function (Blueprint $table) {
-            $table->renameColumn('email', 'telegram');
+            if (Schema::hasColumn('supplier_contacts', 'email') && !Schema::hasColumn('supplier_contacts', 'telegram')) {
+                $table->renameColumn('email', 'telegram');
+            }
         });
     }
 

@@ -33,6 +33,7 @@ Route::middleware('web')->group(function () {
     Route::get('tasks/statuses', [TaskStatusController::class, 'index']);
     Route::get('tasks/statistics', [TaskController::class, 'statistics']);
     Route::get('employees', [EmployeeController::class, 'index']);
+    Route::get('accounts', [\App\Http\Controllers\Accounting\AccountsController::class, 'index']);
 });
 
 // For now, we'll return sample vacation data

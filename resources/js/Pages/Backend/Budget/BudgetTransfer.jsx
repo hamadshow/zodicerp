@@ -8,11 +8,10 @@ const BudgetTransfer = ({ transfers, budgets, filters }) => {
     const [viewMode, setViewMode] = useState('list'); // 'list', 'create', 'edit'
     const [fromItems, setFromItems] = useState([]);
     const [toItems, setToItems] = useState([]);
-    const [selectedTransfer, setSelectedTransfer] = useState(null);
     const [loadingItems, setLoadingItems] = useState({ from: false, to: false });
 
     // Form handling
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors, reset } = useForm({
         transfer_date: new Date().toISOString().split('T')[0],
         transfer_type: 'internal',
         reason: '',

@@ -238,22 +238,12 @@ const AdminLayout = ({
       label: 'Budget',
       hasSubmenu: true,
       submenuItems: [
+        { icon: 'category', label: 'Budget Categories', href: route('admin.budget.categories.index') },
         { icon: 'list', label: 'Budget', href: route('admin.budget.index') },
         { icon: 'trending_up', label: 'Budget Forecasts', href: route('admin.budget.forecasts.index') },
         { icon: 'monitor_heart', label: 'Budget Monitoring', href: route('admin.budget.monitoring.index') },
         { icon: 'swap_horiz', label: 'Budget Transfers', href: route('admin.budget.transfers.index') },
-        { icon: 'category', label: 'Budget Categories', href: route('admin.budget.categories.index') },
         { icon: 'assignment_turned_in', label: 'Budget Commitments', href: route('admin.budget.commitments.index') },
-      ],
-    },
-    {
-      icon: 'show_chart',
-      label: 'Investing & Stack',
-      hasSubmenu: true,
-      submenuItems: [
-        { icon: 'business', label: 'Listed Companies', href: route('admin.investing-stack.listed-companies.index') },
-        { icon: 'category', label: 'Sectors', href: route('admin.investing-stack.sectors.index') },
-        { icon: 'domain', label: 'Industries', href: route('admin.investing-stack.industries.index') },
       ],
     },
     // { icon: 'store', label: 'Marketplace' },
