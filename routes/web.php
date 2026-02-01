@@ -278,6 +278,9 @@ Route::middleware('auth')->group(function () {
             'destroy' => 'admin.budgets.destroy',
         ]);
 
+    Route::get('/admin/budget/dashboard', [\App\Http\Controllers\Budget\BudgetMonitoringController::class, 'dashboard'])
+        ->name('admin.budget.dashboard');
+
     // Budget Forecast Routes
     Route::get('/admin/budget/forecasts/items/{budgetId}', [\App\Http\Controllers\Budget\BudgetForecastController::class, 'getBudgetItems']);
     

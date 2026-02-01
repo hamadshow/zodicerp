@@ -8,7 +8,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
     const [viewMode, setViewMode] = useState('list'); // list, create, edit
     const [activeTab, setActiveTab] = useState('info'); // info, items, summary
 
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const initialState = {
         id: null,
         budget_number: '',
         budget_name_ar: '',
@@ -33,7 +33,9 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
         allow_over_budget: false,
         require_approval_over_budget: true,
         items: []
-    });
+    };
+
+    const { data, setData, post, put, processing, errors } = useForm(initialState);
 
     const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
@@ -110,18 +112,34 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
     };
 
     const handleCreate = () => {
-        reset();
-        setData(prev => ({ ...prev, budget_number: `BUD-${new Date().getTime()}` })); // Simple auto-gen
+        setData({
+            ...initialState,
+            budget_number: `BUD-${new Date().getTime()}`
+        });
         setViewMode('create');
         setActiveTab('info');
     };
 
     const handleEdit = (budget) => {
+        // Parse items to extract basis_account_id from formula if needed
+        const parsedItems = (budget.items || []).map(item => {
+             let basisId = '';
+             // If percentage method, try to extract basis ID from formula "BASIS_ACCOUNT:123"
+             if (item.calculation_method === 'percentage' && item.calculation_formula && item.calculation_formula.startsWith('BASIS_ACCOUNT:')) {
+                 basisId = item.calculation_formula.split(':')[1];
+             }
+             
+             return {
+                 ...item,
+                 basis_account_id: basisId
+             };
+        });
+
         setData({
             ...budget,
             start_date: budget.start_date ? budget.start_date.split('T')[0] : '',
             end_date: budget.end_date ? budget.end_date.split('T')[0] : '',
-            items: budget.items || [] // Assuming items are eager loaded or fetched
+            items: parsedItems
         });
         setViewMode('edit');
         setActiveTab('info');
@@ -147,15 +165,49 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
     };
 
     // --- Item Management ---
+    const recalculateDependentItems = (items) => {
+        // Map for fast lookup of source items by account_id
+        const itemMap = new Map();
+        items.forEach(item => {
+            if (item.account_id) {
+                itemMap.set(String(item.account_id), item);
+            }
+        });
+
+        return items.map(item => {
+            // Logic for Percentage Method
+            if (item.calculation_method === 'percentage' && item.basis_account_id && item.percentage_rate) {
+                const basisItem = itemMap.get(String(item.basis_account_id));
+                
+                if (basisItem) {
+                    const rate = parseFloat(item.percentage_rate) / 100;
+                    let annualTotal = 0;
+                    
+                    months.forEach(m => {
+                        const basisAmount = parseFloat(basisItem[`${m}_amount`] || 0);
+                        const calculatedAmount = basisAmount * rate;
+                        item[`${m}_amount`] = calculatedAmount;
+                        annualTotal += calculatedAmount;
+                    });
+                    
+                    item.annual_amount = annualTotal;
+                }
+            }
+            return item;
+        });
+    };
+
     const addItem = () => {
         const newItem = {
             id: null, // New item
             category_id: '',
             account_id: '',
+            calculation_method: 'manual',
+            basis_account_id: '',
+            percentage_rate: '',
             annual_amount: 0,
             jan_amount: 0, feb_amount: 0, mar_amount: 0, apr_amount: 0, may_amount: 0, jun_amount: 0,
             jul_amount: 0, aug_amount: 0, sep_amount: 0, oct_amount: 0, nov_amount: 0, dec_amount: 0,
-            // ... defaults
         };
         setData('items', [...data.items, newItem]);
     };
@@ -164,7 +216,12 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
         const newItems = [...data.items];
         newItems[index][field] = value;
 
-        // Auto-calculate annual if monthly changes
+        // Sync basis_account_id to calculation_formula for storage
+        if (field === 'basis_account_id') {
+            newItems[index].calculation_formula = `BASIS_ACCOUNT:${value}`;
+        }
+
+        // 1. Calculate Annual for CURRENT item if monthly changes (and it's manual or formula overridden)
         if (field.endsWith('_amount')) {
             let total = 0;
             months.forEach(m => {
@@ -173,7 +230,11 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
             newItems[index].annual_amount = total;
         }
 
-        setData('items', newItems);
+        // 2. Trigger global recalculation for dependencies
+        // We pass the updated items to the recalculation logic
+        const recalculatedItems = recalculateDependentItems(newItems);
+
+        setData('items', recalculatedItems);
     };
 
     const calculateBudgetTotals = (items) => {
@@ -198,22 +259,22 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
     const renderInfoTab = () => (
         <div className="form-section animate-fade-in">
             <div className="form-group">
-                <label>Budget Number</label>
+                <label>Budget Number <span style={{ color: 'red' }}>*</span></label>
                 <input type="text" value={data.budget_number || ''} onChange={e => setData('budget_number', e.target.value)} />
                 {errors.budget_number && <span className="error">{errors.budget_number}</span>}
             </div>
             <div className="form-group">
-                <label>Budget Name (EN)</label>
+                <label>Budget Name (EN) <span style={{ color: 'red' }}>*</span></label>
                 <input type="text" value={data.budget_name_en || ''} onChange={e => setData('budget_name_en', e.target.value)} />
                 {errors.budget_name_en && <span className="error" style={{ color: 'red' }}>{errors.budget_name_en}</span>}
             </div>
             <div className="form-group">
-                <label>Budget Name (AR)</label>
+                <label>Budget Name (AR) <span style={{ color: 'red' }}>*</span></label>
                 <input type="text" value={data.budget_name_ar || ''} onChange={e => setData('budget_name_ar', e.target.value)} />
                 {errors.budget_name_ar && <span className="error" style={{ color: 'red' }}>{errors.budget_name_ar}</span>}
             </div>
             <div className="form-group">
-                <label>Budget Type</label>
+                <label>Budget Type <span style={{ color: 'red' }}>*</span></label>
                 <select value={data.budget_type || ''} onChange={e => setData('budget_type', e.target.value)}>
                     <option value="annual">Annual</option>
                     <option value="quarterly">Quarterly</option>
@@ -224,7 +285,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                 {errors.budget_type && <span className="error" style={{ color: 'red' }}>{errors.budget_type}</span>}
             </div>
             <div className="form-group">
-                <label>Scope Type</label>
+                <label>Scope Type <span style={{ color: 'red' }}>*</span></label>
                 <select value={data.scope_type || ''} onChange={e => setData('scope_type', e.target.value)}>
                     <option value="company">Company</option>
                     <option value="department">Department</option>
@@ -235,16 +296,19 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                 {errors.scope_type && <span className="error" style={{ color: 'red' }}>{errors.scope_type}</span>}
             </div>
             <div className="form-group">
-                <label>Fiscal Year</label>
+                <label>Fiscal Year <span style={{ color: 'red' }}>*</span></label>
                 <input type="number" value={data.fiscal_year || ''} onChange={e => setData('fiscal_year', e.target.value)} />
+                {errors.fiscal_year && <span className="error" style={{ color: 'red' }}>{errors.fiscal_year}</span>}
             </div>
             <div className="form-group">
-                <label>Start Date</label>
+                <label>Start Date <span style={{ color: 'red' }}>*</span></label>
                 <input type="date" value={data.start_date || ''} onChange={e => setData('start_date', e.target.value)} />
+                {errors.start_date && <span className="error" style={{ color: 'red' }}>{errors.start_date}</span>}
             </div>
             <div className="form-group">
-                <label>End Date</label>
+                <label>End Date <span style={{ color: 'red' }}>*</span></label>
                 <input type="date" value={data.end_date || ''} onChange={e => setData('end_date', e.target.value)} />
+                {errors.end_date && <span className="error" style={{ color: 'red' }}>{errors.end_date}</span>}
             </div>
             <div className="form-group">
                 <label>Department</label>
@@ -252,13 +316,15 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                     <option value="">Select Department</option>
                     {departments.map(d => <option key={d.id} value={d.id}>{d.name_en}</option>)}
                 </select>
+                {errors.department_id && <span className="error" style={{ color: 'red' }}>{errors.department_id}</span>}
             </div>
             <div className="form-group">
-                <label>Currency</label>
+                <label>Currency <span style={{ color: 'red' }}>*</span></label>
                 <select value={data.currency_id || ''} onChange={e => setData('currency_id', e.target.value)}>
                     <option value="">Select Currency</option>
                     {currencies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
                 </select>
+                {errors.currency_id && <span className="error" style={{ color: 'red' }}>{errors.currency_id}</span>}
             </div>
             <div className="form-group">
                 <label>Branch</label>
@@ -266,6 +332,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                     <option value="">Select Branch</option>
                     {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                 </select>
+                {errors.branch_id && <span className="error" style={{ color: 'red' }}>{errors.branch_id}</span>}
             </div>
              <div className="form-group">
                 <label>Project (Optional)</label>
@@ -273,6 +340,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                     <option value="">Select Project</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
+                {errors.project_id && <span className="error" style={{ color: 'red' }}>{errors.project_id}</span>}
             </div>
              <div className="form-group">
                 <label>Cost Center (Optional)</label>
@@ -280,6 +348,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                     <option value="">Select Cost Center</option>
                     {costCenters.map(cc => <option key={cc.id} value={cc.id}>{cc.name}</option>)}
                 </select>
+                {errors.cost_center_id && <span className="error" style={{ color: 'red' }}>{errors.cost_center_id}</span>}
             </div>
             
             <div className="form-group">
@@ -351,14 +420,46 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                                     </select>
                                 </td>
                                 <td>
-                                    <input 
-                                        type="text" 
-                                        className="grid-input"
-                                        value={item.calculation_formula || ''}
-                                        onChange={e => updateItem(index, 'calculation_formula', e.target.value)}
-                                        placeholder="e.g. (A+B)*10%"
-                                        disabled={item.calculation_method !== 'formula'}
-                                    />
+                                    {item.calculation_method === 'percentage' ? (
+                                        <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                                            <select
+                                                className="grid-input"
+                                                value={item.basis_account_id || ''}
+                                                onChange={e => updateItem(index, 'basis_account_id', e.target.value)}
+                                                style={{ width: '120px', fontSize: '12px', padding: '4px' }}
+                                                title="Select Basis Account"
+                                            >
+                                                <option value="">Select Basis</option>
+                                                {data.items.map((opt, i) => {
+                                                     const acc = accountOptions.find(a => String(a.id) === String(opt.account_id));
+                                                     const label = acc ? acc.name : (opt.account_id ? `Account ${opt.account_id}` : `Row ${i+1}`);
+                                                     if (i === index) return null;
+                                                     if (!opt.account_id) return null;
+                                                     return <option key={i} value={opt.account_id}>{label}</option>
+                                                })}
+                                            </select>
+                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                                <input
+                                                    type="number"
+                                                    className="grid-input"
+                                                    value={item.percentage_rate || ''}
+                                                    onChange={e => updateItem(index, 'percentage_rate', e.target.value)}
+                                                    placeholder="%"
+                                                    style={{ width: '60px', textAlign: 'right' }}
+                                                />
+                                                <span style={{ fontSize: '12px', marginLeft: '2px' }}>%</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <input 
+                                            type="text" 
+                                            className="grid-input"
+                                            value={item.calculation_formula || ''}
+                                            onChange={e => updateItem(index, 'calculation_formula', e.target.value)}
+                                            placeholder="e.g. (A+B)*10%"
+                                            disabled={item.calculation_method !== 'formula'}
+                                        />
+                                    )}
                                 </td>
                                 <td>
                                     <input 

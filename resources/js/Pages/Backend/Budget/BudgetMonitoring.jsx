@@ -23,6 +23,7 @@ const useBudgetMonitoringFilters = (initialFilters, initialBudgetItems) => {
         period_year: initialFilters.period_year || new Date().getFullYear(),
         period_type: initialFilters.period_type || 'monthly',
         period_month: initialFilters.period_month || (new Date().getMonth() + 1),
+        period_quarter: initialFilters.period_quarter || 1,
         variance_status: initialFilters.variance_status || '',
         threshold_breached: initialFilters.threshold_breached || '',
         alert_level: initialFilters.alert_level || '',
@@ -48,6 +49,7 @@ const useBudgetMonitoringFilters = (initialFilters, initialBudgetItems) => {
             period_year: initialFilters.period_year || new Date().getFullYear(),
             period_type: initialFilters.period_type || 'monthly',
             period_month: initialFilters.period_month || (new Date().getMonth() + 1),
+            period_quarter: initialFilters.period_quarter || 1,
             variance_status: initialFilters.variance_status || '',
             threshold_breached: initialFilters.threshold_breached || '',
             alert_level: initialFilters.alert_level || '',
@@ -575,13 +577,98 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                     </div>
 
                     <div>
-                        <label>Year</label>
-                        <input 
-                            type="number" 
-                            value={filterData.period_year} 
-                            onChange={e => handleFilterChange('period_year', e.target.value)}
-                        />
+                        <label>Period Type</label>
+                        <select 
+                            value={filterData.period_type} 
+                            onChange={e => handleFilterChange('period_type', e.target.value)}
+                        >
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="year_to_date">Custom Period</option>
+                            <option value="full_year">Full Year</option>
+                        </select>
                     </div>
+
+                    {filterData.period_type === 'full_year' && (
+                        <div>
+                            <label>Year</label>
+                            <input 
+                                type="number" 
+                                value={filterData.period_year} 
+                                onChange={e => handleFilterChange('period_year', e.target.value)}
+                            />
+                        </div>
+                    )}
+
+                    {filterData.period_type === 'monthly' && (
+                        <>
+                            <div>
+                                <label>Year</label>
+                                <input 
+                                    type="number" 
+                                    value={filterData.period_year} 
+                                    onChange={e => handleFilterChange('period_year', e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label>Month</label>
+                                <select 
+                                    value={filterData.period_month} 
+                                    onChange={e => handleFilterChange('period_month', e.target.value)}
+                                >
+                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                                        <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('default', { month: 'long' })}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </>
+                    )}
+
+                    {filterData.period_type === 'quarterly' && (
+                        <>
+                            <div>
+                                <label>Year</label>
+                                <input 
+                                    type="number" 
+                                    value={filterData.period_year} 
+                                    onChange={e => handleFilterChange('period_year', e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label>Quarter</label>
+                                <select 
+                                    value={filterData.period_quarter} 
+                                    onChange={e => handleFilterChange('period_quarter', e.target.value)}
+                                >
+                                    <option value="1">Q1</option>
+                                    <option value="2">Q2</option>
+                                    <option value="3">Q3</option>
+                                    <option value="4">Q4</option>
+                                </select>
+                            </div>
+                        </>
+                    )}
+
+                    {filterData.period_type === 'year_to_date' && (
+                        <>
+                            <div>
+                                <label>From Date</label>
+                                <input 
+                                    type="date" 
+                                    value={filterData.date_from} 
+                                    onChange={e => handleFilterChange('date_from', e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <label>To Date</label>
+                                <input 
+                                    type="date" 
+                                    value={filterData.date_to} 
+                                    onChange={e => handleFilterChange('date_to', e.target.value)}
+                                />
+                            </div>
+                        </>
+                    )}
 
                     <div>
                         <label>Status</label>

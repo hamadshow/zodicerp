@@ -51,10 +51,15 @@ class BudgetController extends Controller
             'budget_name_ar' => 'required|string',
             'budget_name_en' => 'required|string',
             'fiscal_year' => 'required|integer',
-            'start_date' => 'nullable|date',
-            'end_date' => 'nullable|date',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date',
             'budget_type' => 'required|in:annual,quarterly,monthly,project,rolling',
             'scope_type' => 'required|in:company,department,project,cost_center,branch',
+            'currency_id' => 'required|exists:currencies,id',
+            'department_id' => 'nullable|exists:departments,id',
+            'project_id' => 'nullable|exists:projects,id',
+            'cost_center_id' => 'nullable|exists:cost_centers,id',
+            'branch_id' => 'nullable|exists:branches,id',
         ]);
 
         DB::transaction(function () use ($request) {
@@ -81,6 +86,13 @@ class BudgetController extends Controller
             'fiscal_year' => 'required|integer',
             'budget_type' => 'sometimes|in:annual,quarterly,monthly,project,rolling',
             'scope_type' => 'sometimes|in:company,department,project,cost_center,branch',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date',
+            'currency_id' => 'sometimes|exists:currencies,id',
+            'department_id' => 'nullable|exists:departments,id',
+            'project_id' => 'nullable|exists:projects,id',
+            'cost_center_id' => 'nullable|exists:cost_centers,id',
+            'branch_id' => 'nullable|exists:branches,id',
         ]);
 
         DB::transaction(function () use ($request, $budget) {

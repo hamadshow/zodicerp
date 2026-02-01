@@ -106,15 +106,26 @@ class BudgetMonitoringController extends Controller
 
             $threshold = $row->budget?->variance_threshold ?? 10;
             $absVariance = abs($variancePercent);
-            $varianceStatus = $absVariance >= ($threshold * 2) ? 'critical' : ($absVariance >= $threshold ? 'warning' : 'normal');
+            
+            // Determine Variance Status (Favorable/Unfavorable)
+            // Assuming Expense Budget: Positive Variance (Actual > Budget) is Unfavorable
+            if ($varianceAmount > 0) {
+                $varianceStatus = 'unfavorable';
+            } elseif ($varianceAmount < 0) {
+                $varianceStatus = 'favorable';
+            } else {
+                $varianceStatus = 'neutral';
+            }
+
             $thresholdBreached = $absVariance >= $threshold;
-            $alertLevel = null;
+            
+            $alertLevel = 'low'; // Default to low
             if ($absVariance >= ($threshold * 2)) {
                 $alertLevel = 'high';
             } elseif ($absVariance >= ($threshold * 1.5)) {
                 $alertLevel = 'medium';
             } elseif ($absVariance >= $threshold) {
-                $alertLevel = 'low';
+                $alertLevel = 'low'; // Or 'low' if breached but not high/medium
             }
 
             $row->actual_amount = $actualAmount;
@@ -125,6 +136,10 @@ class BudgetMonitoringController extends Controller
             $row->variance_status = $varianceStatus;
             $row->threshold_breached = $thresholdBreached;
             $row->alert_level = $alertLevel;
+
+            if ($row->isDirty(['actual_amount', 'committed_amount', 'available_amount', 'variance_amount', 'variance_percent', 'variance_status', 'threshold_breached', 'alert_level'])) {
+                $row->save();
+            }
 
             return $row;
         });
@@ -150,6 +165,247 @@ class BudgetMonitoringController extends Controller
             'budgets' => $budgets,
             'initialBudgetItems' => $budgetItems,
             'filters' => $request->all(),
+        ]);
+    }
+
+    public function dashboard(Request $request)
+    {
+        $budgets = Budget::select('id', 'budget_name_en', 'budget_name_ar', 'budget_number', 'fiscal_year', 'start_date', 'end_date')->get();
+        $categories = \App\Models\Budget\BudgetCategory::select('id', 'name_en', 'name_ar')->get();
+
+        $filters = [
+            'budget_id' => $request->input('budget_id'),
+            'category_id' => $request->input('category_id'),
+            'period_type' => $request->input('period_type', 'monthly'),
+            'period_year' => (int) $request->input('period_year', now()->year),
+            'period_month' => (int) $request->input('period_month', now()->month),
+            'period_quarter' => (int) $request->input('period_quarter', 1),
+            'date_from' => $request->input('date_from'),
+            'date_to' => $request->input('date_to'),
+        ];
+
+        // Mandatory Budget Selection: Return empty data if not selected
+        if (!$filters['budget_id']) {
+            return Inertia::render('Backend/Budget/BudgeDashBoard', [
+                'budgets' => $budgets,
+                'categories' => $categories,
+                'filters' => $filters,
+                'kpis' => [
+                    'total_budgeted' => 0,
+                    'total_actual' => 0,
+                    'total_available' => 0,
+                    'variance_amount' => 0,
+                    'variance_percent' => 0,
+                    'budget_items' => 0,
+                    'categories' => 0,
+                ],
+                'monthlyTrend' => [],
+                'categorySummaries' => [],
+                'topVariances' => [],
+                'alertCounts' => ['low' => 0, 'medium' => 0, 'high' => 0],
+                'budgetItemsTable' => [],
+            ]);
+        }
+
+        [$startDate, $endDate] = $this->resolvePeriodRange(
+            $request,
+            $filters['period_type'],
+            $filters['period_year'],
+            $filters['period_month'],
+            $filters['period_quarter'],
+            null
+        );
+
+        // Fetch Budget Items with Relationships
+        $budgetItemsQuery = BudgetItem::query()->with(['category', 'account:AccID,AccName']);
+        if ($filters['budget_id']) {
+            $budgetItemsQuery->where('budget_id', $filters['budget_id']);
+        }
+        if ($filters['category_id']) {
+            $budgetItemsQuery->where('category_id', $filters['category_id']);
+        }
+        $budgetItems = $budgetItemsQuery->get();
+
+        // Calculate Actuals from JournalEntryLine (Allowed Table)
+        $accountIds = $budgetItems->pluck('account_id')->filter()->unique()->values();
+        $actualByAccount = collect();
+        if ($accountIds->isNotEmpty() && $startDate && $endDate) {
+            $actualByAccount = JournalEntryLine::query()
+                ->join('journal_entries', 'journal_entries.entry_code', '=', 'journal_entry_lines.journal_entry_code')
+                ->whereIn('journal_entry_lines.account_id', $accountIds)
+                ->whereDate('journal_entries.date', '>=', $startDate)
+                ->whereDate('journal_entries.date', '<=', $endDate)
+                ->select(
+                    'journal_entry_lines.account_id',
+                    DB::raw('SUM(COALESCE(journal_entry_lines.debit,0) - COALESCE(journal_entry_lines.credit,0)) as total')
+                )
+                ->groupBy('journal_entry_lines.account_id')
+                ->pluck('total', 'journal_entry_lines.account_id');
+        }
+
+        // Calculate Budgeted Amounts
+        $budgetedByItem = collect();
+        foreach ($budgetItems as $item) {
+            $budgetedByItem[$item->id] = $this->calculateBudgetedForFilters($item, $filters, $startDate, $endDate);
+        }
+
+        // REMOVED: BudgetCommitment usage (not in allowed tables list)
+        $commitmentByItem = collect(); 
+
+        // Aggregate Totals
+        $totalBudgeted = (float) $budgetedByItem->sum();
+        $totalActual = (float) $budgetItems->sum(function ($item) use ($actualByAccount) {
+            return (float) ($actualByAccount[$item->account_id] ?? 0);
+        });
+        // $totalCommitted = 0; // Removed
+        $totalAvailable = $totalBudgeted - $totalActual; // - $totalCommitted
+        $varianceAmount = $totalActual - $totalBudgeted; // Positive = Over budget (Unfavorable for expense)
+        $variancePercent = $totalBudgeted != 0 ? ($varianceAmount / $totalBudgeted) * 100 : 0;
+
+        // Threshold Logic
+        $threshold = 10;
+        if ($filters['budget_id']) {
+            $selectedBudget = Budget::select('variance_threshold')->find($filters['budget_id']);
+            if ($selectedBudget && $selectedBudget->variance_threshold !== null) {
+                $threshold = (float) $selectedBudget->variance_threshold;
+            }
+        }
+
+        // Prepare Category Summaries
+        $categorySummaries = $budgetItems
+            ->groupBy('category_id')
+            ->map(function ($items, $categoryId) use ($actualByAccount, $budgetedByItem, $threshold) {
+                $budgeted = (float) $items->sum(function ($item) use ($budgetedByItem) {
+                    return (float) ($budgetedByItem[$item->id] ?? 0);
+                });
+                $actual = (float) $items->sum(function ($item) use ($actualByAccount) {
+                    return (float) ($actualByAccount[$item->account_id] ?? 0);
+                });
+                $varianceAmount = $actual - $budgeted;
+                $variancePercent = $budgeted != 0 ? ($varianceAmount / $budgeted) * 100 : 0;
+                $varianceStatus = $varianceAmount > 0 ? 'unfavorable' : ($varianceAmount < 0 ? 'favorable' : 'neutral');
+                $alertLevel = $this->resolveAlertLevel($variancePercent, $threshold);
+                $categoryName = optional($items->first()->category)->name_en ?? 'Uncategorized';
+
+                return [
+                    'category_id' => $categoryId,
+                    'category_name' => $categoryName,
+                    'budgeted' => $budgeted,
+                    'actual' => $actual,
+                    'variance_amount' => $varianceAmount,
+                    'variance_percent' => $variancePercent,
+                    'variance_status' => $varianceStatus,
+                    'alert_level' => $alertLevel,
+                ];
+            })
+            ->values();
+
+        // Alert Counts
+        $alertCounts = [
+            'low' => 0,
+            'medium' => 0,
+            'high' => 0,
+        ];
+        foreach ($categorySummaries as $summary) {
+            if (isset($alertCounts[$summary['alert_level']])) {
+                $alertCounts[$summary['alert_level']]++;
+            }
+        }
+
+        // Top Variances
+        $topVariances = $categorySummaries
+            ->sortByDesc(function ($row) {
+                return abs($row['variance_percent']);
+            })
+            ->take(5)
+            ->values();
+
+        // Budget Items Table Data
+        $budgetItemsTable = $budgetItems->map(function ($item) use ($actualByAccount, $budgetedByItem, $threshold) {
+            $budgeted = (float) ($budgetedByItem[$item->id] ?? 0);
+            $actual = (float) ($actualByAccount[$item->account_id] ?? 0);
+            $available = $budgeted - $actual;
+            $varianceAmount = $actual - $budgeted;
+            $variancePercent = $budgeted != 0 ? ($varianceAmount / $budgeted) * 100 : 0;
+            $varianceStatus = $varianceAmount > 0 ? 'unfavorable' : ($varianceAmount < 0 ? 'favorable' : 'neutral');
+            $alertLevel = $this->resolveAlertLevel($variancePercent, $threshold);
+            
+            // Utilization % (Actual / Budgeted * 100)
+            $utilizationPercent = $budgeted != 0 ? ($actual / $budgeted) * 100 : 0;
+
+            return [
+                'id' => $item->id,
+                'name_ar' => optional($item->category)->name_ar ?? optional($item->account)->AccName ?? '—',
+                'name_en' => optional($item->category)->name_en ?? optional($item->account)->AccName ?? '',
+                'category_name' => optional($item->category)->name_en ?? 'Uncategorized',
+                'account_name' => optional($item->account)->AccName ?? 'No Account',
+                'budgeted' => $budgeted,
+                'actual' => $actual,
+                'available' => $available,
+                'variance_amount' => $varianceAmount,
+                'variance_percent' => $variancePercent,
+                'utilization_percent' => $utilizationPercent,
+                'variance_status' => $varianceStatus,
+                'alert_level' => $alertLevel,
+            ];
+        });
+
+        // Monthly Trend Data
+        // Optimization: Calculate aggregated monthly budget from items
+        $monthColumns = [
+            1 => 'jan_amount', 2 => 'feb_amount', 3 => 'mar_amount', 4 => 'apr_amount',
+            5 => 'may_amount', 6 => 'jun_amount', 7 => 'jul_amount', 8 => 'aug_amount',
+            9 => 'sep_amount', 10 => 'oct_amount', 11 => 'nov_amount', 12 => 'dec_amount',
+        ];
+        $monthlyBudgeted = array_fill(1, 12, 0.0);
+        foreach ($budgetItems as $item) {
+            foreach ($monthColumns as $month => $column) {
+                $monthlyBudgeted[$month] += (float) ($item->$column ?? 0);
+            }
+        }
+
+        $monthlyActuals = [];
+        if ($accountIds->isNotEmpty()) {
+            $monthlyActuals = JournalEntryLine::query()
+                ->join('journal_entries', 'journal_entries.entry_code', '=', 'journal_entry_lines.journal_entry_code')
+                ->whereIn('journal_entry_lines.account_id', $accountIds)
+                ->whereYear('journal_entries.date', $filters['period_year'])
+                ->selectRaw('MONTH(journal_entries.date) as month, SUM(COALESCE(journal_entry_lines.debit,0) - COALESCE(journal_entry_lines.credit,0)) as total')
+                ->groupBy('month')
+                ->pluck('total', 'month')
+                ->toArray();
+        }
+
+        $monthlyTrend = collect(range(1, 12))->map(function ($month) use ($monthlyBudgeted, $monthlyActuals) {
+            return [
+                'month' => $month,
+                'label' => Carbon::create()->month($month)->format('M'),
+                'budgeted' => (float) ($monthlyBudgeted[$month] ?? 0),
+                'actual' => (float) ($monthlyActuals[$month] ?? 0),
+            ];
+        });
+
+        $kpis = [
+            'total_budgeted' => $totalBudgeted,
+            'total_actual' => $totalActual,
+            'total_available' => $totalAvailable,
+            'variance_amount' => $varianceAmount,
+            'variance_percent' => $variancePercent,
+            'utilization_percent' => $totalBudgeted != 0 ? ($totalActual / $totalBudgeted) * 100 : 0,
+            'budget_items' => $budgetItems->count(),
+            'categories' => $categorySummaries->count(),
+        ];
+
+        return Inertia::render('Backend/Budget/BudgeDashBoard', [
+            'budgets' => $budgets,
+            'categories' => $categories,
+            'filters' => $filters,
+            'kpis' => $kpis,
+            'monthlyTrend' => $monthlyTrend,
+            'categorySummaries' => $categorySummaries,
+            'topVariances' => $topVariances,
+            'alertCounts' => $alertCounts,
+            'budgetItemsTable' => $budgetItemsTable,
         ]);
     }
 
@@ -364,6 +620,12 @@ class BudgetMonitoringController extends Controller
             return [$start, $end];
         }
 
+        if ($periodType === 'year_to_date') {
+            $start = Carbon::create($year, 1, 1)->startOfYear();
+            $end = ($year == now()->year) ? now()->endOfDay() : Carbon::create($year, 12, 31)->endOfYear();
+            return [$start, $end];
+        }
+
         if ($periodType === 'quarterly') {
             $quarter = $periodQuarter ?: ($periodMonth ? (int) ceil($periodMonth / 3) : null);
             if (!$quarter) {
@@ -421,5 +683,66 @@ class BudgetMonitoringController extends Controller
         }
 
         return $annual;
+    }
+
+    private function calculateBudgetedForFilters(BudgetItem $item, array $filters, $startDate, $endDate)
+    {
+        if ($filters['period_type'] === 'year_to_date' && $startDate && $endDate) {
+            return $this->getBudgetedAmountForRange($item, $startDate, $endDate);
+        }
+
+        return $this->getBudgetedAmount(
+            $item,
+            $filters['period_type'],
+            $filters['period_year'],
+            $filters['period_month'],
+            $filters['period_quarter']
+        );
+    }
+
+    private function getBudgetedAmountForRange(BudgetItem $item, $startDate, $endDate)
+    {
+        if (!$startDate || !$endDate) {
+            return (float) $item->annual_amount;
+        }
+
+        $monthMap = [
+            1 => 'jan_amount', 2 => 'feb_amount', 3 => 'mar_amount', 4 => 'apr_amount',
+            5 => 'may_amount', 6 => 'jun_amount', 7 => 'jul_amount', 8 => 'aug_amount',
+            9 => 'sep_amount', 10 => 'oct_amount', 11 => 'nov_amount', 12 => 'dec_amount',
+        ];
+
+        $start = Carbon::parse($startDate)->startOfMonth();
+        $end = Carbon::parse($endDate)->startOfMonth();
+        if ($start->greaterThan($end)) {
+            [$start, $end] = [$end, $start];
+        }
+
+        $sum = 0;
+        $cursor = $start->copy();
+        while ($cursor->lessThanOrEqualTo($end)) {
+            $column = $monthMap[(int) $cursor->month] ?? null;
+            if ($column) {
+                $sum += (float) ($item->$column ?? 0);
+            }
+            $cursor->addMonth();
+        }
+
+        return $sum;
+    }
+
+    private function resolveAlertLevel($variancePercent, $threshold)
+    {
+        $absVariance = abs($variancePercent);
+        if ($absVariance >= ($threshold * 2)) {
+            return 'high';
+        }
+        if ($absVariance >= ($threshold * 1.5)) {
+            return 'medium';
+        }
+        if ($absVariance >= $threshold) {
+            return 'low';
+        }
+        return 'none';
     }
 }

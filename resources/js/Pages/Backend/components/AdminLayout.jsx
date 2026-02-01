@@ -242,6 +242,7 @@ const AdminLayout = ({
         { icon: 'list', label: 'Budget', href: route('admin.budget.index') },
         { icon: 'trending_up', label: 'Budget Forecasts', href: route('admin.budget.forecasts.index') },
         { icon: 'monitor_heart', label: 'Budget Monitoring', href: route('admin.budget.monitoring.index') },
+        { icon: 'dashboard', label: 'Budget Dashboard', href: route('admin.budget.dashboard') },
         { icon: 'swap_horiz', label: 'Budget Transfers', href: route('admin.budget.transfers.index') },
         { icon: 'assignment_turned_in', label: 'Budget Commitments', href: route('admin.budget.commitments.index') },
       ],
