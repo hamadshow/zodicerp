@@ -46,6 +46,17 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
         })), 
     [categories]);
 
+    const { accountIdToCode, accountCodeToId } = useMemo(() => {
+        const idToCode = {};
+        const codeToId = {};
+        accounts.forEach(a => {
+            const code = String(a.AccCode || a.AccID);
+            idToCode[a.AccID] = code;
+            codeToId[code] = a.AccID;
+        });
+        return { accountIdToCode: idToCode, accountCodeToId: codeToId };
+    }, [accounts]);
+
     const accountOptions = useMemo(() => 
         accounts
             .map(a => ({
@@ -126,11 +137,13 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
              let basisId = '';
              // If percentage method, try to extract basis ID from formula "BASIS_ACCOUNT:123"
              if (item.calculation_method === 'percentage' && item.calculation_formula && item.calculation_formula.startsWith('BASIS_ACCOUNT:')) {
-                 basisId = item.calculation_formula.split(':')[1];
+                 const rawId = item.calculation_formula.split(':')[1];
+                 basisId = accountIdToCode[rawId] || rawId;
              }
              
              return {
                  ...item,
+                 account_id: accountIdToCode[item.account_id] || item.account_id,
                  basis_account_id: basisId
              };
         });
@@ -149,7 +162,22 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
         e.preventDefault();
         // Recalculate totals before save
         const totals = calculateBudgetTotals(data.items);
-        const finalData = { ...data, ...totals };
+
+        const itemsWithIds = data.items.map(item => {
+            let formula = item.calculation_formula;
+            if (item.calculation_method === 'percentage' && item.basis_account_id) {
+                 const basisId = accountCodeToId[item.basis_account_id] || item.basis_account_id;
+                 formula = `BASIS_ACCOUNT:${basisId}`;
+            }
+
+            return {
+                ...item,
+                account_id: accountCodeToId[item.account_id] || item.account_id,
+                calculation_formula: formula
+            };
+        });
+
+        const finalData = { ...data, items: itemsWithIds, ...totals };
 
         if (viewMode === 'create') {
             post(route('admin.budgets.store'), {
@@ -202,7 +230,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
             id: null, // New item
             category_id: '',
             account_id: '',
-            calculation_method: 'manual',
+            calculation_method: 'fixed',
             basis_account_id: '',
             percentage_rate: '',
             annual_amount: 0,
@@ -221,7 +249,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
             newItems[index].calculation_formula = `BASIS_ACCOUNT:${value}`;
         }
 
-        // 1. Calculate Annual for CURRENT item if monthly changes (and it's manual or formula overridden)
+        // 1. Calculate Annual for CURRENT item if monthly changes (and it's fixed or formula overridden)
         if (field.endsWith('_amount')) {
             let total = 0;
             months.forEach(m => {
@@ -414,7 +442,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                                         onChange={e => updateItem(index, 'calculation_method', e.target.value)}
                                         style={{ width: '120px' }}
                                     >
-                                        <option value="manual">Manual</option>
+                                        <option value="fixed">Manual</option>
                                         <option value="formula">Formula</option>
                                         <option value="percentage">Percentage</option>
                                     </select>
@@ -431,8 +459,8 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                                             >
                                                 <option value="">Select Basis</option>
                                                 {data.items.map((opt, i) => {
-                                                     const acc = accountOptions.find(a => String(a.id) === String(opt.account_id));
-                                                     const label = acc ? acc.name : (opt.account_id ? `Account ${opt.account_id}` : `Row ${i+1}`);
+                                                     const acc = accountOptions.find(a => String(a.value) === String(opt.account_id));
+                                                     const label = acc ? acc.label : (opt.account_id ? `Account ${opt.account_id}` : `Row ${i+1}`);
                                                      if (i === index) return null;
                                                      if (!opt.account_id) return null;
                                                      return <option key={i} value={opt.account_id}>{label}</option>

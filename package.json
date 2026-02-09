@@ -54,6 +54,7 @@
         "date-fns": "^4.1.0",
         "html2pdf.js": "^0.14.0",
         "leaflet": "^1.9.4",
+        "lodash": "^4.17.23",
         "puppeteer": "^24.34.0",
         "react-leaflet": "^4.2.1",
         "react-router-dom": "^7.11.0",

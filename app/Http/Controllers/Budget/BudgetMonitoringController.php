@@ -12,6 +12,7 @@ use App\Models\Budget\Budget;
 use App\Models\Budget\BudgetItem;
 use App\Models\Budget\BudgetCommitment;
 use App\Models\Accounting\JournalEntryLine;
+use App\Models\Account;
 use Carbon\Carbon;
 
 class BudgetMonitoringController extends Controller
@@ -217,7 +218,7 @@ class BudgetMonitoringController extends Controller
         );
 
         // Fetch Budget Items with Relationships
-        $budgetItemsQuery = BudgetItem::query()->with(['category', 'account:AccID,AccName']);
+        $budgetItemsQuery = BudgetItem::query()->with(['category', 'account:AccID,AccName,AccDmType']);
         if ($filters['budget_id']) {
             $budgetItemsQuery->where('budget_id', $filters['budget_id']);
         }
@@ -226,13 +227,38 @@ class BudgetMonitoringController extends Controller
         }
         $budgetItems = $budgetItemsQuery->get();
 
-        // Calculate Actuals from JournalEntryLine (Allowed Table)
-        $accountIds = $budgetItems->pluck('account_id')->filter()->unique()->values();
-        $actualByAccount = collect();
-        if ($accountIds->isNotEmpty() && $startDate && $endDate) {
-            $actualByAccount = JournalEntryLine::query()
+        $accountIdentifiers = $budgetItems->pluck('account_id')->filter()->unique()->values();
+        $lookupAccounts = collect();
+        if ($accountIdentifiers->isNotEmpty()) {
+            $lookupAccounts = Account::query()
+                ->whereIn('AccID', $accountIdentifiers)
+                ->orWhereIn('AccCode', $accountIdentifiers)
+                ->get(['AccID', 'AccCode', 'AccName', 'AccDmType']);
+        }
+        $accountsById = $lookupAccounts->keyBy('AccID');
+        $accountsByCode = $lookupAccounts->keyBy('AccCode');
+        $resolveAccount = function ($item) use ($accountsById, $accountsByCode) {
+            return $item->account
+                ?? $accountsById->get($item->account_id)
+                ?? $accountsByCode->get($item->account_id);
+        };
+        $accounts = $budgetItems
+            ->map(fn ($item) => $resolveAccount($item))
+            ->filter()
+            ->values();
+        $accIds = $accounts->pluck('AccID')->filter()->unique();
+        $accCodes = $accounts->pluck('AccCode')->filter()->unique();
+        $allIdentifiers = $accIds->merge($accCodes)->unique()->values();
+        
+        // Map Code -> ID for aggregation
+        $codeToId = $accounts->pluck('AccID', 'AccCode')->toArray();
+
+        $actualByAccount = [];
+        
+        if ($allIdentifiers->isNotEmpty() && $startDate && $endDate) {
+            $rawActuals = JournalEntryLine::query()
                 ->join('journal_entries', 'journal_entries.entry_code', '=', 'journal_entry_lines.journal_entry_code')
-                ->whereIn('journal_entry_lines.account_id', $accountIds)
+                ->whereIn('journal_entry_lines.account_id', $allIdentifiers)
                 ->whereDate('journal_entries.date', '>=', $startDate)
                 ->whereDate('journal_entries.date', '<=', $endDate)
                 ->select(
@@ -240,8 +266,24 @@ class BudgetMonitoringController extends Controller
                     DB::raw('SUM(COALESCE(journal_entry_lines.debit,0) - COALESCE(journal_entry_lines.credit,0)) as total')
                 )
                 ->groupBy('journal_entry_lines.account_id')
-                ->pluck('total', 'journal_entry_lines.account_id');
+                ->get();
+
+            foreach ($rawActuals as $row) {
+                $idOrCode = $row->account_id;
+                $amount = $row->total;
+
+                // Case 1: It's an AccID
+                if ($accIds->contains($idOrCode)) {
+                    $actualByAccount[$idOrCode] = ($actualByAccount[$idOrCode] ?? 0) + $amount;
+                }
+                // Case 2: It's an AccCode, map to AccID
+                elseif (isset($codeToId[$idOrCode])) {
+                    $mappedId = $codeToId[$idOrCode];
+                    $actualByAccount[$mappedId] = ($actualByAccount[$mappedId] ?? 0) + $amount;
+                }
+            }
         }
+        $actualByAccount = collect($actualByAccount);
 
         // Calculate Budgeted Amounts
         $budgetedByItem = collect();
@@ -252,14 +294,22 @@ class BudgetMonitoringController extends Controller
         // REMOVED: BudgetCommitment usage (not in allowed tables list)
         $commitmentByItem = collect(); 
 
-        // Aggregate Totals
-        $totalBudgeted = (float) $budgetedByItem->sum();
-        $totalActual = (float) $budgetItems->sum(function ($item) use ($actualByAccount) {
-            return (float) ($actualByAccount[$item->account_id] ?? 0);
+        // Aggregate Totals (normalized by account nature)
+        $totalBudgeted = (float) $budgetItems->sum(function ($item) use ($budgetedByItem, $resolveAccount) {
+            $budgeted = (float) ($budgetedByItem[$item->id] ?? 0);
+            $account = $resolveAccount($item);
+            $dm = $account?->AccDmType ?? 0;
+            return $dm == 1 ? -$budgeted : $budgeted;
         });
-        // $totalCommitted = 0; // Removed
-        $totalAvailable = $totalBudgeted - $totalActual; // - $totalCommitted
-        $varianceAmount = $totalActual - $totalBudgeted; // Positive = Over budget (Unfavorable for expense)
+        $totalActual = (float) $budgetItems->sum(function ($item) use ($actualByAccount, $resolveAccount) {
+            $account = $resolveAccount($item);
+            $accountId = $account?->AccID ?? $item->account_id;
+            $actual = (float) ($actualByAccount[$accountId] ?? 0);
+            $dm = $account?->AccDmType ?? 0;
+            return $dm == 1 ? -$actual : $actual;
+        });
+        $totalAvailable = $totalBudgeted - $totalActual;
+        $varianceAmount = $totalActual - $totalBudgeted;
         $variancePercent = $totalBudgeted != 0 ? ($varianceAmount / $totalBudgeted) * 100 : 0;
 
         // Threshold Logic
@@ -274,12 +324,19 @@ class BudgetMonitoringController extends Controller
         // Prepare Category Summaries
         $categorySummaries = $budgetItems
             ->groupBy('category_id')
-            ->map(function ($items, $categoryId) use ($actualByAccount, $budgetedByItem, $threshold) {
-                $budgeted = (float) $items->sum(function ($item) use ($budgetedByItem) {
-                    return (float) ($budgetedByItem[$item->id] ?? 0);
+            ->map(function ($items, $categoryId) use ($actualByAccount, $budgetedByItem, $threshold, $resolveAccount) {
+                $budgeted = (float) $items->sum(function ($item) use ($budgetedByItem, $resolveAccount) {
+                    $val = (float) ($budgetedByItem[$item->id] ?? 0);
+                    $account = $resolveAccount($item);
+                    $dm = $account?->AccDmType ?? 0;
+                    return $dm == 1 ? -$val : $val;
                 });
-                $actual = (float) $items->sum(function ($item) use ($actualByAccount) {
-                    return (float) ($actualByAccount[$item->account_id] ?? 0);
+                $actual = (float) $items->sum(function ($item) use ($actualByAccount, $resolveAccount) {
+                    $account = $resolveAccount($item);
+                    $accountId = $account?->AccID ?? $item->account_id;
+                    $val = (float) ($actualByAccount[$accountId] ?? 0);
+                    $dm = $account?->AccDmType ?? 0;
+                    return $dm == 1 ? -$val : $val;
                 });
                 $varianceAmount = $actual - $budgeted;
                 $variancePercent = $budgeted != 0 ? ($varianceAmount / $budgeted) * 100 : 0;
@@ -321,26 +378,32 @@ class BudgetMonitoringController extends Controller
             ->values();
 
         // Budget Items Table Data
-        $budgetItemsTable = $budgetItems->map(function ($item) use ($actualByAccount, $budgetedByItem, $threshold) {
-            $budgeted = (float) ($budgetedByItem[$item->id] ?? 0);
-            $actual = (float) ($actualByAccount[$item->account_id] ?? 0);
-            $available = $budgeted - $actual;
-            $varianceAmount = $actual - $budgeted;
-            $variancePercent = $budgeted != 0 ? ($varianceAmount / $budgeted) * 100 : 0;
+        $budgetItemsTable = $budgetItems->map(function ($item) use ($actualByAccount, $budgetedByItem, $threshold, $resolveAccount) {
+            $account = $resolveAccount($item);
+            $accountId = $account?->AccID ?? $item->account_id;
+            $dm = $account?->AccDmType ?? 0;
+            $budgetedRaw = (float) ($budgetedByItem[$item->id] ?? 0);
+            $actualRaw = (float) ($actualByAccount[$accountId] ?? 0);
+            $budgetedNorm = $dm == 1 ? -$budgetedRaw : $budgetedRaw;
+            $actualNorm = $dm == 1 ? -$actualRaw : $actualRaw;
+            $available = $budgetedNorm - $actualNorm;
+            $varianceAmount = $actualNorm - $budgetedNorm;
+            $variancePercent = $budgetedNorm != 0 ? ($varianceAmount / $budgetedNorm) * 100 : 0;
             $varianceStatus = $varianceAmount > 0 ? 'unfavorable' : ($varianceAmount < 0 ? 'favorable' : 'neutral');
             $alertLevel = $this->resolveAlertLevel($variancePercent, $threshold);
             
             // Utilization % (Actual / Budgeted * 100)
-            $utilizationPercent = $budgeted != 0 ? ($actual / $budgeted) * 100 : 0;
+            $utilizationPercent = $budgetedNorm != 0 ? ($actualNorm / $budgetedNorm) * 100 : 0;
 
             return [
                 'id' => $item->id,
-                'name_ar' => optional($item->category)->name_ar ?? optional($item->account)->AccName ?? '—',
-                'name_en' => optional($item->category)->name_en ?? optional($item->account)->AccName ?? '',
+                'name_ar' => optional($item->category)->name_ar ?? optional($account)->AccName ?? '—',
+                'name_en' => optional($item->category)->name_en ?? optional($account)->AccName ?? '',
                 'category_name' => optional($item->category)->name_en ?? 'Uncategorized',
-                'account_name' => optional($item->account)->AccName ?? 'No Account',
-                'budgeted' => $budgeted,
-                'actual' => $actual,
+                'account_name' => optional($account)->AccName ?? 'No Account',
+                'account_dm_type' => optional($account)->AccDmType ?? 0,
+                'budgeted' => $budgetedRaw,
+                'actual' => $actualRaw,
                 'available' => $available,
                 'variance_amount' => $varianceAmount,
                 'variance_percent' => $variancePercent,
@@ -365,10 +428,10 @@ class BudgetMonitoringController extends Controller
         }
 
         $monthlyActuals = [];
-        if ($accountIds->isNotEmpty()) {
+        if ($allIdentifiers->isNotEmpty()) {
             $monthlyActuals = JournalEntryLine::query()
                 ->join('journal_entries', 'journal_entries.entry_code', '=', 'journal_entry_lines.journal_entry_code')
-                ->whereIn('journal_entry_lines.account_id', $accountIds)
+                ->whereIn('journal_entry_lines.account_id', $allIdentifiers)
                 ->whereYear('journal_entries.date', $filters['period_year'])
                 ->selectRaw('MONTH(journal_entries.date) as month, SUM(COALESCE(journal_entry_lines.debit,0) - COALESCE(journal_entry_lines.credit,0)) as total')
                 ->groupBy('month')

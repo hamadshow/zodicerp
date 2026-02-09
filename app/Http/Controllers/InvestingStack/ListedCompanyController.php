@@ -12,18 +12,27 @@ use Illuminate\Support\Facades\DB;
 
 class ListedCompanyController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $companies = ListedCompany::with(['country', 'reportingCurrency'])
-            ->orderBy('id', 'desc')
-            ->get();
+        $query = ListedCompany::with(['country', 'reportingCurrency'])
+            ->orderBy('id', 'desc');
 
-        // We might need to fetch sectors/industries here if we want to filter/display them
-        // For now, passing basic data
+        if ($request->has('search')) {
+            $search = $request->input('search');
+            $query->where(function($q) use ($search) {
+                $q->where('legal_name_ar', 'like', "%{$search}%")
+                  ->orWhere('legal_name_en', 'like', "%{$search}%")
+                  ->orWhere('company_code', 'like', "%{$search}%")
+                  ->orWhere('ticker_symbol', 'like', "%{$search}%");
+            });
+        }
+
+        $companies = $query->paginate(15)->withQueryString();
         
         return Inertia::render('Backend/InvestingStack/ListedCompanies', [
             'companies' => $companies,
-            'countries' => Country::select('id', 'name', 'code')->get(),
+            'filters' => $request->only(['search']),
+            'countries' => Country::select('id', 'name_en as name', 'code')->get(),
             'currencies' => Currency::select('id', 'name', 'code')->get(),
             // 'sectors' => Sector::all(), // Uncomment when Sector model is ready
         ]);
@@ -35,6 +44,7 @@ class ListedCompanyController extends Controller
             'company_code' => 'required|unique:companies,company_code',
             'legal_name_ar' => 'required|string|max:200',
             'country_id' => 'required|exists:countries,id',
+            'status' => 'required|in:active,inactive,suspended,bankrupt,dissolved',
             // Add other validations as needed
         ]);
 
@@ -51,6 +61,7 @@ class ListedCompanyController extends Controller
             'company_code' => 'required|unique:companies,company_code,' . $id,
             'legal_name_ar' => 'required|string|max:200',
             'country_id' => 'required|exists:countries,id',
+            'status' => 'required|in:active,inactive,suspended,bankrupt,dissolved',
         ]);
 
         $company->update($request->all());

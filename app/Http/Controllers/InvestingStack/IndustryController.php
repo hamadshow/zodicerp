@@ -4,7 +4,6 @@ namespace App\Http\Controllers\InvestingStack;
 
 use App\Http\Controllers\Controller;
 use App\Models\InvestingStack\Industry;
-use App\Models\InvestingStack\Sector;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +12,7 @@ class IndustryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Industry::with(['sector', 'parent'])
+        $query = Industry::with(['parent'])
             ->withCount('subIndustries');
 
         if ($request->has('search') && $request->search) {
@@ -29,23 +28,18 @@ class IndustryController extends Controller
             ->orderBy('industry_name_en')
             ->get();
         
-        // Fetch sectors for dropdown
-        $sectors = Sector::where('is_active', true)->select('id', 'sector_name_en', 'sector_name_ar')->get();
-        
         // Fetch potential parents (industries) for dropdown
         $parentIndustries = Industry::where('is_active', true)->select('id', 'industry_name_en', 'industry_name_ar')->get();
 
         if ($request->wantsJson()) {
             return response()->json([
                 'industries' => $industries,
-                'sectors' => $sectors,
                 'parents' => $parentIndustries,
             ]);
         }
 
         return Inertia::render('Backend/InvestingStack/industries', [
             'industries' => $industries,
-            'sectors' => $sectors,
             'parents' => $parentIndustries,
         ]);
     }
@@ -60,7 +54,6 @@ class IndustryController extends Controller
             'industry_name_en' => 'required|string|max:200',
             'description_ar' => 'nullable|string',
             'description_en' => 'nullable|string',
-            'sector_id' => 'required|exists:sectors,id',
             'parent_industry_id' => 'nullable|exists:industries,id',
             'capital_intensity' => 'required|in:high,medium,low',
             'cyclicality' => 'required|in:cyclical,defensive,growth,speculative',
@@ -90,7 +83,6 @@ class IndustryController extends Controller
             'industry_name_en' => 'required|string|max:200',
             'description_ar' => 'nullable|string',
             'description_en' => 'nullable|string',
-            'sector_id' => 'required|exists:sectors,id',
             'parent_industry_id' => 'nullable|exists:industries,id',
             'capital_intensity' => 'required|in:high,medium,low',
             'cyclicality' => 'required|in:cyclical,defensive,growth,speculative',

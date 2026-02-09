@@ -19,7 +19,6 @@ class Industry extends Model
         'industry_name_en',
         'description_ar',
         'description_en',
-        'sector_id',
         'parent_industry_id',
         'level',
         'path',
@@ -43,11 +42,6 @@ class Industry extends Model
         'average_roa' => 'decimal:4',
         'average_roe' => 'decimal:4',
     ];
-
-    public function sector()
-    {
-        return $this->belongsTo(Sector::class, 'sector_id');
-    }
 
     public function parent()
     {

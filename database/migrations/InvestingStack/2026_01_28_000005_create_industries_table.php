@@ -31,7 +31,6 @@ return new class extends Migration
             $table->text('description_en')->nullable();
 
             // Classification
-            $table->foreignId('sector_id')->constrained('sectors');
             $table->foreignId('parent_industry_id')->nullable()->constrained('industries');
             $table->integer('level')->default(2);
             $table->string('path', 500)->nullable();
@@ -56,7 +55,6 @@ return new class extends Migration
 
             // Indexes
             $table->index('industry_code', 'idx_industry_code');
-            $table->index(['sector_id', 'industry_code'], 'idx_sector_industry');
             $table->index('gics_industry_code', 'idx_gics_industry');
             $table->index('parent_industry_id', 'idx_parent_industry');
         });

@@ -349,6 +349,43 @@ Route::get('/admin/budget/monitoring/items/{budgetId}', [\App\Http\Controllers\B
             'destroy' => 'admin.budget.categories.destroy',
         ])->except(['create', 'edit', 'show']);
 
+    // Investing & Stack Routes
+    Route::prefix('admin/investing-stack')->name('admin.investing-stack.')->group(function () {
+        Route::resource('industries', \App\Http\Controllers\InvestingStack\IndustryController::class)
+            ->names([
+                'index' => 'industries.index',
+                'store' => 'industries.store',
+                'update' => 'industries.update',
+                'destroy' => 'industries.destroy',
+            ])->except(['create', 'edit', 'show']);
+
+
+
+        Route::resource('listed-companies', \App\Http\Controllers\InvestingStack\ListedCompanyController::class)
+            ->names([
+                'index' => 'listed-companies.index',
+                'store' => 'listed-companies.store',
+                'update' => 'listed-companies.update',
+                'destroy' => 'listed-companies.destroy',
+            ])->except(['create', 'edit', 'show']);
+
+        Route::resource('brokers', \App\Http\Controllers\InvestingStack\BrokerController::class)
+            ->names([
+                'index' => 'brokers.index',
+                'store' => 'brokers.store',
+                'update' => 'brokers.update',
+                'destroy' => 'brokers.destroy',
+            ])->except(['create', 'edit', 'show']);
+
+        Route::resource('market-prices', \App\Http\Controllers\InvestingStack\MarketPriceController::class)
+            ->names([
+                'index' => 'market-prices.index',
+                'store' => 'market-prices.store',
+                'update' => 'market-prices.update',
+                'destroy' => 'market-prices.destroy',
+            ])->except(['create', 'edit', 'show']);
+    });
+
 
 
     Route::resource('/admin/warehouses', \App\Http\Controllers\Inventory\WarehousesController::class)

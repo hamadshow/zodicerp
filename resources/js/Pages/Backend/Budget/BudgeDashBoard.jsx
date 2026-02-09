@@ -10,7 +10,6 @@ const BudgeDashBoard = ({
     kpis,
     monthlyTrend,
     categorySummaries,
-    alertCounts,
     budgetItemsTable,
 }) => {
     const { data, setData, get, processing } = useForm({
@@ -45,9 +44,6 @@ const BudgeDashBoard = ({
     }, [monthlyTrend]);
 
     const topCategories = useMemo(() => categorySummaries.slice(0, 6), [categorySummaries]);
-
-    const totalAlerts =
-        (alertCounts.low || 0) + (alertCounts.medium || 0) + (alertCounts.high || 0);
 
     const isBudgetSelected = !!data.budget_id;
 
@@ -316,8 +312,18 @@ const BudgeDashBoard = ({
                                             <tr key={row.id}>
                                                 <td>{row.category_name}</td>
                                                 <td>{row.account_name}</td>
-                                                <td className="text-right">{formatCurrency(row.budgeted)}</td>
-                                                <td className="text-right">{formatCurrency(row.actual)}</td>
+                                                <td className="text-right">
+                                                    {row.account_dm_type === 1
+                                                        ? formatCurrency(-Math.abs(row.budgeted))
+                                                        : formatCurrency(row.budgeted)
+                                                    }
+                                                </td>
+                                                <td className="text-right">
+                                                    {row.account_dm_type === 1 
+                                                        ? formatCurrency(-Math.abs(row.actual)) 
+                                                        : formatCurrency(row.actual)
+                                                    }
+                                                </td>
                                                 <td className={`text-right ${row.variance_amount > 0 ? 'text-red-600' : 'text-green-600'}`}>
                                                     {formatCurrency(row.variance_amount)}
                                                 </td>

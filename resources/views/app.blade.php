@@ -7,6 +7,12 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
+        @if (app()->environment('local'))
+            <script>
+                window['ga-disable-G-9Q6H0QETRF'] = true;
+            </script>
+        @endif
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />

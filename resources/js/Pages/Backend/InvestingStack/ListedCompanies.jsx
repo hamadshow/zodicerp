@@ -1,38 +1,37 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
-import AdminLayout from '../components/AdminLayout'; // Adjusted import path based on likely location
+import { Head, router, usePage, Link } from '@inertiajs/react';
+import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/InvestingStack/ListedCompanies.scss';
+import { debounce } from 'lodash';
 
-// --- View Section Component ---
-const ViewSection = ({ companies, onEdit, onCreate, onDelete }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filteredCompanies, setFilteredCompanies] = useState(companies);
+const ViewSection = ({ companies, filters, onEdit, onCreate, onDelete }) => {
+    const [searchTerm, setSearchTerm] = useState(filters.search || '');
 
-    // Update stats
-    const stats = useMemo(() => {
-        const total = filteredCompanies.length;
-        const active = filteredCompanies.filter(c => c.is_active).length;
-        const inactive = total - active;
-        return { total, active, inactive };
-    }, [filteredCompanies]);
+    const handleSearch = useMemo(
+        () => debounce((value) => {
+            router.get(
+                route('admin.investing-stack.listed-companies.index'),
+                { search: value },
+                { preserveState: true, replace: true }
+            );
+        }, 300),
+        []
+    );
 
     useEffect(() => {
-        if (!searchTerm) {
-            setFilteredCompanies(companies);
-        } else {
-            const lowerTerm = searchTerm.toLowerCase();
-            setFilteredCompanies(companies.filter(c => 
-                c.legal_name_ar.toLowerCase().includes(lowerTerm) ||
-                (c.legal_name_en && c.legal_name_en.toLowerCase().includes(lowerTerm)) ||
-                (c.company_code && c.company_code.toLowerCase().includes(lowerTerm)) ||
-                (c.ticker_symbol && c.ticker_symbol.toLowerCase().includes(lowerTerm))
-            ));
-        }
-    }, [searchTerm, companies]);
+        handleSearch(searchTerm);
+    }, [searchTerm]);
+
+    const stats = useMemo(() => {
+        const total = companies.total;
+        const currentData = companies.data || [];
+        const active = currentData.filter(c => c.status === 'active').length;
+        const inactive = currentData.length - active; 
+        return { total, active, inactive };
+    }, [companies]);
 
     return (
         <div className="animate-fade-slide">
-            {/* Quick Stats */}
             <div className="stats-grid">
                 <div className="stat-card">
                     <div className="stat-icon blue">
@@ -43,27 +42,8 @@ const ViewSection = ({ companies, onEdit, onCreate, onDelete }) => {
                         <span className="stat-label">Total Companies</span>
                     </div>
                 </div>
-                <div className="stat-card">
-                    <div className="stat-icon green">
-                        <span className="material-icons-outlined">check_circle</span>
-                    </div>
-                    <div className="stat-info">
-                        <span className="stat-value">{stats.active}</span>
-                        <span className="stat-label">Active Companies</span>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon gray">
-                        <span className="material-icons-outlined">cancel</span>
-                    </div>
-                    <div className="stat-info">
-                        <span className="stat-value">{stats.inactive}</span>
-                        <span className="stat-label">Inactive Companies</span>
-                    </div>
-                </div>
             </div>
 
-            {/* Content Card */}
             <div className="content-card">
                 <div className="page-header" style={{ marginBottom: '1.5rem' }}>
                     <div className="search-box">
@@ -96,18 +76,18 @@ const ViewSection = ({ companies, onEdit, onCreate, onDelete }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredCompanies.length > 0 ? (
-                                filteredCompanies.map(company => (
+                            {companies.data && companies.data.length > 0 ? (
+                                companies.data.map(company => (
                                     <tr key={company.id}>
                                         <td>{company.company_code}</td>
                                         <td>{company.legal_name_ar}</td>
                                         <td>{company.legal_name_en || '-'}</td>
                                         <td>{company.ticker_symbol || '-'}</td>
-                                        <td>{company.country?.name_ar || company.country?.name_en || '-'}</td>
+                                        <td>{company.country?.name || company.country?.name_en || company.country?.name_ar || '-'}</td>
                                         <td>{company.reporting_currency?.code || '-'}</td>
                                         <td>
-                                            <span className={`status-badge ${company.is_active ? 'active' : 'inactive'}`}>
-                                                {company.is_active ? 'Active' : 'Inactive'}
+                                            <span className={`status-badge ${company.status}`}>
+                                                {company.status ? company.status.charAt(0).toUpperCase() + company.status.slice(1) : '-'}
                                             </span>
                                         </td>
                                         <td>
@@ -132,12 +112,41 @@ const ViewSection = ({ companies, onEdit, onCreate, onDelete }) => {
                         </tbody>
                     </table>
                 </div>
+
+                {companies.links && companies.links.length > 3 && (
+                    <div className="pagination-container" style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+                        {companies.links.map((link, key) => (
+                            link.url === null ? (
+                                <div 
+                                    key={key} 
+                                    className="pagination-link disabled"
+                                    style={{ padding: '0.5rem 1rem', border: '1px solid #ddd', borderRadius: '4px', color: '#999' }}
+                                    dangerouslySetInnerHTML={{ __html: link.label }} 
+                                />
+                            ) : (
+                                <Link
+                                    key={key}
+                                    href={link.url}
+                                    className={`pagination-link ${link.active ? 'active' : ''}`}
+                                    style={{ 
+                                        padding: '0.5rem 1rem', 
+                                        border: '1px solid #ddd', 
+                                        borderRadius: '4px', 
+                                        color: link.active ? '#fff' : '#333',
+                                        backgroundColor: link.active ? '#007bff' : '#fff',
+                                        textDecoration: 'none'
+                                    }}
+                                    dangerouslySetInnerHTML={{ __html: link.label }}
+                                />
+                            )
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
-// --- Form Section Component (Used for Create & Edit) ---
 const FormSection = ({ mode, initialData, countries, currencies, onBack, onSubmit }) => {
     const isEdit = mode === 'edit';
     const { errors } = usePage().props;
@@ -154,8 +163,7 @@ const FormSection = ({ mode, initialData, countries, currencies, onBack, onSubmi
             country_id: formData.get('country_id'),
             reporting_currency_id: formData.get('reporting_currency_id'),
             description: formData.get('description'),
-            is_active: formData.get('is_active') === '1',
-            // Add other fields as needed based on the model
+            status: formData.get('status'),
         };
         onSubmit(data);
     };
@@ -177,7 +185,7 @@ const FormSection = ({ mode, initialData, countries, currencies, onBack, onSubmi
                                     name="company_code"
                                     defaultValue={initialData?.company_code}
                                     placeholder="Auto-generated (e.g., CMP-001)"
-                                    readOnly={isEdit} // Allow editing only on create if manual entry is needed, or keep readOnly if auto-generated
+                                    readOnly={isEdit}
                                     style={isEdit ? { backgroundColor: '#f3f4f6' } : {}}
                                 />
                                 {errors.company_code && <div className="error-message">{errors.company_code}</div>}
@@ -272,16 +280,18 @@ const FormSection = ({ mode, initialData, countries, currencies, onBack, onSubmi
                                 {errors.description && <div className="error-message">{errors.description}</div>}
                             </div>
 
-                            <div className="form-group checkbox-group">
-                                <label className="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        name="is_active"
-                                        value="1"
-                                        defaultChecked={initialData ? initialData.is_active : true}
-                                    />
-                                    Active Status
-                                </label>
+                            <div className="form-group">
+                                <label>Status</label>
+                                <select
+                                    name="status"
+                                    defaultValue={initialData?.status || 'active'}
+                                >
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="suspended">Suspended</option>
+                                    <option value="bankrupt">Bankrupt</option>
+                                    <option value="dissolved">Dissolved</option>
+                                </select>
                             </div>
                         </div>
 
@@ -300,9 +310,8 @@ const FormSection = ({ mode, initialData, countries, currencies, onBack, onSubmi
     );
 };
 
-// --- Main Page Component ---
-const ListedCompanies = ({ companies, countries, currencies }) => {
-    const [viewMode, setViewMode] = useState('list'); // 'list', 'create', 'edit'
+const ListedCompanies = ({ companies, countries, currencies, filters }) => {
+    const [viewMode, setViewMode] = useState('list');
     const [selectedCompany, setSelectedCompany] = useState(null);
 
     const handleCreate = () => {
@@ -320,7 +329,6 @@ const ListedCompanies = ({ companies, countries, currencies }) => {
             router.delete(route('admin.investing-stack.listed-companies.destroy', id), {
                 preserveScroll: true,
                 onSuccess: () => {
-                    // Success notification handled by flash message in layout
                 }
             });
         }
@@ -350,6 +358,7 @@ const ListedCompanies = ({ companies, countries, currencies }) => {
                 {viewMode === 'list' && (
                     <ViewSection
                         companies={companies}
+                        filters={filters}
                         onEdit={handleEdit}
                         onCreate={handleCreate}
                         onDelete={handleDelete}
