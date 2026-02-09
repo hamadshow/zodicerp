@@ -187,7 +187,13 @@ class JournalController extends Controller
         });
 
         return response()->json([
-            'header' => $header,
+            'header' => [
+                'entry_code' => $header->entry_code,
+                'date' => $header->date ? substr($header->date, 0, 10) : null,
+                'reference' => $header->reference,
+                'description' => $header->description,
+                'status' => $header->status,
+            ],
             'lines' => $mappedLines,
         ]);
     }
