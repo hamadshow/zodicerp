@@ -1,0 +1,55 @@
+name: Deploy to Production (FTP)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  web-deploy:
+    name: 🎉 Deploy
+    runs-on: ubuntu-latest
+    steps:
+    - name: 🚚 Get latest code
+      uses: actions/checkout@v4
+
+    - name: 🟢 Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.2'
+        extensions: mbstring, intl, pdo_mysql, bcmath
+
+    - name: 📦 Install Composer Dependencies
+      run: composer install --no-dev --prefer-dist --optimize-autoloader --no-progress --ignore-platform-reqs
+
+    - name: 🟢 Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: 📦 Install NPM Dependencies
+      run: npm ci
+
+    - name: 🔨 Build Frontend Assets
+      run: npm run build
+
+    - name: 🧹 Remove node_modules
+      run: rm -rf node_modules
+
+    - name: 📂 Sync files
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        server-dir: /public_html/
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          .env
+          /storage/
+          /bootstrap/cache/
+          /tests/
+          /phpunit.xml
+          /README.md
