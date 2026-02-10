@@ -43,8 +43,9 @@ jobs:
         server: 151.106.96.46
         username: u244683233
         password: ${{ secrets.FTP_PASSWORD }}
-        protocol: ftps
-        server-dir: /public_html/
+          protocol: ftps
+          security: loose
+          server-dir: /public_html/
         exclude: |
           **/.git*
           **/.git*/**
