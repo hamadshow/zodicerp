@@ -43,8 +43,8 @@ jobs:
           server: 151.106.96.46
           username: u244683233.zodicsys.com
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          security: loose
+          port: 21
+          protocol: ftp
           server-dir: /public_html/
           exclude: |
             **/.git*
