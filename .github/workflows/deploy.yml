@@ -40,7 +40,7 @@ jobs:
       - name: 📂 Sync files
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ftp.zodicsys.com
+          server: 151.106.96.46
           username: u244683233.zodicsys
           password: ${{ secrets.FTP_PASSWORD }}
           port: 21
