@@ -1,1 +1,0 @@
-import{j as o}from"./app-DPj5QJst.js";import"./ui-Cm-M_v02.js";import"./vendor-DNWpyu2A.js";const t=()=>o.jsxs("footer",{className:"footer",children:[o.jsx("div",{children:"Copyright 2025 © Righteg. Version 1.40.8"}),o.jsx("div",{children:"Page loaded in 2.47 seconds"})]});export{t as default};

@@ -21,37 +21,12 @@ api.interceptors.request.use(
       config.headers['X-CSRF-TOKEN'] = csrfToken.getAttribute('content');
     }
 
-    // Also try to get the token from the cookie as fallback
-    if (!config.headers['X-CSRF-TOKEN']) {
-      const token = getCookie('XSRF-TOKEN');
-      if (token) {
-        config.headers['X-CSRF-TOKEN'] = decodeURIComponent(token);
-      }
-    }
-
     return config;
   },
   (error) => {
     return Promise.reject(error);
   }
 );
-
-// Helper function to get cookie value
-function getCookie(name) {
-  let cookieValue = null;
-  if (document.cookie && document.cookie !== '') {
-    const cookies = document.cookie.split(';');
-    for (let i = 0; i < cookies.length; i++) {
-      const cookie = cookies[i].trim();
-      // Does this cookie string begin with the name we want?
-      if (cookie.substring(0, name.length + 1) === name + '=') {
-        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-        break;
-      }
-    }
-  }
-  return cookieValue;
-}
 
 // Response interceptor
 api.interceptors.response.use(
