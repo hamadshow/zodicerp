@@ -3,11 +3,17 @@ import React, { useState, useEffect } from 'react';
 export default function FilePreviewModal({ file, isOpen, onClose }) {
     const [pdfError, setPdfError] = useState(false);
 
+    const getFileUrl = () => {
+        if (!file) return '';
+        if (file.file_url) return file.file_url;
+        const basePath = file.file_path || file.path || '';
+        return basePath ? `/media-files/${basePath.replace(/^\/?(storage|media-files)\//, '')}` : '';
+    };
+
     useEffect(() => {
         if (file && file.file_type && file.file_type.includes('pdf')) {
             setPdfError(false);
-            // Optional: Check if file exists via HEAD request
-            fetch(file.file_path, { method: 'HEAD' })
+            fetch(getFileUrl(), { method: 'HEAD' })
                 .then(res => {
                     if (!res.ok) setPdfError(true);
                 })
@@ -16,6 +22,8 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
     }, [file]);
 
     if (!isOpen || !file) return null;
+
+    const fileUrl = getFileUrl();
 
     const formatSize = (bytes) => {
         if (bytes === 0) return '0 Bytes';
@@ -26,8 +34,8 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
     };
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(file.file_path);
-        // You might want to show a toast here
+        if (!fileUrl) return;
+        navigator.clipboard.writeText(fileUrl);
         alert('Link copied to clipboard!');
     };
 
@@ -35,14 +43,14 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
         if (file.file_type.includes('image')) {
             return (
                 <div className="preview-image-container">
-                    <img src={file.file_path} alt={file.name} className="preview-img" />
+                    <img src={fileUrl} alt={file.name} className="preview-img" />
                 </div>
             );
         } else if (file.file_type.includes('video')) {
             return (
                 <div className="preview-video-container">
                     <video controls className="preview-video">
-                        <source src={file.file_path} type={file.file_type} />
+                        <source src={fileUrl} type={file.file_type} />
                         Your browser does not support the video tag.
                     </video>
                 </div>
@@ -54,11 +62,11 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
                         <span className="material-icons-outlined preview-generic-icon" style={{color: '#ef4444'}}>error_outline</span>
                         <p className="preview-generic-text">Failed to load PDF preview (File not found or inaccessible)</p>
                         <div className="pdf-actions" style={{ marginTop: '15px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                            <a href={file.file_path} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                            <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
                                 <span className="material-icons-outlined" style={{ fontSize: '18px' }}>open_in_new</span>
                                 Open in New Tab
                             </a>
-                            <a href={file.file_path} download className="btn btn-secondary">
+                            <a href={fileUrl} download className="btn btn-secondary">
                                 <span className="material-icons-outlined" style={{ fontSize: '18px' }}>download</span>
                                 Download
                             </a>
@@ -68,15 +76,15 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
             }
             return (
                 <div className="preview-pdf-container">
-                    <iframe src={file.file_path} className="preview-iframe" title={file.name} onError={() => setPdfError(true)}>
+                    <iframe src={fileUrl} className="preview-iframe" title={file.name} onError={() => setPdfError(true)}>
                         <p>Your browser does not support iframes.</p>
                     </iframe>
                     <div className="pdf-actions" style={{ marginTop: '15px', display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                        <a href={file.file_path} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
                             <span className="material-icons-outlined" style={{ fontSize: '18px' }}>open_in_new</span>
                             Open in New Tab
                         </a>
-                        <a href={file.file_path} download className="btn btn-secondary">
+                        <a href={fileUrl} download className="btn btn-secondary">
                             <span className="material-icons-outlined" style={{ fontSize: '18px' }}>download</span>
                             Download
                         </a>
@@ -88,7 +96,7 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
                 <div className="preview-generic-container preview-generic">
                     <span className="material-icons-outlined preview-generic-icon">description</span>
                     <p className="preview-generic-text">No preview available</p>
-                    <a href={file.file_path} target="_blank" rel="noopener noreferrer" className="btn btn-primary preview-download-link">
+                    <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="btn btn-primary preview-download-link">
                         Download File
                     </a>
                 </div>
@@ -135,7 +143,7 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
                                         <input 
                                             type="text" 
                                             readOnly 
-                                            value={file.file_path} 
+                                            value={fileUrl} 
                                             className="url-input"
                                         />
                                         <button 
@@ -153,7 +161,7 @@ export default function FilePreviewModal({ file, isOpen, onClose }) {
                 </div>
                 <div className="modal-footer">
                     <button className="btn btn-secondary" onClick={onClose}>Close</button>
-                    <a href={file.file_path} download className="btn btn-primary">
+                    <a href={fileUrl} download className="btn btn-primary">
                         <span className="material-icons-outlined download-icon">download</span> Download
                     </a>
                 </div>

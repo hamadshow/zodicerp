@@ -14,19 +14,16 @@ if not exist "%PHP_BIN%" (
 :: Ensure we are in the project root
 cd /d "c:\xampp\htdocs\zodicerp"
 
-echo Starting Laravel Backend...
-:: Using cmd /k to keep the window open so you can see errors
-start "Laravel Backend" cmd /k "%PHP_BIN% artisan serve"
-
 echo Starting Vite Frontend...
 start "Vite Frontend" cmd /k "npm run dev"
 
 echo.
 echo ========================================================
-echo  Servers are running in separate windows.
-echo  DO NOT CLOSE those windows.
+echo  Frontend Server (Vite) is running in a separate window.
+echo  Backend Server is XAMPP Apache (Port 80).
+echo  DO NOT CLOSE the Vite window.
 echo  
-echo  App URL: http://localhost:8000
+echo  App URL: http://localhost
 echo ========================================================
 echo.
 pause

@@ -17,6 +17,15 @@ class MediaFile extends Model
         'size',
     ];
 
+    protected $appends = [
+        'path',
+    ];
+
+    public function getPathAttribute()
+    {
+        return $this->file_path;
+    }
+
     public function folder()
     {
         return $this->belongsTo(MediaFolder::class, 'folder_id');

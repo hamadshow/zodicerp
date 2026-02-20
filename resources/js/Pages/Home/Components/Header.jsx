@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
-import '../../../../css/homepage/header.scss';
+import '../../../../css/homepage/main.scss';
 import AnnouncementBar from './AnnouncementBar';
 import HeaderTop from './HeaderTop';
 import Navigation from './Navigation';

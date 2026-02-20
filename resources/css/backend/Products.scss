@@ -764,10 +764,15 @@ tr:hover td {
 
 .gallery-item {
     position: relative;
-    width: 80px;
-    height: 80px;
+    width: 140px;
+    height: 140px;
     border: 1px solid #e2e8f0;
     border-radius: 4px;
+    overflow: hidden;
+    background-color: #f9fafb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .gallery-image {
@@ -777,11 +782,18 @@ tr:hover td {
     border-radius: 4px;
 }
 
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
 .gallery-remove-btn {
     position: absolute;
-    top: -5px;
-    right: -5px;
-    background: red;
+    top: 6px;
+    right: 6px;
+    background: var(--product-danger);
     color: white;
     border-radius: 50%;
     width: 20px;

@@ -1,6 +1,27 @@
 import React, { useState } from 'react';
 import { Link } from '@inertiajs/react';
 
+const FALLBACK_IMAGE = 'https://via.placeholder.com/300x200';
+
+const getProductImageUrl = (image) => {
+  if (!image) return FALLBACK_IMAGE;
+
+  if (typeof image === 'string' && /^https?:\/\//i.test(image)) {
+    return image;
+  }
+
+  const withoutProtocol =
+    typeof image === 'string' ? image.replace(/^https?:\/\/[^/]+/, '') : '';
+
+  const relativePath = withoutProtocol.replace(
+    /^\/?(files|storage|media-files)\//,
+    ''
+  );
+
+  const url = relativePath ? `/media-files/${relativePath}` : '';
+  return url || FALLBACK_IMAGE;
+};
+
 const ProductCard = ({
   product,
   onAddToCart,
@@ -47,11 +68,11 @@ const ProductCard = ({
       <div className={`product-image-container ${!imageLoaded ? 'loading' : ''}`}>
         {!imageLoaded && <div className="skeleton-loader" />}
         <img
-            src={product.image}
-            alt={product.name}
-            loading="lazy"
-            className={`product-image ${imageLoaded ? 'loaded' : ''}`}
-            onLoad={() => setImageLoaded(true)}
+          src={getProductImageUrl(product.image)}
+          alt={product.name}
+          loading="lazy"
+          className={`product-image ${imageLoaded ? 'loaded' : ''}`}
+          onLoad={() => setImageLoaded(true)}
         />
         {isHovered && (
           <div className="product-overlay">

@@ -15,6 +15,7 @@ class MediaController extends Controller
 {
     public function index(Request $request, ?string $tab = null)
     {
+        set_time_limit(0);
         $folderId = $request->input('folder_id');
         $search = $request->input('search');
         $sortBy = $request->input('sort_by', 'name');
@@ -80,14 +81,23 @@ class MediaController extends Controller
 
         // Calculate storage usage
         $totalUsed = MediaFile::sum('size');
-        $totalSpace = 1073741824; // 1GB limit
+        $totalSpace = 1073741824;
 
         $filters = $request->only(['search', 'sort_by', 'sort_order']);
         $filters['type'] = $type ?: 'all';
 
+        $files = $queryFiles->paginate(50)->withQueryString();
+        $files->getCollection()->transform(function ($file) {
+            $rawPath = parse_url($file->file_path, PHP_URL_PATH) ?: $file->file_path;
+            $relativePath = ltrim(str_replace('/storage/', '', $rawPath), '/');
+            $file->path = $relativePath;
+            $file->file_url = '/media-files/' . $relativePath;
+            return $file;
+        });
+
         $data = [
             'folders' => $queryFolders->get(),
-            'files' => $queryFiles->paginate(50)->withQueryString(),
+            'files' => $files,
             'currentFolder' => $currentFolder,
             'breadcrumbs' => $breadcrumbs,
             'filters' => $filters,
@@ -115,25 +125,15 @@ class MediaController extends Controller
         $folderId = $request->input('folder_id');
 
         foreach ($request->file('files') as $file) {
-            // Determine storage path based on type
             $mime = $file->getMimeType();
-            $type = 'others';
-            if (str_contains($mime, 'image')) {
-                $type = 'images';
-            } elseif (str_contains($mime, 'video')) {
-                $type = 'videos';
-            } elseif (str_contains($mime, 'pdf') || str_contains($mime, 'document')) {
-                $type = 'documents';
-            }
 
-            // Store file
-            $path = $file->store("media/{$type}", 'public');
+            $path = $file->store('media', 'public');
 
             // Create database record
             MediaFile::create([
                 'folder_id' => $folderId,
                 'name' => $file->getClientOriginalName(),
-                'file_path' => Storage::url($path),
+                'file_path' => $path,
                 'file_type' => $mime,
                 'size' => $file->getSize(),
             ]);

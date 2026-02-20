@@ -16,6 +16,7 @@ use App\Http\Controllers\Purchases\SupplierController;
 use App\Http\Controllers\Sales\CustomerController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 
@@ -36,6 +37,14 @@ use Inertia\Inertia;
 //        Route::post('logout', [SupplierController::class, 'logout'])->name('logout');
 //    });
 // });
+
+Route::get('/media-files/{path}', function (string $path) {
+    $relativePath = ltrim($path, '/');
+    if (!Storage::disk('public')->exists($relativePath)) {
+        abort(404);
+    }
+    return Storage::disk('public')->response($relativePath);
+})->where('path', '.*');
 
 Route::middleware('auth')->group(function () {
     Route::get('/admin', [AdminController::class, 'index'])
@@ -689,6 +698,9 @@ Route::get('/admin/budget/monitoring/items/{budgetId}', [\App\Http\Controllers\B
 
 Route::get('/', [HomeController::class, 'index'])->name('frontend');
 Route::get('/product/{identifier}', [HomeController::class, 'productDetails'])->name('product.details');
+Route::get('/sign-in', function () {
+    return Inertia::render('Home/Auth/Login');
+})->name('home.login');
 Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
 Route::get('/cart/mini', [CartController::class, 'mini'])->name('cart.mini');
 Route::post('/cart/remove', [CartController::class, 'remove'])->name('cart.remove');

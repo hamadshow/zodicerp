@@ -202,13 +202,9 @@ const Categories = ({ categories = [], parents = [] }) => {
 
     // Handle Media Selection
     const handleMediaSelect = (files) => {
-        // files can be an array or single object depending on 'multiple' prop
         const file = Array.isArray(files) ? files[0] : files;
-        if (file && file.file_path) {
-            // file.file_path is usually "/storage/media/images/..."
-            // We want to store relative path "media/images/..." so frontend can prepend "/storage/"
-            const relativePath = file.file_path.replace(/^\/storage\//, '');
-            setData('image', relativePath);
+        if (file && file.path) {
+            setData('image', file.path);
         }
     };
 

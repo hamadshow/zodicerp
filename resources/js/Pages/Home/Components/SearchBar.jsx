@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import '../../../../css/homepage/header.scss';
+import '../../../../css/homepage/main.scss';
 
 export default function SearchBar({
   categoriesData = [],

@@ -4,6 +4,8 @@
     </IfModule>
 
     RewriteEngine On
+    RewriteCond %{REQUEST_URI} ^/storage/
+    RewriteRule ^ index.php [L]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
@@ -31,4 +33,3 @@ Options -Indexes
     Order allow,deny
     Deny from all
 </Files>
-

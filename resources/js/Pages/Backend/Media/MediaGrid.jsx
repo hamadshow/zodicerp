@@ -241,7 +241,7 @@ export default function MediaGrid({ folders, files, selectedItems = [], onToggle
           </div>
           <div className="preview-wrapper">
               {file.file_type.includes('image') ? (
-                  <img src={file.file_path} alt={file.name} />
+                  <img src={file.file_url || `/media-files/${file.path}`} alt={file.name} />
               ) : (
                   <span className="material-icons-outlined icon-file-large">description</span>
               )}

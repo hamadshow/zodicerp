@@ -28,6 +28,14 @@ class HomeController extends Controller
             ->take(8)
             ->get()
             ->map(function ($product) {
+                $imagePath = null;
+
+                if ($product->image) {
+                    $imagePath = $product->image;
+                } elseif (is_array($product->images) && count($product->images) > 0) {
+                    $imagePath = $product->images[0];
+                }
+
                 return [
                     'id' => $product->id,
                     'name' => $product->name,
@@ -35,7 +43,7 @@ class HomeController extends Controller
                     'originalPrice' => null,
                     'moq' => $product->minimum_order_quantity ? $product->minimum_order_quantity . ' pcs' : '1 pc',
                     'orders' => ($product->views ?? 0) . ' Views',
-                    'image' => $product->image ? (str_starts_with($product->image, 'http') ? $product->image : asset('storage/' . $product->image)) : 'https://via.placeholder.com/300x200',
+                    'image' => $imagePath,
                     'badge' => 'Featured',
                     'verified' => true,
                     'supplier' => $product->brand ? $product->brand->name : 'ZodiMarket',

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from '@inertiajs/react';
-import '../../../../css/homepage/header.scss';
+import { Link, usePage, router } from '@inertiajs/react';
+import '../../../../css/homepage/main.scss';
 import SearchBar from './SearchBar';
 
 export default function HeaderTop({
@@ -17,6 +17,7 @@ export default function HeaderTop({
   const [miniCartError, setMiniCartError] = useState(null);
   const closeTimerRef = useRef(null);
   const lastFetchedVersionRef = useRef(null);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const fetchMiniCart = async (force = false) => {
     if (isCartLoading) return;
@@ -84,6 +85,21 @@ export default function HeaderTop({
     0
   );
 
+  const user = usePage().props.auth?.user;
+
+  const handleUserButtonClick = () => {
+    if (user) {
+      setIsUserMenuOpen((prev) => !prev);
+    } else {
+      window.location.href = '/login';
+    }
+  };
+
+  const handleLogout = () => {
+    router.post(route('logout'));
+    setIsUserMenuOpen(false);
+  };
+
   return (
     <div className="header-top">
       <Link href="/" className="logo" aria-label="ZodiMarket Home">
@@ -112,10 +128,62 @@ export default function HeaderTop({
             <i className="fas fa-question-circle"></i>
             <span>Help Center</span>
           </div>
-          <button className="menu-item sign-in">
-            <i className="fas fa-user"></i>
-            <span>Sign In</span>
-          </button>
+          <div className="user-account-wrapper">
+            <button
+              type="button"
+              className="menu-item sign-in user-account-trigger"
+              onClick={handleUserButtonClick}
+            >
+              <i className="fas fa-user"></i>
+              <span>{user ? user.name : 'Sign In'}</span>
+              {user && <i className="fas fa-chevron-down user-account-caret"></i>}
+            </button>
+            {user && isUserMenuOpen && (
+              <div className="user-account-dropdown">
+                <div className="user-account-menu">
+                  <a href="#" className="user-account-item">
+                    <i className="fas fa-clipboard-list"></i>
+                    <span>Orders</span>
+                  </a>
+                  <a href="#" className="user-account-item">
+                    <i className="fas fa-map-marker-alt"></i>
+                    <span>Addresses</span>
+                  </a>
+                  <a href="#" className="user-account-item">
+                    <i className="fas fa-credit-card"></i>
+                    <span>Payments</span>
+                  </a>
+                  <a href="#" className="user-account-item">
+                    <i className="fas fa-coins"></i>
+                    <span>Credits</span>
+                  </a>
+                  <a href="#" className="user-account-item">
+                    <i className="fas fa-undo-alt"></i>
+                    <span>Returns</span>
+                  </a>
+                  <a href="#" className="user-account-item">
+                    <i className="fas fa-shield-alt"></i>
+                    <span>Warranty Claims</span>
+                  </a>
+                  <a href="#" className="user-account-item">
+                    <i className="fas fa-user-circle"></i>
+                    <span>Profile</span>
+                  </a>
+                  <a href="#" className="user-account-item">
+                    <i className="fas fa-info-circle"></i>
+                    <span>Need Help?</span>
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  className="user-account-signout"
+                  onClick={handleLogout}
+                >
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
           <div
             className="menu-item cart-badge"
             onMouseEnter={onCartEnter}

@@ -221,7 +221,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                             <td>
                                                 <div className="product-cell">
                                                     {product.image ? (
-                                                        <img src={`/storage/${product.image}`} alt={product.name} className="product-thumb" />
+                                                        <img src={`/media-files/${product.image}`} alt={product.name} className="product-thumb" />
                                                     ) : (
                                                         <div className="product-thumb-placeholder">
                                                             <span className="material-icons-outlined text-gray-light">image</span>
@@ -451,24 +451,49 @@ const ProductsForm = ({ product, categories, brands }) => {
         }
     }, [product]);
 
+    const normalizeMediaPath = (path) => {
+        if (!path) return '';
+        const withoutProtocol = path.replace(/^https?:\/\/[^/]+/, '');
+        return withoutProtocol.replace(/^\/?(files|storage|media-files)\//, '');
+    };
+
+    const getMainImageUrl = () => {
+        if (data.image instanceof File) {
+            return URL.createObjectURL(data.image);
+        }
+
+        const basePath =
+            (typeof data.image === 'string' && data.image) ||
+            (!data.delete_image && product && product.image) ||
+            '';
+
+        if (!basePath) {
+            return '';
+        }
+
+        const relativePath = normalizeMediaPath(basePath);
+        return `/media-files/${relativePath}`;
+    };
+
     const openMediaPicker = (mode) => {
         setMediaPickerMode(mode);
         setIsMediaPickerOpen(true);
     };
 
     const handleMediaSelect = (selected) => {
-        const processPath = (path) => {
-            // Remove /storage/ prefix if present to store relative path
-            return path ? path.replace(/^\/storage\//, '') : '';
-        };
-
         if (mediaPickerMode === 'single') {
-            // selected is one item object {id, file_path, ...}
-            setData('image', processPath(selected.file_path));
+            const item = Array.isArray(selected) ? selected[0] : selected;
+            if (item && item.file_path) {
+                setData('image', normalizeMediaPath(item.file_path));
+            }
         } else {
-            // selected is array of objects
-            const newPaths = selected.map(item => processPath(item.file_path));
-            setData('gallery', [...data.gallery, ...newPaths]);
+            const items = Array.isArray(selected) ? selected : [selected];
+            const newPaths = items
+                .map(item => (item && item.file_path ? normalizeMediaPath(item.file_path) : ''))
+                .filter(Boolean);
+            if (newPaths.length > 0) {
+                setData('gallery', [...data.gallery, ...newPaths]);
+            }
         }
     };
 
@@ -659,10 +684,10 @@ const ProductsForm = ({ product, categories, brands }) => {
                                                 className="image-upload-area"
                                                 onClick={() => openMediaPicker('single')}
                                             >
-                                                {(data.image || (product && product.image)) ? (
+                                                {getMainImageUrl() ? (
                                                     <div className="image-preview-full-container" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                                                         <img
-                                                            src={data.image ? (typeof data.image === 'string' ? `/storage/${data.image}` : URL.createObjectURL(data.image)) : `/storage/${product.image}`}
+                                                            src={getMainImageUrl()}
                                                             alt="Main Product"
                                                             style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }}
                                                         />
@@ -714,7 +739,7 @@ const ProductsForm = ({ product, categories, brands }) => {
                                                 {/* Display Existing Gallery Images */}
                                                 {data.existing_images && data.existing_images.map((img, index) => (
                                                     <div key={`existing-${index}`} className="gallery-item">
-                                                        <img src={`/storage/${img}`} alt={`Gallery ${index}`} />
+                                                        <img src={`/media-files/${img}`} alt={`Gallery ${index}`} />
                                                         <button
                                                             type="button"
                                                             className="gallery-remove-btn"
@@ -732,7 +757,7 @@ const ProductsForm = ({ product, categories, brands }) => {
                                                 {data.gallery && data.gallery.map((item, index) => {
                                                     let src = '';
                                                     if (typeof item === 'string') {
-                                                        src = `/storage/${item}`;
+                                                        src = `/media-files/${item}`;
                                                     } else if (item instanceof File) {
                                                         src = URL.createObjectURL(item);
                                                     }
@@ -996,7 +1021,8 @@ const ProductsForm = ({ product, categories, brands }) => {
                     isOpen={isMediaPickerOpen}
                     onClose={() => setIsMediaPickerOpen(false)}
                     onSelect={handleMediaSelect}
-                    mode={mediaPickerMode}
+                    multiple={mediaPickerMode !== 'single'}
+                    allowedTypes={['image']}
                 />
             </div>
         </AdminLayout>

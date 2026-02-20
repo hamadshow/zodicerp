@@ -2,10 +2,30 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import Header from './Components/Header';
 import Footer from './Components/Footer';
-import '../../../css/homepage/Product-details.scss';
+import '../../../css/homepage/main.scss';
+
+const getProductImageUrl = (image, fallback) => {
+    if (!image) {
+        return fallback;
+    }
+
+    if (typeof image === 'string' && /^https?:\/\//i.test(image)) {
+        return image;
+    }
+
+    const withoutProtocol =
+        typeof image === 'string' ? image.replace(/^https?:\/\/[^/]+/, '') : '';
+
+    const relativePath = withoutProtocol.replace(
+        /^\/?(files|storage|media-files)\//,
+        ''
+    );
+
+    return `/media-files/${relativePath}`;
+};
 
 export default function ProductDetails({ product, categories = [] }) {
-  const placeholderImage = 'https://via.placeholder.com/500x500';
+    const placeholderImage = 'https://via.placeholder.com/500x500';
 
     if (!product) {
         return (
@@ -55,12 +75,16 @@ export default function ProductDetails({ product, categories = [] }) {
         return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP' }).format(safe);
     };
 
-    const images =
+    const baseImages =
         Array.isArray(product.images) && product.images.length > 0
             ? product.images
             : product.image
                 ? [product.image]
                 : [placeholderImage];
+
+    const images = baseImages.map((img) =>
+        getProductImageUrl(img, placeholderImage)
+    );
 
     useEffect(() => {
         if (selectedImage > images.length - 1) {
