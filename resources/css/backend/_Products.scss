@@ -755,6 +755,14 @@ tr:hover td {
     object-fit: cover;
 }
 
+.gallery-grid {
+    display: flex;
+    gap: 10px;
+    flex-wrap: nowrap;
+    margin-top: 10px;
+    overflow-x: auto;
+}
+
 .gallery-container {
     display: flex;
     gap: 10px;
@@ -915,6 +923,101 @@ tr:hover td {
     display: flex;
     flex-direction: column;
     gap: 12px;
+}
+
+.products-variations-header {
+    align-items: center;
+    gap: 12px;
+}
+
+.products-variations-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.product-variations-toolbar {
+    margin-bottom: 8px;
+}
+
+.product-variations-search {
+    max-width: 260px;
+}
+
+.product-variations-table-wrapper {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.product-variations-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.product-variations-table th,
+.product-variations-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e5e7eb;
+    vertical-align: middle;
+    text-align: left;
+}
+
+.product-variations-table thead th {
+    background-color: #f9fafb;
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 0.8rem;
+}
+
+.product-variations-table tbody tr:hover td {
+    background-color: #f9fafb;
+}
+
+.variation-image-cell {
+    display: flex;
+    align-items: center;
+}
+
+.variation-image-thumb {
+    width: 46px;
+    height: 46px;
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1px solid #e5e7eb;
+}
+
+.variation-default-indicator {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 2px solid #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    background-color: #3b82f6;
+}
+
+.variation-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-icon {
+    padding: 6px 8px;
+    border-radius: 999px;
+}
+
+.btn-icon .material-icons-outlined {
+    font-size: 16px;
+}
+
+.product-variations-footer {
+    padding: 10px 14px;
+    font-size: 0.8rem;
+    color: #6b7280;
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .table-wrapper {

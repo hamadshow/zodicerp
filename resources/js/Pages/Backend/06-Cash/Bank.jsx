@@ -3,6 +3,26 @@ import { Head, router, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/bank.scss';
 
+const resolveMediaUrl = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+        return value;
+    }
+
+    const withoutProtocol =
+        typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+    const relativePath = withoutProtocol.replace(
+        /^\/?(files|storage|media-files)\//,
+        ''
+    );
+
+    return `/media-files/${relativePath}`;
+};
+
 // --- Components ---
 
 const StatsCard = ({ icon, bgColor, value, label }) => (
@@ -474,7 +494,7 @@ const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
                             <div className="bank-info-sidebar">
                                 <div className="bank-logo-preview">
                                     {bank.logo ? (
-                                        <img src={`/storage/${bank.logo}`} alt={bank.name} />
+                                        <img src={resolveMediaUrl(bank.logo)} alt={bank.name} />
                                     ) : (
                                         <span className="material-icons-outlined text-4xl text-gray-300">account_balance</span>
                                     )}
@@ -761,7 +781,7 @@ const Bank = ({ banks, filters, glAccounts, currencies }) => {
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
                                                         {bank.logo ? (
-                                                            <img src={`/storage/${bank.logo}`} alt={bank.name} className="w-full h-full object-cover" />
+                                                            <img src={resolveMediaUrl(bank.logo)} alt={bank.name} className="w-full h-full object-cover" />
                                                         ) : (
                                                             <span className="material-icons-outlined text-gray-400 text-sm">account_balance</span>
                                                         )}

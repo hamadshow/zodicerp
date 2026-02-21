@@ -148,8 +148,18 @@ class CartController extends Controller
         $subTotal = 0.0;
 
         $formatImage = function ($img) {
-            if (!$img) return null;
-            return str_starts_with($img, 'http') ? $img : asset('storage/' . $img);
+            if (!$img) {
+                return null;
+            }
+
+            if (str_starts_with($img, 'http')) {
+                return $img;
+            }
+
+            $normalized = ltrim($img, '/');
+            $normalized = preg_replace('#^(files|storage|media-files)/#', '', $normalized);
+
+            return '/media-files/' . $normalized;
         };
 
         foreach ($cart as $itemKey => $cartItem) {

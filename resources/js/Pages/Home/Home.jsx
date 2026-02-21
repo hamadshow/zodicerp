@@ -6,6 +6,26 @@ import ProductCard from './Components/ProductCard';
 import CategoryRail from './Components/CategoryRail';
 import SupplierCard from './Components/SupplierCard';
 
+const resolveMediaUrl = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  const withoutProtocol =
+    typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+  const relativePath = withoutProtocol.replace(
+    /^\/?(files|storage|media-files)\//,
+    ''
+  );
+
+  return `/media-files/${relativePath}`;
+};
+
 const productsData = [
   {
     id: 1,
@@ -273,7 +293,10 @@ const HeroSection = ({ heroAds = [], sideAds = [], onSectionClick, onImageError,
   const defaultHeroImage =
     'https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&h=700&q=80';
 
-  const heroImageSrc = currentHero && currentHero.image ? currentHero.image : defaultHeroImage;
+  const heroImageSrc =
+    currentHero && currentHero.image
+      ? resolveMediaUrl(currentHero.image) || defaultHeroImage
+      : defaultHeroImage;
   const heroAlt = currentHero && currentHero.name ? currentHero.name : 'Main Ad';
 
   const fallbackSideAds = [
@@ -364,10 +387,11 @@ const HeroSection = ({ heroAds = [], sideAds = [], onSectionClick, onImageError,
           </div>
           <div className="homepage__ads-side">
             {sideItems.map((ad, index) => {
+              const dbImage =
+                ad && ad.image ? resolveMediaUrl(ad.image) : null;
               const imageSrc =
-                ad && ad.image
-                  ? ad.image
-                  : fallbackSideAds[index] && fallbackSideAds[index].image;
+                dbImage ||
+                (fallbackSideAds[index] && fallbackSideAds[index].image);
               const name =
                 ad && ad.name ? ad.name : fallbackSideAds[index] && fallbackSideAds[index].name;
 

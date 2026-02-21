@@ -5,6 +5,26 @@ import { AddEditTaskModal, ViewTaskModal } from './TaskModals';
 import '../../../../css/backend/Tasks.scss';
 import { apiService } from '../../../services/api.js';
 
+const resolveMediaUrl = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  const withoutProtocol =
+    typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+  const relativePath = withoutProtocol.replace(
+    /^\/?(files|storage|media-files)\//,
+    ''
+  );
+
+  return `/media-files/${relativePath}`;
+};
+
 const TaskManager = () => {
   // State management
   const [tasks, setTasks] = useState([]);
@@ -347,23 +367,24 @@ const TaskManager = () => {
     [taskDetails]
   );
 
-  // Handle file download
-  const handleFileDownload = useCallback(async (attachment) => {
-    try {
-      // Assuming files are served from storage directory
-      const fileUrl = `/storage/${attachment.file_path}`;
-      const link = document.createElement('a');
-      link.href = fileUrl;
-      link.download = attachment.file_name;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('Error downloading file:', error);
-      showToast('Error downloading file. Please try again.', 'error');
-    }
-  }, []);
+  const handleFileDownload = useCallback(
+    async (attachment) => {
+      try {
+        const fileUrl = resolveMediaUrl(attachment.file_path);
+        const link = document.createElement('a');
+        link.href = fileUrl || '#';
+        link.download = attachment.file_name;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (error) {
+        console.error('Error downloading file:', error);
+        showToast('Error downloading file. Please try again.', 'error');
+      }
+    },
+    []
+  );
 
   const resetForm = useCallback(() => {
     setFormData({

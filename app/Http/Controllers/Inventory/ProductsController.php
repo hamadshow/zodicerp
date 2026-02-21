@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Products;
 use App\Models\Brands;
 use App\Models\Categories;
+use App\Models\ItemAttribute;
 use App\Http\Requests\Inventory\StoreProductsRequest;
 use App\Http\Requests\Inventory\UpdateProductsRequest;
 use Illuminate\Http\Request;
@@ -97,11 +98,20 @@ class ProductsController extends Controller
     {
         $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
         $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
+        $itemAttributes = ItemAttribute::with(['details' => function ($query) {
+            $query->select('id', 'attribute_set_id', 'title')->orderBy('order')->orderBy('title');
+        }])
+            ->select('id', 'title')
+            ->where('status', 'published')
+            ->orderBy('order')
+            ->orderBy('title')
+            ->get();
 
         return Inertia::render('Backend/03-Inventory/Products', [
             'product' => null,
             'brands' => $brands,
             'categories' => $categories,
+            'itemAttributes' => $itemAttributes,
         ]);
     }
 
@@ -111,11 +121,20 @@ class ProductsController extends Controller
 
         $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
         $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
+        $itemAttributes = ItemAttribute::with(['details' => function ($query) {
+            $query->select('id', 'attribute_set_id', 'title')->orderBy('order')->orderBy('title');
+        }])
+            ->select('id', 'title')
+            ->where('status', 'published')
+            ->orderBy('order')
+            ->orderBy('title')
+            ->get();
 
         return Inertia::render('Backend/03-Inventory/Products', [
             'product' => $product,
             'brands' => $brands,
             'categories' => $categories,
+            'itemAttributes' => $itemAttributes,
         ]);
     }
 

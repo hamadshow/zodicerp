@@ -3,6 +3,24 @@ import { Link, usePage, router } from '@inertiajs/react';
 import '../../../../css/homepage/main.scss';
 import SearchBar from './SearchBar';
 
+const resolveMediaUrl = (value) => {
+  if (!value) return null;
+
+  if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  const withoutProtocol =
+    typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+  const relativePath = withoutProtocol.replace(
+    /^\/?(files|storage|media-files)\//,
+    ''
+  );
+
+  return relativePath ? `/media-files/${relativePath}` : null;
+};
+
 export default function HeaderTop({
   categoriesData = [],
   query,
@@ -17,7 +35,6 @@ export default function HeaderTop({
   const [miniCartError, setMiniCartError] = useState(null);
   const closeTimerRef = useRef(null);
   const lastFetchedVersionRef = useRef(null);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const fetchMiniCart = async (force = false) => {
     if (isCartLoading) return;
@@ -88,16 +105,19 @@ export default function HeaderTop({
   const user = usePage().props.auth?.user;
 
   const handleUserButtonClick = () => {
-    if (user) {
-      setIsUserMenuOpen((prev) => !prev);
-    } else {
+    if (!user) {
       window.location.href = '/login';
     }
   };
 
   const handleLogout = () => {
     router.post(route('logout'));
-    setIsUserMenuOpen(false);
+  };
+
+  const handleAccountClick = () => {
+    if (user) {
+      router.visit(route('account.dashboard'));
+    }
   };
 
   return (
@@ -128,62 +148,32 @@ export default function HeaderTop({
             <i className="fas fa-question-circle"></i>
             <span>Help Center</span>
           </div>
-          <div className="user-account-wrapper">
+          {user ? (
+            <div className="menu-item user-account-block">
+              <i className="fas fa-user"></i>
+              <div className="user-account-text">
+                <span className="user-account-name" onClick={handleAccountClick}>
+                  {user.name}
+                </span>
+                <button
+                  type="button"
+                  className="user-account-logout"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          ) : (
             <button
               type="button"
-              className="menu-item sign-in user-account-trigger"
+              className="menu-item sign-in"
               onClick={handleUserButtonClick}
             >
               <i className="fas fa-user"></i>
-              <span>{user ? user.name : 'Sign In'}</span>
-              {user && <i className="fas fa-chevron-down user-account-caret"></i>}
+              <span>Sign In</span>
             </button>
-            {user && isUserMenuOpen && (
-              <div className="user-account-dropdown">
-                <div className="user-account-menu">
-                  <a href="#" className="user-account-item">
-                    <i className="fas fa-clipboard-list"></i>
-                    <span>Orders</span>
-                  </a>
-                  <a href="#" className="user-account-item">
-                    <i className="fas fa-map-marker-alt"></i>
-                    <span>Addresses</span>
-                  </a>
-                  <a href="#" className="user-account-item">
-                    <i className="fas fa-credit-card"></i>
-                    <span>Payments</span>
-                  </a>
-                  <a href="#" className="user-account-item">
-                    <i className="fas fa-coins"></i>
-                    <span>Credits</span>
-                  </a>
-                  <a href="#" className="user-account-item">
-                    <i className="fas fa-undo-alt"></i>
-                    <span>Returns</span>
-                  </a>
-                  <a href="#" className="user-account-item">
-                    <i className="fas fa-shield-alt"></i>
-                    <span>Warranty Claims</span>
-                  </a>
-                  <a href="#" className="user-account-item">
-                    <i className="fas fa-user-circle"></i>
-                    <span>Profile</span>
-                  </a>
-                  <a href="#" className="user-account-item">
-                    <i className="fas fa-info-circle"></i>
-                    <span>Need Help?</span>
-                  </a>
-                </div>
-                <button
-                  type="button"
-                  className="user-account-signout"
-                  onClick={handleLogout}
-                >
-                  Sign Out
-                </button>
-              </div>
-            )}
-          </div>
+          )}
           <div
             className="menu-item cart-badge"
             onMouseEnter={onCartEnter}
@@ -216,14 +206,17 @@ export default function HeaderTop({
                         <div key={item.itemKey} className="mini-cart-item">
                           <img
                             className="mini-cart-thumb"
-                            src={item.image}
+                            src={resolveMediaUrl(item.image) || item.image}
                             alt={item.name}
                             loading="lazy"
                           />
                           <div className="mini-cart-item-info">
-                            <a className="mini-cart-item-title" href={`/product/${item.productId}`}>
+                            <Link
+                              href={route('product.details', item.productId)}
+                              className="mini-cart-item-title"
+                            >
                               {item.name}
-                            </a>
+                            </Link>
                             <div className="mini-cart-item-meta">
                               {item.quantity} x {formatMoney(item.unitPrice)}
                             </div>
@@ -261,10 +254,24 @@ export default function HeaderTop({
                   </div>
 
                   <div className="mini-cart-actions">
-                    <button type="button" className="mini-cart-btn secondary">
+                    <button
+                      type="button"
+                      className="mini-cart-btn secondary"
+                      onClick={() => {
+                        setIsCartOpen(false);
+                        router.visit(route('cart.index'));
+                      }}
+                    >
                       View Cart
                     </button>
-                    <button type="button" className="mini-cart-btn primary">
+                    <button
+                      type="button"
+                      className="mini-cart-btn primary"
+                      onClick={() => {
+                        setIsCartOpen(false);
+                        router.visit(route('checkout'));
+                      }}
+                    >
                       Checkout
                     </button>
                   </div>

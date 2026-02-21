@@ -5,6 +5,26 @@ import IconPicker from '../../../Components/IconPicker';
 import MediaPickerModal from '../Media/MediaPickerModal';
 import '../../../../css/backend/Categories.scss';
 
+const resolveMediaUrl = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+        return value;
+    }
+
+    const withoutProtocol =
+        typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+    const relativePath = withoutProtocol.replace(
+        /^\/?(files|storage|media-files)\//,
+        ''
+    );
+
+    return `/media-files/${relativePath}`;
+};
+
 // --- Recursive Category Tree Item ---
 const CategoryItem = ({ category, level = 0, selectedId, onSelect, onDelete, onDrop, onDragStart }) => {
     const [isExpanded, setIsExpanded] = useState(true);
@@ -517,7 +537,7 @@ const Categories = ({ categories = [], parents = [] }) => {
                                         <div className="image-preview-box">
                                             {data.image ? (
                                                 typeof data.image === 'string' ? (
-                                                    <img src={`/storage/${data.image}`} alt="Selection" />
+                                                    <img src={resolveMediaUrl(data.image)} alt="Selection" />
                                                 ) : (
                                                     <img src={URL.createObjectURL(data.image)} alt="Upload Preview" />
                                                 )

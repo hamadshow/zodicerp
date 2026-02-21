@@ -5,22 +5,31 @@ import AdminLayout from '../components/AdminLayout';
 import MediaPickerModal from '../Media/MediaPickerModal';
 import '../../../../css/backend/Company.scss';
 
+const resolveMediaUrl = (value) => {
+    if (!value) {
+        return null;
+    }
+    if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+        return value;
+    }
+
+    const withoutProtocol =
+        typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+    const relativePath = withoutProtocol.replace(
+        /^\/?(files|storage|media-files)\//,
+        ''
+    );
+
+    return `/media-files/${relativePath}`;
+};
+
 const CompanyForm = ({ company }) => {
     const isEdit = !!company;
     const [activeTab, setActiveTab] = useState('basic');
 
-    const resolveStoragePath = (value) => {
-        if (!value) {
-            return null;
-        }
-        if (value.startsWith('http')) {
-            return value;
-        }
-        return `/storage/${value}`;
-    };
-
     const [logoPreview, setLogoPreview] = useState(
-        company?.logo ? resolveStoragePath(company.logo) : null,
+        company?.logo ? resolveMediaUrl(company.logo) : null,
     );
     const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
     
@@ -116,7 +125,15 @@ const CompanyForm = ({ company }) => {
             if (!path) {
                 return '';
             }
-            return path.replace(/^\/storage\//, '');
+            const withoutProtocol =
+                typeof path === 'string'
+                    ? path.replace(/^https?:\/\/[^/]+/, '')
+                    : '';
+
+            return withoutProtocol.replace(
+                /^\/?(files|storage|media-files)\//,
+                ''
+            );
         };
 
         const relativePath = processPath(selected.file_path);
@@ -126,7 +143,7 @@ const CompanyForm = ({ company }) => {
             logo_path: relativePath,
         }));
 
-        setLogoPreview(resolveStoragePath(relativePath));
+        setLogoPreview(resolveMediaUrl(relativePath));
         setIsMediaPickerOpen(false);
     };
 

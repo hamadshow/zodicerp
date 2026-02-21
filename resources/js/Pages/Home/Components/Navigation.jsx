@@ -1,6 +1,26 @@
 import React, { useState, useEffect, useRef } from 'react';
 import '../../../../css/homepage/main.scss';
 
+const resolveMediaUrl = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  const withoutProtocol =
+    typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+  const relativePath = withoutProtocol.replace(
+    /^\/?(files|storage|media-files)\//,
+    ''
+  );
+
+  return `/media-files/${relativePath}`;
+};
+
 export default function Navigation({
   items = [
     'Home',
@@ -91,7 +111,7 @@ export default function Navigation({
                                             >
                                                 <div className="sub-img-wrapper">
                                                     {sub.image ? (
-                                                        <img src={`/storage/${sub.image}`} alt={sub.name} />
+                                                        <img src={resolveMediaUrl(sub.image)} alt={sub.name} />
                                                     ) : (
                                                         <div className="placeholder-img">
                                                             <i className="fas fa-box-open"></i>

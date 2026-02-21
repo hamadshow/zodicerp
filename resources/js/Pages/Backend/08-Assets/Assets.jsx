@@ -4,6 +4,26 @@ import AdminLayout from '../components/AdminLayout';
 import MediaPickerModal from '../Media/MediaPickerModal';
 import '../../../../css/backend/08-Assets/Assets.scss';
 
+const resolveMediaUrl = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+        return value;
+    }
+
+    const withoutProtocol =
+        typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+    const relativePath = withoutProtocol.replace(
+        /^\/?(files|storage|media-files)\//,
+        ''
+    );
+
+    return `/media-files/${relativePath}`;
+};
+
 // ==========================================
 // Helper Components
 // ==========================================
@@ -222,7 +242,7 @@ const AssetsList = ({ assets, warehouses, categories, filters = {} }) => {
                                             <td>
                                                 <div className="asset-cell">
                                                     {asset.image_path ? (
-                                                        <img src={`/storage/${asset.image_path}`} alt={asset.name_en} className="asset-thumb" />
+                                                        <img src={resolveMediaUrl(asset.image_path)} alt={asset.name_en} className="asset-thumb" />
                                                     ) : (
                                                         <div className="asset-thumb-placeholder">
                                                             <span className="material-icons-outlined text-gray-light">image</span>
@@ -703,7 +723,7 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                                     {data.existing_image && !data.image && (
                                         <div className="mb-4">
                                             <img 
-                                                src={`/storage/${data.existing_image}`} 
+                                                src={resolveMediaUrl(data.existing_image)} 
                                                 alt="Current" 
                                                 className="w-full rounded-lg border border-gray-200" 
                                             />

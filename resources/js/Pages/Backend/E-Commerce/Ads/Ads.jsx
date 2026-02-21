@@ -4,6 +4,26 @@ import AdminLayout from '../../components/AdminLayout';
 import { apiService } from '../../../../services/api';
 import '../../../../../css/backend/Ads.scss';
 
+const resolveMediaUrl = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+        return value;
+    }
+
+    const withoutProtocol =
+        typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+    const relativePath = withoutProtocol.replace(
+        /^\/?(files|storage|media-files)\//,
+        ''
+    );
+
+    return `/media-files/${relativePath}`;
+};
+
 const statusOptions = [
     { value: '', label: 'All statuses' },
     { value: 'published', label: 'Published' },
@@ -185,9 +205,7 @@ const Ads = () => {
             );
         }
 
-        const src = ad.image.startsWith('http')
-            ? ad.image
-            : `/storage/${ad.image}`;
+        const src = resolveMediaUrl(ad.image);
 
         return (
             <div className="ads-thumb">

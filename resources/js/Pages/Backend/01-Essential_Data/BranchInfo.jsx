@@ -6,6 +6,26 @@ import { apiService } from '@/services/api';
 import '../../../../css/backend/Warehouses.scss';
 import '../../../../css/backend/BranchInfo.scss';
 
+const resolveMediaUrl = (value) => {
+    if (!value) {
+        return null;
+    }
+
+    if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+        return value;
+    }
+
+    const withoutProtocol =
+        typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+    const relativePath = withoutProtocol.replace(
+        /^\/?(files|storage|media-files)\//,
+        ''
+    );
+
+    return `/media-files/${relativePath}`;
+};
+
 const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = null }) => {
     const [filteredBranches, setFilteredBranches] = useState(branches);
     const [searchTerm, setSearchTerm] = useState('');
@@ -13,7 +33,9 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
     const navigate = useNavigate();
     const location = useLocation();
     const [activeTab, setActiveTab] = useState('basic');
-    const [logoPreview, setLogoPreview] = useState(branch?.logo ? `/storage/${branch.logo}` : null);
+    const [logoPreview, setLogoPreview] = useState(
+        branch?.logo ? resolveMediaUrl(branch.logo) : null
+    );
     const [countries, setCountries] = useState([]);
     const [cities, setCities] = useState([]);
     const [areas, setAreas] = useState([]);
@@ -140,7 +162,7 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
         setData('bank_branch_name', source?.bank_branch_name || '');
         setData('swift_bic', source?.swift_bic || '');
         setData('bank_address', source?.bank_address || '');
-        setLogoPreview(source?.logo ? `/storage/${source.logo}` : null);
+        setLogoPreview(source?.logo ? resolveMediaUrl(source.logo) : null);
     };
 
     useEffect(() => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, Link, router, usePage, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import MediaPickerModal from '../Media/MediaPickerModal';
-import '../../../../css/backend/Products.scss';
+import '../../../../css/backend/main.scss';
 
 // ==========================================
 // Helper Components
@@ -302,9 +302,30 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
 // Form Component (Create/Edit)
 // ==========================================
 
-const ProductsForm = ({ product, categories, brands }) => {
+const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
     const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
     const [mediaPickerMode, setMediaPickerMode] = useState('single');
+    const [isVariationModalOpen, setIsVariationModalOpen] = useState(false);
+    const [variationForm, setVariationForm] = useState({
+        color: '',
+        size: '',
+        sku: '',
+        price: '',
+        sale_price: '',
+        cost_per_item: '',
+        barcode: '',
+        stock_status: 'in_stock',
+        weight: '',
+        length: '',
+        wide: '',
+        height: '',
+    });
+    const [variationImages, setVariationImages] = useState([]);
+    const [isAttributeModalOpen, setIsAttributeModalOpen] = useState(false);
+    const [selectedAttributeIds, setSelectedAttributeIds] = useState([]);
+    const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+    const [selectedVariationOptions, setSelectedVariationOptions] = useState({});
+    const [variationAttributeValues, setVariationAttributeValues] = useState({});
 
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         name: '',
@@ -369,6 +390,79 @@ const ProductsForm = ({ product, categories, brands }) => {
     void setCategorySearch;
     void taxOption;
     void setTaxOption;
+
+    const handleVariationChange = (field, value) => {
+        setVariationForm(prev => ({
+            ...prev,
+            [field]: value,
+        }));
+    };
+
+    const closeVariationModal = () => {
+        setIsVariationModalOpen(false);
+    };
+
+    const toggleAttributeSelection = (id) => {
+        setSelectedAttributeIds(prev =>
+            prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]
+        );
+    };
+
+    const openGenerateModal = () => {
+        if (!selectedAttributeIds.length) {
+            window.alert('Please select attributes first.');
+            return;
+        }
+
+        const initial = {};
+        itemAttributes
+            .filter(attr => selectedAttributeIds.includes(attr.id))
+            .forEach(attr => {
+                const details = Array.isArray(attr.details) ? attr.details : [];
+                initial[attr.id] = details.map(d => d.id);
+            });
+
+        setSelectedVariationOptions(initial);
+        setIsGenerateModalOpen(true);
+    };
+
+    const toggleAllOptions = (attributeId, details) => {
+        setSelectedVariationOptions(prev => {
+            const allIds = details.map(d => d.id);
+            const current = prev[attributeId] || [];
+            const isAllSelected = current.length === allIds.length;
+            return {
+                ...prev,
+                [attributeId]: isAllSelected ? [] : allIds,
+            };
+        });
+    };
+
+    const hasSelectedAttributes = selectedAttributeIds.length > 0;
+
+    const hasSelectedVariationValues = Object.values(selectedVariationOptions || {}).some(
+        (ids) => Array.isArray(ids) && ids.length > 0
+    );
+
+    const toggleOption = (attributeId, detailId) => {
+        setSelectedVariationOptions(prev => {
+            const current = prev[attributeId] || [];
+            const exists = current.includes(detailId);
+            return {
+                ...prev,
+                [attributeId]: exists
+                    ? current.filter(id => id !== detailId)
+                    : [...current, detailId],
+            };
+        });
+    };
+
+    const handleVariationAttributeChange = (attributeId, detailId) => {
+        setVariationAttributeValues(prev => ({
+            ...prev,
+            [attributeId]: detailId,
+        }));
+    };
 
     const categoryTree = useMemo(() => {
         if (!categories) return [];
@@ -486,14 +580,22 @@ const ProductsForm = ({ product, categories, brands }) => {
             if (item && item.file_path) {
                 setData('image', normalizeMediaPath(item.file_path));
             }
-        } else {
-            const items = Array.isArray(selected) ? selected : [selected];
-            const newPaths = items
-                .map(item => (item && item.file_path ? normalizeMediaPath(item.file_path) : ''))
-                .filter(Boolean);
-            if (newPaths.length > 0) {
-                setData('gallery', [...data.gallery, ...newPaths]);
-            }
+            return;
+        }
+
+        const items = Array.isArray(selected) ? selected : [selected];
+        const newPaths = items
+            .map(item => (item && item.file_path ? normalizeMediaPath(item.file_path) : ''))
+            .filter(Boolean);
+
+        if (newPaths.length === 0) {
+            return;
+        }
+
+        if (mediaPickerMode === 'multiple') {
+            setData('gallery', [...data.gallery, ...newPaths]);
+        } else if (mediaPickerMode === 'variation') {
+            setVariationImages(prev => [...prev, ...newPaths]);
         }
     };
 
@@ -784,6 +886,101 @@ const ProductsForm = ({ product, categories, brands }) => {
                                 </div>
 
                                 <div className="products-section-card">
+                                    <div className="products-section-header products-variations-header">
+                                        <h4 className="products-section-title">Product has variations</h4>
+                                        <div className="products-variations-actions">
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline"
+                                                onClick={() => setIsAttributeModalOpen(true)}
+                                            >
+                                                Edit attribute
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn btn-outline"
+                                                onClick={openGenerateModal}
+                                                disabled={!hasSelectedAttributes}
+                                            >
+                                                Generate variations
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="btn btn-primary"
+                                                onClick={() => setIsVariationModalOpen(true)}
+                                            >
+                                                Add new variation
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="products-section-content">
+                                        <div className="product-variations-toolbar">
+                                            <input
+                                                type="text"
+                                                className="form-control product-variations-search"
+                                                placeholder="Search..."
+                                            />
+                                        </div>
+                                        <div className="product-variations-table-wrapper">
+                                            <table className="product-variations-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th style={{ width: '40px' }}>
+                                                            <input type="checkbox" />
+                                                        </th>
+                                                        <th>ID</th>
+                                                        <th>Image</th>
+                                                        <th>Color</th>
+                                                        <th>Size</th>
+                                                        <th>Price</th>
+                                                        <th>Quantity</th>
+                                                        <th>Is Default</th>
+                                                        <th>Operations</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>
+                                                            <input type="checkbox" />
+                                                        </td>
+                                                        <td>63</td>
+                                                        <td>
+                                                            <div className="variation-image-cell">
+                                                                <img
+                                                                    src="/media-files/media/ZQ5E4SH0OhI7Id5qCPSlUPSMCldxHQmrW2REBjJL.jpg"
+                                                                    alt="Variation"
+                                                                    className="variation-image-thumb"
+                                                                />
+                                                            </div>
+                                                        </td>
+                                                        <td>Green</td>
+                                                        <td>S</td>
+                                                        <td>£ 0.00</td>
+                                                        <td>∞</td>
+                                                        <td>
+                                                            <span className="variation-default-indicator" />
+                                                        </td>
+                                                        <td>
+                                                            <div className="variation-actions">
+                                                                <button type="button" className="btn btn-primary btn-icon">
+                                                                    <span className="material-icons-outlined">edit</span>
+                                                                </button>
+                                                                <button type="button" className="btn btn-danger btn-icon">
+                                                                    <span className="material-icons-outlined">delete</span>
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                            <div className="product-variations-footer">
+                                                <span>Show from 1 to 1 in 1 records</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="products-section-card">
                                     <div className="products-section-header">
                                         <h4 className="products-section-title">Pricing</h4>
                                     </div>
@@ -1014,6 +1211,486 @@ const ProductsForm = ({ product, categories, brands }) => {
                                 </div>
                             </div>
                         </div>
+
+                        {isVariationModalOpen && (
+                            <div className="modal-overlay active">
+                                <div className="modal">
+                                    <div className="modal-header">
+                                        <h3 className="modal-title">Add new variation</h3>
+                                        <button
+                                            type="button"
+                                            className="modal-close"
+                                            onClick={closeVariationModal}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                    <div className="modal-body">
+                                        <div className="form-grid">
+                                            {itemAttributes
+                                                .filter(attr => selectedAttributeIds.includes(attr.id))
+                                                .map(attr => {
+                                                    const details = Array.isArray(attr.details)
+                                                        ? attr.details
+                                                        : [];
+                                                    return (
+                                                        <div key={attr.id} className="form-group">
+                                                            <label className="form-label">
+                                                                {attr.title} *
+                                                            </label>
+                                                            <select
+                                                                className="form-control"
+                                                                value={
+                                                                    variationAttributeValues[attr.id] || ''
+                                                                }
+                                                                onChange={e =>
+                                                                    handleVariationAttributeChange(
+                                                                        attr.id,
+                                                                        e.target.value
+                                                                    )
+                                                                }
+                                                            >
+                                                                <option value="">-- Select --</option>
+                                                                {details.map(detail => (
+                                                                    <option
+                                                                        key={detail.id}
+                                                                        value={detail.id}
+                                                                    >
+                                                                        {detail.title}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    );
+                                                })}
+                                        </div>
+
+                                        <div className="form-grid">
+                                            <div className="form-group">
+                                                <label className="form-label">SKU</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    value={variationForm.sku}
+                                                    onChange={e =>
+                                                        handleVariationChange('sku', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Price</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-control"
+                                                    value={variationForm.price}
+                                                    onChange={e =>
+                                                        handleVariationChange('price', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="form-grid">
+                                            <div className="form-group">
+                                                <label className="checkbox-option">
+                                                    <input type="checkbox" />
+                                                    <span>Auto generate SKU?</span>
+                                                </label>
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Price sale</label>
+                                                <div style={{ display: 'flex', gap: '8px' }}>
+                                                    <input
+                                                        type="number"
+                                                        className="form-control"
+                                                        value={variationForm.sale_price}
+                                                        onChange={e =>
+                                                            handleVariationChange(
+                                                                'sale_price',
+                                                                e.target.value
+                                                            )
+                                                        }
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-outline"
+                                                        style={{ whiteSpace: 'nowrap' }}
+                                                    >
+                                                        Choose Discount Period
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="form-grid">
+                                            <div className="form-group">
+                                                <label className="form-label">Cost per item</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-control"
+                                                    value={variationForm.cost_per_item}
+                                                    onChange={e =>
+                                                        handleVariationChange(
+                                                            'cost_per_item',
+                                                            e.target.value
+                                                        )
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">
+                                                    Barcode (ISBN, UPC, GTIN, etc.)
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    value={variationForm.barcode}
+                                                    onChange={e =>
+                                                        handleVariationChange(
+                                                            'barcode',
+                                                            e.target.value
+                                                        )
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">Stock status</label>
+                                            <div className="d-flex gap-4">
+                                                <label className="checkbox-option">
+                                                    <input
+                                                        type="radio"
+                                                        name="variation_stock_status"
+                                                        checked={
+                                                            variationForm.stock_status === 'in_stock'
+                                                        }
+                                                        onChange={() =>
+                                                            handleVariationChange(
+                                                                'stock_status',
+                                                                'in_stock'
+                                                            )
+                                                        }
+                                                    />
+                                                    <span>In stock</span>
+                                                </label>
+                                                <label className="checkbox-option">
+                                                    <input
+                                                        type="radio"
+                                                        name="variation_stock_status"
+                                                        checked={
+                                                            variationForm.stock_status ===
+                                                            'out_of_stock'
+                                                        }
+                                                        onChange={() =>
+                                                            handleVariationChange(
+                                                                'stock_status',
+                                                                'out_of_stock'
+                                                            )
+                                                        }
+                                                    />
+                                                    <span>Out of stock</span>
+                                                </label>
+                                                <label className="checkbox-option">
+                                                    <input
+                                                        type="radio"
+                                                        name="variation_stock_status"
+                                                        checked={
+                                                            variationForm.stock_status ===
+                                                            'on_backorder'
+                                                        }
+                                                        onChange={() =>
+                                                            handleVariationChange(
+                                                                'stock_status',
+                                                                'on_backorder'
+                                                            )
+                                                        }
+                                                    />
+                                                    <span>On backorder</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div className="products-section-card">
+                                            <div className="products-section-header">
+                                                <h4 className="products-section-title">Shipping</h4>
+                                            </div>
+                                            <div className="products-section-content">
+                                                <div className="form-row">
+                                                    <div className="form-group half">
+                                                        <label className="form-label">
+                                                            Weight (g)
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            value={variationForm.weight}
+                                                            onChange={e =>
+                                                                handleVariationChange(
+                                                                    'weight',
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="form-row">
+                                                    <div className="form-group third">
+                                                        <label className="form-label">
+                                                            Length (cm)
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            value={variationForm.length}
+                                                            onChange={e =>
+                                                                handleVariationChange(
+                                                                    'length',
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <div className="form-group third">
+                                                        <label className="form-label">
+                                                            Wide (cm)
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            value={variationForm.wide}
+                                                            onChange={e =>
+                                                                handleVariationChange(
+                                                                    'wide',
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <div className="form-group third">
+                                                        <label className="form-label">
+                                                            Height (cm)
+                                                        </label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            value={variationForm.height}
+                                                            onChange={e =>
+                                                                handleVariationChange(
+                                                                    'height',
+                                                                    e.target.value
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="products-section-card">
+                                            <div className="products-section-content">
+                                                <div
+                                                    className="image-upload-area"
+                                                    style={{ minHeight: '120px' }}
+                                                    onClick={() => openMediaPicker('variation')}
+                                                >
+                                                    {variationImages.length > 0 ? (
+                                                        <div className="gallery-grid">
+                                                            {variationImages.map((img, index) => (
+                                                                <div
+                                                                    key={index}
+                                                                    className="gallery-item"
+                                                                >
+                                                                    <img
+                                                                        src={`/media-files/${img}`}
+                                                                        alt={`Variation ${index}`}
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="image-preview-full-container">
+                                                            <span className="material-icons-outlined image-upload-icon">
+                                                                add_photo_alternate
+                                                            </span>
+                                                            <div>
+                                                                <div className="image-upload-title">
+                                                                    Click here to add more images.
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="modal-actions">
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline"
+                                            onClick={closeVariationModal}
+                                        >
+                                            Close
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            onClick={closeVariationModal}
+                                        >
+                                            Save changes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {isAttributeModalOpen && (
+                            <div className="modal-overlay active">
+                                <div className="modal">
+                                    <div className="modal-header">
+                                        <h3 className="modal-title">Select attribute</h3>
+                                        <button
+                                            type="button"
+                                            className="modal-close"
+                                            onClick={() => setIsAttributeModalOpen(false)}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                    <div className="modal-body">
+                                        <div className="form-group">
+                                            {itemAttributes.map(attr => (
+                                                <label
+                                                    key={attr.id}
+                                                    className="checkbox-option"
+                                                    style={{ marginRight: '24px' }}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedAttributeIds.includes(attr.id)}
+                                                        onChange={() => toggleAttributeSelection(attr.id)}
+                                                    />
+                                                    <span>{attr.title}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <div className="alert alert-warning" style={{ marginTop: '16px' }}>
+                                            <span className="material-icons-outlined" style={{ marginRight: '8px' }}>
+                                                warning
+                                            </span>
+                                            <span>This action will reload the page to update the data!</span>
+                                        </div>
+                                    </div>
+                                    <div className="modal-actions">
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline"
+                                            onClick={() => setIsAttributeModalOpen(false)}
+                                        >
+                                            Close
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            onClick={() => setIsAttributeModalOpen(false)}
+                                            disabled={!hasSelectedAttributes}
+                                        >
+                                            Save changes
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {isGenerateModalOpen && (
+                            <div className="modal-overlay active">
+                                <div className="modal">
+                                    <div className="modal-header">
+                                        <h3 className="modal-title">Generate variations</h3>
+                                        <button
+                                            type="button"
+                                            className="modal-close"
+                                            onClick={() => setIsGenerateModalOpen(false)}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                    <div className="modal-body">
+                                        <p className="mb-3">Select attributes to create variations:</p>
+                                        <div className="form-grid">
+                                            {itemAttributes
+                                                .filter(attr => selectedAttributeIds.includes(attr.id))
+                                                .map(attr => {
+                                                    const details = Array.isArray(attr.details)
+                                                        ? attr.details
+                                                        : [];
+                                                    const currentIds =
+                                                        selectedVariationOptions[attr.id] || [];
+                                                    const allSelected =
+                                                        details.length > 0 &&
+                                                        currentIds.length === details.length;
+                                                    return (
+                                                        <div key={attr.id} className="form-group">
+                                                            <div className="form-label" style={{ fontWeight: 600 }}>
+                                                                {attr.title}
+                                                            </div>
+                                                            <div className="generate-variation-options">
+                                                                <label className="checkbox-option">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={allSelected}
+                                                                        onChange={() =>
+                                                                            toggleAllOptions(attr.id, details)
+                                                                        }
+                                                                    />
+                                                                    <span>All</span>
+                                                                </label>
+                                                                {details.map(detail => (
+                                                                    <label
+                                                                        key={detail.id}
+                                                                        className="checkbox-option"
+                                                                    >
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={currentIds.includes(
+                                                                                detail.id
+                                                                            )}
+                                                                            onChange={() =>
+                                                                                toggleOption(
+                                                                                    attr.id,
+                                                                                    detail.id
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                        <span>{detail.title}</span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                        </div>
+                                    </div>
+                                    <div className="modal-actions">
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline"
+                                            onClick={() => setIsGenerateModalOpen(false)}
+                                        >
+                                            Close
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            onClick={() => setIsGenerateModalOpen(false)}
+                                            disabled={!hasSelectedVariationValues}
+                                        >
+                                            Continue
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </form>
 

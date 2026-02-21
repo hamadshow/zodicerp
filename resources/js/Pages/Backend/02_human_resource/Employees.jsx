@@ -4,6 +4,26 @@ import '../../../../css/backend/Employees.scss';
 import AdminLayout from '../components/AdminLayout';
 import { apiService } from '../../../services/api';
 
+const resolveMediaUrl = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  const withoutProtocol =
+    typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+  const relativePath = withoutProtocol.replace(
+    /^\/?(files|storage|media-files)\//,
+    ''
+  );
+
+  return `/media-files/${relativePath}`;
+};
+
 const EmployeesManagement = () => {
   // Admin layout state - Removed redundant state
 
@@ -860,7 +880,7 @@ const EmployeesManagement = () => {
                   <div className="employee-avatar-large">
                     {viewingEmployee.avatar ? (
                       <img
-                        src={`/storage/${viewingEmployee.avatar}`}
+                        src={resolveMediaUrl(viewingEmployee.avatar)}
                         alt={`${viewingEmployee.first_name} ${viewingEmployee.last_name}`}
                       />
                     ) : (
@@ -1171,7 +1191,7 @@ const EmployeesManagement = () => {
                         <div className="employee-avatar">
                           {emp.avatar ? (
                             <img
-                              src={`/storage/${emp.avatar}`}
+                              src={resolveMediaUrl(emp.avatar)}
                               alt={`${emp.first_name} ${emp.last_name}`}
                             />
                           ) : (

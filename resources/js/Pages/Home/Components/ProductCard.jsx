@@ -54,9 +54,9 @@ const ProductCard = ({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Link 
-        href={`/product/${product.id}`} 
-        className="product-card-link-overlay" 
+      <Link
+        href={route('product.details', product.id)}
+        className="product-card-link-overlay"
         aria-label={`View ${product.name}`}
       />
 

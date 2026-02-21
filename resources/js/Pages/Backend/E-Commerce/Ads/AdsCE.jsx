@@ -5,6 +5,24 @@ import MediaPickerModal from '../../Media/MediaPickerModal';
 import api from '../../../../services/api';
 import '../../../../../css/backend/Ads.scss';
 
+const resolveMediaUrl = (value) => {
+    if (!value) {
+        return null;
+    }
+    if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+        return value;
+    }
+    const withoutProtocol =
+        typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+    const relativePath = withoutProtocol.replace(
+        /^\/?(files|storage|media-files)\//,
+        ''
+    );
+
+    return `/media-files/${relativePath}`;
+};
+
 const initialFormState = {
     name: '',
     key: '',
@@ -70,12 +88,12 @@ const AdsCE = () => {
                 });
 
                 setPreview({
-                    image: ad.image ? resolveStoragePath(ad.image) : null,
+                    image: ad.image ? resolveMediaUrl(ad.image) : null,
                     tablet_image: ad.tablet_image
-                        ? resolveStoragePath(ad.tablet_image)
+                        ? resolveMediaUrl(ad.tablet_image)
                         : null,
                     mobile_image: ad.mobile_image
-                        ? resolveStoragePath(ad.mobile_image)
+                        ? resolveMediaUrl(ad.mobile_image)
                         : null,
                 });
             })
@@ -86,16 +104,6 @@ const AdsCE = () => {
                 setLoading(false);
             });
     }, [isEdit, adId]);
-
-    const resolveStoragePath = (value) => {
-        if (!value) {
-            return null;
-        }
-        if (value.startsWith('http')) {
-            return value;
-        }
-        return `/storage/${value}`;
-    };
 
     const openMediaPicker = (field) => {
         setMediaPickerField(field);
@@ -111,7 +119,15 @@ const AdsCE = () => {
             if (!path) {
                 return '';
             }
-            return path.replace(/^\/storage\//, '');
+            const withoutProtocol =
+                typeof path === 'string'
+                    ? path.replace(/^https?:\/\/[^/]+/, '')
+                    : '';
+
+            return withoutProtocol.replace(
+                /^\/?(files|storage|media-files)\//,
+                ''
+            );
         };
 
         const relativePath = processPath(selected.file_path);
@@ -123,7 +139,7 @@ const AdsCE = () => {
 
         setPreview((prev) => ({
             ...prev,
-            [mediaPickerField]: resolveStoragePath(relativePath),
+            [mediaPickerField]: resolveMediaUrl(relativePath),
         }));
     };
 

@@ -12,14 +12,7 @@ class HomeController extends Controller
 {
     public function index()
     {
-        $categories = Categories::where(function ($query) {
-            $query->whereNull('parent_id')->orWhere('parent_id', 0);
-        })
-            ->where('status', 'active')
-            ->with('children')
-            ->orderBy('order')
-            ->orderBy('name')
-            ->get();
+        $categories = $this->getTopCategories();
 
         $featuredProducts = Products::with('brand')
             ->where('is_featured', true)
@@ -113,14 +106,7 @@ class HomeController extends Controller
 
     public function productDetails($identifier)
     {
-        $categories = Categories::where(function ($query) {
-            $query->whereNull('parent_id')->orWhere('parent_id', 0);
-        })
-            ->where('status', 'active')
-            ->with('children')
-            ->orderBy('order')
-            ->orderBy('name')
-            ->get();
+        $categories = $this->getTopCategories();
 
         $productQuery = Products::with(['brand', 'category'])->where('status', 'active');
         $product = is_numeric($identifier)
@@ -128,7 +114,7 @@ class HomeController extends Controller
             : $productQuery->where('slug', $identifier)->first();
 
         if (!$product) {
-            return Inertia::render('Home/Product-details', [
+            return Inertia::render('Home/Shop/ProductDetails', [
                 'product' => null,
                 'categories' => $categories
             ]);
@@ -195,9 +181,123 @@ class HomeController extends Controller
             'variants' => $variants
         ];
 
-        return Inertia::render('Home/Product-details', [
+        return Inertia::render('Home/Shop/ProductDetails', [
             'product' => $formattedProduct,
             'categories' => $categories
         ]);
+    }
+
+    public function dashboard()
+    {
+        $categories = $this->getTopCategories();
+
+        return Inertia::render('Home/User/Dashboard', [
+            'categories' => $categories,
+        ]);
+    }
+
+    public function cart(Request $request)
+    {
+        $data = $this->buildCartData($request);
+
+        return Inertia::render('Home/Cart/Cart', $data);
+    }
+
+    public function checkout(Request $request)
+    {
+        $data = $this->buildCartData($request);
+
+        return Inertia::render('Home/Checkout/Checkout', $data);
+    }
+
+    protected function buildCartData(Request $request): array
+    {
+        $cart = $request->session()->get('cart', []);
+        if (!is_array($cart)) {
+            $cart = [];
+        }
+
+        $productIds = [];
+        foreach ($cart as $item) {
+            if (isset($item['product_id'])) {
+                $productIds[] = (int) $item['product_id'];
+            }
+        }
+        $productIds = array_values(array_unique(array_filter($productIds)));
+
+        $products = Products::whereIn('id', $productIds)
+            ->where('status', 'active')
+            ->get()
+            ->keyBy('id');
+
+        $items = [];
+        $subTotal = 0.0;
+
+        $formatImage = function ($img) {
+            if (!$img) {
+                return null;
+            }
+
+            if (str_starts_with($img, 'http')) {
+                return $img;
+            }
+
+            $normalized = ltrim($img, '/');
+            $normalized = preg_replace('#^(files|storage|media-files)/#', '', $normalized);
+
+            return '/media-files/' . $normalized;
+        };
+
+        foreach ($cart as $itemKey => $cartItem) {
+            $productId = (int) ($cartItem['product_id'] ?? 0);
+            $product = $products->get($productId);
+            if (!$product) {
+                continue;
+            }
+
+            $qty = (int) ($cartItem['quantity'] ?? 0);
+            if ($qty <= 0) {
+                continue;
+            }
+
+            $unitPrice = (float) ($product->sale_price ?? $product->price ?? 0);
+            $lineTotal = $unitPrice * $qty;
+            $subTotal += $lineTotal;
+
+            $items[] = [
+                'id' => $product->id,
+                'itemKey' => $itemKey,
+                'name' => $product->name,
+                'image' => $formatImage($product->image),
+                'quantity' => $qty,
+                'price' => $unitPrice,
+            ];
+        }
+
+        $shipping = 0.0;
+        $tax = 0.0;
+        $total = $subTotal + $shipping + $tax;
+
+        return [
+            'cartItems' => $items,
+            'currency' => 'EGP ',
+            'shippingTotal' => $shipping,
+            'taxTotal' => $tax,
+            'subtotal' => $subTotal,
+            'total' => $total,
+            'categories' => $this->getTopCategories(),
+        ];
+    }
+
+    protected function getTopCategories()
+    {
+        return Categories::where(function ($query) {
+            $query->whereNull('parent_id')->orWhere('parent_id', 0);
+        })
+            ->where('status', 'active')
+            ->with('children')
+            ->orderBy('order')
+            ->orderBy('name')
+            ->get();
     }
 }

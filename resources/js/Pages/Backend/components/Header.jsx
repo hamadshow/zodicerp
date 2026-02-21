@@ -1,5 +1,25 @@
 import { Link, usePage } from '@inertiajs/react';
 
+const resolveMediaUrl = (value) => {
+  if (!value) {
+    return null;
+  }
+
+  if (typeof value === 'string' && /^https?:\/\//i.test(value)) {
+    return value;
+  }
+
+  const withoutProtocol =
+    typeof value === 'string' ? value.replace(/^https?:\/\/[^/]+/, '') : '';
+
+  const relativePath = withoutProtocol.replace(
+    /^\/?(files|storage|media-files)\//,
+    ''
+  );
+
+  return `/media-files/${relativePath}`;
+};
+
 const Header = ({ toggleSidebar }) => {
   const { auth } = usePage().props;
   const user = auth.user;
@@ -37,7 +57,7 @@ const Header = ({ toggleSidebar }) => {
         <div className="user-profile">
           {user && user.avatar ? (
             <img
-              src={`/storage/${user.avatar}`}
+              src={resolveMediaUrl(user.avatar)}
               alt={user.name}
               className="avatar"
               style={{ objectFit: 'cover' }}
