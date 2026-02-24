@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Warehouses.scss';
 import '../../../../css/backend/main.scss';
 
 const ItemCollectionsList = ({ collections = [] }) => {

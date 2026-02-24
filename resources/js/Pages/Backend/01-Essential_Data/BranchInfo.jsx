@@ -3,7 +3,7 @@ import { Head, router, useForm } from '@inertiajs/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { apiService } from '@/services/api';
-import '../../../../css/backend/Warehouses.scss';
+import '../../../../css/backend/main.scss';
 import '../../../../css/backend/BranchInfo.scss';
 
 const resolveMediaUrl = (value) => {

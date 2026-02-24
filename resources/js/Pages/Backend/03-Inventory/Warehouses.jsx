@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Warehouses.scss';
 
-// --- View Section Component ---
 const ViewSection = ({ warehouses, onEdit, onCreate, onDelete }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredWarehouses, setFilteredWarehouses] = useState(warehouses);
@@ -36,41 +34,41 @@ const ViewSection = ({ warehouses, onEdit, onCreate, onDelete }) => {
     return (
         <div className="animate-fade-slide">
             {/* Quick Stats */}
-            <div className="stats-grid">
+            <div className="stats-cards">
                 <div className="stat-card">
-                    <div className="stat-icon blue">
+                    <div className="stat-icon" style={{ backgroundColor: '#3b82f6' }}>
                         <span className="material-icons-outlined">warehouse</span>
                     </div>
-                    <div className="stat-info">
+                    <div className="stat-content">
                         <span className="stat-value">{stats.total}</span>
-                        <span className="stat-label">Total Warehouses</span>
+                        <div className="stat-label">Total Warehouses</div>
                     </div>
                 </div>
                 <div className="stat-card">
-                    <div className="stat-icon green">
+                    <div className="stat-icon" style={{ backgroundColor: '#10b981' }}>
                         <span className="material-icons-outlined">check_circle</span>
                     </div>
-                    <div className="stat-info">
+                    <div className="stat-content">
                         <span className="stat-value">{stats.active}</span>
-                        <span className="stat-label">Active Warehouses</span>
+                        <div className="stat-label">Active Warehouses</div>
                     </div>
                 </div>
                 <div className="stat-card">
-                    <div className="stat-icon purple">
+                    <div className="stat-icon" style={{ backgroundColor: '#8b5cf6' }}>
                         <span className="material-icons-outlined">inventory_2</span>
                     </div>
-                    <div className="stat-info">
+                    <div className="stat-content">
                         <span className="stat-value">{stats.totalCapacity.toLocaleString()}</span>
-                        <span className="stat-label">Total Capacity</span>
+                        <div className="stat-label">Total Capacity</div>
                     </div>
                 </div>
                 <div className="stat-card">
-                    <div className="stat-icon orange">
+                    <div className="stat-icon" style={{ backgroundColor: '#f59e0b' }}>
                         <span className="material-icons-outlined">pie_chart</span>
                     </div>
-                    <div className="stat-info">
+                    <div className="stat-content">
                         <span className="stat-value">{stats.utilization}%</span>
-                        <span className="stat-label">Utilization</span>
+                        <div className="stat-label">Utilization</div>
                     </div>
                 </div>
             </div>
@@ -113,21 +111,14 @@ const ViewSection = ({ warehouses, onEdit, onCreate, onDelete }) => {
                                     <tr key={wh.id}>
                                         <td>{wh.warehouse_code || wh.id}</td>
                                         <td>
-                                            <div className="warehouse-info" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <div className="warehouse-info">
                                                 <div className="warehouse-icon" style={{ 
                                                     backgroundColor: wh.color || '#3b82f6', 
-                                                    width: '32px', 
-                                                    height: '32px', 
-                                                    borderRadius: '8px', 
-                                                    display: 'flex', 
-                                                    alignItems: 'center', 
-                                                    justifyContent: 'center',
-                                                    color: 'white'
                                                 }}>
-                                                    <span className="material-icons-outlined" style={{ fontSize: '18px' }}>{wh.icon || 'warehouse'}</span>
+                                                    <span className="material-icons-outlined">{wh.icon || 'warehouse'}</span>
                                                 </div>
                                                 <div className="warehouse-details">
-                                                    <div className="warehouse-name" style={{ fontWeight: '500' }}>{wh.name}</div>
+                                                    <div className="warehouse-name">{wh.name}</div>
                                                     <div className="warehouse-description text-xs text-gray-500">{wh.description}</div>
                                                 </div>
                                             </div>
@@ -231,12 +222,13 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
                     </div>
 
                     <form onSubmit={handleSubmit}>
-                        <div className="form-grid">
+                        <div className="form-row">
                             <div className="form-group">
                                 <label>Warehouse Name <span style={{ color: 'red' }}>*</span></label>
                                 <input
                                     type="text"
                                     name="name"
+                                    className="form-control"
                                     defaultValue={initialData?.name}
                                     placeholder="e.g. Main Distribution Center"
                                     required
@@ -247,6 +239,7 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
                                 <label>Branch <span style={{ color: 'red' }}>*</span></label>
                                 <select
                                     name="branch_id"
+                                    className="form-control"
                                     defaultValue={initialData?.branch_id || ''}
                                     required
                                 >
@@ -259,12 +252,13 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
                             </div>
                         </div>
 
-                        <div className="form-grid">
+                        <div className="form-row">
                             <div className="form-group">
                                 <label>Manager</label>
                                 <input
                                     type="text"
                                     name="manager"
+                                    className="form-control"
                                     defaultValue={initialData?.manager}
                                     placeholder="Warehouse Manager Name"
                                 />
@@ -275,6 +269,7 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
                                 <input
                                     type="text"
                                     name="location"
+                                    className="form-control"
                                     defaultValue={initialData?.location}
                                     placeholder="Specific location (e.g. Zone A)"
                                 />
@@ -282,12 +277,13 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
                             </div>
                         </div>
 
-                        <div className="form-grid">
+                        <div className="form-row">
                             <div className="form-group">
                                 <label>Capacity <span style={{ color: 'red' }}>*</span></label>
                                 <input
                                     type="number"
                                     name="capacity"
+                                    className="form-control"
                                     defaultValue={initialData?.capacity}
                                     placeholder="Total capacity"
                                     required
@@ -299,6 +295,7 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
                                 <label>Status</label>
                                 <select
                                     name="status"
+                                    className="form-control"
                                     defaultValue={initialData?.status || 'active'}
                                 >
                                     <option value="active">Active</option>
@@ -325,6 +322,7 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
                             <label>Description</label>
                             <textarea
                                 name="description"
+                                className="form-control form-textarea"
                                 defaultValue={initialData?.description}
                                 placeholder="Enter warehouse description..."
                                 rows="3"
@@ -334,25 +332,15 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
 
                         <div className="form-group">
                             <label>Icon</label>
-                            <div className="icon-selector" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                            <div className="icon-selector">
                                 {icons.map(item => (
                                     <div
                                         key={item.icon}
                                         className={`icon-option ${selectedIcon === item.icon ? 'selected' : ''}`}
-                                        style={{ 
-                                            padding: '8px 12px', 
-                                            border: `1px solid ${selectedIcon === item.icon ? 'var(--primary-color)' : '#e5e7eb'}`,
-                                            borderRadius: '6px',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            backgroundColor: selectedIcon === item.icon ? '#eff6ff' : 'white'
-                                        }}
                                         onClick={() => setSelectedIcon(item.icon)}
                                     >
-                                        <span className="material-icons-outlined" style={{ fontSize: '24px', color: selectedIcon === item.icon ? 'var(--primary-color)' : '#6b7280' }}>{item.icon}</span>
-                                        <span className="icon-name" style={{ fontSize: '10px', marginTop: '4px', color: selectedIcon === item.icon ? 'var(--primary-color)' : '#6b7280' }}>{item.name}</span>
+                                        <span className="material-icons-outlined">{item.icon}</span>
+                                        <span className="icon-name">{item.name}</span>
                                     </div>
                                 ))}
                             </div>
@@ -360,22 +348,14 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
 
                         <div className="form-group">
                             <label>Color Theme</label>
-                            <div className="color-picker" style={{ display: 'flex', gap: '10px' }}>
+                            <div className="color-picker">
                                 {colors.map(color => (
                                     <div
                                         key={color}
                                         className={`color-option ${selectedColor === color ? 'selected' : ''}`}
-                                        style={{ 
-                                            backgroundColor: color, 
-                                            width: '32px', 
-                                            height: '32px', 
-                                            borderRadius: '50%', 
-                                            cursor: 'pointer',
-                                            border: selectedColor === color ? '3px solid #e5e7eb' : 'none',
-                                            boxShadow: selectedColor === color ? '0 0 0 2px var(--primary-color)' : 'none'
-                                        }}
+                                        style={{ backgroundColor: color }}
                                         onClick={() => setSelectedColor(color)}
-                                    ></div>
+                                    />
                                 ))}
                             </div>
                         </div>
