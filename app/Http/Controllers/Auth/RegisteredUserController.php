@@ -50,10 +50,13 @@ class RegisteredUserController extends Controller
         Auth::login($user);
 
         $customerData = [
+            'name_ar' => $data['first_name'].' '.$data['last_name'],
             'name_en' => $data['first_name'].' '.$data['last_name'],
             'email' => $data['email'],
+            'password' => Hash::make($data['password']),
             'mobile' => $data['phone'] ?? null,
             'is_active' => true,
+            'customer_group_id' => 2,
             'registration_date' => now(),
             'created_by' => $user->id,
         ];

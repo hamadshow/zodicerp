@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useEffect, useRef } from 'react';
+import { router } from '@inertiajs/react';
 import '../../../css/homepage/main.scss';
 import Header from './Components/Header';
 import Footer from './Components/Footer';
@@ -672,6 +673,9 @@ const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] })
   const { toggleWishlist, isInWishlist } = useWishlist();
 
   const [toast, setToast] = useState(null);
+  const filteredFeaturedProducts = (featuredProducts || []).filter(
+    (product) => product.parent_id === null || product.parent_id === undefined
+  );
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type, id: Date.now() });
@@ -805,9 +809,10 @@ const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] })
         <CategorySlider
           categories={categories}
           onViewAll={handleViewAllCategories}
-          onCategoryClick={(category) =>
-            showToast(`Category "${category.name}" is coming soon.`, 'info')
-          }
+          onCategoryClick={(category) => {
+            if (!category?.slug) return;
+            router.get(route('products.index'), { category: category.slug });
+          }}
         />
 
         {/* Flash Sale Banner */}
@@ -886,7 +891,7 @@ const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] })
         />
 
         <FeaturedProducts
-          products={featuredProducts}
+          products={filteredFeaturedProducts}
           onViewAll={handleViewAllProducts}
           onAddToCart={handleAddToCart}
           onWishlistToggle={handleWishlistToggle}

@@ -6,7 +6,11 @@ import path from 'path';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const appUrl = env.APP_URL || '';
+  const appUrl = env.APP_URL || 'http://127.0.0.1:8000';
+  const appParsed = new URL(appUrl);
+  const appOrigin = !appParsed.port && ['localhost', '127.0.0.1'].includes(appParsed.hostname)
+    ? `${appParsed.protocol}//${appParsed.hostname}:8000`
+    : appParsed.origin;
   const basePathname = appUrl ? new URL(appUrl).pathname.replace(/\/$/, '') : '';
   const base = env.VITE_ASSET_BASE || `${basePathname}/build/`;
 
@@ -16,8 +20,6 @@ export default defineConfig(({ mode }) => {
       react(),
       laravel({
         input: ['resources/js/app.jsx'],
-        publicDirectory: '.',
-        buildDirectory: 'build',
         refresh: true,
       }),
     ],
@@ -29,8 +31,6 @@ export default defineConfig(({ mode }) => {
   },
 
   build: {
-    outDir: 'build',
-    manifest: 'manifest.json',
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
       output: {
@@ -56,6 +56,12 @@ export default defineConfig(({ mode }) => {
       origin: ['http://127.0.0.1:8000', 'http://localhost:8000'],
       methods: ['GET', 'POST', 'OPTIONS'],
       allowedHeaders: ['*'],
+    },
+    proxy: {
+      '/media-files': {
+        target: appOrigin,
+        changeOrigin: true,
+      },
     },
     hmr: {
       clientPort: 5173,

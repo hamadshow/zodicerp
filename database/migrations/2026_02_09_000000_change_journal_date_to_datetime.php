@@ -14,7 +14,9 @@ return new class extends Migration
     {
         if (Schema::hasTable('journal_entries')) {
              // Using raw SQL to ensure compatibility without doctrine/dbal
-             DB::statement('ALTER TABLE journal_entries MODIFY date DATETIME NULL');
+             if (DB::getDriverName() !== 'sqlite') {
+                 DB::statement('ALTER TABLE journal_entries MODIFY date DATETIME NULL');
+             }
         }
     }
 
@@ -24,7 +26,9 @@ return new class extends Migration
     public function down(): void
     {
         if (Schema::hasTable('journal_entries')) {
-            DB::statement('ALTER TABLE journal_entries MODIFY date DATE NULL');
+            if (DB::getDriverName() !== 'sqlite') {
+                DB::statement('ALTER TABLE journal_entries MODIFY date DATE NULL');
+            }
         }
     }
 };

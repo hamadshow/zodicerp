@@ -1043,7 +1043,7 @@ ul {
 
 @media (min-width: 1200px) {
   .homepage__ads-grid {
-    grid-template-columns: 800px 400px;
+    grid-template-columns: 2fr 1fr;
     min-height: 270px;
   }
 

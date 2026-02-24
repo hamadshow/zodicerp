@@ -3,8 +3,9 @@
 namespace App\Models\Vendor_Purchases;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Notifications\Notifiable;
 use App\Models\Account;
 use App\Models\Currency;
 use App\Models\Warehouses;
@@ -13,9 +14,9 @@ use App\Models\City;
 use App\Models\User;
 use App\Models\Products;
 
-class Supplier extends Model
+class Supplier extends Authenticatable
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, Notifiable;
 
     // Primary key is 'id' by default (INT AUTO_INCREMENT as requested), so we don't need to specify it unless it differs.
     // Previous version used 'supplier_id', but new request says 'id INT PRIMARY KEY'.

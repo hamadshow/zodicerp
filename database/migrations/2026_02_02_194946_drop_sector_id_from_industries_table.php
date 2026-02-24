@@ -11,15 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('industries', function (Blueprint $table) {
-            // Drop foreign key first if it exists (ignoring error if not)
-            try {
-                $table->dropForeign(['sector_id']);
-            } catch (\Exception $e) {
-                // FK might already be gone if table was dropped with cascade or disabled checks
-            }
-            $table->dropColumn('sector_id');
-        });
+        if (Schema::hasTable('industries')) {
+            Schema::table('industries', function (Blueprint $table) {
+                if (Schema::hasColumn('industries', 'sector_id')) {
+                    // Drop foreign key first if it exists (ignoring error if not)
+                    try {
+                        $table->dropForeign(['sector_id']);
+                    } catch (\Exception $e) {
+                        // FK might already be gone if table was dropped with cascade or disabled checks
+                    }
+                    $table->dropColumn('sector_id');
+                }
+            });
+        }
     }
 
     /**
@@ -27,8 +31,16 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('industries', function (Blueprint $table) {
-            $table->foreignId('sector_id')->nullable()->constrained('sectors');
-        });
+        if (Schema::hasTable('industries')) {
+            Schema::table('industries', function (Blueprint $table) {
+                if (!Schema::hasColumn('industries', 'sector_id')) {
+                    if (Schema::hasTable('sectors')) {
+                        $table->foreignId('sector_id')->nullable()->constrained('sectors');
+                    } else {
+                        $table->unsignedBigInteger('sector_id')->nullable();
+                    }
+                }
+            });
+        }
     }
 };

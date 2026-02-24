@@ -75,14 +75,67 @@ export default function ProductDetails({ product, categories = [] }) {
         return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP' }).format(safe);
     };
 
-    const baseImages =
-        Array.isArray(product.images) && product.images.length > 0
-            ? product.images
-            : product.image
-                ? [product.image]
-                : [placeholderImage];
+    const selectedColorName = product.colors?.[selectedColor]?.name || null;
+    
+    let currentVariantKey = null;
+    if (product.colors?.length && product.sizes?.length) {
+         currentVariantKey = selectedColorName && selectedSize ? `${selectedColorName}-${selectedSize}` : null;
+    } else if (product.colors?.length) {
+         currentVariantKey = selectedColorName;
+    } else if (product.sizes?.length) {
+         currentVariantKey = selectedSize;
+    }
 
-    const images = baseImages.map((img) =>
+    const currentVariant = currentVariantKey ? product.variants?.[currentVariantKey] : null;
+    
+    let displayPrice = currentVariant ? (currentVariant.price || 0) : (product.price || 0);
+    let displayOldPrice = null;
+
+    if (currentVariant) {
+        if (currentVariant.sale_price && Number(currentVariant.sale_price) < Number(currentVariant.price)) {
+            displayPrice = currentVariant.sale_price;
+            displayOldPrice = currentVariant.price;
+        }
+    } else {
+         if (product.sale_price && Number(product.sale_price) < Number(product.price)) {
+            displayPrice = product.sale_price;
+            displayOldPrice = product.price;
+        } else if (product.old_price) {
+             displayOldPrice = product.old_price;
+        }
+    }
+
+    const displayStockRaw = currentVariant ? currentVariant.stock : (product.product_type === 'variable' ? 0 : product.stock);
+    const displayStock = Number.isFinite(Number(displayStockRaw)) ? Number(displayStockRaw) : 0;
+    const displaySku = currentVariant?.sku ?? (product.sku || 'N/A');
+
+    // Calculate images based on selection
+    const allImages = Array.isArray(product.images) && product.images.length > 0
+        ? product.images
+        : product.image
+            ? [product.image]
+            : [placeholderImage];
+
+    let displayImagesRaw = allImages;
+
+    if (currentVariant) {
+        const parentImages = Array.isArray(product.parent_images) && product.parent_images.length > 0
+            ? product.parent_images
+            : (product.image ? [product.image] : []);
+
+        const variantImages = Array.isArray(currentVariant.images) && currentVariant.images.length > 0
+            ? currentVariant.images
+            : (currentVariant.image ? [currentVariant.image] : []);
+        
+        // Merge parent images and variant images
+        if (variantImages.length > 0) {
+            displayImagesRaw = [...parentImages, ...variantImages];
+            // Remove duplicates
+            displayImagesRaw = [...new Set(displayImagesRaw)];
+        }
+    }
+
+    const images = displayImagesRaw.map((img) =>
         getProductImageUrl(img, placeholderImage)
     );
 
@@ -92,15 +145,19 @@ export default function ProductDetails({ product, categories = [] }) {
         }
     }, [images.length, selectedImage]);
 
-    const selectedColorName = product.colors?.[selectedColor]?.name || null;
-    const currentVariantKey =
-        selectedColorName && selectedSize ? `${selectedColorName}-${selectedSize}` : null;
-
-    const currentVariant = currentVariantKey ? product.variants?.[currentVariantKey] : null;
-    const displayPrice = currentVariant?.price ?? product.price;
-    const displayStockRaw = currentVariant ? currentVariant.stock : product.stock;
-    const displayStock = Number.isFinite(Number(displayStockRaw)) ? Number(displayStockRaw) : 0;
-    const displaySku = currentVariant?.sku ?? (product.sku || 'N/A');
+    useEffect(() => {
+        if (currentVariant?.image) {
+            const variantImage = getProductImageUrl(currentVariant.image, null);
+            if (variantImage) {
+                const index = images.findIndex((img) => img === variantImage);
+                if (index !== -1) {
+                    setSelectedImage(index);
+                } else {
+                     if (images.length > 0) setSelectedImage(0);
+                }
+            }
+        }
+    }, [currentVariant?.image, images]);
 
     useEffect(() => {
         if (displayStock > 0 && quantity > displayStock) {
@@ -112,8 +169,8 @@ export default function ProductDetails({ product, categories = [] }) {
     }, [displayStock, quantity]);
 
     const discountPercentage =
-        product.old_price && Number(product.old_price) > Number(displayPrice)
-            ? Math.round(((Number(product.old_price) - Number(displayPrice)) / Number(product.old_price)) * 100)
+        displayOldPrice && Number(displayOldPrice) > Number(displayPrice)
+            ? Math.round(((Number(displayOldPrice) - Number(displayPrice)) / Number(displayOldPrice)) * 100)
             : 0;
 
     const showFeedback = (type, message) => {
@@ -140,12 +197,14 @@ export default function ProductDetails({ product, categories = [] }) {
         }
 
         const variants = {};
-        if (selectedColorName) variants.color = selectedColorName;
-        if (selectedSize) variants.size = selectedSize;
+        if (selectedColorName) variants.Color = selectedColorName;
+        if (selectedSize) variants.Size = selectedSize;
+
+        const productIdToSend = currentVariant ? currentVariant.id : product.id;
 
         window.axios
             .post('/cart/add', {
-                product_id: product.id,
+                product_id: productIdToSend,
                 quantity,
                 variants,
             })
@@ -220,7 +279,7 @@ export default function ProductDetails({ product, categories = [] }) {
                 <nav className="breadcrumb">
                     <Link href="/">Home</Link>
                     <span className="breadcrumb-separator">/</span>
-                    <Link href="/">Products</Link>
+                    <Link href={route('products.index')}>Products</Link>
                     <span className="breadcrumb-separator">/</span>
                     <span className="breadcrumb-current">{product.name}</span>
                 </nav>
@@ -301,9 +360,9 @@ export default function ProductDetails({ product, categories = [] }) {
 
                         <div className="price-section">
                             <span className="current-price">{formatPrice(displayPrice)}</span>
-                            {product.old_price && Number(product.old_price) > Number(displayPrice) && (
+                            {displayOldPrice && Number(displayOldPrice) > Number(displayPrice) && (
                                 <>
-                                    <span className="old-price">{formatPrice(product.old_price)}</span>
+                                    <span className="old-price">{formatPrice(displayOldPrice)}</span>
                                     <span className="discount-badge">
                                         -{discountPercentage}%
                                     </span>

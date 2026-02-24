@@ -21,6 +21,16 @@ const CartItem = ({ item, currency, onIncrease, onDecrease, onRemove }) => {
         </div>
         <div className="cart-item-info">
           <div className="cart-item-name">{item.name}</div>
+          {item.variants && Object.keys(item.variants).length > 0 && (
+            <div className="cart-item-variants" style={{ fontSize: '0.9em', color: '#666', marginTop: '4px' }}>
+              {Object.entries(item.variants).map(([key, value]) => (
+                <div key={key} className="variant-row">
+                  <span style={{ fontWeight: '500' }}>{key}: </span>
+                  <span>{typeof value === 'object' ? JSON.stringify(value) : value}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <div className="cart-item-price">

@@ -9,6 +9,8 @@ const Checkout = () => {
   const cartItems = props.cartItems || [];
   const currency = props.currency || '$';
   const categories = props.categories || [];
+  const defaultAddress = props.defaultAddress;
+  const user = props.user;
 
   const computedSubtotal = cartItems.reduce(
     (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
@@ -28,12 +30,12 @@ const Checkout = () => {
     errors,
     reset,
   } = useForm({
-    full_name: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    country: '',
+    full_name: user?.name || '',
+    email: user?.email || '',
+    phone: defaultAddress?.mobile || defaultAddress?.phone || '',
+    address: defaultAddress ? `${defaultAddress.building_number || ''} ${defaultAddress.street || ''} ${defaultAddress.district || ''}`.trim() : '',
+    city: defaultAddress?.city?.name || '',
+    country: defaultAddress?.country?.name_en || defaultAddress?.country?.name || '',
     payment_method: 'cod',
   });
 
@@ -255,6 +257,15 @@ const Checkout = () => {
                             <div className="summary-item-name">
                               {item.name}
                             </div>
+                            {item.variants && Object.keys(item.variants).length > 0 && (
+                              <div className="summary-item-variants" style={{ fontSize: '0.8em', color: '#666', marginTop: '2px' }}>
+                                {Object.entries(item.variants).map(([key, value]) => (
+                                  <div key={key}>
+                                     {key}: {typeof value === 'object' ? JSON.stringify(value) : value}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                             <div className="summary-item-meta">
                               Qty: {item.quantity || 1}
                             </div>

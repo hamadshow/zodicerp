@@ -11,13 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('suppliers', function (Blueprint $table) {
-            $table->renameColumn('telegram', 'email');
-        });
+        if (Schema::hasTable('suppliers')) {
+            Schema::table('suppliers', function (Blueprint $table) {
+                if (Schema::hasColumn('suppliers', 'telegram')) {
+                    $table->renameColumn('telegram', 'email');
+                }
+            });
+        }
 
-        Schema::table('supplier_contacts', function (Blueprint $table) {
-            $table->renameColumn('telegram', 'email');
-        });
+        if (Schema::hasTable('supplier_contacts')) {
+            Schema::table('supplier_contacts', function (Blueprint $table) {
+                if (Schema::hasColumn('supplier_contacts', 'telegram')) {
+                    $table->renameColumn('telegram', 'email');
+                }
+            });
+        }
     }
 
     /**
@@ -25,12 +33,20 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('suppliers', function (Blueprint $table) {
-            $table->renameColumn('email', 'telegram');
-        });
+        if (Schema::hasTable('suppliers')) {
+            Schema::table('suppliers', function (Blueprint $table) {
+                if (Schema::hasColumn('suppliers', 'email')) {
+                    $table->renameColumn('email', 'telegram');
+                }
+            });
+        }
 
-        Schema::table('supplier_contacts', function (Blueprint $table) {
-            $table->renameColumn('email', 'telegram');
-        });
+        if (Schema::hasTable('supplier_contacts')) {
+            Schema::table('supplier_contacts', function (Blueprint $table) {
+                if (Schema::hasColumn('supplier_contacts', 'email')) {
+                    $table->renameColumn('email', 'telegram');
+                }
+            });
+        }
     }
 };

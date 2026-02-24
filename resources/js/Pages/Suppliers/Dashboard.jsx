@@ -3,7 +3,13 @@ import { Head, Link, usePage } from '@inertiajs/react';
 
 export default function Dashboard() {
     const { auth } = usePage().props;
-    const supplier = auth.user;
+    const supplier = auth.supplier || auth.user;
+
+    // Helper to get display name
+    const getDisplayName = () => {
+        if (!supplier) return 'Supplier';
+        return supplier.name_en || supplier.name_ar || supplier.email;
+    };
 
     return (
         <>
@@ -18,7 +24,7 @@ export default function Dashboard() {
                                 </div>
                             </div>
                             <div className="flex items-center">
-                                <span className="text-gray-700 mr-4">Welcome, {supplier.supplier_name}</span>
+                                <span className="text-gray-700 mr-4">Welcome, {getDisplayName()}</span>
                                 <Link
                                     href={route('supplier.logout')}
                                     method="post"
@@ -38,7 +44,7 @@ export default function Dashboard() {
                             <div className="p-6 bg-white border-b border-gray-200">
                                 <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
                                 <p className="text-gray-600">
-                                    You are logged in as <strong>{supplier.company_name || supplier.supplier_name}</strong>.
+                                    You are logged in as <strong>{getDisplayName()}</strong> (Code: {supplier?.supplier_code}).
                                 </p>
                                 <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                                     {/* Placeholder Cards */}

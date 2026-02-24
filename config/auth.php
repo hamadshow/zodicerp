@@ -45,6 +45,11 @@ return [
             'driver' => 'session',
             'provider' => 'suppliers',
         ],
+
+        'customer' => [
+            'driver' => 'session',
+            'provider' => 'customers',
+        ],
     ],
 
     /*
@@ -73,6 +78,11 @@ return [
         'suppliers' => [
             'driver' => 'eloquent',
             'model' => App\Models\Vendor_Purchases\Supplier::class,
+        ],
+
+        'customers' => [
+            'driver' => 'eloquent',
+            'model' => App\Models\Client_Sales\Customer::class,
         ],
 
         // 'users' => [

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Accounting\AccountsController;
 use App\Http\Controllers\Accounting\JournalController;
+use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Accounting\FinancialReportController;
@@ -12,6 +13,9 @@ use App\Http\Controllers\Media\MediaController;
 use App\Http\Controllers\ECommerce\AdsController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\Profile\ProfileController;
+use App\Http\Controllers\Auth\CustomerAuthController;
+use App\Http\Controllers\Auth\SupplierAuthController;
+use App\Http\Controllers\Client_Sales\CustomerAddressController;
 use App\Http\Controllers\Purchases\SupplierController;
 use App\Http\Controllers\Sales\CustomerController;
 use Illuminate\Foundation\Application;
@@ -20,31 +24,49 @@ use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 
-// Supplier Routes
-// Route::get('/suppliers', [SupplierController::class, 'index'])->name('suppliers.index');
-
-// Route::prefix('supplier')->name('supplier.')->group(function () {
-//    Route::middleware('guest:supplier')->group(function () {
-//        Route::get('register', [SupplierController::class, 'create'])->name('register');
-//        Route::post('register', [SupplierController::class, 'store'])->name('store');
-//        Route::get('login', [SupplierController::class, 'login'])->name('login');
-//        Route::post('login', [SupplierController::class, 'authenticate'])->name('authenticate');
-//    });
-
-
-//    Route::middleware('auth:supplier')->group(function () {
-//        Route::get('dashboard', [SupplierController::class, 'dashboard'])->name('dashboard');
-//        Route::post('logout', [SupplierController::class, 'logout'])->name('logout');
-//    });
-// });
-
 Route::get('/media-files/{path}', function (string $path) {
     $relativePath = ltrim($path, '/');
-    if (!Storage::disk('public')->exists($relativePath)) {
+    $normalized = preg_replace('#^(files|storage|media-files)/#', '', $relativePath);
+    if (!Storage::disk('public')->exists($normalized)) {
         abort(404);
     }
-    return Storage::disk('public')->response($relativePath);
+    return Storage::disk('public')->response($normalized);
 })->where('path', '.*');
+
+// Customer Routes
+Route::prefix('customer')->name('customer.')->group(function () {
+    Route::middleware('guest:customer')->group(function () {
+        Route::get('login', [CustomerAuthController::class, 'showLoginForm'])->name('login');
+        Route::post('login', [CustomerAuthController::class, 'login'])->name('authenticate');
+        Route::get('register', [CustomerAuthController::class, 'showRegisterForm'])->name('register');
+        Route::post('register', [CustomerAuthController::class, 'register'])->name('store');
+    });
+
+    Route::middleware('auth:customer,web')->group(function () {
+        Route::get('/dashboard', [CustomerController::class, 'index'])->name('dashboard');
+        Route::post('logout', [CustomerAuthController::class, 'logout'])->name('logout');
+        
+        // Address management
+        Route::post('addresses', [CustomerAddressController::class, 'store'])->name('addresses.store');
+        Route::put('addresses/{address}', [CustomerAddressController::class, 'update'])->name('addresses.update');
+        Route::delete('addresses/{address}', [CustomerAddressController::class, 'destroy'])->name('addresses.destroy');
+    });
+});
+
+// Supplier Routes
+Route::prefix('supplier')->name('supplier.')->group(function () {
+   Route::middleware('guest:supplier')->group(function () {
+       Route::get('register', [SupplierAuthController::class, 'showRegisterForm'])->name('register');
+       Route::post('register', [SupplierAuthController::class, 'register'])->name('store');
+       Route::get('login', [SupplierAuthController::class, 'showLoginForm'])->name('login');
+       Route::post('login', [SupplierAuthController::class, 'login'])->name('authenticate');
+   });
+
+   Route::middleware('auth:supplier')->group(function () {
+       Route::get('dashboard', [SupplierController::class, 'dashboard'])->name('dashboard');
+       Route::post('logout', [SupplierAuthController::class, 'logout'])->name('logout');
+   });
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/admin', [AdminController::class, 'index'])
@@ -63,9 +85,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/move', [MediaController::class, 'move'])->name('move');
     });
 
-    Route::get('/customers', [CustomerController::class, 'index'])
-        ->middleware('customer')
-        ->name('customers.dashboard');
+    Route::get('/account', [HomeController::class, 'dashboard'])->name('account.dashboard');
 
     Route::get('/admin/location', [LocationController::class, 'index'])->name('admin.location');
     Route::post('/admin/location/countries', [LocationController::class, 'storeCountry']);
@@ -697,7 +717,12 @@ Route::get('/admin/budget/monitoring/items/{budgetId}', [\App\Http\Controllers\B
 });
 
 Route::get('/', [HomeController::class, 'index'])->name('frontend');
+Route::get('/products', [HomeController::class, 'products'])->name('products.index');
 Route::get('/product/{identifier}', [HomeController::class, 'productDetails'])->name('product.details');
+Route::get('/cart', [HomeController::class, 'cart'])->name('cart.index');
+Route::get('/checkout', [HomeController::class, 'checkout'])->name('checkout');
+Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
+
 Route::get('/sign-in', function () {
     return Inertia::render('Home/Auth/Login');
 })->name('home.login');

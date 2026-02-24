@@ -12,25 +12,27 @@ return new class extends Migration
     public function up(): void
     {
         Schema::disableForeignKeyConstraints();
-        Schema::table('industries', function (Blueprint $table) {
-            if (Schema::hasColumn('industries', 'sector_id')) {
-                // Drop foreign key first if it exists
-                // Note: The exact name depends on Laravel's generation, usually industries_sector_id_foreign
-                // We'll try to drop it using array syntax which guesses the name
-                try {
-                    $table->dropForeign(['sector_id']);
-                } catch (\Exception $e) {
-                    // Foreign key might not exist or have different name, ignore
+        if (Schema::hasTable('industries')) {
+            Schema::table('industries', function (Blueprint $table) {
+                if (Schema::hasColumn('industries', 'sector_id')) {
+                    // Drop foreign key first if it exists
+                    // Note: The exact name depends on Laravel's generation, usually industries_sector_id_foreign
+                    // We'll try to drop it using array syntax which guesses the name
+                    try {
+                        $table->dropForeign(['sector_id']);
+                    } catch (\Exception $e) {
+                        // Foreign key might not exist or have different name, ignore
+                    }
+                    
+                    try {
+                         $table->dropIndex('idx_sector_industry');
+                    } catch (\Exception $e) {
+                    }
+    
+                    $table->dropColumn('sector_id');
                 }
-                
-                try {
-                     $table->dropIndex('idx_sector_industry');
-                } catch (\Exception $e) {
-                }
-
-                $table->dropColumn('sector_id');
-            }
-        });
+            });
+        }
         Schema::enableForeignKeyConstraints();
     }
 

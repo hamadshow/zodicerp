@@ -11,11 +11,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('supplier_contacts', function (Blueprint $table) {
-            if (Schema::hasColumn('supplier_contacts', 'email') && !Schema::hasColumn('supplier_contacts', 'telegram')) {
-                $table->renameColumn('email', 'telegram');
-            }
-        });
+        if (Schema::hasTable('supplier_contacts')) {
+            Schema::table('supplier_contacts', function (Blueprint $table) {
+                if (Schema::hasColumn('supplier_contacts', 'email') && !Schema::hasColumn('supplier_contacts', 'telegram')) {
+                    $table->renameColumn('email', 'telegram');
+                }
+            });
+        }
     }
 
     /**
@@ -23,8 +25,10 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('supplier_contacts', function (Blueprint $table) {
-            $table->renameColumn('telegram', 'email');
-        });
+        if (Schema::hasTable('supplier_contacts')) {
+            Schema::table('supplier_contacts', function (Blueprint $table) {
+                $table->renameColumn('telegram', 'email');
+            });
+        }
     }
 };

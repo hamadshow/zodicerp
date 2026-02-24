@@ -76,7 +76,14 @@ const ProductCard = ({
         />
         {isHovered && (
           <div className="product-overlay">
-            <button className="quick-view-btn" onClick={(e) => { e.preventDefault(); e.stopPropagation(); onQuickView && onQuickView(product); }}>
+            <button
+              className="quick-view-btn"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onQuickView && onQuickView(product);
+              }}
+            >
               <i className="fas fa-eye"></i> Quick View
             </button>
           </div>
@@ -85,8 +92,27 @@ const ProductCard = ({
       <div className="product-details">
         <h3 className="product-title">{product.name}</h3>
         <div className="product-price">
-          ${product.price}
-          {product.originalPrice && (
+          {product.min_price && product.max_price && product.min_price !== product.max_price ? (
+            <>
+              ${product.max_price} ~ ${product.min_price}
+            </>
+          ) : (
+            <>
+              {product.product_type !== 'variable' && product.sale_price ? (
+                <>
+                  <span className="sale-price">${product.sale_price}</span>
+                  <span className="product-original-price" style={{ textDecoration: 'line-through', marginLeft: '8px', color: '#999', fontSize: '0.9em' }}>
+                    ${product.price}
+                  </span>
+                </>
+              ) : (
+                <>
+                  ${product.price}
+                </>
+              )}
+            </>
+          )}
+          {product.originalPrice && !product.sale_price && (
             <span className="product-original-price">
               ${product.originalPrice}
             </span>

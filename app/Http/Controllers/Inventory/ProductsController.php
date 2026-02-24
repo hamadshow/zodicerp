@@ -20,13 +20,15 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
 use Throwable;
+use App\Models\Vendor_Purchases\Supplier;
 
 class ProductsController extends Controller
 {
     public function index(Request $request)
     {
         try {
-            $query = Products::with(['parent', 'brand', 'category']);
+            $query = Products::with(['parent', 'brand', 'categories'])
+                ->whereNull('parent_id');
 
             // Search
             if ($request->has('search')) {
@@ -46,13 +48,18 @@ class ProductsController extends Controller
                 $query->where('brand_id', $request->brand_id);
             }
             if ($request->has('category_id') && $request->category_id) {
-                $query->where('category_id', $request->category_id);
+                $query->whereHas('categories', function ($q) use ($request) {
+                    $q->where('categories.id', $request->category_id);
+                });
             }
 
             $products = $query->orderBy('order')->orderBy('name')->paginate(20)->withQueryString();
 
             // Data for dropdowns
-            $parents = Products::select('id', 'name')->orderBy('name')->get();
+            $parents = Products::select('id', 'name')
+                ->whereNull('parent_id')
+                ->orderBy('name')
+                ->get();
             $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
             $categories = Categories::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
 
@@ -106,18 +113,20 @@ class ProductsController extends Controller
             ->orderBy('order')
             ->orderBy('title')
             ->get();
+        $suppliers = Supplier::select('supplier_code', 'name_en')->where('is_active', true)->orderBy('name_en')->get();
 
         return Inertia::render('Backend/03-Inventory/Products', [
             'product' => null,
             'brands' => $brands,
             'categories' => $categories,
             'itemAttributes' => $itemAttributes,
+            'suppliers' => $suppliers,
         ]);
     }
 
     public function edit(Products $product, Request $request)
     {
-        $product->load('categories');
+        $product->load(['categories', 'variations.items', 'variations.product']);
 
         $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
         $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
@@ -129,12 +138,14 @@ class ProductsController extends Controller
             ->orderBy('order')
             ->orderBy('title')
             ->get();
+        $suppliers = Supplier::select('supplier_code', 'name_en')->where('is_active', true)->orderBy('name_en')->get();
 
         return Inertia::render('Backend/03-Inventory/Products', [
             'product' => $product,
             'brands' => $brands,
             'categories' => $categories,
             'itemAttributes' => $itemAttributes,
+            'suppliers' => $suppliers,
         ]);
     }
 
@@ -170,10 +181,12 @@ class ProductsController extends Controller
 
             $data = $request->validated();
 
+            // Explicitly handle is_featured to ensure it captures 1/0/"1"/"0"/true/false
+            // If is_featured is not in the request (e.g. unchecked checkbox not sent), default to false
+            // But with Inertia form helper, it should be sent as 0 or 1.
+            $data['is_featured'] = $request->boolean('is_featured');
+
             $categoryIds = $request->input('category_ids', []);
-            if (is_array($categoryIds) && count($categoryIds) > 0) {
-                $data['category_id'] = $categoryIds[0];
-            }
 
             $data['product_code'] = $productCode;
             $data['slug'] = $slug;
@@ -223,8 +236,159 @@ class ProductsController extends Controller
 
             $product = Products::create($data);
 
-            if (is_array($categoryIds) && count($categoryIds) > 0) {
-                $product->categories()->sync($categoryIds);
+            $product->categories()->sync(is_array($categoryIds) ? $categoryIds : []);
+
+            // Variable product handling
+            if (($data['product_type'] ?? 'simple') === 'variable') {
+                $variations = $request->input('variations', []);
+                $variationFiles = $request->file('variations', []);
+
+                if (!is_array($variations) || count($variations) === 0) {
+                    throw ValidationException::withMessages([
+                        'variations' => ['Variations are required for variable products.']
+                    ]);
+                }
+
+                $total = 0;
+                $defaultMarked = false;
+
+                foreach ($variations as $index => $var) {
+                    $isDefault = (bool)($var['is_default'] ?? false);
+                    if ($isDefault) {
+                        $defaultMarked = true;
+                    }
+
+                    $variationImages = [];
+
+                    // 1. Handle uploaded files in 'images' array
+                    if (isset($variationFiles[$index]['images']) && is_array($variationFiles[$index]['images'])) {
+                        foreach ($variationFiles[$index]['images'] as $file) {
+                            if ($file instanceof \Illuminate\Http\UploadedFile && $this->validateImageFile($file)) {
+                                $variationImages[] = $file->store('products/variations', 'public');
+                            }
+                        }
+                    }
+
+                    // 2. Handle strings in 'images' array (existing paths)
+                    if (isset($var['images']) && is_array($var['images'])) {
+                        foreach ($var['images'] as $path) {
+                            if (is_string($path) && !empty($path)) {
+                                $variationImages[] = $path;
+                            }
+                        }
+                    }
+
+                    // 3. Fallback: If 'images' is empty, check single 'image'
+                    if (empty($variationImages)) {
+                        if (isset($variationFiles[$index]['image']) && $variationFiles[$index]['image'] instanceof \Illuminate\Http\UploadedFile) {
+                            if ($this->validateImageFile($variationFiles[$index]['image'])) {
+                                $variationImages[] = $variationFiles[$index]['image']->store('products/variations', 'public');
+                            }
+                        } elseif (isset($var['image']) && is_string($var['image']) && !empty($var['image'])) {
+                            $variationImages[] = $var['image'];
+                        }
+                    }
+
+                    // 4. Final Fallback: Parent image
+                    if (empty($variationImages) && $product->image) {
+                        $variationImages[] = $product->image;
+                    }
+
+                    $variationImages = array_values(array_unique($variationImages));
+                    $mainImage = !empty($variationImages) ? $variationImages[0] : null;
+
+                    $childProductData = $product->toArray();
+                    unset(
+                        $childProductData['id'],
+                        $childProductData['created_at'],
+                        $childProductData['updated_at'],
+                        $childProductData['deleted_at'],
+                        $childProductData['variations_count']
+                    );
+
+                    $childProductData['parent_id'] = $product->id;
+                    $childProductData['product_type'] = 'simple';
+                    $childProductData['is_variation'] = false;
+                    $childProductData['barcode'] = $var['barcode'] ?? null;
+                    $childProductData['product_code'] = $productCode . '-' . ($index + 1);
+                    $childProductData['slug'] = $slug . '-' . ($index + 1);
+                    $childProductData['sku'] = $var['sku'] ?? null;
+                    $childProductData['price'] = (array_key_exists('price', $var) && $var['price'] !== null)
+                        ? $var['price']
+                        : $product->price;
+                    $childProductData['sale_price'] = (array_key_exists('sale_price', $var) && $var['sale_price'] !== null)
+                        ? $var['sale_price']
+                        : null;
+                    $childProductData['cost_per_item'] = (array_key_exists('cost_per_item', $var) && $var['cost_per_item'] !== null)
+                        ? $var['cost_per_item']
+                        : null;
+                    $childProductData['quantity'] = (array_key_exists('stock', $var) && $var['stock'] !== null)
+                        ? $var['stock']
+                        : $product->quantity;
+                    $childProductData['stock_status'] = $var['stock_status'] ?? 'in_stock';
+                    $childProductData['weight'] = (array_key_exists('weight', $var) && $var['weight'] !== null)
+                        ? $var['weight']
+                        : $product->weight;
+                    $childProductData['length'] = (array_key_exists('length', $var) && $var['length'] !== null)
+                        ? $var['length']
+                        : $product->length;
+                    $childProductData['wide'] = (array_key_exists('wide', $var) && $var['wide'] !== null)
+                        ? $var['wide']
+                        : $product->wide;
+                    $childProductData['height'] = (array_key_exists('height', $var) && $var['height'] !== null)
+                        ? $var['height']
+                        : $product->height;
+                    $childProductData['image'] = $mainImage;
+                    $childProductData['images'] = $variationImages;
+
+                    $childProduct = \App\Models\Products::create($childProductData);
+
+                    $variation = \App\Models\ProductVariation::create([
+                        'product_id' => $childProduct->id,
+                        'configurable_product_id' => $product->id,
+                        'is_default' => $isDefault,
+                    ]);
+
+                    $attributes = [];
+                    if (isset($var['attributes']) && is_array($var['attributes'])) {
+                        $attributes = $var['attributes'];
+                    } elseif (isset($var['attribute_values']) && is_array($var['attribute_values'])) {
+                        foreach ($var['attribute_values'] as $attrId => $value) {
+                            $attributes[] = [
+                                'attribute_id' => is_numeric($attrId) ? (int)$attrId : $attrId,
+                                'attribute_value' => $value,
+                            ];
+                        }
+                    }
+
+                    foreach ($attributes as $attr) {
+                        \App\Models\ProductVariationItem::create([
+                            'variation_id' => $variation->id,
+                            'attribute_id' => $attr['attribute_id'],
+                            'attribute_value' => $attr['attribute_value'],
+                        ]);
+                    }
+
+                    $total++;
+                }
+
+                if (!$defaultMarked) {
+                    $first = $product->variations()->first();
+                    if ($first) {
+                        $first->is_default = true;
+                        $first->save();
+                    }
+                }
+
+                $product->update([
+                    'is_variation' => true,
+                    'variations_count' => $total,
+                ]);
+            } else {
+                $product->update([
+                    'is_variation' => false,
+                    'variations_count' => 0,
+                ]);
             }
 
             DB::commit();
@@ -232,7 +396,7 @@ class ProductsController extends Controller
             if ($request->wantsJson()) {
                 return response()->json([
                     'message' => 'Product created successfully.',
-                    'product' => $product
+                    'product' => $product->load(['variations.items', 'variations.product'])
                 ], 201);
             }
 
@@ -295,14 +459,34 @@ class ProductsController extends Controller
         try {
             DB::beginTransaction();
 
+            Log::info('ProductsController::update called for product ' . $product->id);
+            Log::info('Request Content-Type: ' . $request->header('Content-Type'));
+            Log::info('Request is_featured raw: ' . json_encode($request->input('is_featured')));
+            Log::info('Request variations count: ' . count($request->input('variations', [])));
+            
+            // Log first variation to check structure
+            $variations = $request->input('variations', []);
+            if (!empty($variations)) {
+                Log::info('First variation structure:', [
+                    'keys' => array_keys($variations[0]),
+                    'images_type' => gettype($variations[0]['images'] ?? null),
+                    'images_content' => $variations[0]['images'] ?? 'null',
+                    'image_content' => $variations[0]['image'] ?? 'null',
+                ]);
+            }
+
             $data = $request->validated();
 
+            Log::info("Update Product {$product->id}", [
+                'product_type_input' => $data['product_type'] ?? 'null',
+                'product_type_db' => $product->product_type,
+                'variations_count' => count($request->input('variations', [])),
+            ]);
+
+            // Explicitly handle is_featured to ensure it captures 1/0/"1"/"0"/true/false
+            $data['is_featured'] = $request->boolean('is_featured');
+
             $categoryIds = $request->input('category_ids', []);
-            if (is_array($categoryIds) && count($categoryIds) > 0) {
-                $data['category_id'] = $categoryIds[0];
-            } else {
-                $data['category_id'] = null;
-            }
             // $data['updated_by_id'] = $user->id;
             // $data['updated_by_type'] = get_class($user);
 
@@ -384,9 +568,179 @@ class ProductsController extends Controller
             $data['images'] = array_merge($keptImages, $newImages);
 
             $product->update($data);
+            $product->categories()->sync(is_array($categoryIds) ? $categoryIds : []);
 
             if (is_array($categoryIds)) {
                 $product->categories()->sync($categoryIds);
+            }
+
+            // Variable product handling
+            if (($data['product_type'] ?? $product->product_type) === 'variable') {
+                $variations = $request->input('variations', []);
+                $variationFiles = $request->file('variations', []);
+
+                if (!is_array($variations) || count($variations) === 0) {
+                    throw ValidationException::withMessages([
+                        'variations' => ['Variations are required for variable products.']
+                    ]);
+                }
+
+                $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
+                $product->variations()->delete();
+                if (!empty($existingVariationProductIds)) {
+                    \App\Models\Products::whereIn('id', $existingVariationProductIds)->forceDelete();
+                }
+
+                $total = 0;
+                $defaultMarked = false;
+                foreach ($variations as $index => $var) {
+                    $isDefault = (bool)($var['is_default'] ?? false);
+                    if ($isDefault) {
+                        $defaultMarked = true;
+                    }
+
+                    $variationImages = [];
+
+                    Log::info("Update: Processing variation $index", [
+                        'sku' => $var['sku'] ?? 'no-sku',
+                        'input_images' => $var['images'] ?? 'not-set',
+                        'input_image' => $var['image'] ?? 'not-set'
+                    ]);
+
+                    // 1. Handle uploaded files in 'images' array
+                    if (isset($variationFiles[$index]['images']) && is_array($variationFiles[$index]['images'])) {
+                        foreach ($variationFiles[$index]['images'] as $file) {
+                            if ($file instanceof \Illuminate\Http\UploadedFile && $this->validateImageFile($file)) {
+                                $variationImages[] = $file->store('products/variations', 'public');
+                            }
+                        }
+                    }
+
+                    // 2. Handle strings in 'images' array (existing paths)
+                    if (isset($var['images']) && is_array($var['images'])) {
+                        foreach ($var['images'] as $path) {
+                            if (is_string($path) && !empty($path)) {
+                                $variationImages[] = $path;
+                            }
+                        }
+                    }
+
+                    // 3. Fallback: If 'images' is empty, check single 'image'
+                    if (empty($variationImages)) {
+                        if (isset($variationFiles[$index]['image']) && $variationFiles[$index]['image'] instanceof \Illuminate\Http\UploadedFile) {
+                            if ($this->validateImageFile($variationFiles[$index]['image'])) {
+                                $variationImages[] = $variationFiles[$index]['image']->store('products/variations', 'public');
+                            }
+                        } elseif (isset($var['image']) && is_string($var['image']) && !empty($var['image'])) {
+                            $variationImages[] = $var['image'];
+                        }
+                    }
+
+                    // 4. Final Fallback: Parent image
+                    if (empty($variationImages) && $product->image) {
+                        $variationImages[] = $product->image;
+                    }
+
+                    $variationImages = array_values(array_unique($variationImages));
+                    $mainImage = !empty($variationImages) ? $variationImages[0] : null;
+
+                    $childProductData = $product->toArray();
+                    unset(
+                        $childProductData['id'],
+                        $childProductData['created_at'],
+                        $childProductData['updated_at'],
+                        $childProductData['deleted_at'],
+                        $childProductData['variations_count']
+                    );
+
+                    $childProductData['parent_id'] = $product->id;
+                    $childProductData['product_type'] = 'simple';
+                    $childProductData['is_variation'] = false;
+                    $childProductData['barcode'] = $var['barcode'] ?? null;
+                    $childProductData['product_code'] = $product->product_code . '-' . ($index + 1);
+                    $childProductData['slug'] = $product->slug . '-' . ($index + 1);
+                    $childProductData['sku'] = $var['sku'] ?? null;
+                    $childProductData['price'] = (array_key_exists('price', $var) && $var['price'] !== null)
+                        ? $var['price']
+                        : $product->price;
+                    $childProductData['sale_price'] = (array_key_exists('sale_price', $var) && $var['sale_price'] !== null)
+                        ? $var['sale_price']
+                        : null;
+                    $childProductData['cost_per_item'] = (array_key_exists('cost_per_item', $var) && $var['cost_per_item'] !== null)
+                        ? $var['cost_per_item']
+                        : null;
+                    $childProductData['quantity'] = (array_key_exists('stock', $var) && $var['stock'] !== null)
+                        ? $var['stock']
+                        : $product->quantity;
+                    $childProductData['stock_status'] = $var['stock_status'] ?? 'in_stock';
+                    $childProductData['weight'] = (array_key_exists('weight', $var) && $var['weight'] !== null)
+                        ? $var['weight']
+                        : $product->weight;
+                    $childProductData['length'] = (array_key_exists('length', $var) && $var['length'] !== null)
+                        ? $var['length']
+                        : $product->length;
+                    $childProductData['wide'] = (array_key_exists('wide', $var) && $var['wide'] !== null)
+                        ? $var['wide']
+                        : $product->wide;
+                    $childProductData['height'] = (array_key_exists('height', $var) && $var['height'] !== null)
+                        ? $var['height']
+                        : $product->height;
+                    $childProductData['image'] = $mainImage;
+                    $childProductData['images'] = $variationImages;
+
+                    $childProduct = \App\Models\Products::create($childProductData);
+
+                    $variation = \App\Models\ProductVariation::create([
+                        'product_id' => $childProduct->id,
+                        'configurable_product_id' => $product->id,
+                        'is_default' => $isDefault,
+                    ]);
+
+                    $attributes = [];
+                    if (isset($var['attributes']) && is_array($var['attributes'])) {
+                        $attributes = $var['attributes'];
+                    } elseif (isset($var['attribute_values']) && is_array($var['attribute_values'])) {
+                        foreach ($var['attribute_values'] as $attrId => $value) {
+                            $attributes[] = [
+                                'attribute_id' => is_numeric($attrId) ? (int)$attrId : $attrId,
+                                'attribute_value' => $value,
+                            ];
+                        }
+                    }
+
+                    foreach ($attributes as $attr) {
+                        \App\Models\ProductVariationItem::create([
+                            'variation_id' => $variation->id,
+                            'attribute_id' => $attr['attribute_id'],
+                            'attribute_value' => $attr['attribute_value'],
+                        ]);
+                    }
+
+                    $total++;
+                }
+
+                if (!$defaultMarked) {
+                    $first = $product->variations()->first();
+                    if ($first) {
+                        $first->is_default = true;
+                        $first->save();
+                    }
+                }
+
+                $product->update([
+                    'is_variation' => true,
+                    'variations_count' => $total,
+                ]);
+            } else {
+                $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
+                $product->variations()->delete();
+                if (!empty($existingVariationProductIds)) {
+                    \App\Models\Products::whereIn('id', $existingVariationProductIds)->delete();
+                }
+                $product->update([
+                    'is_variation' => false,
+                    'variations_count' => 0,
+                ]);
             }
 
             DB::commit();
@@ -396,7 +750,7 @@ class ProductsController extends Controller
             if ($request->wantsJson() && !$request->header('X-Inertia')) {
                 return response()->json([
                     'message' => 'Product updated successfully.',
-                    'product' => $product,
+                    'product' => $product->load(['variations.items', 'variations.product']),
                     'save_action' => $saveAction
                 ], 200);
             }

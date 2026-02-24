@@ -140,7 +140,7 @@ class CartController extends Controller
 
         $products = Products::whereIn('id', $productIds)
             ->where('status', 'active')
-            ->with('brand')
+            ->with(['brand', 'parent'])
             ->get()
             ->keyBy('id');
 
@@ -178,11 +178,16 @@ class CartController extends Controller
             $lineTotal = $unitPrice * $qty;
             $subTotal += $lineTotal;
 
+            $image = $product->image;
+            if (!$image && $product->parent) {
+                $image = $product->parent->image;
+            }
+
             $items[] = [
                 'itemKey' => (string) $itemKey,
                 'productId' => $product->id,
                 'name' => $product->name,
-                'image' => $formatImage($product->image) ?: 'https://via.placeholder.com/80x80',
+                'image' => $formatImage($image) ?: 'https://via.placeholder.com/80x80',
                 'supplier' => $product->brand ? $product->brand->name : 'ZodiMarket',
                 'quantity' => $qty,
                 'unitPrice' => $unitPrice,

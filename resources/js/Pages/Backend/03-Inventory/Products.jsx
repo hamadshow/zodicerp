@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Head, Link, router, usePage, useForm } from '@inertiajs/react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Head, Link, usePage, useForm } from '@inertiajs/react';
+import { Inertia } from '@inertiajs/inertia';
 import AdminLayout from '../components/AdminLayout';
 import MediaPickerModal from '../Media/MediaPickerModal';
 import '../../../../css/backend/main.scss';
@@ -82,12 +83,12 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
     };
 
     const applyFilters = () => {
-        router.get(route('admin.products.index'), filterParams, { preserveState: true });
+        Inertia.get(route('admin.products.index'), filterParams, { preserveState: true });
     };
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this product?')) {
-            router.delete(route('admin.products.destroy', id));
+            Inertia.delete(route('admin.products.destroy', id));
         }
     };
 
@@ -234,7 +235,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                                 </div>
                                             </td>
                                             <td>{product.sku || '-'}</td>
-                                            <td>{product.category?.name || '-'}</td>
+                                            <td>{(product.categories && product.categories.length > 0 ? product.categories[0].name : null) || '-'}</td>
                                             <td>{product.brand?.name || '-'}</td>
                                             <td>${product.price || '0.00'}</td>
                                             <td>
@@ -251,7 +252,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                                 <div className="actions-cell">
                                                     <button
                                                         className="icon-btn edit"
-                                                        onClick={() => router.get(`/admin/products/${product.id}/edit`)}
+                                                        onClick={() => Inertia.get(`/admin/products/${product.id}/edit`)}
                                                         title="Edit"
                                                     >
                                                         <span className="material-icons-outlined">edit</span>
@@ -283,7 +284,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                     <button
                                         key={i}
                                         className={`page-btn ${link.active ? 'active' : ''}`}
-                                        onClick={() => link.url && router.get(link.url, filterParams, { preserveState: true })}
+                                        onClick={() => link.url && Inertia.get(link.url, filterParams, { preserveState: true })}
                                         disabled={!link.url}
                                         dangerouslySetInnerHTML={{ __html: link.label }}
                                     ></button>
@@ -302,31 +303,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
 // Form Component (Create/Edit)
 // ==========================================
 
-const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
-    const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
-    const [mediaPickerMode, setMediaPickerMode] = useState('single');
-    const [isVariationModalOpen, setIsVariationModalOpen] = useState(false);
-    const [variationForm, setVariationForm] = useState({
-        color: '',
-        size: '',
-        sku: '',
-        price: '',
-        sale_price: '',
-        cost_per_item: '',
-        barcode: '',
-        stock_status: 'in_stock',
-        weight: '',
-        length: '',
-        wide: '',
-        height: '',
-    });
-    const [variationImages, setVariationImages] = useState([]);
-    const [isAttributeModalOpen, setIsAttributeModalOpen] = useState(false);
-    const [selectedAttributeIds, setSelectedAttributeIds] = useState([]);
-    const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
-    const [selectedVariationOptions, setSelectedVariationOptions] = useState({});
-    const [variationAttributeValues, setVariationAttributeValues] = useState({});
-
+const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppliers = [] }) => {
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         name: '',
         parent_id: '',
@@ -337,41 +314,78 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
         sku: '',
         barcode: '',
         brand_id: '',
-        category_id: '',
         category_ids: [],
         product_type: 'simple',
-        is_featured: false,
-        
-        // Pricing
+        supplier_code: '',
+        is_variation: false,
+        is_featured: 0,
+        variations: [],
         price: '',
         sale_price: '',
         cost_per_item: '',
         tax_id: '',
         price_includes_tax: false,
-        
-        // Inventory
         quantity: 0,
         stock_status: 'in_stock',
         allow_checkout_when_out_of_stock: false,
         with_storehouse_management: false,
         minimum_order_quantity: 1,
         maximum_order_quantity: '',
-        
-        // Shipping
         weight: '',
         length: '',
         wide: '',
         height: '',
-        
-        // SEO
         meta_title: '',
         meta_description: '',
-        
-        // Media
         image: null,
         gallery: [],
         existing_images: [],
         delete_image: false,
+    });
+    const submitLockRef = useRef(false);
+    const [submitLock, setSubmitLock] = useState(false);
+    const requestKeyRef = useRef(`${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
+    const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
+    const [mediaPickerMode, setMediaPickerMode] = useState('single');
+    const [isVariationModalOpen, setIsVariationModalOpen] = useState(false);
+    const [variationForm, setVariationForm] = useState({
+        color: '',
+        size: '',
+        sku: '',
+        price: '',
+        stock: '',
+        sale_price: '',
+        cost_per_item: '',
+        barcode: '',
+        stock_status: 'in_stock',
+        weight: '',
+        length: '',
+        wide: '',
+        height: '',
+    });
+    const [newVariationImages, setNewVariationImages] = useState([]);
+    const [currentVariationImageTarget, setCurrentVariationImageTarget] = useState(null);
+    const [isAttributeModalOpen, setIsAttributeModalOpen] = useState(false);
+    const [selectedAttributeIds, setSelectedAttributeIds] = useState([]);
+    const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
+    const [selectedVariationOptions, setSelectedVariationOptions] = useState({});
+    const [variationAttributeValues, setVariationAttributeValues] = useState({});
+    const [variationsSearch, setVariationsSearch] = useState('');
+    const [isEditVariationModalOpen, setIsEditVariationModalOpen] = useState(false);
+    const [editingVariationId, setEditingVariationId] = useState(null);
+    const [editVariationForm, setEditVariationForm] = useState({
+        sku: '',
+        price: '',
+        stock: '',
+        sale_price: '',
+        cost_per_item: '',
+        barcode: '',
+        stock_status: 'in_stock',
+        weight: '',
+        length: '',
+        wide: '',
+        height: '',
+        attribute_values: {},
     });
 
     const [permalink, setPermalink] = useState('');
@@ -426,6 +440,49 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
         setIsGenerateModalOpen(true);
     };
 
+    const generateVariationsFromSelections = () => {
+        const attrs = selectedAttributeIds
+            .map(id => itemAttributes.find(a => a.id === id))
+            .filter(Boolean)
+            .map(attr => {
+                const ids = selectedVariationOptions[attr.id] || [];
+                const details = (attr.details || []).filter(d => ids.includes(d.id));
+                return { attribute: attr, details };
+            })
+            .filter(group => group.details.length > 0);
+
+        if (attrs.length === 0) return;
+
+        const arrays = attrs.map(group => group.details.map(d => ({ attribute_id: group.attribute.id, detail_id: d.id })));
+        const cartesian = (arrs) => arrs.reduce((acc, curr) => {
+            if (acc.length === 0) return curr.map(x => [x]);
+            const out = [];
+            acc.forEach(a => curr.forEach(b => out.push([...a, b])));
+            return out;
+        }, []);
+
+        const combos = cartesian(arrays);
+        const basePrice = data.price ?? '';
+
+        combos.forEach(combo => {
+            const attribute_values = {};
+            combo.forEach(({ attribute_id, detail_id }) => {
+                attribute_values[attribute_id] = detail_id;
+            });
+
+            addVariation({
+                id: null,
+                tempId: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                sku: '',
+                price: basePrice,
+                stock: '',
+                is_default: false,
+                image: '',
+                attribute_values,
+            });
+        });
+    };
+
     const toggleAllOptions = (attributeId, details) => {
         setSelectedVariationOptions(prev => {
             const allIds = details.map(d => d.id);
@@ -443,6 +500,14 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
     const hasSelectedVariationValues = Object.values(selectedVariationOptions || {}).some(
         (ids) => Array.isArray(ids) && ids.length > 0
     );
+
+    const shouldHideGlobalSections = useMemo(() => {
+        return (
+            (Array.isArray(data.variations) && data.variations.length > 0) ||
+            data.product_type === 'variable' ||
+            hasSelectedAttributes
+        );
+    }, [data.variations, data.product_type, hasSelectedAttributes]);
 
     const toggleOption = (attributeId, detailId) => {
         setSelectedVariationOptions(prev => {
@@ -463,6 +528,219 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
             [attributeId]: detailId,
         }));
     };
+    
+    const handleNewVariationFileChange = (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            setNewVariationImages(prev => [...prev, ...files]);
+        }
+    };
+
+    const handleEditVariationFileChange = (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+        
+        setData(curr => {
+            const list = Array.isArray(curr.variations) ? curr.variations.slice() : [];
+            const updated = list.map(v => {
+                if (v.tempId !== editingVariationId) return v;
+                const existing = Array.isArray(v.images) ? v.images : (v.image ? [v.image] : []);
+                const merged = [...existing, ...files];
+                // Ensure image (primary) is set if it was empty
+                const primary = v.image || (merged[0] instanceof File ? '' : merged[0]) || ''; 
+                // Note: if merged[0] is File, we can't easily set 'image' string yet, 
+                // but the backend handles 'images' array which contains the File.
+                // For display, we handle File objects.
+                return { ...v, images: merged, image: primary };
+            });
+            return { ...curr, variations: updated };
+        });
+    };
+
+    const addVariationFromModal = () => {
+        const missing = selectedAttributeIds.some(id => !variationAttributeValues[id]);
+        if (missing) {
+            window.alert('Please select all attribute values.');
+            return;
+        }
+        const attribute_values = {};
+        selectedAttributeIds.forEach(id => {
+            attribute_values[id] = variationAttributeValues[id];
+        });
+        addVariation({
+            id: null,
+            tempId: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            sku: variationForm.sku || '',
+            price: variationForm.price || (data.price ?? ''),
+            stock: variationForm.stock || '',
+            is_default: false,
+            image: (newVariationImages && newVariationImages[0]) ? newVariationImages[0] : '',
+            images: Array.isArray(newVariationImages) ? newVariationImages.slice() : [],
+            attribute_values,
+        });
+        setVariationForm(v => ({ ...v, sku: '', price: '', stock: '', sale_price: '', cost_per_item: '', barcode: '', weight: '', length: '', wide: '', height: '' }));
+        setVariationAttributeValues({});
+        setNewVariationImages([]);
+        setIsVariationModalOpen(false);
+    };
+
+    const attrById = useMemo(() => {
+        const map = {};
+        (Array.isArray(itemAttributes) ? itemAttributes : []).forEach(attr => {
+            const detailsMap = {};
+            (Array.isArray(attr.details) ? attr.details : []).forEach(d => {
+                detailsMap[d.id] = d;
+            });
+            map[attr.id] = { ...attr, detailsMap };
+        });
+        return map;
+    }, [itemAttributes]);
+
+    const makeAttributesKey = useCallback((attributeValues) => {
+        const ids = Object.keys(attributeValues || {}).map(id => String(id)).sort((a, b) => Number(a) - Number(b));
+        return ids.map(id => `${id}:${attributeValues[id]}`).join('|');
+    }, []);
+
+    const formatAttributes = useCallback((attributeValues) => {
+        const parts = [];
+        Object.entries(attributeValues || {}).forEach(([attrId, detailId]) => {
+            const a = attrById[attrId];
+            if (!a) return;
+            const d = a.detailsMap?.[detailId];
+            parts.push(`${a.title}: ${d ? d.title : detailId}`);
+        });
+        return parts.join(', ');
+    }, [attrById]);
+
+    const addVariation = useCallback((variation) => {
+        setData(curr => {
+            const list = Array.isArray(curr.variations) ? curr.variations.slice() : [];
+            const key = variation.attributes_key || makeAttributesKey(variation.attribute_values || {});
+            const exists = list.some(v => (v.attributes_key || makeAttributesKey(v.attribute_values || {})) === key);
+            if (exists) return { ...curr, variations: list };
+            const newItem = { ...variation, attributes_key: key };
+            list.push(newItem);
+            if (!list.some(v => v.is_default)) {
+                list[0].is_default = true;
+            }
+            return { ...curr, variations: list };
+        });
+    }, [setData, makeAttributesKey]);
+
+    const updateVariationField = useCallback((tempId, field, value) => {
+        setData(curr => {
+            const list = Array.isArray(curr.variations) ? curr.variations : [];
+            const updated = list.map(v => v.tempId === tempId ? { ...v, [field]: value } : v);
+            return { ...curr, variations: updated };
+        });
+    }, [setData]);
+
+    const removeVariation = useCallback((tempId) => {
+        setData(curr => {
+            const list = Array.isArray(curr.variations) ? curr.variations : [];
+            const updated = list.filter(v => v.tempId !== tempId);
+            return { ...curr, variations: updated };
+        });
+    }, [setData]);
+
+    const setDefaultVariation = useCallback((tempId) => {
+        setData(curr => {
+            const list = Array.isArray(curr.variations) ? curr.variations : [];
+            const updated = list.map(v => ({ ...v, is_default: v.tempId === tempId }));
+            return { ...curr, variations: updated };
+        });
+    }, [setData]);
+
+    const currentEditingVariation = useMemo(() => {
+        const list = Array.isArray(data.variations) ? data.variations : [];
+        return list.find(v => v.tempId === editingVariationId) || null;
+    }, [data.variations, editingVariationId]);
+
+    const openEditVariationModal = (tempId) => {
+        const list = Array.isArray(data.variations) ? data.variations : [];
+        const v = list.find(x => x.tempId === tempId);
+        if (!v) return;
+        setEditingVariationId(tempId);
+        setEditVariationForm({
+            sku: v.sku || '',
+            price: v.price ?? '',
+            stock: v.stock ?? '',
+            sale_price: v.sale_price ?? '',
+            cost_per_item: v.cost_per_item ?? '',
+            barcode: v.barcode || '',
+            stock_status: v.stock_status || 'in_stock',
+            weight: v.weight ?? '',
+            length: v.length ?? '',
+            wide: v.wide ?? '',
+            height: v.height ?? '',
+            attribute_values: { ...(v.attribute_values || {}) },
+            images: Array.isArray(v.images) ? [...v.images] : (v.image ? [v.image] : []),
+        });
+        setIsEditVariationModalOpen(true);
+    };
+
+    const closeEditVariationModal = () => {
+        setIsEditVariationModalOpen(false);
+        setEditingVariationId(null);
+    };
+
+    const handleEditVariationChange = (field, value) => {
+        setEditVariationForm(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleEditVariationAttributeChange = (attributeId, detailId) => {
+        setEditVariationForm(prev => ({
+            ...prev,
+            attribute_values: { ...(prev.attribute_values || {}), [attributeId]: detailId },
+        }));
+    };
+
+    const saveEditVariation = () => {
+        const editIds = Object.keys(editVariationForm.attribute_values || {});
+        const missing = editIds.some(id => !editVariationForm.attribute_values?.[id]);
+        if (missing) {
+            window.alert('Please select all attribute values.');
+            return;
+        }
+        const newKey = makeAttributesKey(editVariationForm.attribute_values || {});
+        setData(curr => {
+            const list = Array.isArray(curr.variations) ? curr.variations.slice() : [];
+            const dup = list.find(v => (v.attributes_key || makeAttributesKey(v.attribute_values || {})) === newKey && v.tempId !== editingVariationId);
+            if (dup) {
+                window.alert('A variation with the same properties already exists.');
+                return curr;
+            }
+            const updated = list.map(v => v.tempId === editingVariationId ? {
+                ...v,
+                sku: editVariationForm.sku || '',
+                price: editVariationForm.price === '' ? '' : editVariationForm.price,
+                stock: editVariationForm.stock === '' ? '' : editVariationForm.stock,
+                sale_price: editVariationForm.sale_price ?? v.sale_price,
+                cost_per_item: editVariationForm.cost_per_item ?? v.cost_per_item,
+                barcode: editVariationForm.barcode || '',
+                stock_status: editVariationForm.stock_status || v.stock_status,
+                weight: editVariationForm.weight === '' ? '' : editVariationForm.weight,
+                length: editVariationForm.length === '' ? '' : editVariationForm.length,
+                wide: editVariationForm.wide === '' ? '' : editVariationForm.wide,
+                height: editVariationForm.height === '' ? '' : editVariationForm.height,
+                attribute_values: { ...(editVariationForm.attribute_values || {}) },
+                attributes_key: newKey,
+            } : v);
+            return { ...curr, variations: updated };
+        });
+        setIsEditVariationModalOpen(false);
+        setEditingVariationId(null);
+    };
+
+    const filteredVariations = useMemo(() => {
+        const list = Array.isArray(data.variations) ? data.variations : [];
+        if (!variationsSearch) return list;
+        const q = variationsSearch.toLowerCase();
+        return list.filter(v => {
+            const props = formatAttributes(v.attribute_values || {}).toLowerCase();
+            return (v.sku || '').toLowerCase().includes(q) || props.includes(q);
+        });
+    }, [data.variations, variationsSearch, formatAttributes]);
 
     const categoryTree = useMemo(() => {
         if (!categories) return [];
@@ -499,29 +777,28 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
             const initialCategoryIds =
                 product.categories && Array.isArray(product.categories) && product.categories.length > 0
                     ? product.categories.map(c => String(c.id))
-                    : product.category_id
-                        ? [String(product.category_id)]
-                        : [];
+                    : [];
 
             setData({
                 ...data,
                 ...product,
                 name: product.name || '',
                 parent_id: product.parent_id || '',
+                supplier_code: product.supplier_code || '',
                 description: product.description || '',
                 content: product.content || '',
                 brand_id: product.brand_id || '',
-                category_id: product.category_id || '',
                 category_ids: initialCategoryIds,
                 sku: product.sku || '',
                 barcode: product.barcode || '',
                 status: product.status || 'active',
                 stock_status: product.stock_status || 'in_stock',
                 product_type: product.product_type || 'simple',
+                is_variation: Boolean(product.is_variation),
                 quantity: Number.isFinite(Number(product.quantity)) ? Number(product.quantity) : 0,
                 minimum_order_quantity: Number.isFinite(Number(product.minimum_order_quantity)) ? Number(product.minimum_order_quantity) : 1,
                 maximum_order_quantity: product.maximum_order_quantity || '',
-                is_featured: Boolean(product.is_featured),
+                is_featured: (product.is_featured === 1 || product.is_featured === true || product.is_featured === '1' || product.is_featured === 'true') ? 1 : 0,
                 price: product.price || '',
                 sale_price: product.sale_price || '',
                 cost_per_item: product.cost_per_item || '',
@@ -539,11 +816,42 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                 delete_image: false,
                 image: product.image || null,
                 gallery: [],
+                variations: Array.isArray(product.variations)
+                    ? product.variations.map(v => {
+                        const child = v.product || {};
+                        const attrs = Array.isArray(v.items)
+                            ? v.items.reduce((acc, it) => {
+                                acc[it.attribute_id] = it.attribute_value;
+                                return acc;
+                            }, {})
+                            : (v.attribute_values || {});
+                        return {
+                            id: v.id || null,
+                            tempId: `v-${v.id || Math.random().toString(36).slice(2)}`,
+                            sku: child.sku || '',
+                            price: child.price ?? '',
+                            sale_price: child.sale_price ?? '',
+                            cost_per_item: child.cost_per_item ?? '',
+                            barcode: child.barcode || '',
+                            stock: child.quantity ?? '',
+                            stock_status: child.stock_status || 'in_stock',
+                            weight: child.weight ?? '',
+                            length: child.length ?? '',
+                            wide: child.wide ?? '',
+                            height: child.height ?? '',
+                            is_default: Boolean(v.is_default),
+                            image: child.image || '',
+                            images: (Array.isArray(child.images) && child.images.length > 0) ? child.images : (child.image ? [child.image] : []),
+                            attribute_values: attrs,
+                            attributes_key: makeAttributesKey(attrs),
+                        };
+                    })
+                    : [],
             });
         } else {
             reset();
         }
-    }, [product]);
+    }, [product, makeAttributesKey]);
 
     const normalizeMediaPath = (path) => {
         if (!path) return '';
@@ -588,18 +896,39 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
             .map(item => (item && item.file_path ? normalizeMediaPath(item.file_path) : ''))
             .filter(Boolean);
 
-        if (newPaths.length === 0) {
-            return;
-        }
+        if (newPaths.length === 0) return;
 
         if (mediaPickerMode === 'multiple') {
             setData('gallery', [...data.gallery, ...newPaths]);
-        } else if (mediaPickerMode === 'variation') {
-            setVariationImages(prev => [...prev, ...newPaths]);
+        } else if (mediaPickerMode === 'variation-row') {
+            setData(curr => {
+                const list = Array.isArray(curr.variations) ? curr.variations : [];
+                const updated = list.map(v => {
+                    if (v.tempId !== currentVariationImageTarget) return v;
+                    const existing = Array.isArray(v.images) ? v.images : (v.image ? [v.image] : []);
+                    const merged = [...existing, ...newPaths];
+                    return { ...v, image: v.image || (merged[0] || ''), images: merged };
+                });
+                return { ...curr, variations: updated };
+            });
+            setCurrentVariationImageTarget(null);
+        } else if (mediaPickerMode === 'variation-new') {
+            setNewVariationImages(prev => [...prev, ...newPaths]);
         }
     };
 
+    const openVariationImagePickerForRow = (tempId) => {
+        setCurrentVariationImageTarget(tempId);
+        openMediaPicker('variation-row');
+    };
+    const openVariationImagePickerForNew = () => {
+        openMediaPicker('variation-new');
+    };
+
     const submitWithAction = (action) => {
+        if (processing || submitLockRef.current) return;
+        submitLockRef.current = true;
+        setSubmitLock(true);
         const options = {
             forceFormData: true,
             transform: (data) => ({
@@ -607,6 +936,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                 save_action: action,
                 // Convert booleans to 1/0 for FormData consistency
                 is_featured: data.is_featured ? 1 : 0,
+                is_variation: data.is_variation ? 1 : 0,
                 price_includes_tax: data.price_includes_tax ? 1 : 0,
                 allow_checkout_when_out_of_stock: data.allow_checkout_when_out_of_stock ? 1 : 0,
                 with_storehouse_management: data.with_storehouse_management ? 1 : 0,
@@ -625,11 +955,37 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                 height: data.height === '' ? null : data.height,
                 tax_id: data.tax_id === '' ? null : data.tax_id,
                 brand_id: data.brand_id === '' ? null : data.brand_id,
-                category_id: data.category_id === '' ? null : data.category_id,
                 parent_id: data.parent_id === '' ? null : data.parent_id,
-                store_id: data.store_id === '' ? null : data.store_id,
+                supplier_code: data.supplier_code === '' ? null : data.supplier_code,
                 order: data.order === '' ? 0 : data.order,
+                dedupe_key: requestKeyRef.current,
+                variations: Array.isArray(data.variations) ? data.variations.map(v => ({
+                    id: v.id || null,
+                    sku: v.sku || '',
+                    price: v.price === '' ? null : v.price,
+                    sale_price: v.sale_price === '' ? null : v.sale_price,
+                    cost_per_item: v.cost_per_item === '' ? null : v.cost_per_item,
+                    barcode: v.barcode || '',
+                    stock: v.stock === '' ? null : v.stock,
+                    stock_status: v.stock_status || 'in_stock',
+                    weight: v.weight === '' ? null : v.weight,
+                    length: v.length === '' ? null : v.length,
+                    wide: v.wide === '' ? null : v.wide,
+                    height: v.height === '' ? null : v.height,
+                    is_default: v.is_default ? 1 : 0,
+                    image: v.image || '',
+                    images: Array.isArray(v.images) ? v.images : (v.image ? [v.image] : []),
+                    attribute_values: v.attribute_values || {},
+                })) : [],
             }),
+            headers: {
+                'X-Request-Id': requestKeyRef.current,
+            },
+            onFinish: () => {
+                submitLockRef.current = false;
+                setSubmitLock(false);
+                requestKeyRef.current = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+            }
         };
 
         if (product) {
@@ -667,13 +1023,12 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                         <div className="products-ce-header">
                             <h3 className="products-ce-title">{pageTitle}</h3>
                             <div className="products-ce-actions">
-                                <button
-                                    type="button"
+                                <Link
+                                    href={route('admin.products.index')}
                                     className="btn btn-outline-danger"
-                                    onClick={() => router.visit(route('admin.products.index'))}
                                 >
                                     Back to List
-                                </button>
+                                </Link>
                                 <button
                                     type="submit"
                                     className="btn btn-secondary"
@@ -681,14 +1036,14 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                         e.preventDefault();
                                         submitWithAction('save_and_exit');
                                     }}
-                                    disabled={processing}
+                                    disabled={processing || submitLock}
                                 >
                                     Save & Exit
                                 </button>
                                 <button
                                     type="submit"
                                     className="btn btn-primary"
-                                    disabled={processing}
+                                    disabled={processing || submitLock}
                                 >
                                     Save
                                 </button>
@@ -918,7 +1273,9 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                             <input
                                                 type="text"
                                                 className="form-control product-variations-search"
-                                                placeholder="Search..."
+                                                placeholder="Search variations..."
+                                                value={variationsSearch}
+                                                onChange={(e) => setVariationsSearch(e.target.value)}
                                             />
                                         </div>
                                         <div className="product-variations-table-wrapper">
@@ -926,60 +1283,128 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                                 <thead>
                                                     <tr>
                                                         <th style={{ width: '40px' }}>
-                                                            <input type="checkbox" />
+                                                            <input type="checkbox" disabled />
                                                         </th>
-                                                        <th>ID</th>
                                                         <th>Image</th>
-                                                        <th>Color</th>
-                                                        <th>Size</th>
+                                                        <th>Properties</th>
+                                                        <th>SKU</th>
                                                         <th>Price</th>
-                                                        <th>Quantity</th>
-                                                        <th>Is Default</th>
-                                                        <th>Operations</th>
+                                                        <th>Stock</th>
+                                                        <th>Default</th>
+                                                        <th>Actions</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    <tr>
-                                                        <td>
-                                                            <input type="checkbox" />
-                                                        </td>
-                                                        <td>63</td>
-                                                        <td>
-                                                            <div className="variation-image-cell">
-                                                                <img
-                                                                    src="/media-files/media/ZQ5E4SH0OhI7Id5qCPSlUPSMCldxHQmrW2REBjJL.jpg"
-                                                                    alt="Variation"
-                                                                    className="variation-image-thumb"
+                                                    {filteredVariations.map((v, idx) => (
+                                                        <tr key={v.tempId || v.attributes_key || v.id || idx}>
+                                                            <td>
+                                                                <input type="checkbox" />
+                                                            </td>
+                                                            <td>
+                                                                <div className="variation-image-cell">
+                                                                    {(() => {
+                                                                        const imgToShow = v.image || (Array.isArray(v.images) && v.images.length > 0 ? v.images[0] : null);
+                                                                        if (imgToShow) {
+                                                                            let src = '';
+                                                                            if (imgToShow instanceof File) {
+                                                                                src = URL.createObjectURL(imgToShow);
+                                                                            } else if (typeof imgToShow === 'string') {
+                                                                                 src = `/media-files/${imgToShow.replace(/^\/?(files|storage|media-files)\//, '')}`;
+                                                                            }
+                                                                            return (
+                                                                                <img
+                                                                                    src={src}
+                                                                                    alt="Variation"
+                                                                                    className="variation-image-thumb"
+                                                                                    onClick={() => openVariationImagePickerForRow(v.tempId)}
+                                                                                    style={{ cursor: 'pointer' }}
+                                                                                />
+                                                                            );
+                                                                        } else {
+                                                                            return (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    className="btn btn-outline btn-sm"
+                                                                                    onClick={() => openVariationImagePickerForRow(v.tempId)}
+                                                                                >
+                                                                                    Add Image
+                                                                                </button>
+                                                                            );
+                                                                        }
+                                                                    })()}
+                                                                </div>
+                                                            </td>
+                                                            <td>{formatAttributes(v.attribute_values || {}) || '-'}</td>
+                                                            <td style={{ minWidth: 140 }}>
+                                                                <input
+                                                                    type="text"
+                                                                    className="form-control"
+                                                                    value={v.sku || ''}
+                                                                    onChange={(e) => updateVariationField(v.tempId, 'sku', e.target.value)}
                                                                 />
-                                                            </div>
-                                                        </td>
-                                                        <td>Green</td>
-                                                        <td>S</td>
-                                                        <td>£ 0.00</td>
-                                                        <td>∞</td>
-                                                        <td>
-                                                            <span className="variation-default-indicator" />
-                                                        </td>
-                                                        <td>
-                                                            <div className="variation-actions">
-                                                                <button type="button" className="btn btn-primary btn-icon">
-                                                                    <span className="material-icons-outlined">edit</span>
-                                                                </button>
-                                                                <button type="button" className="btn btn-danger btn-icon">
-                                                                    <span className="material-icons-outlined">delete</span>
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
+                                                            </td>
+                                                            <td style={{ width: 120 }}>
+                                                                <input
+                                                                    type="number"
+                                                                    className="form-control"
+                                                                    value={v.price ?? ''}
+                                                                    onChange={(e) => updateVariationField(v.tempId, 'price', e.target.value)}
+                                                                />
+                                                            </td>
+                                                            <td style={{ width: 120 }}>
+                                                                <input
+                                                                    type="number"
+                                                                    className="form-control"
+                                                                    value={v.stock ?? ''}
+                                                                    onChange={(e) => updateVariationField(v.tempId, 'stock', e.target.value)}
+                                                                />
+                                                            </td>
+                                                            <td style={{ textAlign: 'center' }}>
+                                                                <input
+                                                                    type="radio"
+                                                                    name="is_default_variation"
+                                                                    checked={Boolean(v.is_default)}
+                                                                    onChange={() => setDefaultVariation(v.tempId)}
+                                                                />
+                                                            </td>
+                                                            <td>
+                                                                <div className="variation-actions">
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-primary btn-icon"
+                                                                        onClick={() => openEditVariationModal(v.tempId)}
+                                                                        style={{ marginRight: '6px' }}
+                                                                    >
+                                                                        <span className="material-icons-outlined">edit</span>
+                                                                    </button>
+                                                                    <button
+                                                                        type="button"
+                                                                        className="btn btn-danger btn-icon"
+                                                                        onClick={() => removeVariation(v.tempId)}
+                                                                    >
+                                                                        <span className="material-icons-outlined">delete</span>
+                                                                    </button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                    {(!Array.isArray(data.variations) || data.variations.length === 0) && (
+                                                        <tr>
+                                                            <td colSpan="8" className="empty-state">No variations yet.</td>
+                                                        </tr>
+                                                    )}
                                                 </tbody>
                                             </table>
                                             <div className="product-variations-footer">
-                                                <span>Show from 1 to 1 in 1 records</span>
+                                                <span>
+                                                    {Array.isArray(data.variations) ? data.variations.length : 0} variation(s)
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
 
+                                {!shouldHideGlobalSections && (
                                 <div className="products-section-card">
                                     <div className="products-section-header">
                                         <h4 className="products-section-title">Pricing</h4>
@@ -1022,7 +1447,9 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                         </div>
                                     </div>
                                 </div>
+                                )}
 
+                                {!shouldHideGlobalSections && (
                                 <div className="products-section-card">
                                     <div className="products-section-header">
                                         <h4 className="products-section-title">Inventory</h4>
@@ -1085,7 +1512,9 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                         )}
                                     </div>
                                 </div>
+                                )}
 
+                                {!shouldHideGlobalSections && (
                                 <div className="products-section-card">
                                     <div className="products-section-header">
                                         <h4 className="products-section-title">Shipping</h4>
@@ -1131,6 +1560,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                         </div>
                                     </div>
                                 </div>
+                                )}
                             </div>
 
                             <div className="products-sidebar">
@@ -1155,11 +1585,27 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                             <label className="checkbox-option">
                                                 <input
                                                     type="checkbox"
-                                                    checked={data.is_featured}
-                                                    onChange={e => setData('is_featured', e.target.checked)}
+                                                    checked={!!data.is_featured}
+                                                    onChange={e => setData('is_featured', e.target.checked ? 1 : 0)}
                                                 />
-                                                <span>Is Featured?</span>
+                                                <span>Is Featured</span>
                                             </label>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">Supplier</label>
+                                            <select
+                                                className="form-control"
+                                                value={data.supplier_code}
+                                                onChange={e => setData('supplier_code', e.target.value)}
+                                            >
+                                                <option value="">Select a supplier...</option>
+                                                {Array.isArray(suppliers) && suppliers.map(s => (
+                                                    <option key={s.supplier_code} value={s.supplier_code}>
+                                                        {s.name_en}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            {errors.supplier_code && <div className="error-msg">{errors.supplier_code}</div>}
                                         </div>
                                     </div>
                                 </div>
@@ -1492,21 +1938,33 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                                 <div
                                                     className="image-upload-area"
                                                     style={{ minHeight: '120px' }}
-                                                    onClick={() => openMediaPicker('variation')}
+                                                    onClick={openVariationImagePickerForNew}
                                                 >
-                                                    {variationImages.length > 0 ? (
+                                                    {Array.isArray(newVariationImages) && newVariationImages.length > 0 ? (
                                                         <div className="gallery-grid">
-                                                            {variationImages.map((img, index) => (
-                                                                <div
-                                                                    key={index}
-                                                                    className="gallery-item"
-                                                                >
-                                                                    <img
-                                                                        src={`/media-files/${img}`}
-                                                                        alt={`Variation ${index}`}
-                                                                    />
+                                                            {newVariationImages.map((img, idx) => {
+                                                                let src = '';
+                                                                if (img instanceof File) {
+                                                                    src = URL.createObjectURL(img);
+                                                                } else {
+                                                                    src = `/media-files/${img}`;
+                                                                }
+                                                                return (
+                                                                <div key={`nvimg-${idx}`} className="gallery-item">
+                                                                    <img src={src} alt={`Variation ${idx+1}`} />
+                                                                    <button
+                                                                        type="button"
+                                                                        className="gallery-remove-btn"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setNewVariationImages(prev => prev.filter((_, i) => i !== idx));
+                                                                        }}
+                                                                    >
+                                                                        &times;
+                                                                    </button>
                                                                 </div>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </div>
                                                     ) : (
                                                         <div className="image-preview-full-container">
@@ -1515,11 +1973,25 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                                             </span>
                                                             <div>
                                                                 <div className="image-upload-title">
-                                                                    Click here to add more images.
+                                                                    Click here to add an image.
                                                                 </div>
                                                             </div>
                                                         </div>
                                                     )}
+                                                </div>
+                                                <div className="d-flex gap-2 mt-2">
+                                                    <button type="button" className="btn btn-outline" onClick={openVariationImagePickerForNew}>
+                                                        Add images from Media
+                                                    </button>
+                                                    <div className="relative overflow-hidden inline-block">
+                                                        <button type="button" className="btn btn-outline">Upload images</button>
+                                                        <input
+                                                            type="file"
+                                                            multiple
+                                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                                            onChange={handleNewVariationFileChange}
+                                                        />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1535,7 +2007,341 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                         <button
                                             type="button"
                                             className="btn btn-primary"
-                                            onClick={closeVariationModal}
+                                            onClick={addVariationFromModal}
+                                        >
+                                            Save variation
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {isEditVariationModalOpen && (
+                            <div className="modal-overlay active">
+                                <div className="modal">
+                                    <div className="modal-header">
+                                        <h3 className="modal-title">Edit variation</h3>
+                                        <button
+                                            type="button"
+                                            className="modal-close"
+                                            onClick={closeEditVariationModal}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                    <div className="modal-body">
+                                        <div className="form-grid">
+                                            {itemAttributes
+                                                .filter(attr => {
+                                                    const ids = Object.keys(editVariationForm.attribute_values || {}).map(Number);
+                                                    return ids.length ? ids.includes(Number(attr.id)) : selectedAttributeIds.includes(attr.id);
+                                                })
+                                                .map(attr => {
+                                                    const details = Array.isArray(attr.details)
+                                                        ? attr.details
+                                                        : [];
+                                                    const selected = (editVariationForm.attribute_values || {})[attr.id] || '';
+                                                    return (
+                                                        <div key={attr.id} className="form-group">
+                                                            <label className="form-label">
+                                                                {attr.title} *
+                                                            </label>
+                                                            <select
+                                                                className="form-control"
+                                                                value={selected}
+                                                                onChange={e =>
+                                                                    handleEditVariationAttributeChange(
+                                                                        attr.id,
+                                                                        e.target.value
+                                                                    )
+                                                                }
+                                                            >
+                                                                <option value="">-- Select --</option>
+                                                                {details.map(detail => (
+                                                                    <option
+                                                                        key={detail.id}
+                                                                        value={detail.id}
+                                                                    >
+                                                                        {detail.title}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
+                                                    );
+                                                })}
+                                        </div>
+
+                                        <div className="form-grid">
+                                            <div className="form-group">
+                                                <label className="form-label">SKU</label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    value={editVariationForm.sku}
+                                                    onChange={e =>
+                                                        handleEditVariationChange('sku', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Price</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-control"
+                                                    value={editVariationForm.price}
+                                                    onChange={e =>
+                                                        handleEditVariationChange('price', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="form-grid">
+                                            <div className="form-group">
+                                                <label className="form-label">Price sale</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-control"
+                                                    value={editVariationForm.sale_price}
+                                                    onChange={e =>
+                                                        handleEditVariationChange('sale_price', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Cost per item</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-control"
+                                                    value={editVariationForm.cost_per_item}
+                                                    onChange={e =>
+                                                        handleEditVariationChange('cost_per_item', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="form-grid">
+                                            <div className="form-group">
+                                                <label className="form-label">
+                                                    Barcode (ISBN, UPC, GTIN, etc.)
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    className="form-control"
+                                                    value={editVariationForm.barcode}
+                                                    onChange={e =>
+                                                        handleEditVariationChange('barcode', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Stock</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-control"
+                                                    value={editVariationForm.stock}
+                                                    onChange={e =>
+                                                        handleEditVariationChange('stock', e.target.value)
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">Stock status</label>
+                                            <div className="d-flex gap-4">
+                                                <label className="checkbox-option">
+                                                    <input
+                                                        type="radio"
+                                                        name="edit_variation_stock_status"
+                                                        checked={editVariationForm.stock_status === 'in_stock'}
+                                                        onChange={() =>
+                                                            handleEditVariationChange('stock_status', 'in_stock')
+                                                        }
+                                                    />
+                                                    <span>In stock</span>
+                                                </label>
+                                                <label className="checkbox-option">
+                                                    <input
+                                                        type="radio"
+                                                        name="edit_variation_stock_status"
+                                                        checked={editVariationForm.stock_status === 'out_of_stock'}
+                                                        onChange={() =>
+                                                            handleEditVariationChange('stock_status', 'out_of_stock')
+                                                        }
+                                                    />
+                                                    <span>Out of stock</span>
+                                                </label>
+                                                <label className="checkbox-option">
+                                                    <input
+                                                        type="radio"
+                                                        name="edit_variation_stock_status"
+                                                        checked={editVariationForm.stock_status === 'on_backorder'}
+                                                        onChange={() =>
+                                                            handleEditVariationChange('stock_status', 'on_backorder')
+                                                        }
+                                                    />
+                                                    <span>On backorder</span>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div className="products-section-card">
+                                            <div className="products-section-header">
+                                                <h4 className="products-section-title">Shipping</h4>
+                                            </div>
+                                            <div className="products-section-content">
+                                                <div className="form-row">
+                                                    <div className="form-group half">
+                                                        <label className="form-label">Weight (g)</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            value={editVariationForm.weight}
+                                                            onChange={e =>
+                                                                handleEditVariationChange('weight', e.target.value)
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="form-row">
+                                                    <div className="form-group third">
+                                                        <label className="form-label">Length (cm)</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            value={editVariationForm.length}
+                                                            onChange={e =>
+                                                                handleEditVariationChange('length', e.target.value)
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <div className="form-group third">
+                                                        <label className="form-label">Wide (cm)</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            value={editVariationForm.wide}
+                                                            onChange={e =>
+                                                                handleEditVariationChange('wide', e.target.value)
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <div className="form-group third">
+                                                        <label className="form-label">Height (cm)</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            value={editVariationForm.height}
+                                                            onChange={e =>
+                                                                handleEditVariationChange('height', e.target.value)
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="products-section-card">
+                                            <div className="products-section-content">
+                                                <div
+                                                    className="image-upload-area"
+                                                    style={{ minHeight: '120px' }}
+                                                    onClick={() => {
+                                                        if (editingVariationId) {
+                                                            openVariationImagePickerForRow(editingVariationId);
+                                                        }
+                                                    }}
+                                                >
+                                                    {currentEditingVariation && (Array.isArray(currentEditingVariation.images) ? currentEditingVariation.images.length > 0 : Boolean(currentEditingVariation.image)) ? (
+                                                        <div className="gallery-grid">
+                                                            {(Array.isArray(currentEditingVariation.images) && currentEditingVariation.images.length > 0
+                                                                ? currentEditingVariation.images
+                                                                : [currentEditingVariation.image]
+                                                            ).map((img, idx) => {
+                                                                let src = '';
+                                                                if (img instanceof File) {
+                                                                    src = URL.createObjectURL(img);
+                                                                } else if (typeof img === 'string') {
+                                                                    src = `/media-files/${img.replace(/^\/?(files|storage|media-files)\//, '')}`;
+                                                                }
+                                                                return (
+                                                                <div key={`edit-vimg-${idx}`} className="gallery-item">
+                                                                    <img src={src} alt={`Variation ${idx+1}`} />
+                                                                    <button
+                                                                        type="button"
+                                                                        className="gallery-remove-btn"
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setData(curr => {
+                                                                                const list = Array.isArray(curr.variations) ? curr.variations.slice() : [];
+                                                                                const updated = list.map(v => {
+                                                                                    if (v.tempId !== editingVariationId) return v;
+                                                                                    const imgs = Array.isArray(v.images) ? v.images.slice() : (v.image ? [v.image] : []);
+                                                                                    imgs.splice(idx, 1);
+                                                                                    const newPrimary = imgs[0] || '';
+                                                                                    return { ...v, images: imgs, image: newPrimary };
+                                                                                });
+                                                                                return { ...curr, variations: updated };
+                                                                            });
+                                                                        }}
+                                                                    >
+                                                                        &times;
+                                                                    </button>
+                                                                </div>
+                                                            ); })}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="image-preview-full-container">
+                                                            <span className="material-icons-outlined image-upload-icon">
+                                                                add_photo_alternate
+                                                            </span>
+                                                            <div>
+                                                                <div className="image-upload-title">
+                                                                    Click here to add an image.
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="d-flex gap-2 mt-2">
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-outline"
+                                                        onClick={() => {
+                                                            if (editingVariationId) {
+                                                                openVariationImagePickerForRow(editingVariationId);
+                                                            }
+                                                        }}
+                                                    >
+                                                        Add images from Media
+                                                    </button>
+                                                    <div className="relative overflow-hidden inline-block">
+                                                        <button type="button" className="btn btn-outline">Upload images</button>
+                                                        <input
+                                                            type="file"
+                                                            multiple
+                                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                                            onChange={handleEditVariationFileChange}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="modal-actions">
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline"
+                                            onClick={closeEditVariationModal}
+                                        >
+                                            Close
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="btn btn-primary"
+                                            onClick={saveEditVariation}
                                         >
                                             Save changes
                                         </button>
@@ -1578,7 +2384,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                             <span className="material-icons-outlined" style={{ marginRight: '8px' }}>
                                                 warning
                                             </span>
-                                            <span>This action will reload the page to update the data!</span>
+                                            <span>Selected attributes will be applied to this product.</span>
                                         </div>
                                     </div>
                                     <div className="modal-actions">
@@ -1592,8 +2398,25 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                         <button
                                             type="button"
                                             className="btn btn-primary"
-                                            onClick={() => setIsAttributeModalOpen(false)}
-                                            disabled={!hasSelectedAttributes}
+                                            onClick={() => {
+                                                if (selectedAttributeIds.length === 0) {
+                                                    setSelectedVariationOptions({});
+                                                    setVariationAttributeValues({});
+                                                    setData(curr => ({
+                                                        ...curr,
+                                                        product_type: 'simple',
+                                                        is_variation: false,
+                                                        variations: [],
+                                                    }));
+                                                } else {
+                                                    setData(curr => ({
+                                                        ...curr,
+                                                        product_type: 'variable',
+                                                        is_variation: true,
+                                                    }));
+                                                }
+                                                setIsAttributeModalOpen(false);
+                                            }}
                                         >
                                             Save changes
                                         </button>
@@ -1682,7 +2505,10 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [] }) => {
                                         <button
                                             type="button"
                                             className="btn btn-primary"
-                                            onClick={() => setIsGenerateModalOpen(false)}
+                                            onClick={() => {
+                                                generateVariationsFromSelections();
+                                                setIsGenerateModalOpen(false);
+                                            }}
                                             disabled={!hasSelectedVariationValues}
                                         >
                                             Continue

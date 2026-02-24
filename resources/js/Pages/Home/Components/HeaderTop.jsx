@@ -217,6 +217,16 @@ export default function HeaderTop({
                             >
                               {item.name}
                             </Link>
+                            {item.variants && Object.keys(item.variants).length > 0 && (
+                                <div className="mini-cart-item-variants" style={{ fontSize: '0.85em', color: '#666', marginTop: '4px' }}>
+                                    {Object.entries(item.variants).map(([key, value]) => (
+                                        <div key={key} className="variant-row">
+                                            <span style={{ fontWeight: '500' }}>{key}: </span>
+                                            <span>{typeof value === 'object' ? JSON.stringify(value) : value}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             <div className="mini-cart-item-meta">
                               {item.quantity} x {formatMoney(item.unitPrice)}
                             </div>

@@ -54,10 +54,9 @@ class UpdateProductsRequest extends FormRequest
                 },
             ],
             'brand_id' => ['nullable', 'exists:brands,id'],
-            'category_id' => ['nullable', 'exists:categories,id'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['integer', 'exists:categories,id'],
-            'store_id' => ['nullable', 'integer'],
+            'supplier_code' => ['nullable', 'string', 'max:50'],
 
             // Inventory
             'quantity' => ['nullable', 'integer', 'min:0'],
@@ -86,6 +85,18 @@ class UpdateProductsRequest extends FormRequest
             'order' => ['nullable', 'integer', 'min:0'],
             'is_featured' => ['boolean'],
             'product_type' => ['required', 'in:simple,variable'],
+
+            // Variations (for variable products)
+            'variations' => ['nullable', 'array'],
+            'variations.*.sku' => ['nullable', 'string', 'max:150'],
+            'variations.*.price' => ['nullable', 'numeric', 'min:0'],
+            'variations.*.stock' => ['nullable', 'integer', 'min:0'],
+            'variations.*.is_default' => ['nullable', 'boolean'],
+            'variations.*.image' => ['nullable'], // Allow string or file
+            'variations.*.attributes' => ['nullable', 'array'],
+            'variations.*.attributes.*.attribute_id' => ['required_with:variations.*.attributes', 'integer'],
+            'variations.*.attributes.*.attribute_value' => ['required_with:variations.*.attributes'],
+            'variations.*.attribute_values' => ['nullable', 'array'],
 
             // SEO
             'meta_title' => ['nullable', 'string', 'max:255'],

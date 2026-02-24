@@ -24,8 +24,7 @@ class Products extends Model
         'barcode',
         'parent_id',
         'brand_id',
-        'category_id',
-        'store_id',
+        'supplier_code',
         'order',
         'views',
         'quantity',
@@ -96,14 +95,14 @@ class Products extends Model
         return $this->belongsTo(Brands::class, 'brand_id');
     }
 
-    public function category()
-    {
-        return $this->belongsTo(Categories::class, 'category_id');
-    }
-
     public function categories()
     {
         return $this->belongsToMany(Categories::class, 'category_product', 'product_id', 'category_id');
+    }
+
+    public function variations()
+    {
+        return $this->hasMany(ProductVariation::class, 'configurable_product_id');
     }
 
     // Assuming a User model exists for creator/approver

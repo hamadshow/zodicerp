@@ -17,7 +17,9 @@ return new class extends Migration {
                 try {
                     $table->renameColumn('QaidBodyM1', 'QaidDebit');
                 } catch (\Throwable $e) {
-                    DB::statement('ALTER TABLE `tblqaidbody` CHANGE `QaidBodyM1` `QaidDebit` DOUBLE NOT NULL');
+                    if (DB::getDriverName() !== 'sqlite') {
+                        DB::statement('ALTER TABLE `tblqaidbody` CHANGE `QaidBodyM1` `QaidDebit` DOUBLE NOT NULL');
+                    }
                 }
             }
 
@@ -25,7 +27,9 @@ return new class extends Migration {
                 try {
                     $table->renameColumn('QaidBodyD1', 'QaidCredit');
                 } catch (\Throwable $e) {
-                    DB::statement('ALTER TABLE `tblqaidbody` CHANGE `QaidBodyD1` `QaidCredit` DOUBLE NOT NULL');
+                    if (DB::getDriverName() !== 'sqlite') {
+                        DB::statement('ALTER TABLE `tblqaidbody` CHANGE `QaidBodyD1` `QaidCredit` DOUBLE NOT NULL');
+                    }
                 }
             }
         });

@@ -45,7 +45,9 @@ return new class extends Migration
             $table->index('is_primary', 'idx_supplier_contacts_primary');
         });
 
-        DB::statement("ALTER TABLE supplier_contacts COMMENT = 'جهات الاتصال الخاصة بالموردين'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE supplier_contacts COMMENT = 'جهات الاتصال الخاصة بالموردين'");
+        }
     }
 
     /**

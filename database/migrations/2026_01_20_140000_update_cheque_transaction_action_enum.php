@@ -12,7 +12,9 @@ return new class extends Migration
             return;
         }
 
-        DB::statement("ALTER TABLE `cheque_transactions` MODIFY `action` ENUM('issue','receive','deposit','clear','return','cancel','created','updated','status_updated') NOT NULL");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE `cheque_transactions` MODIFY `action` ENUM('issue','receive','deposit','clear','return','cancel','created','updated','status_updated') NOT NULL");
+        }
     }
 
     public function down(): void
@@ -21,6 +23,8 @@ return new class extends Migration
             return;
         }
 
-        DB::statement("ALTER TABLE `cheque_transactions` MODIFY `action` ENUM('issue','receive','deposit','clear','return','cancel') NOT NULL");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE `cheque_transactions` MODIFY `action` ENUM('issue','receive','deposit','clear','return','cancel') NOT NULL");
+        }
     }
 };

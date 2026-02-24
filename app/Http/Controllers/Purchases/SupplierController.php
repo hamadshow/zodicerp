@@ -23,6 +23,11 @@ use App\Http\Requests\Purchases\UpdateSupplierRequest;
 
 class SupplierController extends Controller
 {
+    public function dashboard()
+    {
+        return Inertia::render('Suppliers/Dashboard');
+    }
+
     public function index()
     {
         $perPage = request('per_page', 10);

@@ -3,8 +3,9 @@
 namespace App\Models\Client_Sales;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Notifications\Notifiable;
 use App\Models\Account;
 use App\Models\Currency;
 use App\Models\Vendor_Purchases\PriceList;
@@ -13,9 +14,9 @@ use App\Models\Vendor_Purchases\SalesAgent;
 use App\Models\Country;
 use App\Models\City;
 
-class Customer extends Model
+class Customer extends Authenticatable
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, Notifiable;
 
     protected $fillable = [
         'customer_code', 'name_ar', 'name_en', 'customer_group_id', 'account_id',
@@ -25,7 +26,11 @@ class Customer extends Model
         'country_id', 'city_id', 'primary_phone', 'secondary_phone', 'mobile',
         'fax', 'email', 'website', 'customer_type', 'customer_class',
         'is_active', 'rating', 'registration_date', 'last_sale_date', 'notes',
-        'created_by'
+        'created_by', 'password'
+    ];
+
+    protected $hidden = [
+        'password',
     ];
 
     protected $casts = [

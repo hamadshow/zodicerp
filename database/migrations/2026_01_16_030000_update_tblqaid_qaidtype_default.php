@@ -9,14 +9,18 @@ return new class extends Migration {
     public function up(): void
     {
         if (Schema::hasTable('tblqaid')) {
-            DB::statement("ALTER TABLE `tblqaid` MODIFY `QaidType` VARCHAR(50) NULL DEFAULT 'Qmanual'");
+            if (DB::getDriverName() !== 'sqlite') {
+                DB::statement("ALTER TABLE `tblqaid` MODIFY `QaidType` VARCHAR(50) NULL DEFAULT 'Qmanual'");
+            }
         }
     }
 
     public function down(): void
     {
         if (Schema::hasTable('tblqaid')) {
-            DB::statement("ALTER TABLE `tblqaid` MODIFY `QaidType` VARCHAR(50) NULL DEFAULT NULL");
+            if (DB::getDriverName() !== 'sqlite') {
+                DB::statement("ALTER TABLE `tblqaid` MODIFY `QaidType` VARCHAR(50) NULL DEFAULT NULL");
+            }
         }
     }
 };
