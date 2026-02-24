@@ -5,6 +5,10 @@
     box-shadow: var(--shadow-md);
     padding: 24px;
     margin-bottom: 24px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .employees-actions {
@@ -12,6 +16,37 @@
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
+}
+
+.search-box {
+    position: relative;
+
+    .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--gray-color);
+
+        [dir="rtl"] & {
+            left: auto;
+            right: 12px;
+        }
+    }
+
+    input {
+        padding-left: 40px;
+
+        [dir="rtl"] & {
+            padding-left: 12px;
+            padding-right: 40px;
+            text-align: right;
+        }
+    }
 }
 
 .employee-status {
@@ -48,6 +83,10 @@
     display: flex;
     align-items: center;
     gap: 12px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .employee-avatar {
@@ -71,6 +110,10 @@
 .employee-details {
     display: flex;
     flex-direction: column;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .employee-name {
@@ -97,6 +140,10 @@
     font-size: 0.85rem;
     color: var(--success-color);
     font-weight: 500;
+
+    [dir="rtl"] & {
+        text-align: left;
+    }
 }
 
 /* Modal styles */
@@ -145,6 +192,10 @@
     margin-bottom: 20px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .modal-title {
@@ -180,17 +231,30 @@
     gap: 12px;
     padding-top: 20px;
     border-top: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        justify-content: flex-start;
+        flex-direction: row-reverse;
+    }
 }
 
 /* Form styles */
 .form-group {
     margin-bottom: 16px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-row {
     display: flex;
     gap: 16px;
     margin-bottom: 16px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .form-row .form-group {
@@ -214,6 +278,10 @@
     font-size: 0.9rem;
     transition: border-color 0.2s ease;
     background-color: white;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-control:focus {
@@ -324,6 +392,12 @@ select.form-control {
     animation: slideIn 0.3s ease;
 }
 
+[dir="rtl"] .toast {
+    right: auto;
+    left: 20px;
+    animation: slideInRtl 0.3s ease;
+}
+
 .toast-success {
     background-color: var(--success-color);
 }
@@ -343,6 +417,17 @@ select.form-control {
 @keyframes slideIn {
     from {
         transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInRtl {
+    from {
+        transform: translateX(-100%);
         opacity: 0;
     }
     to {

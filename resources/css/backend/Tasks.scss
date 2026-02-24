@@ -36,6 +36,10 @@
     border: 1px solid rgba(226, 232, 240, 0.5);
     position: relative;
     overflow: hidden;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .stat-card::before {
@@ -64,10 +68,19 @@
     color: white;
     font-size: 28px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+    [dir="rtl"] & {
+        margin-right: 0;
+        margin-left: 20px;
+    }
 }
 
 .stat-content {
     flex: 1;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .stat-value {
@@ -94,6 +107,10 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     border: 1px solid rgba(226, 232, 240, 0.5);
     overflow: hidden;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .filter-tab {
@@ -134,12 +151,20 @@
     gap: 16px;
     flex-wrap: wrap;
     align-items: end;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .filter-group {
     display: flex;
     flex-direction: column;
     min-width: 150px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .filter-group label {
@@ -156,6 +181,10 @@
     background-color: white;
     font-size: 0.875rem;
     transition: border-color 0.2s ease;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .filter-select:focus {
@@ -173,6 +202,10 @@
     overflow: hidden;
     animation: fadeIn 0.4s ease-out;
     transition: box-shadow 0.3s ease;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .tasks-card:hover {
@@ -192,6 +225,10 @@
     align-items: center;
     flex-wrap: wrap;
     gap: 16px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .card-header h3 {
@@ -206,6 +243,10 @@
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 /* Buttons */
@@ -273,6 +314,10 @@
     border-radius: 8px;
     border: 1px solid #cbd5e1;
     overflow: hidden;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .search-bar input {
@@ -282,6 +327,10 @@
     width: 200px;
     font-size: 0.875rem;
     outline: none;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .search-bar button {
@@ -312,6 +361,10 @@ th, td {
     padding: 16px;
     text-align: left;
     border-bottom: 1px solid #f1f5f9;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 th {
@@ -348,6 +401,10 @@ tr:hover td {
 .task-info {
     display: flex;
     flex-direction: column;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .task-title {
@@ -452,6 +509,10 @@ tr.overdue td {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .icon-btn:hover {
@@ -480,6 +541,10 @@ tr.overdue td {
     border-top: 1px solid #e2e8f0;
     flex-wrap: wrap;
     gap: 16px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .pagination-info {
@@ -488,6 +553,10 @@ tr.overdue td {
     gap: 12px;
     font-size: 0.875rem;
     color: #64748b;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .select-dropdown {
@@ -496,12 +565,20 @@ tr.overdue td {
     border-radius: 6px;
     background: white;
     font-size: 0.875rem;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .pagination-controls {
     display: flex;
     align-items: center;
     gap: 4px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .page-btn {
@@ -588,6 +665,10 @@ tr.overdue td {
     transform: translateY(-20px) scale(0.95);
     transition: transform 0.3s ease, opacity 0.3s ease;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .task-details-modal {
@@ -607,12 +688,20 @@ tr.overdue td {
     align-items: center;
     background: linear-gradient(to right, #f8fafc, #f1f5f9);
     border-radius: 20px 20px 0 0;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .modal-actions-header {
     display: flex;
     align-items: center;
     gap: 8px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .modal-title {
@@ -650,11 +739,20 @@ tr.overdue td {
     gap: 12px;
     background: #f8fafc;
     border-radius: 0 0 20px 20px;
+
+    [dir="rtl"] & {
+        justify-content: flex-start;
+        flex-direction: row-reverse;
+    }
 }
 
 /* Form Elements */
 .form-group {
     margin-bottom: 16px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-label {
@@ -673,6 +771,10 @@ tr.overdue td {
     font-size: 0.875rem;
     background-color: white;
     transition: border-color 0.2s ease;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-control:focus {
@@ -690,6 +792,10 @@ tr.overdue td {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
+
+    [dir="rtl"] & {
+        direction: rtl;
+    }
 }
 
 /* Task Details */

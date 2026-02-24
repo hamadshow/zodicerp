@@ -1,4 +1,5 @@
 import React from 'react';
+import { usePage } from '@inertiajs/react';
 
 const Pagination = ({
   currentPage,
@@ -8,6 +9,14 @@ const Pagination = ({
   onPageChange,
   onRecordsPerPageChange,
 }) => {
+  const { props } = usePage();
+  const localization = props?.localization;
+  const isRtl = localization?.is_rtl;
+  const translations = localization?.translations || {};
+
+  // Translation helpers
+  const t = (key, fallback) => translations[key] || fallback;
+
   // Generate page numbers to show
   const getPageNumbers = () => {
     const pages = [];
@@ -41,7 +50,7 @@ const Pagination = ({
   };
 
   return (
-    <div className="pagination">
+    <div className={`pagination ${isRtl ? 'is-rtl' : ''}`}>
       <div className="pagination-info">
         <select
           className="select-dropdown"
@@ -54,9 +63,9 @@ const Pagination = ({
           <option value={100}>100</option>
         </select>
         <span>
-          Show from {(currentPage - 1) * recordsPerPage + 1} to{' '}
-          {Math.min(currentPage * recordsPerPage, totalRecords)} in{' '}
-          <span className="record-count-badge">{totalRecords}</span> records
+          {t('pagination.show_from', 'Show from')} {(currentPage - 1) * recordsPerPage + 1} {t('pagination.to', 'to')}{' '}
+          {Math.min(currentPage * recordsPerPage, totalRecords)} {t('pagination.in', 'in')}{' '}
+          <span className="record-count-badge">{totalRecords}</span> {t('pagination.records', 'records')}
         </span>
       </div>
       <div className="pagination-controls">
@@ -65,7 +74,7 @@ const Pagination = ({
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
         >
-          « Previous
+          {isRtl ? '»' : '«'} {t('pagination.previous', 'Previous')}
         </button>
 
         {getPageNumbers().map((page, index) => (
@@ -84,7 +93,7 @@ const Pagination = ({
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
         >
-          Next »
+          {t('pagination.next', 'Next')} {isRtl ? '«' : '»'}
         </button>
       </div>
     </div>

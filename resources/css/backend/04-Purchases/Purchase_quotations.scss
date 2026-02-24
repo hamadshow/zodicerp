@@ -43,6 +43,10 @@
     align-items: center;
     margin-bottom: 2rem;
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     h1 {
       font-size: 1.5rem;
       font-weight: 600;
@@ -76,6 +80,10 @@
       width: 100%;
       border-collapse: collapse;
       text-align: left;
+
+      [dir="rtl"] & {
+        text-align: right;
+      }
 
       th, td {
         padding: 0.75rem 1rem;
@@ -131,6 +139,10 @@
     border-bottom: 1px solid var(--border-color);
     background-color: var(--surface-light);
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     .company-info {
       h2 {
         font-size: 1.5rem;
@@ -155,6 +167,10 @@
         font-size: 0.875rem;
         font-weight: 500;
         text-align: right;
+
+        [dir="rtl"] & {
+          text-align: left;
+        }
       }
 
       input {
@@ -166,6 +182,10 @@
         color: var(--text-primary);
         width: 160px;
         text-align: right;
+
+        [dir="rtl"] & {
+          text-align: left;
+        }
 
         &:disabled {
           background-color: var(--background-light);
@@ -268,8 +288,17 @@
             text-transform: uppercase;
             color: var(--text-secondary);
             white-space: nowrap;
+
+            [dir="rtl"] & {
+              text-align: right;
+            }
             
-            &.text-right { text-align: right; }
+            &.text-right { 
+              text-align: right; 
+              [dir="rtl"] & {
+                text-align: left;
+              }
+            }
             &.text-center { text-align: center; }
           }
         }
@@ -283,6 +312,11 @@
           td {
             padding: 0.5rem 1rem;
             vertical-align: middle;
+            text-align: left;
+
+            [dir="rtl"] & {
+              text-align: right;
+            }
 
             input, select {
               width: 100%;
@@ -302,7 +336,12 @@
                  border-color: var(--primary-color);
               }
 
-              &.text-right { text-align: right; }
+              &.text-right { 
+                text-align: right; 
+                [dir="rtl"] & {
+                  text-align: left;
+                }
+              }
             }
           }
         }
@@ -409,6 +448,10 @@
         input {
           width: 100px;
           text-align: right;
+
+          [dir="rtl"] & {
+            text-align: left;
+          }
           padding: 0.25rem 0.5rem;
           border: 1px solid var(--border-color);
           border-radius: var(--radius-md);
@@ -454,6 +497,10 @@
   padding: 1rem 2rem;
   display: flex;
   justify-content: flex-end;
+
+  [dir="rtl"] & {
+    justify-content: flex-start;
+  }
   gap: 1rem;
   z-index: 50;
   box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.05);
@@ -525,6 +572,9 @@
 
     .doc-info {
       text-align: right;
+      [dir="rtl"] & {
+        text-align: left;
+      }
       h2 { margin: 0; font-size: 16pt; color: #333; }
       .meta-row {
         margin-top: 5px;
@@ -560,6 +610,9 @@
             border-bottom: 2px solid #333; 
             padding: 8px 5px; 
             text-align: left; 
+            [dir="rtl"] & {
+              text-align: right;
+            }
             font-weight: bold; 
             text-transform: uppercase;
             font-size: 9pt;
@@ -572,10 +625,18 @@
             border-bottom: 1px solid #eee; 
             padding: 8px 5px; 
             vertical-align: top;
+            [dir="rtl"] & {
+              text-align: right;
+            }
         }
     }
 
-    .text-right { text-align: right; }
+    .text-right { 
+      text-align: right; 
+      [dir="rtl"] & {
+        text-align: left;
+      }
+    }
     .text-center { text-align: center; }
     .font-bold { font-weight: bold; }
   }
@@ -583,6 +644,9 @@
   .print-totals {
     display: flex;
     justify-content: flex-end;
+    [dir="rtl"] & {
+      justify-content: flex-start;
+    }
     margin-bottom: 3rem;
     page-break-inside: avoid;
 

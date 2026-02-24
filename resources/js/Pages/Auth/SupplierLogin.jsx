@@ -4,10 +4,20 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import ApplicationLogo from '@/Components/ApplicationLogo';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import '../../../css/backend/login.scss';
 
 export default function SupplierLogin({ status }) {
+  const { localization } = usePage().props;
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const { data, setData, post, processing, errors, reset } = useForm({
     email: '',
     password: '',
@@ -17,7 +27,7 @@ export default function SupplierLogin({ status }) {
   const submit = (e) => {
     e.preventDefault();
 
-    post(route('supplier.authenticate'), {
+    post(getLocalizedRoute('supplier.authenticate'), {
       onFinish: () => reset('password'),
     });
   };
@@ -28,7 +38,7 @@ export default function SupplierLogin({ status }) {
         <Head title="Supplier Log in" />
 
         <div className="auth-logo">
-          <Link href="/">
+          <Link href={getLocalizedRoute('home')}>
             <ApplicationLogo className="h-12 w-12 fill-current text-gray-500" />
           </Link>
           <h2 className="mt-4 text-center text-xl font-bold text-gray-700">Supplier Login</h2>
@@ -90,7 +100,7 @@ export default function SupplierLogin({ status }) {
 
           <div className="login-actions">
             <Link
-                href={route('supplier.register')}
+                href={getLocalizedRoute('supplier.register')}
                 className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             >
                 Register as Supplier

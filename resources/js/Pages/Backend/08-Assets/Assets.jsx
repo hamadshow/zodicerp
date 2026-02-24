@@ -119,7 +119,7 @@ const AssetsList = ({ assets, warehouses, categories, filters = {} }) => {
                 <div className="content-area">
                 <div className="page-header-section">
                     <div className="breadcrumb">
-                        <Link href={route('admin')}>Dashboard</Link>
+                        <Link href={route('admin.dashboard')}>Dashboard</Link>
                         <span>/</span>
                         <span>Inventory</span>
                         <span>/</span>

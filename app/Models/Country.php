@@ -16,6 +16,8 @@ class Country extends Model
         'name_en',
         'code',
         'currency',
+        'currency_id',
+        'default_language',
         'timezone',
         'phone_code',
         'latitude',
@@ -27,6 +29,11 @@ class Country extends Model
         'latitude' => 'decimal:7',
         'longitude' => 'decimal:7',
     ];
+
+    public function currency(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Currency::class);
+    }
 
     public function cities(): HasMany
     {

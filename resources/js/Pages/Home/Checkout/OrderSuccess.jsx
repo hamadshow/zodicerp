@@ -4,8 +4,19 @@ import Header from '../Components/Header';
 import Footer from '../Components/Footer';
 import { CheckCircle, Home, ShoppingBag } from 'lucide-react';
 import '../../../../css/homepage/main.scss';
+import { useCurrency } from '../../../Hooks/useCurrency';
 
 export default function OrderSuccess({ order, categories = [] }) {
+    const { localization } = useCurrency();
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     console.log('OrderSuccess render, order:', order);
 
     if (!order) {
@@ -14,7 +25,7 @@ export default function OrderSuccess({ order, categories = [] }) {
                 <Header categoriesData={categories} />
                 <div className="container" style={{ padding: '100px 0', textAlign: 'center' }}>
                     <h2>Order not found / الطلب غير موجود</h2>
-                    <Link href={route('frontend')} className="btn btn-primary" style={{ marginTop: '20px' }}>
+                    <Link href={getLocalizedRoute('home')} className="btn btn-primary" style={{ marginTop: '20px' }}>
                         Return Home / العودة للرئيسية
                     </Link>
                 </div>
@@ -90,11 +101,11 @@ export default function OrderSuccess({ order, categories = [] }) {
                         </div>
 
                         <div className="success-actions">
-                            <Link href={route('frontend')} className="btn btn-primary">
+                            <Link href={getLocalizedRoute('home')} className="btn btn-primary">
                                 <Home className="btn-icon" />
                                 Return Home / العودة للرئيسية
                             </Link>
-                            <Link href={route('frontend')} className="btn btn-outline">
+                            <Link href={getLocalizedRoute('products.index')} className="btn btn-outline">
                                 <ShoppingBag className="btn-icon" />
                                 Continue Shopping / متابعة التسوق
                             </Link>

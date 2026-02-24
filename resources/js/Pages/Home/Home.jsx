@@ -6,6 +6,8 @@ import Footer from './Components/Footer';
 import ProductCard from './Components/ProductCard';
 import CategoryRail from './Components/CategoryRail';
 import SupplierCard from './Components/SupplierCard';
+import { useCurrency } from '../../Hooks/useCurrency';
+import { useTranslation } from '../../Hooks/useTranslation';
 
 const resolveMediaUrl = (value) => {
   if (!value) {
@@ -221,6 +223,7 @@ const SectionHeaderWithSlider = ({
   canScrollLeft,
   canScrollRight,
 }) => {
+  const { t } = useTranslation();
   return (
     <div className="homepage__section-header">
       <h2 className="homepage__section-title">{title}</h2>
@@ -232,7 +235,7 @@ const SectionHeaderWithSlider = ({
             onClick={onViewAll}
             aria-label={viewAllAriaLabel}
           >
-            {viewAllLabel}
+            {viewAllLabel || t('common.view_all', 'View All')}
             <i className="fas fa-arrow-right" aria-hidden="true"></i>
           </button>
         )}
@@ -242,7 +245,7 @@ const SectionHeaderWithSlider = ({
             className="slider-arrow slider-arrow--left"
             onClick={onPrev}
             disabled={!canScrollLeft}
-            aria-label="Scroll left"
+            aria-label={t('common.scroll_left', 'Scroll left')}
           >
             <i className="fas fa-chevron-left" aria-hidden="true"></i>
           </button>
@@ -251,7 +254,7 @@ const SectionHeaderWithSlider = ({
             className="slider-arrow slider-arrow--right"
             onClick={onNext}
             disabled={!canScrollRight}
-            aria-label="Scroll right"
+            aria-label={t('common.scroll_right', 'Scroll right')}
           >
             <i className="fas fa-chevron-right" aria-hidden="true"></i>
           </button>
@@ -262,6 +265,7 @@ const SectionHeaderWithSlider = ({
 };
 
 const HeroSection = ({ heroAds = [], sideAds = [], onSectionClick, onImageError, onShopNow }) => {
+  const { t } = useTranslation();
   const hasHeroAds = heroAds && heroAds.length > 0;
   const hasSideAds = sideAds && sideAds.length > 0;
 
@@ -298,7 +302,7 @@ const HeroSection = ({ heroAds = [], sideAds = [], onSectionClick, onImageError,
     currentHero && currentHero.image
       ? resolveMediaUrl(currentHero.image) || defaultHeroImage
       : defaultHeroImage;
-  const heroAlt = currentHero && currentHero.name ? currentHero.name : 'Main Ad';
+  const heroAlt = currentHero && currentHero.name ? currentHero.name : t('ads.main_ad', 'Main Ad');
 
   const fallbackSideAds = [
     {
@@ -354,7 +358,7 @@ const HeroSection = ({ heroAds = [], sideAds = [], onSectionClick, onImageError,
             <div
               className="homepage__ads-banner homepage__ads-banner--large"
               tabIndex={0}
-              aria-label="Main promotional banner"
+              aria-label={t('ads.main_promo_banner', 'Main promotional banner')}
               onClick={handleHeroClick}
             >
               <img
@@ -365,11 +369,11 @@ const HeroSection = ({ heroAds = [], sideAds = [], onSectionClick, onImageError,
                 onError={onImageError}
               />
               <div className="ads-content-overlay">
-                <span className="ads-subtitle">Trending Brands</span>
+                <span className="ads-subtitle">{t('ads.trending_brands', 'Trending Brands')}</span>
                 <h3 className="ads-title">
-                  80% <small>OFF</small>
+                  80% <small>{t('ads.off', 'OFF')}</small>
                 </h3>
-                <p className="ads-description">EXCLUSIVE BRANDS FOR LESS</p>
+                <p className="ads-description">{t('ads.exclusive_brands', 'EXCLUSIVE BRANDS FOR LESS')}</p>
                 <button
                   type="button"
                   className="ads-cta"
@@ -379,9 +383,9 @@ const HeroSection = ({ heroAds = [], sideAds = [], onSectionClick, onImageError,
                       onShopNow(currentHero);
                     }
                   }}
-                  aria-label="Shop Now"
+                  aria-label={t('ads.shop_now', 'Shop Now')}
                 >
-                  Shop Now
+                  {t('ads.shop_now', 'Shop Now')}
                 </button>
               </div>
             </div>
@@ -401,12 +405,12 @@ const HeroSection = ({ heroAds = [], sideAds = [], onSectionClick, onImageError,
                   key={ad && ad.id ? ad.id : index}
                   className="homepage__ads-banner homepage__ads-banner--small"
                   tabIndex={0}
-                  aria-label={name ? name + ' ad banner' : 'Ad banner'}
+                  aria-label={name ? `${name} ${t('ads.ad_banner', 'ad banner')}` : t('ads.ad_banner', 'Ad banner')}
                   onClick={(event) => handleSideAdClick(ad, event)}
                 >
                   <img
                     src={imageSrc}
-                    alt={name || 'Ad'}
+                    alt={name || t('ads.ad', 'Ad')}
                     className="ads-image"
                     loading="lazy"
                     onError={onImageError}
@@ -423,6 +427,7 @@ const HeroSection = ({ heroAds = [], sideAds = [], onSectionClick, onImageError,
 };
 
 const CategorySlider = ({ categories, onViewAll, onCategoryClick }) => {
+  const { t } = useTranslation();
   const { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
     useHorizontalSlider();
 
@@ -430,10 +435,10 @@ const CategorySlider = ({ categories, onViewAll, onCategoryClick }) => {
     <section className="homepage__categories-section">
       <div className="container">
         <SectionHeaderWithSlider
-          title="Top Categories"
+          title={t('home.top_categories', 'Top Categories')}
           onViewAll={onViewAll}
-          viewAllLabel="View All Categories"
-          viewAllAriaLabel="View all categories"
+          viewAllLabel={t('home.view_all_categories', 'View All Categories')}
+          viewAllAriaLabel={t('home.view_all_categories_aria', 'View all categories')}
           onPrev={scrollLeft}
           onNext={scrollRight}
           canScrollLeft={canScrollLeft}
@@ -460,6 +465,7 @@ const ProductSlider = ({
   isInWishlist,
   onQuickView,
 }) => {
+  const { t } = useTranslation();
   const { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
     useHorizontalSlider();
 
@@ -500,6 +506,7 @@ const FeaturedProducts = ({
   onWishlistToggle,
   isInWishlist,
 }) => {
+  const { t } = useTranslation();
   const hasProducts = products && products.length > 0;
   const { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
     useHorizontalSlider();
@@ -508,10 +515,10 @@ const FeaturedProducts = ({
     <section className="homepage__products-section">
       <div className="container">
         <SectionHeaderWithSlider
-          title="Featured Products"
+          title={t('home.featured_products', 'Featured Products')}
           onViewAll={onViewAll}
-          viewAllLabel="View All Products"
-          viewAllAriaLabel="View all products"
+          viewAllLabel={t('home.view_all_products', 'View All Products')}
+          viewAllAriaLabel={t('home.view_all_products_aria', 'View all products')}
           onPrev={scrollLeft}
           onNext={scrollRight}
           canScrollLeft={canScrollLeft}
@@ -531,7 +538,7 @@ const FeaturedProducts = ({
           </div>
         ) : (
           <div className="homepage__empty-state">
-            No featured products available at the moment.
+            {t('home.no_featured_products', 'No featured products available at the moment.')}
           </div>
         )}
       </div>
@@ -540,6 +547,7 @@ const FeaturedProducts = ({
 };
 
 const BrandsSlider = () => {
+  const { t } = useTranslation();
   const { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
     useHorizontalSlider();
 
@@ -547,7 +555,7 @@ const BrandsSlider = () => {
     <section className="homepage__brands-section">
       <div className="container">
         <SectionHeaderWithSlider
-          title="Top Brands"
+          title={t('home.top_brands', 'Top Brands')}
           onViewAll={null}
           viewAllLabel=""
           viewAllAriaLabel=""
@@ -564,7 +572,7 @@ const BrandsSlider = () => {
               </div>
               <h3 className="homepage__brand-name">{brand.name}</h3>
               <p className="homepage__brand-products">
-                {brand.products} products
+                {brand.products} {t('home.products', 'products')}
               </p>
             </div>
           ))}
@@ -575,6 +583,7 @@ const BrandsSlider = () => {
 };
 
 const SuppliersSection = ({ suppliers, onViewAll }) => {
+  const { t } = useTranslation();
   const { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
     useHorizontalSlider();
 
@@ -582,10 +591,10 @@ const SuppliersSection = ({ suppliers, onViewAll }) => {
     <section className="homepage__suppliers-section">
       <div className="container">
         <SectionHeaderWithSlider
-          title="Top Verified Suppliers"
+          title={t('home.top_verified_suppliers', 'Top Verified Suppliers')}
           onViewAll={onViewAll}
-          viewAllLabel="View All Suppliers"
-          viewAllAriaLabel="View all suppliers"
+          viewAllLabel={t('home.view_all_suppliers', 'View All Suppliers')}
+          viewAllAriaLabel={t('home.view_all_suppliers_aria', 'View all suppliers')}
           onPrev={scrollLeft}
           onNext={scrollRight}
           canScrollLeft={canScrollLeft}
@@ -664,13 +673,25 @@ const useWishlist = (initialWishlist = []) => {
 
 
 
-const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] }) => {
+const Home = ({
+  categories = [],
+  featuredProducts,
+  heroAds = [],
+  sideAds = [],
+}) => {
+  const { t } = useTranslation();
   const [showAnnouncementBar] = useState(true);
   const { addToCart } = useCart();
-
-  // Map categories to add icons if missing (optional, can be done in component)
-  // For now we pass raw categories
+  const { localization } = useCurrency();
   const { toggleWishlist, isInWishlist } = useWishlist();
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
 
   const [toast, setToast] = useState(null);
   const filteredFeaturedProducts = (featuredProducts || []).filter(
@@ -699,22 +720,22 @@ const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] })
           );
         }
 
-        showToast(`Added ${product.name} to cart`, 'success');
+        showToast(t('home.added_to_cart_success', `Added ${product.name} to cart`), 'success');
       } catch (error) {
         const message =
           error?.response?.data?.message ||
           error?.message ||
-          'Failed to add to cart. Please try again.';
+          t('home.failed_to_add_to_cart', 'Failed to add to cart. Please try again.');
         showToast(message, 'error');
         throw error;
       }
     },
-    [addToCart, showToast]
+    [addToCart, showToast, t]
   );
 
   const handleQuickView = useCallback((product) => {
-    showToast(`Quick view for ${product.name} would open here`, 'info');
-  }, [showToast]);
+    showToast(t('home.quick_view_info', `Quick view for ${product.name} would open here`), 'info');
+  }, [showToast, t]);
 
   const handleWishlistToggle = useCallback(
     (product) => {
@@ -725,16 +746,16 @@ const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] })
   );
 
   const handleViewAllProducts = useCallback(() => {
-    showToast('Products page is coming soon.', 'info');
-  }, [showToast]);
+    showToast(t('home.coming_soon_products', 'Products page is coming soon.'), 'info');
+  }, [showToast, t]);
 
   const handleViewAllCategories = useCallback(() => {
-    showToast('Categories page is coming soon.', 'info');
-  }, [showToast]);
+    showToast(t('home.coming_soon_categories', 'Categories page is coming soon.'), 'info');
+  }, [showToast, t]);
 
   const handleViewAllSuppliers = useCallback(() => {
-    showToast('Suppliers page is coming soon.', 'info');
-  }, [showToast]);
+    showToast(t('home.coming_soon_suppliers', 'Suppliers page is coming soon.'), 'info');
+  }, [showToast, t]);
 
   const [timeLeft, setTimeLeft] = useState({ hours: 2, minutes: 45, seconds: 18 });
 
@@ -800,7 +821,7 @@ const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] })
               }
               return;
             }
-            showToast('Shop Now', 'info');
+            showToast(t('home.shop_now', 'Shop Now'), 'info');
           }}
         />
 
@@ -809,9 +830,10 @@ const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] })
         <CategorySlider
           categories={categories}
           onViewAll={handleViewAllCategories}
+          viewAllLabel={t('home.view_all_categories', 'View All')}
           onCategoryClick={(category) => {
             if (!category?.slug) return;
-            router.get(route('products.index'), { category: category.slug });
+            router.get(getLocalizedRoute('products.index'), { category: category.slug });
           }}
         />
 
@@ -820,9 +842,9 @@ const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] })
           <div className="container">
             <div className="homepage__flash-sale-content">
               <div className="homepage__flash-sale-header">
-                <h2 className="homepage__flash-sale-title">Flash Sale</h2>
+                <h2 className="homepage__flash-sale-title">{t('home.flash_sale', 'Flash Sale')}</h2>
                 <div className="homepage__flash-sale-timer">
-                  <span className="homepage__timer-label">Ends in:</span>
+                  <span className="homepage__timer-label">{t('home.ends_in', 'Ends in:')}</span>
                   <div className="homepage__timer">
                     <span className="homepage__time-unit">{formatTime(timeLeft.hours)}</span>
                     <span className="homepage__time-separator">:</span>
@@ -834,10 +856,10 @@ const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] })
                 <button
                   type="button"
                   className="homepage__view-all"
-                  onClick={() => showToast('Flash sale page is coming soon.', 'info')}
-                aria-label="View all flash sale items"
+                  onClick={() => showToast(t('home.coming_soon', 'Flash sale page is coming soon.'), 'info')}
+                  aria-label={t('home.view_all_flash_sale', 'View all flash sale items')}
                 >
-                  View All
+                  {t('home.view_all', 'View All')}
                 </button>
               </div>
 
@@ -863,13 +885,13 @@ const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] })
 
 
         <ProductSlider
-          title="Trending Products"
+          title={t('home.trending_products', 'Trending Products')}
           products={productsData.slice(0, 6)}
           onViewAll={() =>
-            showToast('Trending products page is coming soon.', 'info')
+            showToast(t('home.coming_soon_trending', 'Trending products page is coming soon.'), 'info')
           }
-          viewAllLabel="View All"
-          viewAllAriaLabel="View all trending products"
+          viewAllLabel={t('home.view_all', 'View All')}
+          viewAllAriaLabel={t('home.view_all_trending', 'View all trending products')}
           onAddToCart={handleAddToCart}
           onWishlistToggle={handleWishlistToggle}
           isInWishlist={isInWishlist}
@@ -877,13 +899,27 @@ const Home = ({ featuredProducts, categories = [], heroAds = [], sideAds = [] })
         />
 
         <ProductSlider
-          title="Recommended For You"
+          title={t('home.new_arrivals', 'New Arrivals')}
+          products={productsData.slice(0, 6)}
+          onViewAll={() =>
+            showToast(t('home.coming_soon_new_arrivals', 'New arrivals page is coming soon.'), 'info')
+          }
+          viewAllLabel={t('home.view_all', 'View All')}
+          viewAllAriaLabel={t('home.view_all_new_arrivals', 'View all new arrivals')}
+          onAddToCart={handleAddToCart}
+          onWishlistToggle={handleWishlistToggle}
+          isInWishlist={isInWishlist}
+          onQuickView={handleQuickView}
+        />
+
+        <ProductSlider
+          title={t('home.recommended_for_you', 'Recommended For You')}
           products={productsData}
           onViewAll={() =>
-            showToast('Recommendations page is coming soon.', 'info')
+            showToast(t('home.coming_soon_recommendations', 'Recommendations page is coming soon.'), 'info')
           }
-          viewAllLabel="View All"
-          viewAllAriaLabel="View all recommendations"
+          viewAllLabel={t('home.view_all', 'View All')}
+          viewAllAriaLabel={t('home.view_all_recommendations', 'View all recommendations')}
           onAddToCart={handleAddToCart}
           onWishlistToggle={handleWishlistToggle}
           isInWishlist={isInWishlist}

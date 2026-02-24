@@ -196,7 +196,7 @@
 
     .product-features-list {
         list-style-type: disc;
-        padding-left: 20px;
+        padding-inline-start: 20px;
         margin: 0;
 
         li {
@@ -467,8 +467,8 @@
 
         .product-not-found-link {
             width: auto;
-            padding-left: 24px;
-            padding-right: 24px;
+            padding-inline-start: 24px;
+            padding-inline-end: 24px;
         }
     }
 

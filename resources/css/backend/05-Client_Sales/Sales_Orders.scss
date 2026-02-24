@@ -46,6 +46,10 @@
     align-items: center;
     margin-bottom: 2rem;
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     h1 {
       font-size: 1.5rem;
       font-weight: 600;
@@ -80,6 +84,10 @@
       border-collapse: collapse;
       text-align: left;
 
+      [dir="rtl"] & {
+        text-align: right;
+      }
+
       th, td {
         padding: 8px 10px;
         border-bottom: 1px solid var(--border-color);
@@ -100,7 +108,11 @@
       .actions {
         display: flex;
         gap: 0.5rem;
-        
+
+        [dir="rtl"] & {
+          flex-direction: row-reverse;
+        }
+
         button {
           padding: 0.25rem 0.5rem;
           border-radius: var(--radius-md);
@@ -187,6 +199,10 @@
         font-weight: 600;
         color: var(--text-secondary);
         text-align: right;
+
+        [dir="rtl"] & {
+          text-align: left;
+        }
       }
 
       input, select {
@@ -195,6 +211,10 @@
         border-radius: var(--radius-md);
         background-color: var(--input-bg);
         color: var(--text-primary);
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
     }
   }
@@ -233,6 +253,10 @@
       font-weight: 500;
       color: var(--text-secondary);
       
+      [dir="rtl"] & {
+        text-align: right;
+      }
+
       .required { color: var(--danger-color); }
     }
 
@@ -244,6 +268,10 @@
       background-color: var(--input-bg);
       color: var(--text-primary);
       transition: border-color 0.2s;
+
+      [dir="rtl"] & {
+        text-align: right;
+      }
 
       &:focus {
         outline: none;
@@ -289,13 +317,23 @@
         padding: 0.75rem;
         font-weight: 600;
         font-size: 0.875rem;
+        text-align: left;
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
       
       td {
-  padding: 8px 10px;
-  border-top: 1px solid var(--border-color);
-  vertical-align: top;
-}
+        padding: 8px 10px;
+        border-top: 1px solid var(--border-color);
+        vertical-align: top;
+        text-align: left;
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
+      }
       
       input, select {
         width: 100%;
@@ -305,6 +343,10 @@
         font-size: 0.875rem;
         background-color: var(--input-bg);
         color: var(--text-primary);
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
     }
 
@@ -345,12 +387,20 @@
     display: grid;
     grid-template-columns: 1fr 300px;
     gap: 2rem;
+
+    [dir="rtl"] & {
+      grid-template-columns: 300px 1fr;
+    }
     
     .notes-section {
       label {
         display: block;
         margin-bottom: 0.5rem;
         font-weight: 500;
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
       textarea {
         width: 100%;
@@ -360,6 +410,10 @@
         background-color: var(--input-bg);
         color: var(--text-primary);
         min-height: 100px;
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
     }
     
@@ -374,6 +428,10 @@
         justify-content: space-between;
         margin-bottom: 0.75rem;
         font-size: 0.9rem;
+
+        [dir="rtl"] & {
+          flex-direction: row-reverse;
+        }
         
         span:first-child { color: var(--text-secondary); }
         span:last-child { font-weight: 500; }
@@ -398,12 +456,19 @@
     left: 260px; /* Sidebar width */
     background-color: var(--surface-light);
     padding: 1rem 2rem;
-    border-top: 1px solid var(--border-color);
     display: flex;
     justify-content: flex-end;
     gap: 1rem;
-    z-index: 50;
+    z-index: 100;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
     transition: left 0.3s ease;
+
+    [dir="rtl"] & {
+      right: 260px;
+      left: 0;
+      justify-content: flex-start;
+    }
+
     
     .btn-cancel, .btn-submit {
       padding: 0.75rem 1.5rem;

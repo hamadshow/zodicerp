@@ -31,6 +31,10 @@
   align-items: center;
   margin-bottom: 2rem;
 
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
+
   h1 {
     font-size: 1.875rem;
     font-weight: 700;
@@ -78,6 +82,10 @@
   gap: 1rem;
   transition: transform 0.2s, box-shadow 0.2s;
 
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
@@ -101,6 +109,10 @@
   .stat-info {
     display: flex;
     flex-direction: column;
+
+    [dir="rtl"] & {
+      text-align: right;
+    }
 
     .stat-value {
       font-size: 1.5rem;
@@ -142,6 +154,10 @@
     color: var(--text-gray);
     border-bottom: 2px solid var(--border-color);
     background-color: #f9fafb;
+
+    [dir="rtl"] & {
+      text-align: right;
+    }
   }
 
   td {
@@ -150,6 +166,10 @@
     color: var(--text-dark);
     border-bottom: 1px solid var(--border-color);
     vertical-align: middle;
+
+    [dir="rtl"] & {
+      text-align: right;
+    }
   }
 
   tr:hover td {
@@ -176,6 +196,10 @@
   .action-buttons {
     display: flex;
     gap: 0.5rem;
+
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
 
     button {
       padding: 0.5rem;
@@ -210,6 +234,10 @@
     margin-bottom: 1.5rem;
     padding-bottom: 0.5rem;
     border-bottom: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+      text-align: right;
+    }
   }
 
   .form-grid {
@@ -232,6 +260,10 @@
       font-weight: 500;
       color: var(--text-dark);
       margin-bottom: 0.5rem;
+
+      [dir="rtl"] & {
+        text-align: right;
+      }
     }
 
     input, select, textarea {
@@ -241,6 +273,10 @@
       border-radius: var(--radius-md);
       font-size: 0.925rem;
       transition: border-color 0.2s, box-shadow 0.2s;
+
+      [dir="rtl"] & {
+        text-align: right;
+      }
 
       &:focus {
         outline: none;
@@ -273,6 +309,10 @@
     margin-top: 2rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+      justify-content: flex-start;
+    }
   }
 }
 
@@ -289,6 +329,10 @@
   transition: all 0.2s;
   border: 1px solid transparent;
   gap: 0.5rem;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 
   &.btn-primary {
     background-color: var(--primary-color);
@@ -332,6 +376,11 @@
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
     font-size: 0.875rem;
+
+    [dir="rtl"] & {
+      padding: 0.625rem 2.5rem 0.625rem 1rem;
+      text-align: right;
+    }
     
     &:focus {
       outline: none;
@@ -346,6 +395,11 @@
     transform: translateY(-50%);
     color: var(--text-gray);
     font-size: 1.25rem;
+
+    [dir="rtl"] & {
+      left: auto;
+      right: 0.75rem;
+    }
   }
 }
 
@@ -358,6 +412,10 @@
   align-items: flex-start;
   margin-top: 24px;
   min-height: calc(100vh - 150px);
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .categories-tree-panel {
@@ -407,6 +465,13 @@
   transition: all 0.2s;
   border-left: 3px solid transparent;
   position: relative;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+    border-left: none;
+    border-right: 3px solid transparent;
+    text-align: right;
+  }
 }
 
 .category-content:hover {
@@ -416,6 +481,11 @@
 .category-content.selected {
   background-color: #eff6ff;
   border-left-color: var(--primary-color);
+
+  [dir="rtl"] & {
+    border-left-color: transparent;
+    border-right-color: var(--primary-color);
+  }
 }
 
 .category-content.drag-over {
@@ -429,6 +499,11 @@
   margin-right: 8px;
   display: flex;
   align-items: center;
+
+  [dir="rtl"] & {
+    margin-right: 0;
+    margin-left: 8px;
+  }
 }
 
 .category-handle:hover {
@@ -445,6 +520,11 @@
   cursor: pointer;
   margin-right: 4px;
   border-radius: 4px;
+
+  [dir="rtl"] & {
+    margin-right: 0;
+    margin-left: 4px;
+  }
 }
 
 .category-toggle:hover {
@@ -456,6 +536,11 @@
   margin-right: 8px;
   display: flex;
   align-items: center;
+
+  [dir="rtl"] & {
+    margin-right: 0;
+    margin-left: 8px;
+  }
 }
 
 .category-info {
@@ -464,6 +549,10 @@
   align-items: center;
   gap: 6px;
   overflow: hidden;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .category-name {

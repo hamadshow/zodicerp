@@ -5,21 +5,24 @@ namespace App\Http\Middleware;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
+use App\Models\Language;
+
+use App\Models\LanguageLine;
+use Illuminate\Support\Facades\App;
+
 class HandleInertiaRequests extends Middleware
 {
     /**
-     * The root template that is loaded on the first page visit.
-     *
-     * @var string
+     * Define the translations to be shared.
      */
-    protected $rootView = 'app';
-
-    /**
-     * Determine the current asset version.
-     */
-    public function version(Request $request): ?string
+    protected function getTranslations()
     {
-        return parent::version($request);
+        $locale = App::getLocale();
+        return LanguageLine::all()->mapWithKeys(function ($line) use ($locale) {
+            $key = $line->group . '.' . $line->key;
+            $text = $line->text[$locale] ?? ($line->text[config('app.fallback_locale')] ?? $line->key);
+            return [$key => $text];
+        })->toArray();
     }
 
     /**
@@ -46,6 +49,15 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 'customer' => $request->user('customer'),
                 'supplier' => $request->user('supplier'),
+            ],
+            'localization' => [
+                'current_country' => config('app.country'),
+                'current_locale' => app()->getLocale(),
+                'is_rtl' => Language::where('lang_code', app()->getLocale())->value('lang_is_rtl') == 1,
+                'country_code' => session('country_code'),
+                'currency_code' => session('currency_code'),
+                'active_languages' => Language::orderBy('lang_order', 'asc')->get(),
+                'translations' => $this->getTranslations(),
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

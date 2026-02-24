@@ -91,7 +91,7 @@ export default function COAReport() {
         <Head title="Chart of Accounts Report - ZodicERP" />
 
         <div className="breadcrumb">
-          <Link href={route('admin')}>Dashboard</Link>
+          <Link href={route('admin.dashboard')}>Dashboard</Link>
           <span>/</span>
           <Link href={route('admin.reports.index')}>Financial Reports</Link>
           <span>/</span>

@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import '../../../../css/homepage/main.scss';
 
 const Register = () => {
+  const { localization } = usePage().props;
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const [globalError, setGlobalError] = useState('');
 
   const { data, setData, post, processing, errors, reset } = useForm({
@@ -68,7 +78,7 @@ const Register = () => {
 
     setGlobalError('');
 
-    post(route('register'), {
+    post(getLocalizedRoute('customer.store'), {
       onFinish: () => reset('password', 'password_confirmation'),
     });
   };
@@ -107,7 +117,7 @@ const Register = () => {
 
         <div className="auth-panel">
           <div className="auth-brand">
-            <Link href="/" className="auth-brand-link">
+            <Link href={getLocalizedRoute('home')} className="auth-brand-link">
               <div className="auth-brand-logo">
                 <span>Z</span>
               </div>
@@ -115,7 +125,10 @@ const Register = () => {
             </Link>
             <h2 className="auth-title">Create your account</h2>
             <p className="auth-subtitle">
-              Join thousands of buyers and suppliers on our B2B marketplace.
+              Already have an account?{' '}
+              <Link href={getLocalizedRoute('customer.login')} className="auth-link">
+                Sign in
+              </Link>
             </p>
           </div>
 
@@ -260,12 +273,13 @@ const Register = () => {
                 {processing ? 'Creating account…' : 'Create Account'}
               </button>
 
-              <div className="auth-footer-text">
-                <span>Already have an account? </span>
-                <Link href={route('login')} className="auth-link">
-                  Login
+              <p className="auth-footer-text">
+                By creating an account, you agree to our Terms & Conditions and Privacy Policy.
+                Already have an account?{' '}
+                <Link href={getLocalizedRoute('customer.login')} className="auth-link">
+                  Sign in
                 </Link>
-              </div>
+              </p>
             </form>
           </div>
         </div>

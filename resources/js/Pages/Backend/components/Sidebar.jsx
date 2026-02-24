@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import '../../../../css/backend/components/Sidebar.scss';
 
 const Sidebar = ({
@@ -16,6 +16,8 @@ const Sidebar = ({
 }) => {
   const [floatingMenu, setFloatingMenu] = useState(null);
   const sidebarRef = useRef(null);
+  const { localization } = usePage().props;
+  const isRtl = localization?.is_rtl;
 
   // Close floating menu when sidebar collapse state changes
   useEffect(() => {
@@ -52,7 +54,8 @@ const Sidebar = ({
             label: item.label,
             items: item.submenuItems,
             top: rect.top,
-            left: rect.right
+            left: isRtl ? undefined : rect.right,
+            right: isRtl ? (window.innerWidth - rect.left) : undefined
           });
         }
       } else {
@@ -201,6 +204,8 @@ const Sidebar = ({
           style={{
             top: floatingMenu.top,
             left: floatingMenu.left,
+            right: floatingMenu.right,
+            position: 'fixed'
           }}
         >
           <div className="floating-header">{floatingMenu.label}</div>

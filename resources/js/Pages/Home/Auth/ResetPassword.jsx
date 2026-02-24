@@ -1,8 +1,18 @@
 import React from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import '../../../../css/homepage/main.scss';
 
 const ResetPassword = ({ email, token }) => {
+  const { localization } = usePage().props;
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const { data, setData, post, processing, errors, reset } = useForm({
     token: token || '',
     email: email || '',
@@ -17,7 +27,7 @@ const ResetPassword = ({ email, token }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    post(route('password.update'), {
+    post(getLocalizedRoute('password.store'), {
       onSuccess: () => {
         reset('password', 'password_confirmation');
       },
@@ -53,7 +63,7 @@ const ResetPassword = ({ email, token }) => {
 
         <div className="auth-panel">
           <div className="auth-brand">
-            <Link href="/" className="auth-brand-link">
+            <Link href={getLocalizedRoute('home')} className="auth-brand-link">
               <div className="auth-brand-logo">
                 <span>Z</span>
               </div>
@@ -101,9 +111,6 @@ const ResetPassword = ({ email, token }) => {
                   autoComplete="new-password"
                   required
                 />
-                {data.password && data.password.length < 6 && (
-                  <p className="auth-error">Password must be at least 6 characters.</p>
-                )}
                 {errors.password && <p className="auth-error">{errors.password}</p>}
               </div>
 
@@ -121,11 +128,6 @@ const ResetPassword = ({ email, token }) => {
                   autoComplete="new-password"
                   required
                 />
-                {data.password &&
-                  data.password_confirmation &&
-                  data.password !== data.password_confirmation && (
-                    <p className="auth-error">Passwords do not match.</p>
-                  )}
                 {errors.password_confirmation && (
                   <p className="auth-error">{errors.password_confirmation}</p>
                 )}
@@ -134,20 +136,14 @@ const ResetPassword = ({ email, token }) => {
               <button
                 type="submit"
                 className="auth-submit-button"
-                disabled={
-                  processing ||
-                  !data.email ||
-                  !data.password ||
-                  !data.password_confirmation ||
-                  hasClientValidationError
-                }
+                disabled={processing || !data.email || !data.password || hasClientValidationError}
               >
                 {processing ? 'Resetting password…' : 'Reset Password'}
               </button>
 
               <div className="auth-footer-text">
                 <span>Remember your password? </span>
-                <Link href={route('login')} className="auth-link">
+                <Link href={getLocalizedRoute('login')} className="auth-link">
                   Back to Login
                 </Link>
               </div>

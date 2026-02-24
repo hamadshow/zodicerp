@@ -5,6 +5,10 @@
     box-shadow: var(--shadow-md);
     padding: 24px;
     margin-bottom: 24px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .roles-actions {
@@ -13,6 +17,10 @@
     align-items: center;
     flex-wrap: wrap;
     margin-bottom: 20px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .role-status {
@@ -41,6 +49,10 @@
     padding: 16px;
     margin-bottom: 16px;
     border: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .permission-section h4 {
@@ -50,6 +62,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .permission-section h4 .material-icons-outlined {
@@ -61,6 +77,10 @@
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 12px;
+
+    [dir="rtl"] & {
+        direction: rtl;
+    }
 }
 
 .permission-item {
@@ -72,6 +92,10 @@
     border-radius: 6px;
     border: 1px solid var(--border-color);
     transition: all 0.2s ease;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .permission-item:hover {
@@ -102,6 +126,10 @@
     font-weight: 500;
     color: var(--dark-color);
     font-size: 0.9rem;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-control {
@@ -111,6 +139,10 @@
     border-radius: 6px;
     font-size: 0.9rem;
     transition: border-color 0.2s ease;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-control:focus {
@@ -129,6 +161,10 @@
     align-items: center;
     gap: 8px;
     margin-bottom: 12px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .checkbox-group input[type="checkbox"] {
@@ -151,6 +187,11 @@
     font-size: 0.75rem;
     font-weight: 500;
     margin-right: 4px;
+
+    [dir="rtl"] & {
+        margin-right: 0;
+        margin-left: 4px;
+    }
 }
 
 /* Modal styles */
@@ -205,6 +246,10 @@
     margin-bottom: 20px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .modal-title {
@@ -231,6 +276,10 @@
     margin-bottom: 20px;
     overflow-y: auto;
     flex: 1;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .modal-actions {
@@ -239,6 +288,10 @@
     gap: 12px;
     padding-top: 20px;
     border-top: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 /* Quick stats */
@@ -247,6 +300,10 @@
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 16px;
     margin-bottom: 24px;
+
+    [dir="rtl"] & {
+        direction: rtl;
+    }
 }
 
 .stat-card {
@@ -258,6 +315,10 @@
     align-items: center;
     gap: 16px;
     transition: transform 0.2s ease;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .stat-card:hover {
@@ -291,6 +352,10 @@
     font-size: 0.85rem;
     color: var(--gray-color);
     margin-top: 4px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 /* Role users list */
@@ -299,6 +364,10 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .user-avatar {
@@ -323,6 +392,10 @@
     display: flex;
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 20px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .tab {
@@ -362,6 +435,10 @@
     margin: 0 0 12px 0;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 /* Responsive adjustments */

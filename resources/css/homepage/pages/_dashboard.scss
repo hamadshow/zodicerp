@@ -40,7 +40,7 @@
   color: #0f172a;
   background: transparent;
   border: none;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   transition:
     background-color 0.18s ease,
@@ -321,4 +321,17 @@
   .user-dashboard-features {
     grid-template-columns: 1fr;
   }
+
+  .orders-table-container {
+    overflow-x: auto;
+  }
+
+  .orders-table {
+    min-width: 600px;
+  }
+}
+
+.status-badge {
+  display: inline-block;
+  white-space: nowrap;
 }

@@ -34,6 +34,45 @@ Route::middleware('web')->group(function () {
     Route::get('tasks/statistics', [TaskController::class, 'statistics']);
     Route::get('employees', [EmployeeController::class, 'index']);
     Route::get('accounts', [\App\Http\Controllers\Accounting\AccountsController::class, 'index']);
+
+    // Dashboard Statistics and Activity
+    Route::get('/dashboard/stats', function () {
+        return response()->json([
+            'totalUsers' => 124,
+            'totalOrders' => 56,
+            'totalRevenue' => 12450,
+            'totalProducts' => 89,
+        ]);
+    });
+
+    Route::get('/dashboard/activity', function () {
+        return response()->json([
+            [
+                'id' => 1,
+                'action' => 'New user registered',
+                'user' => 'John Doe',
+                'time' => '2 minutes ago',
+            ],
+            [
+                'id' => 2,
+                'action' => 'Order placed',
+                'user' => 'Jane Smith',
+                'time' => '15 minutes ago',
+            ],
+            [
+                'id' => 3,
+                'action' => 'Product updated',
+                'user' => 'Admin',
+                'time' => '1 hour ago',
+            ],
+            [
+                'id' => 4,
+                'action' => 'Payment received',
+                'user' => 'Mike Johnson',
+                'time' => '3 hours ago',
+            ],
+        ]);
+    });
 });
 
 // For now, we'll return sample vacation data

@@ -5,6 +5,10 @@
     box-shadow: var(--shadow-md);
     padding: 24px;
     margin-bottom: 24px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .violations-actions {
@@ -12,6 +16,10 @@
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .violation-status {
@@ -73,6 +81,10 @@
     display: flex;
     align-items: center;
     gap: 12px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .vehicle-icon {
@@ -91,6 +103,10 @@
 .vehicle-details {
     display: flex;
     flex-direction: column;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .vehicle-plate {
@@ -112,12 +128,21 @@
     font-size: 0.75rem;
     font-weight: 500;
     margin-right: 4px;
+
+    [dir="rtl"] & {
+        margin-right: 0;
+        margin-left: 4px;
+    }
 }
 
 .fine-display {
     font-size: 0.85rem;
     color: var(--danger-color);
     font-weight: 600;
+
+    [dir="rtl"] & {
+        text-align: left;
+    }
 }
 
 /* Modal styles for quick add/edit */
@@ -148,6 +173,10 @@
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
     animation: modalSlideIn 0.3s ease;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 @keyframes modalSlideIn {
@@ -168,6 +197,10 @@
     margin-bottom: 20px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .modal-title {
@@ -200,16 +233,29 @@
     gap: 12px;
     padding-top: 20px;
     border-top: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        justify-content: flex-start;
+        flex-direction: row-reverse;
+    }
 }
 
 .form-group {
     margin-bottom: 16px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-row {
     display: flex;
     gap: 16px;
     margin-bottom: 16px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .form-row .form-group {
@@ -232,6 +278,10 @@
     border-radius: 6px;
     font-size: 0.9rem;
     transition: border-color 0.2s ease;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-control:focus {
@@ -262,6 +312,10 @@
     align-items: center;
     gap: 16px;
     transition: transform 0.2s ease;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .stat-card:hover {
@@ -282,6 +336,10 @@
 
 .stat-content {
     flex: 1;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .stat-value {
@@ -305,6 +363,11 @@
     font-size: 0.75rem;
     font-weight: 500;
     margin-right: 4px;
+
+    [dir="rtl"] & {
+        margin-right: 0;
+        margin-left: 4px;
+    }
 }
 
 .type-speeding {
@@ -337,6 +400,10 @@
     display: flex;
     gap: 8px;
     align-items: center;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .date-filter input {
@@ -344,6 +411,10 @@
     border: 1px solid var(--border-color);
     border-radius: 6px;
     font-size: 0.85rem;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 /* Toast notifications */
@@ -356,6 +427,11 @@
     flex-direction: column;
     gap: 10px;
     max-width: 400px;
+
+    [dir="rtl"] & {
+        right: auto;
+        left: 20px;
+    }
 }
 
 .toast {
@@ -368,6 +444,11 @@
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
     min-width: 300px;
     animation: slideIn 0.3s ease;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+        animation: slideInLeft 0.3s ease;
+    }
 }
 
 .toast-info {
@@ -399,11 +480,27 @@
     display: flex;
     align-items: center;
     justify-content: center;
+
+    [dir="rtl"] & {
+        margin-left: 0;
+        margin-right: 10px;
+    }
 }
 
 @keyframes slideIn {
     from {
         transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
         opacity: 0;
     }
     to {

@@ -9,6 +9,10 @@
         align-items: center;
         margin-bottom: 2rem;
 
+        [dir="rtl"] & {
+            flex-direction: row-reverse;
+        }
+
         h1 {
             font-size: 1.5rem;
             color: #2c3e50;
@@ -36,6 +40,10 @@
         align-items: center;
         flex-wrap: wrap;
 
+        [dir="rtl"] & {
+            flex-direction: row-reverse;
+        }
+
         .search-input {
             flex: 1;
             min-width: 200px;
@@ -47,6 +55,11 @@
                 border: 1px solid #e2e8f0;
                 border-radius: 6px;
                 
+                [dir="rtl"] & {
+                    padding: 0.5rem 2.5rem 0.5rem 1rem;
+                    text-align: right;
+                }
+
                 &:focus {
                     outline: none;
                     border-color: #3b82f6;
@@ -60,6 +73,11 @@
                 top: 50%;
                 transform: translateY(-50%);
                 color: #94a3b8;
+
+                [dir="rtl"] & {
+                    left: auto;
+                    right: 0.75rem;
+                }
             }
         }
 
@@ -69,6 +87,11 @@
             border-radius: 6px;
             background-color: white;
             cursor: pointer;
+
+            [dir="rtl"] & {
+                padding: 0.5rem 1rem 0.5rem 2rem;
+                text-align: right;
+            }
         }
     }
 
@@ -90,6 +113,10 @@
                 color: #475569;
                 border-bottom: 1px solid #e2e8f0;
                 font-size: 0.875rem;
+
+                [dir="rtl"] & {
+                    text-align: right;
+                }
             }
 
             td {
@@ -97,6 +124,10 @@
                 border-bottom: 1px solid #f1f5f9;
                 color: #1e293b;
                 font-size: 0.875rem;
+
+                [dir="rtl"] & {
+                    text-align: right;
+                }
 
                 .status-badge {
                     padding: 0.25rem 0.75rem;
@@ -152,6 +183,10 @@
             border-bottom: 1px solid #e2e8f0;
             padding-bottom: 1rem;
 
+            [dir="rtl"] & {
+                flex-direction: row-reverse;
+            }
+
             h2 {
                 font-size: 1.25rem;
                 font-weight: 600;
@@ -164,6 +199,10 @@
             grid-template-columns: 1fr 1fr;
             gap: 2rem;
             margin-top: 2rem;
+
+            [dir="rtl"] & {
+                direction: rtl;
+            }
 
             @media (max-width: 768px) {
                 grid-template-columns: 1fr;
@@ -183,12 +222,28 @@
                     display: flex;
                     align-items: center;
                     gap: 0.5rem;
+
+                    [dir="rtl"] & {
+                        flex-direction: row-reverse;
+                    }
                     
                     i { color: #64748b; }
                 }
 
-                &.from-panel { border-left: 4px solid #ef4444; }
-                &.to-panel { border-left: 4px solid #22c55e; }
+                &.from-panel { 
+                    border-left: 4px solid #ef4444; 
+                    [dir="rtl"] & {
+                        border-left: none;
+                        border-right: 4px solid #ef4444;
+                    }
+                }
+                &.to-panel { 
+                    border-left: 4px solid #22c55e; 
+                    [dir="rtl"] & {
+                        border-left: none;
+                        border-right: 4px solid #22c55e;
+                    }
+                }
             }
         }
 
@@ -201,6 +256,10 @@
                 font-weight: 500;
                 color: #475569;
                 margin-bottom: 0.5rem;
+
+                [dir="rtl"] & {
+                    text-align: right;
+                }
             }
 
             input, select, textarea {
@@ -210,6 +269,11 @@
                 border-radius: 6px;
                 font-size: 0.875rem;
                 transition: all 0.2s;
+
+                [dir="rtl"] & {
+                    text-align: right;
+                    direction: rtl;
+                }
 
                 &:focus {
                     border-color: #3b82f6;
@@ -229,6 +293,10 @@
                 color: #64748b;
                 display: flex;
                 justify-content: space-between;
+
+                [dir="rtl"] & {
+                    flex-direction: row-reverse;
+                }
                 
                 &.warning { color: #dc2626; }
             }

@@ -8,6 +8,10 @@
   align-items: flex-end;
   justify-content: space-between;
   margin-bottom: 20px;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .gl-title {
@@ -15,12 +19,20 @@
   font-weight: 700;
   color: var(--dark-color);
   margin: 0 0 4px;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .gl-subtitle {
   font-size: 0.9rem;
   color: var(--gray-color);
   margin: 0;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .gl-filters-card {
@@ -30,6 +42,10 @@
   box-shadow: var(--shadow-md);
   border: 1px solid #e2e8f0;
   margin-bottom: 18px;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .gl-filters-grid {
@@ -37,6 +53,11 @@
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
   align-items: flex-end;
+
+  [dir="rtl"] & {
+    direction: rtl;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
 }
 
 .gl-form-group {
@@ -49,6 +70,10 @@
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--dark-color);
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .gl-input {
@@ -57,12 +82,20 @@
   border-radius: 6px;
   border: 1px solid #cbd5e1;
   font-size: 0.85rem;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .gl-form-actions {
   display: flex;
   justify-content: flex-start;
   align-items: center;
+
+  [dir="rtl"] & {
+    justify-content: flex-end;
+  }
 }
 
 .gl-summary {
@@ -70,6 +103,10 @@
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-bottom: 16px;
+
+  [dir="rtl"] & {
+    direction: rtl;
+  }
 }
 
 .gl-summary-item {
@@ -78,6 +115,10 @@
   padding: 10px 12px;
   box-shadow: var(--shadow-sm);
   border: 1px solid #e2e8f0;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .gl-summary-label {
@@ -99,6 +140,10 @@
   box-shadow: var(--shadow-md);
   border: 1px solid #e2e8f0;
   padding: 16px;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .gl-table {
@@ -111,6 +156,10 @@
 .gl-table td {
   padding: 8px 10px;
   border-bottom: 1px solid #e2e8f0;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .gl-table th {
@@ -118,15 +167,27 @@
   background-color: #f8fafc;
   font-weight: 600;
   color: #0f172a;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .gl-amount-header {
   text-align: right;
+
+  [dir="rtl"] & {
+    text-align: left;
+  }
 }
 
 .gl-amount {
   text-align: right;
   font-variant-numeric: tabular-nums;
+
+  [dir="rtl"] & {
+    text-align: left;
+  }
 }
 
 .gl-amount-debit {
@@ -142,6 +203,10 @@
 .gl-total-label {
   text-align: right;
   font-weight: 600;
+
+  [dir="rtl"] & {
+    text-align: left;
+  }
 }
 
 .gl-table tfoot tr {

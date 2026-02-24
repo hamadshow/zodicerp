@@ -13,12 +13,20 @@
     margin-bottom: 24px;
     flex-wrap: wrap;
     gap: 16px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .brands-actions {
     display: flex;
     gap: 16px;
     align-items: center;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .search-bar {
@@ -29,6 +37,10 @@
     border-radius: 6px;
     padding: 8px 12px;
     width: 300px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .search-bar input {
@@ -38,6 +50,12 @@
     width: 100%;
     margin-right: 8px;
     font-size: 14px;
+
+    [dir="rtl"] & {
+        margin-right: 0;
+        margin-left: 8px;
+        text-align: right;
+    }
 }
 
 .search-bar button {
@@ -53,6 +71,10 @@
 .actions {
     display: flex;
     gap: 12px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .btn {
@@ -66,6 +88,10 @@
     cursor: pointer;
     border: none;
     transition: all 0.2s;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .btn-primary {
@@ -108,6 +134,10 @@
     border-radius: 6px;
     transition: all 0.2s;
     cursor: grab;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .brand-content:hover {
@@ -131,6 +161,11 @@
     cursor: grab;
     display: flex;
     align-items: center;
+
+    [dir="rtl"] & {
+        margin-right: 0;
+        margin-left: 12px;
+    }
 }
 
 .brand-toggle {
@@ -143,6 +178,11 @@
     height: 24px;
     justify-content: center;
     border-radius: 4px;
+
+    [dir="rtl"] & {
+        margin-right: 0;
+        margin-left: 8px;
+    }
 }
 
 .brand-toggle:hover {
@@ -154,11 +194,19 @@
     display: flex;
     align-items: center;
     gap: 12px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .brand-name {
     font-weight: 500;
     color: #1e293b;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .brand-code {
@@ -167,12 +215,20 @@
     background: #f1f5f9;
     padding: 2px 6px;
     border-radius: 4px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .brand-meta {
     display: flex;
     align-items: center;
     gap: 16px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .brand-status {
@@ -181,6 +237,10 @@
     font-size: 12px;
     font-weight: 500;
     text-transform: capitalize;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .status-active {
@@ -198,6 +258,10 @@
     gap: 8px;
     opacity: 0;
     transition: opacity 0.2s;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .brand-content:hover .item-actions {
@@ -215,6 +279,10 @@
     align-items: center;
     justify-content: center;
     transition: all 0.2s;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .icon-btn:hover {
@@ -234,6 +302,15 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+
+    [dir="rtl"] & {
+        margin-left: 0;
+        margin-right: 28px;
+        padding-left: 0;
+        padding-right: 12px;
+        border-left: none;
+        border-right: 2px solid #e2e8f0;
+    }
 }
 
 /* Modal Styles */
@@ -278,12 +355,20 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .modal-title {
     font-size: 18px;
     font-weight: 600;
     color: #1e293b;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .modal-close {
@@ -293,6 +378,10 @@
     color: #64748b;
     padding: 4px;
     border-radius: 4px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .modal-close:hover {
@@ -305,12 +394,20 @@
 
 .form-group {
     margin-bottom: 20px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
+
+    [dir="rtl"] & {
+        direction: rtl;
+    }
 }
 
 .form-label {
@@ -319,6 +416,10 @@
     font-size: 14px;
     font-weight: 500;
     color: #475569;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-control {
@@ -328,6 +429,10 @@
     border-radius: 6px;
     font-size: 14px;
     transition: border-color 0.2s;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-control:focus {
@@ -341,6 +446,10 @@
     display: flex;
     justify-content: flex-end;
     gap: 12px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .stats-cards {
@@ -348,6 +457,10 @@
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 24px;
     margin-bottom: 24px;
+
+    [dir="rtl"] & {
+        direction: rtl;
+    }
 }
 
 .stat-card {
@@ -358,6 +471,10 @@
     align-items: center;
     gap: 16px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .stat-icon {
@@ -372,6 +489,10 @@
 
 .stat-content {
     flex: 1;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .stat-value {
@@ -379,9 +500,17 @@
     font-weight: 600;
     color: #1e293b;
     margin-bottom: 4px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .stat-label {
     font-size: 14px;
     color: #64748b;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }

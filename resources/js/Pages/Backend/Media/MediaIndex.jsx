@@ -335,7 +335,7 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
                 <Head title="Media Manager" />
                 
                 <div className="breadcrumb">
-                    <Link href={route('admin')}>Dashboard</Link>
+                    <Link href={route('admin.dashboard')}>Dashboard</Link>
                     <span>/</span>
                     <Link href={route('admin.media.index')}>Media Manager</Link>
                     {breadcrumbs && breadcrumbs.map(folder => (

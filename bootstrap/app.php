@@ -14,7 +14,22 @@ $app = Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->validateCsrfTokens(except: [
+            '_boost/*',
+        ]);
+
+        $middleware->redirectTo(
+            function (Request $request) {
+                $params = [
+                    'country' => session('country_code', 'sa'),
+                    'lang' => session('locale', 'ar')
+                ];
+                return route('login', $params);
+            }
+        );
+
         $middleware->web(append: [
+            \App\Http\Middleware\SetLocalization::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);

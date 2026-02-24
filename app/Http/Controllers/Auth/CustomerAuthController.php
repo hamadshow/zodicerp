@@ -15,7 +15,7 @@ class CustomerAuthController extends Controller
 {
     public function showLoginForm()
     {
-        return Inertia::render('Auth/CustomerLogin');
+        return Inertia::render('Home/Auth/Login');
     }
 
     public function login(Request $request)
@@ -28,7 +28,7 @@ class CustomerAuthController extends Controller
         if (Auth::guard('customer')->attempt($request->only('email', 'password'), $request->boolean('remember'))) {
             $request->session()->regenerate();
 
-            return redirect()->intended('/customer/dashboard');
+            return redirect()->intended(route('customer.dashboard'));
         }
 
         throw ValidationException::withMessages([
@@ -68,7 +68,7 @@ class CustomerAuthController extends Controller
 
         Auth::guard('customer')->login($customer);
 
-        return redirect('/customer/dashboard');
+        return redirect()->route('customer.dashboard');
     }
 
     public function logout(Request $request)
@@ -78,6 +78,6 @@ class CustomerAuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect()->route('home');
     }
 }

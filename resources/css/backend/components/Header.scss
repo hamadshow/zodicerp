@@ -98,6 +98,11 @@
     align-items: center;
     gap: 12px;
     margin-left: auto;
+
+    [dir="rtl"] & {
+        margin-left: 0;
+        margin-right: auto;
+    }
 }
 
 /* Action Buttons (Notifications, Cart, etc.) */
@@ -116,6 +121,7 @@
     transition: background-color 0.2s ease;
     text-decoration: none;
     position: relative;
+    font-size: 0.9rem;
 }
 
 .action-btn:hover {
@@ -133,35 +139,22 @@
     background-color: var(--danger-color, #ef4444);
     color: white;
     font-size: 0.65rem;
-    padding: 0;
-    border-radius: 50%;
-    width: 16px;
+    padding: 2px 4px;
+    min-width: 16px;
     height: 16px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 600;
+    border: 2px solid var(--dark-color, #1e293b);
 }
 
-/* Mobile Menu Toggle */
-.mobile-menu-toggle {
-    display: none;
-    background: transparent;
-    border: none;
-    color: white;
-    cursor: pointer;
-    padding: 8px;
-    border-radius: 6px;
-    transition: background-color 0.2s ease;
+[dir="rtl"] .action-btn .badge {
+    right: auto;
+    left: 4px;
 }
 
-.mobile-menu-toggle:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-}
-
-/* --------------------------------------------------------------------------
-   User Profile Section
-   -------------------------------------------------------------------------- */
+/* User Profile Section */
 .user-profile {
     display: flex;
     align-items: center;
@@ -173,6 +166,12 @@
     margin-left: 12px;
     transition: background-color 0.2s ease;
     cursor: pointer;
+}
+
+[dir="rtl"] .user-profile {
+    padding: 4px 4px 4px 6px;
+    margin-left: 0;
+    margin-right: 12px;
 }
 
 .user-profile:hover {
@@ -199,6 +198,11 @@
     padding-right: 8px;
 }
 
+[dir="rtl"] .user-info {
+    padding-right: 0;
+    padding-left: 8px;
+}
+
 .user-info div:first-child {
     font-weight: 600;
     font-size: 0.9rem;
@@ -211,94 +215,55 @@
 
 /* Logout Button */
 .logout-btn {
-    background: rgba(255, 255, 255, 0.1);
+    background: transparent;
     border: none;
-    color: white;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    margin-left: 4px;
+    padding: 6px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
 }
 
 .logout-btn:hover {
-    background-color: var(--danger-color, #ef4444);
+    color: #ef4444;
+    background-color: rgba(239, 68, 68, 0.1);
 }
 
 .logout-btn .material-icons-outlined {
-    font-size: 16px;
+    font-size: 20px;
 }
 
 /* --------------------------------------------------------------------------
-   Responsive Design
+   Mobile Responsiveness
    -------------------------------------------------------------------------- */
-@media (max-width: 1200px) {
-    .header-actions {
-        gap: 10px;
-    }
-    
-    .action-btn span:not(.material-icons-outlined) {
-        display: none;
-    }
-    
-    .user-info {
-        display: none;
-    }
-}
-
-@media (max-width: 992px) {
-    .mobile-menu-toggle {
-        display: block;
-    }
-    
+@media (max-width: 768px) {
     .header {
         padding: 0 16px;
     }
 
-    .action-btn span:not(.material-icons-outlined):not(.badge) {
-        display: none;
+    .search-bar {
+        display: none; /* Hide search bar on mobile */
     }
-}
 
-@media (max-width: 768px) {
-    .header {
-        height: auto;
-        min-height: var(--header-height, 60px);
-        padding: 10px 16px;
-        flex-wrap: wrap;
-        gap: 10px;
+    .mobile-menu-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .header-actions {
-        margin-left: auto;
+        gap: 4px;
     }
 
-    .action-btn {
-        padding: 8px;
-        width: 38px;
+    .user-info {
+        display: none; /* Hide user name/email on mobile */
     }
 
-    .user-profile {
-        background: transparent;
-        border: none;
-        padding: 0;
-        margin-left: 8px;
-    }
-
-    .user-profile:hover {
-        background: transparent;
-    }
-    
-    .logout-btn {
+    .action-btn span:not(.material-icons-outlined):not(.badge) {
         display: none;
-    }
-
-    .search-bar {
-        max-width: 200px;
     }
 }
 

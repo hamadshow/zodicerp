@@ -6,15 +6,20 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+use App\Traits\HasTranslations;
+
 class Products extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, HasTranslations;
 
     protected $fillable = [
         'product_code',
         'name',
+        'name_json',
         'slug',
+        'slug_json',
         'description',
+        'description_json',
         'content',
         'status',
         'images',
@@ -52,7 +57,9 @@ class Products extends Model
         'reviews_count',
         'reviews_avg',
         'meta_title',
+        'meta_title_json',
         'meta_description',
+        'meta_description_json',
         'generate_license_code',
         'license_code_type',
         'notify_attachment_updated',
@@ -66,6 +73,11 @@ class Products extends Model
 
     protected $casts = [
         'images' => 'array',
+        'name_json' => 'array',
+        'slug_json' => 'array',
+        'description_json' => 'array',
+        'meta_title_json' => 'array',
+        'meta_description_json' => 'array',
         'allow_checkout_when_out_of_stock' => 'boolean',
         'with_storehouse_management' => 'boolean',
         'price_includes_tax' => 'boolean',
@@ -79,6 +91,18 @@ class Products extends Model
         'sale_price' => 'decimal:2',
         'cost_per_item' => 'decimal:2',
     ];
+
+    protected $appends = ['converted_price', 'converted_sale_price'];
+
+    public function getConvertedPriceAttribute()
+    {
+        return \App\Services\CurrencyConverter::convert($this->price);
+    }
+
+    public function getConvertedSalePriceAttribute()
+    {
+        return $this->sale_price ? \App\Services\CurrencyConverter::convert($this->sale_price) : null;
+    }
 
     public function parent()
     {

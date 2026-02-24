@@ -5,6 +5,10 @@
     box-shadow: var(--shadow-md);
     padding: 24px;
     margin-bottom: 24px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .salary-actions {
@@ -13,6 +17,10 @@
     align-items: center;
     flex-wrap: wrap;
     margin-bottom: 24px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .receipt-status {
@@ -49,6 +57,10 @@
     display: flex;
     align-items: center;
     gap: 12px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .employee-avatar {
@@ -66,6 +78,10 @@
 .employee-details {
     display: flex;
     flex-direction: column;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .employee-name {
@@ -87,18 +103,31 @@
     font-size: 0.75rem;
     font-weight: 500;
     margin-right: 4px;
+
+    [dir="rtl"] & {
+        margin-right: 0;
+        margin-left: 4px;
+    }
 }
 
 .salary-amount {
     font-size: 0.9rem;
     color: var(--success-color);
     font-weight: 600;
+
+    [dir="rtl"] & {
+        text-align: left;
+    }
 }
 
 .salary-deduction {
     font-size: 0.85rem;
     color: var(--danger-color);
     font-weight: 500;
+
+    [dir="rtl"] & {
+        text-align: left;
+    }
 }
 
 .salary-net {
@@ -159,6 +188,10 @@
     margin-bottom: 20px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .modal-title {
@@ -193,6 +226,11 @@
     gap: 12px;
     padding-top: 20px;
     border-top: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        justify-content: flex-start;
+        flex-direction: row-reverse;
+    }
 }
 
 /* Salary receipt details */
@@ -360,12 +398,20 @@
 /* Form controls */
 .form-group {
     margin-bottom: 16px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-row {
     display: flex;
     gap: 16px;
     margin-bottom: 16px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .form-row .form-group {
@@ -388,12 +434,43 @@
     border-radius: 6px;
     font-size: 0.9rem;
     transition: border-color 0.2s ease;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-control:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+}
+
+.search-box {
+    position: relative;
+
+    .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--gray-color);
+
+        [dir="rtl"] & {
+            left: auto;
+            right: 12px;
+        }
+    }
+
+    input {
+        padding-left: 40px;
+
+        [dir="rtl"] & {
+            padding-left: 12px;
+            padding-right: 40px;
+            text-align: right;
+        }
+    }
 }
 
 /* Responsive adjustments */

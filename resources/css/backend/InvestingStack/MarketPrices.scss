@@ -35,6 +35,10 @@
     align-items: center;
     margin-bottom: 2rem;
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     h1 {
       font-size: 1.875rem;
       font-weight: 700;
@@ -62,6 +66,11 @@
       top: 50%;
       transform: translateY(-50%);
       color: var(--text-gray);
+
+      [dir="rtl"] & {
+        left: auto;
+        right: 1rem;
+      }
     }
 
     input {
@@ -71,6 +80,11 @@
       border-radius: var(--radius-md);
       font-size: 0.95rem;
       transition: var(--transition);
+
+      [dir="rtl"] & {
+        padding: 0.75rem 2.5rem 0.75rem 1rem;
+        text-align: right;
+      }
 
       &:focus {
         outline: none;
@@ -91,6 +105,10 @@
     transition: var(--transition);
     border: none;
     font-size: 0.95rem;
+
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
 
     &.btn-primary {
       background: var(--primary-color);
@@ -127,12 +145,20 @@
         color: var(--text-gray);
         border-bottom: 1px solid var(--border-color);
         white-space: nowrap;
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
 
       td {
         padding: 1rem;
         border-bottom: 1px solid var(--border-color);
         vertical-align: middle;
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
 
       tr:last-child td {
@@ -155,6 +181,10 @@
       .action-buttons {
         display: flex;
         gap: 0.5rem;
+
+        [dir="rtl"] & {
+          flex-direction: row-reverse;
+        }
 
         button {
           padding: 0.4rem;
@@ -193,6 +223,10 @@
       margin-bottom: 1.5rem;
       padding-bottom: 1rem;
       border-bottom: 1px solid var(--border-color);
+
+      [dir="rtl"] & {
+        text-align: right;
+      }
     }
 
     .form-grid {
@@ -213,6 +247,10 @@
         margin-bottom: 0.5rem;
         font-weight: 500;
         color: var(--text-dark);
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
 
       input, select {
@@ -222,6 +260,11 @@
         border-radius: var(--radius-md);
         font-size: 0.95rem;
         transition: var(--transition);
+
+        [dir="rtl"] & {
+          text-align: right;
+          direction: rtl;
+        }
 
         &:focus {
           outline: none;
@@ -243,12 +286,20 @@
       align-items: center;
       margin-top: 1rem;
 
+      [dir="rtl"] & {
+        flex-direction: row-reverse;
+      }
+
       .checkbox-label {
         display: flex;
         align-items: center;
         gap: 0.5rem;
         cursor: pointer;
         user-select: none;
+
+        [dir="rtl"] & {
+          flex-direction: row-reverse;
+        }
 
         input[type="checkbox"] {
           width: 1.2rem;
@@ -265,6 +316,10 @@
       margin-top: 2rem;
       padding-top: 1.5rem;
       border-top: 1px solid var(--border-color);
+
+      [dir="rtl"] & {
+        justify-content: flex-start;
+      }
     }
   }
 }

@@ -3,6 +3,7 @@ import { Head, Link, usePage, router, useForm } from '@inertiajs/react';
 import '../../../../css/homepage/main.scss';
 import Header from '../Components/Header';
 import Footer from '../Components/Footer';
+import { useCurrency } from '../../../Hooks/useCurrency';
 
 const menuItems = [
   { key: 'overview', label: 'Overview', icon: 'fas fa-home' },
@@ -15,8 +16,18 @@ const menuItems = [
   { key: 'logout', label: 'Logout', icon: 'fas fa-sign-out-alt' },
 ];
 
-export default function Dashboard({ categories = [], addresses = [], countries = [], cities = [] }) {
+export default function Dashboard({ categories = [], addresses = [], orders = [], countries = [], cities = [] }) {
   const { auth } = usePage().props;
+  const { localization } = useCurrency();
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const user = auth.customer || auth.user;
   const displayName = user?.name || user?.email || 'Customer';
   const [activeTab, setActiveTab] = useState('overview');
@@ -43,7 +54,7 @@ export default function Dashboard({ categories = [], addresses = [], countries =
   const [editingAddress, setEditingAddress] = useState(null);
 
   const handleLogout = () => {
-    router.post(route('customer.logout'));
+    router.post(getLocalizedRoute('customer.logout'));
   };
 
   const openAddressForm = (address = null) => {
@@ -98,11 +109,11 @@ export default function Dashboard({ categories = [], addresses = [], countries =
   const handleSaveAddress = (e) => {
     e.preventDefault();
     if (editingAddress) {
-      put(route('customer.addresses.update', editingAddress.id), {
+      put(getLocalizedRoute('customer.addresses.update', { address: editingAddress.id }), {
         onSuccess: () => closeAddressForm(),
       });
     } else {
-      post(route('customer.addresses.store'), {
+      post(getLocalizedRoute('customer.addresses.store'), {
         onSuccess: () => closeAddressForm(),
       });
     }
@@ -110,7 +121,7 @@ export default function Dashboard({ categories = [], addresses = [], countries =
 
   const handleDeleteAddress = (id) => {
     if (confirm('Are you sure you want to delete this address?')) {
-      destroy(route('customer.addresses.destroy', id));
+      destroy(getLocalizedRoute('customer.addresses.destroy', { address: id }));
     }
   };
 
@@ -445,6 +456,68 @@ export default function Dashboard({ categories = [], addresses = [], countries =
                             )}
                         </div>
                     )}
+                </div>
+            )}
+
+            {activeTab === 'orders' && (
+                <div className="dashboard-content-section">
+                    <div className="section-header" style={{ marginBottom: '20px' }}>
+                        <h2 style={{ fontSize: '20px', fontWeight: 'bold' }}>My Orders / طلباتي</h2>
+                    </div>
+
+                    <div className="orders-table-container" style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dee2e6', overflow: 'hidden' }}>
+                        <table className="orders-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <thead style={{ background: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
+                                <tr>
+                                    <th style={{ padding: '12px 15px', textAlign: 'left', fontSize: '14px', fontWeight: '600' }}>Order # / رقم الطلب</th>
+                                    <th style={{ padding: '12px 15px', textAlign: 'left', fontSize: '14px', fontWeight: '600' }}>Date / التاريخ</th>
+                                    <th style={{ padding: '12px 15px', textAlign: 'left', fontSize: '14px', fontWeight: '600' }}>Items / الأصناف</th>
+                                    <th style={{ padding: '12px 15px', textAlign: 'left', fontSize: '14px', fontWeight: '600' }}>Total / الإجمالي</th>
+                                    <th style={{ padding: '12px 15px', textAlign: 'left', fontSize: '14px', fontWeight: '600' }}>Status / الحالة</th>
+                                    <th style={{ padding: '12px 15px', textAlign: 'center', fontSize: '14px', fontWeight: '600' }}>Action / إجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {orders.map(order => (
+                                    <tr key={order.id} style={{ borderBottom: '1px solid #eee' }}>
+                                        <td style={{ padding: '12px 15px', fontSize: '14px' }}>#{order.number}</td>
+                                        <td style={{ padding: '12px 15px', fontSize: '14px' }}>{order.date}</td>
+                                        <td style={{ padding: '12px 15px', fontSize: '14px' }}>{order.items_count} items / أصناف</td>
+                                        <td style={{ padding: '12px 15px', fontSize: '14px', fontWeight: '600' }}>{order.total} EGP / ج.م</td>
+                                        <td style={{ padding: '12px 15px', fontSize: '14px' }}>
+                                            <span className={`status-badge status-${order.status}`} style={{
+                                                padding: '4px 10px',
+                                                borderRadius: '20px',
+                                                fontSize: '12px',
+                                                fontWeight: '500',
+                                                background: order.status === 'paid' ? '#d1e7dd' : (order.status === 'unpaid' ? '#fff3cd' : '#f8d7da'),
+                                                color: order.status === 'paid' ? '#0f5132' : (order.status === 'unpaid' ? '#664d03' : '#842029')
+                                            }}>
+                                                {order.status === 'paid' ? 'Paid / مدفوع' : (order.status === 'unpaid' ? 'Unpaid / غير مدفوع' : order.status.toUpperCase())}
+                                            </span>
+                                        </td>
+                                        <td style={{ padding: '12px 15px', textAlign: 'center' }}>
+                                            <Link 
+                                                href={getLocalizedRoute('checkout.success', { invoice: order.number })}
+                                                className="btn-view-order"
+                                                style={{ padding: '6px 12px', background: '#f8f9fa', border: '1px solid #dee2e6', borderRadius: '4px', fontSize: '12px', textDecoration: 'none', color: '#333' }}
+                                            >
+                                                View / عرض
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {orders.length === 0 && (
+                                    <tr>
+                                        <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
+                                            <i className="fas fa-shopping-cart" style={{ fontSize: '32px', marginBottom: '15px', display: 'block', opacity: 0.5 }}></i>
+                                            No orders found. / لا توجد طلبات.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
           </main>

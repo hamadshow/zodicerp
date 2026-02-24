@@ -4,6 +4,10 @@
     box-shadow: var(--shadow-md);
     padding: 24px;
     margin-bottom: 24px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .eos-actions {
@@ -12,6 +16,10 @@
     align-items: center;
     flex-wrap: wrap;
     margin-bottom: 20px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .status-badge {
@@ -64,6 +72,10 @@
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
     animation: modalSlideIn 0.3s ease;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .modal-header {
@@ -71,6 +83,10 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .modal-title {
@@ -89,6 +105,10 @@
 
 .form-group {
     margin-bottom: 16px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-label {
@@ -97,6 +117,10 @@
     font-weight: 500;
     color: var(--dark-color);
     font-size: 0.9rem;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-control {
@@ -105,6 +129,10 @@
     border: 1px solid var(--border-color);
     border-radius: 6px;
     font-size: 0.9rem;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-textarea {
@@ -117,6 +145,10 @@
     justify-content: flex-end;
     gap: 12px;
     margin-top: 24px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 @media (max-width: 768px) {

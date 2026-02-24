@@ -14,6 +14,10 @@
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .COAReport-page .report-title-section h1 {
@@ -21,17 +25,29 @@
   font-weight: 700;
   color: #1e293b;
   margin: 0 0 4px;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .COAReport-page .report-subtitle {
   font-size: 0.875rem;
   color: #64748b;
   margin: 0;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .COAReport-page .report-actions {
   display: flex;
   gap: 12px;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .COAReport-page .btn {
@@ -45,6 +61,10 @@
   cursor: pointer;
   transition: all 0.2s;
   border: 1px solid transparent;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .COAReport-page .btn-primary {
@@ -77,6 +97,10 @@
   flex-wrap: wrap;
   gap: 16px;
   align-items: center;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .COAReport-page .search-input-wrapper {
@@ -92,6 +116,11 @@
   transform: translateY(-50%);
   color: #94a3b8;
   font-size: 20px;
+
+  [dir="rtl"] & {
+    left: auto;
+    right: 12px;
+  }
 }
 
 .COAReport-page .search-input {
@@ -102,6 +131,11 @@
   font-size: 0.875rem;
   outline: none;
   transition: border-color 0.2s;
+
+  [dir="rtl"] & {
+    padding: 10px 40px 10px 12px;
+    text-align: right;
+  }
 }
 
 .COAReport-page .search-input:focus {
@@ -123,6 +157,12 @@
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 16px;
+
+  [dir="rtl"] & {
+    padding: 10px 12px 10px 36px;
+    background-position: left 12px center;
+    text-align: right;
+  }
 }
 
 .COAReport-page .filter-select:focus {
@@ -150,12 +190,20 @@
   padding: 12px 16px;
   border-bottom: 1px solid #e2e8f0;
   white-space: nowrap;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .COAReport-page .report-table td {
   padding: 12px 16px;
   border-bottom: 1px solid #f1f5f9;
   color: #334155;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .COAReport-page .report-table tr:last-child td {
@@ -184,6 +232,10 @@
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 500;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .COAReport-page .status-active {
@@ -203,6 +255,11 @@
   background-color: #cbd5e1;
   margin-right: 8px;
   vertical-align: middle;
+
+  [dir="rtl"] & {
+    margin-right: 0;
+    margin-left: 8px;
+  }
 }
 
 .COAReport-page .total-row td {

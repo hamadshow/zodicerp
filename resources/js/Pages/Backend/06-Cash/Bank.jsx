@@ -682,7 +682,7 @@ const Bank = ({ banks, filters, glAccounts, currencies }) => {
             
             <div className="bank-page">
                 <div className="breadcrumb mb-6 text-sm text-gray-500">
-                    <span className="cursor-pointer hover:text-blue-600" onClick={() => router.visit(route('admin'))}>Dashboard</span>
+                    <span className="cursor-pointer hover:text-blue-600" onClick={() => router.visit(route('admin.dashboard'))}>Dashboard</span>
                     <span className="mx-2">/</span>
                     <span>Cash & Banks</span>
                     <span className="mx-2">/</span>

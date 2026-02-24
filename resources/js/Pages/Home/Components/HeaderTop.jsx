@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import '../../../../css/homepage/main.scss';
 import SearchBar from './SearchBar';
+import { useCurrency } from '../../../Hooks/useCurrency';
+import { useTranslation } from '../../../Hooks/useTranslation';
 
 const resolveMediaUrl = (value) => {
   if (!value) return null;
@@ -30,6 +32,7 @@ export default function HeaderTop({
   cartVersion = 0,
 }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isLangOpen, setIsLangOpen] = useState(false);
   const [isCartLoading, setIsCartLoading] = useState(false);
   const [miniCart, setMiniCart] = useState({ items: [], subTotal: 0, tax: 0, total: 0 });
   const [miniCartError, setMiniCartError] = useState(null);
@@ -43,7 +46,7 @@ export default function HeaderTop({
     setIsCartLoading(true);
     setMiniCartError(null);
     try {
-      const response = await window.axios.get('/cart/mini');
+      const response = await window.axios.get(getLocalizedRoute('cart.mini'));
       setMiniCart({
         items: response?.data?.items || [],
         subTotal: response?.data?.subTotal || 0,
@@ -78,7 +81,7 @@ export default function HeaderTop({
 
   const removeItem = async (itemKey) => {
     try {
-      const response = await window.axios.post('/cart/remove', { item_key: itemKey });
+      const response = await window.axios.post(getLocalizedRoute('cart.remove'), { item_key: itemKey });
       if (typeof response?.data?.cartCount === 'number') {
         window.dispatchEvent(
           new CustomEvent('cart:updated', { detail: { count: response.data.cartCount, version: response?.data?.cartVersion } })
@@ -91,10 +94,25 @@ export default function HeaderTop({
     }
   };
 
-  const formatMoney = (value) => {
-    const numeric = typeof value === 'number' ? value : Number(value);
-    const safe = Number.isFinite(numeric) ? numeric : 0;
-    return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP' }).format(safe);
+  const { formatMoney, localization } = useCurrency();
+  const { t } = useTranslation();
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
+  const handleLocaleChange = (newLocale) => {
+    const country = localization?.country_code || 'sa';
+    router.get(`/${country}/${newLocale}`);
+  };
+
+  const handleCountryChange = (newCountry) => {
+    const locale = localization?.current_locale || 'ar';
+    router.get(`/${newCountry}/${locale}`);
   };
 
   const totalQuantity = miniCart.items.reduce(
@@ -106,17 +124,17 @@ export default function HeaderTop({
 
   const handleUserButtonClick = () => {
     if (!user) {
-      window.location.href = '/login';
+      window.location.href = getLocalizedRoute('login');
     }
   };
 
   const handleLogout = () => {
-    router.post(route('logout'));
+    router.post(getLocalizedRoute('customer.logout'));
   };
 
-  const handleAccountClick = () => {
-    if (user) {
-      router.visit(route('account.dashboard'));
+  const handleDashboard = () => {
+    if (user?.role === 'customer') {
+      router.visit(getLocalizedRoute('customer.dashboard'));
     }
   };
 
@@ -133,26 +151,57 @@ export default function HeaderTop({
         onSearch={onSearch}
       />
       <div className="header-actions">
-        <div className="language-selector">
-          <i className="fas fa-globe"></i>
-          <span>English</span>
-          <i className="fas fa-chevron-down"></i>
+        <div className="language-selector-wrapper">
+          <div 
+            className="language-selector" 
+            onClick={() => setIsLangOpen(!isLangOpen)}
+          >
+            <i className="fas fa-globe"></i>
+            <span>
+              {localization?.active_languages?.find(l => l.lang_code === localization?.current_locale)?.lang_name || 
+               (localization?.current_locale === 'ar' ? 'العربية' : 'English')}
+            </span>
+            <i className={`fas fa-chevron-down ${isLangOpen ? 'rotate' : ''}`}></i>
+          </div>
+          
+          {isLangOpen && (
+            <div className="language-dropdown">
+              {localization?.active_languages?.map((lang) => (
+                <div 
+                  key={lang.lang_id}
+                  className={`lang-item ${localization?.current_locale === lang.lang_code ? 'active' : ''}`}
+                  onClick={() => {
+                    handleLocaleChange(lang.lang_code);
+                    setIsLangOpen(false);
+                  }}
+                >
+                  {lang.lang_flag && (
+                    <span className={`flag-icon flag-icon-${lang.lang_flag}`}></span>
+                  )}
+                  {lang.lang_name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="country-selector" onClick={() => handleCountryChange(localization?.country_code === 'sa' ? 'eg' : 'sa')}>
+          <i className="fas fa-map-marker-alt"></i>
+          <span>{localization?.current_country?.name || localization?.country_code?.toUpperCase()}</span>
         </div>
         <div className="currency-selector">
-          <i className="fas fa-dollar-sign"></i>
-          <span>USD</span>
-          <i className="fas fa-chevron-down"></i>
+          <i className="fas fa-money-bill-wave"></i>
+          <span>{localization?.currency_code}</span>
         </div>
         <div className="user-menu">
           <div className="menu-item help-center">
             <i className="fas fa-question-circle"></i>
-            <span>Help Center</span>
+            <span>{t('header.help_center', 'Help Center')}</span>
           </div>
           {user ? (
             <div className="menu-item user-account-block">
               <i className="fas fa-user"></i>
               <div className="user-account-text">
-                <span className="user-account-name" onClick={handleAccountClick}>
+                <span className="user-account-name" onClick={handleDashboard}>
                   {user.name}
                 </span>
                 <button
@@ -160,7 +209,7 @@ export default function HeaderTop({
                   className="user-account-logout"
                   onClick={handleLogout}
                 >
-                  Logout
+                  {t('header.logout', 'Logout')}
                 </button>
               </div>
             </div>
@@ -171,7 +220,7 @@ export default function HeaderTop({
               onClick={handleUserButtonClick}
             >
               <i className="fas fa-user"></i>
-              <span>Sign In</span>
+              <span>{t('header.sign_in', 'Sign In')}</span>
             </button>
           )}
           <div
@@ -183,7 +232,7 @@ export default function HeaderTop({
               <i className="fas fa-shopping-cart"></i>
               <div className="badge">{cartCount}</div>
             </div>
-            <span>{totalQuantity > 0 ? `Cart (${totalQuantity})` : 'Cart'}</span>
+            <span>{totalQuantity > 0 ? `${t('header.cart', 'Cart')} (${totalQuantity})` : t('header.cart', 'Cart')}</span>
 
             {isCartOpen && (
               <div
@@ -193,12 +242,12 @@ export default function HeaderTop({
               >
                 <div className="mini-cart-panel">
                   <div className="mini-cart-items">
-                    {isCartLoading && <div className="mini-cart-loading">Loading...</div>}
+                    {isCartLoading && <div className="mini-cart-loading">{t('cart.loading', 'Loading...')}</div>}
                     {!isCartLoading && miniCartError && (
                       <div className="mini-cart-error">{miniCartError}</div>
                     )}
                     {!isCartLoading && !miniCartError && miniCart.items.length === 0 && (
-                      <div className="mini-cart-empty">Your cart is empty.</div>
+                      <div className="mini-cart-empty">{t('cart.empty', 'Your cart is empty.')}</div>
                     )}
                     {!isCartLoading &&
                       !miniCartError &&
@@ -212,7 +261,7 @@ export default function HeaderTop({
                           />
                           <div className="mini-cart-item-info">
                             <Link
-                              href={route('product.details', item.productId)}
+                              href={getLocalizedRoute('product.details', { identifier: item.productId })}
                               className="mini-cart-item-title"
                             >
                               {item.name}
@@ -230,7 +279,7 @@ export default function HeaderTop({
                             <div className="mini-cart-item-meta">
                               {item.quantity} x {formatMoney(item.unitPrice)}
                             </div>
-                            <div className="mini-cart-item-supplier">Sold by: {item.supplier}</div>
+                            <div className="mini-cart-item-supplier">{t('cart.sold_by', 'Sold by:')} {item.supplier}</div>
                           </div>
                           <button
                             type="button"
@@ -250,15 +299,15 @@ export default function HeaderTop({
 
                   <div className="mini-cart-summary">
                     <div className="mini-cart-row">
-                      <span>Sub Total:</span>
+                      <span>{t('cart.sub_total', 'Sub Total:')}</span>
                       <span>{formatMoney(miniCart.subTotal)}</span>
                     </div>
                     <div className="mini-cart-row">
-                      <span>Tax:</span>
+                      <span>{t('cart.tax', 'Tax:')}</span>
                       <span>{formatMoney(miniCart.tax)}</span>
                     </div>
                     <div className="mini-cart-row total">
-                      <span>Total:</span>
+                      <span>{t('cart.total', 'Total:')}</span>
                       <span>{formatMoney(miniCart.total)}</span>
                     </div>
                   </div>
@@ -269,20 +318,20 @@ export default function HeaderTop({
                       className="mini-cart-btn secondary"
                       onClick={() => {
                         setIsCartOpen(false);
-                        router.visit(route('cart.index'));
+                        router.visit(getLocalizedRoute('cart.index'));
                       }}
                     >
-                      View Cart
+                      {t('cart.view_cart', 'View Cart')}
                     </button>
                     <button
                       type="button"
                       className="mini-cart-btn primary"
                       onClick={() => {
                         setIsCartOpen(false);
-                        router.visit(route('checkout'));
+                        router.visit(getLocalizedRoute('checkout'));
                       }}
                     >
-                      Checkout
+                      {t('cart.checkout', 'Checkout')}
                     </button>
                   </div>
                 </div>

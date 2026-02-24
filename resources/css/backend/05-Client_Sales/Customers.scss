@@ -66,6 +66,10 @@
     align-items: center;
     margin-bottom: 2rem;
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     h1 {
       font-size: 1.875rem;
       font-weight: 700;
@@ -132,6 +136,10 @@
       border-spacing: 0;
       text-align: left;
 
+      [dir="rtl"] & {
+        text-align: right;
+      }
+
       th, td {
         padding: 1rem 1.5rem;
         border-bottom: 1px solid var(--border-color);
@@ -192,7 +200,11 @@
       .actions {
         display: flex;
         gap: 0.5rem;
-        
+
+        [dir="rtl"] & {
+          flex-direction: row-reverse;
+        }
+
         button {
           padding: 0.375rem 0.75rem;
           border-radius: var(--radius-sm);
@@ -292,6 +304,10 @@
       display: flex;
       justify-content: space-between;
       
+      [dir="rtl"] & {
+        flex-direction: row-reverse;
+      }
+      
       .required { color: var(--danger-color); margin-left: 0.25rem; }
     }
 
@@ -304,6 +320,10 @@
       font-size: 0.875rem;
       transition: all var(--transition-fast);
       width: 100%;
+
+      [dir="rtl"] & {
+        text-align: right;
+      }
       
       /* Ensure native controls match the theme */
       color-scheme: normal; 
@@ -362,6 +382,10 @@
       margin-top: 2rem;
       padding-top: 2rem;
       border-top: 1px solid var(--border-color);
+
+      [dir="rtl"] & {
+        justify-content: flex-start;
+      }
   }
 }
 

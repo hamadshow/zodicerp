@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { usePage } from '@inertiajs/react';
+import { usePage, router } from '@inertiajs/react';
 import '../../../../css/homepage/main.scss';
 import AnnouncementBar from './AnnouncementBar';
 import HeaderTop from './HeaderTop';
@@ -65,9 +65,25 @@ export default function Header({
     }, 400);
   };
 
+  const { localization } = page.props;
+  const isRtl = localization?.is_rtl;
+
+  useEffect(() => {
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+    document.documentElement.lang = localization?.current_locale || 'ar';
+  }, [isRtl, localization?.current_locale]);
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const handleSearch = () => {
     if (query.trim()) {
-      search(query);
+      router.get(getLocalizedRoute('products.index'), { q: query });
     }
   };
 

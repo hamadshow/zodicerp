@@ -8,6 +8,7 @@ use App\Models\Categories;
 use App\Models\Country;
 use App\Models\City;
 use App\Models\Client_Sales\CustomerAddress;
+use App\Services\CurrencyConverter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -51,12 +52,12 @@ class HomeController extends Controller
 
                 return [
                     'id' => $product->id,
-                    'name' => $product->name,
-                    'price' => $price,
-                    'sale_price' => $product->sale_price,
+                    'name' => $product->getTranslated('name_json') ?: $product->name,
+                    'price' => CurrencyConverter::convert($price),
+                    'sale_price' => $product->sale_price ? CurrencyConverter::convert($product->sale_price) : null,
                     'product_type' => $product->product_type,
-                    'min_price' => $minPrice,
-                    'max_price' => $maxPrice,
+                    'min_price' => CurrencyConverter::convert($minPrice),
+                    'max_price' => CurrencyConverter::convert($maxPrice),
                     'originalPrice' => null,
                     'moq' => $product->minimum_order_quantity ? $product->minimum_order_quantity . ' pcs' : '1 pc',
                     'orders' => ($product->views ?? 0) . ' Views',
@@ -297,7 +298,7 @@ class HomeController extends Controller
 
         $formattedProduct = [
             'id' => $product->id,
-            'name' => $product->name,
+            'name' => $product->getTranslated('name_json') ?: $product->name,
             'price' => $product->price,
             'min_price' => $minPrice,
             'max_price' => $maxPrice,
@@ -308,11 +309,11 @@ class HomeController extends Controller
             'reviews' => 12, // Mock reviews
             'store_name' => $product->brand ? $product->brand->name : 'ZodiMarket',
             'store_url' => '#',
-            'description' => $product->description,
-            'content' => $product->content,
+            'description' => $product->getTranslated('description_json') ?: $product->description,
+            'content' => $product->getTranslated('content_json') ?: $product->content,
             'stock' => $product->quantity ?? 0,
             'sku' => $product->sku,
-            'category_name' => $product->categories->first() ? $product->categories->first()->name : null,
+            'category_name' => $product->categories->first() ? ($product->categories->first()->getTranslated('name_json') ?: $product->categories->first()->name) : null,
             'images' => $images,
             'parent_images' => $parentImages,
             'colors' => $colors,
@@ -332,12 +333,13 @@ class HomeController extends Controller
         $categories = $this->getTopCategories();
         
         $level2Categories = $categories->pluck('children')->flatten()->map(function($cat) {
+            $name = $cat instanceof \App\Models\Categories ? ($cat->getTranslated('name_json') ?: $cat->name) : ($cat['name'] ?? '');
             return [
-                'id' => $cat->id,
-                'name' => $cat->name,
-                'slug' => $cat->slug,
-                'image' => $this->formatMediaUrl($cat->image, 'https://via.placeholder.com/60?text=' . (isset($cat->name[0]) ? $cat->name[0] : 'C')),
-                'parent_id' => $cat->parent_id
+                'id' => $cat instanceof \App\Models\Categories ? $cat->id : ($cat['id'] ?? null),
+                'name' => $name,
+                'slug' => $cat instanceof \App\Models\Categories ? $cat->slug : ($cat['slug'] ?? ''),
+                'image' => $this->formatMediaUrl($cat instanceof \App\Models\Categories ? $cat->image : ($cat['image'] ?? null), 'https://via.placeholder.com/60?text=' . (isset($name[0]) ? $name[0] : 'C')),
+                'parent_id' => $cat instanceof \App\Models\Categories ? $cat->parent_id : ($cat['parent_id'] ?? null)
             ];
         });
 
@@ -386,7 +388,10 @@ class HomeController extends Controller
         // Filter by Search
         if ($request->has('q')) {
             $search = $request->input('q');
-            $query->where('name', 'like', "%{$search}%");
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('name_json', 'like', "%{$search}%");
+            });
         }
 
         $products = $query->orderBy('created_at', 'desc')->paginate(12)->withQueryString();
@@ -417,15 +422,15 @@ class HomeController extends Controller
 
             return [
                 'id' => $product->id,
-                'name' => $product->name,
+                'name' => $product->getTranslated('name_json') ?: $product->name,
                 'slug' => $product->slug,
-                'price' => $price,
-                'min_price' => $minPrice,
-                'max_price' => $maxPrice,
-                'discount_price' => $product->sale_price,
+                'price' => CurrencyConverter::convert($price),
+                'min_price' => CurrencyConverter::convert($minPrice),
+                'max_price' => CurrencyConverter::convert($maxPrice),
+                'discount_price' => $product->sale_price ? CurrencyConverter::convert($product->sale_price) : null,
                 'product_type' => $product->product_type,
                 'image' => $this->formatMediaUrl($primaryImage, 'https://via.placeholder.com/300x300'),
-                'category' => $product->categories->first() ? $product->categories->first()->name : null,
+                'category' => $product->categories->first() ? ($product->categories->first()->getTranslated('name_json') ?: $product->categories->first()->name) : null,
                 'brand' => $product->brand ? $product->brand->name : null,
                 'rating' => 4.5,
                 'reviews' => 10,
@@ -501,22 +506,49 @@ class HomeController extends Controller
         $user = Auth::guard('customer')->user() ?: Auth::user();
         
         // Find the customer record. If the logged in user is not a Customer model, 
-        // try to find a customer with the same email.
+        // try to find a customer with the same email or phone.
         $customer = $user instanceof \App\Models\Client_Sales\Customer 
             ? $user 
             : \App\Models\Client_Sales\Customer::where('email', $user->email)->first();
 
+        if (!$customer && $user) {
+            $phone = $user->phone ?? $user->mobile;
+            if ($phone) {
+                $customer = \App\Models\Client_Sales\Customer::where('mobile', $phone)
+                    ->orWhere('primary_phone', $phone)
+                    ->first();
+            }
+        }
+
         $addresses = [];
+        $orders = [];
         if ($customer) {
             $addresses = CustomerAddress::where('customer_id', $customer->id)
                 ->with(['country', 'city'])
                 ->latest()
                 ->get();
+
+            $rawOrders = \App\Models\Client_Sales\SalesInvoice::where('customer_id', $customer->id)
+                ->with(['details.product'])
+                ->latest()
+                ->get();
+
+            $orders = $rawOrders->map(function ($invoice) {
+                return [
+                    'id' => $invoice->id,
+                    'number' => $invoice->invoice_number,
+                    'date' => $invoice->invoice_date ? $invoice->invoice_date->toDateString() : null,
+                    'total' => (float) $invoice->total_amount,
+                    'status' => $invoice->payment_status,
+                    'items_count' => $invoice->details->count(),
+                ];
+            });
         }
 
         return Inertia::render('Home/User/Dashboard', [
             'categories' => $categories,
             'addresses' => $addresses,
+            'orders' => $orders,
             'countries' => Country::where('status', 'active')->get(['id', 'name_en', 'name_ar', 'name']),
             'cities' => City::where('status', 'active')->get(['id', 'name', 'country_id']),
         ]);
@@ -658,6 +690,23 @@ class HomeController extends Controller
             ->with('children')
             ->orderBy('order')
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function ($category) {
+                return $this->transformCategory($category);
+            });
+    }
+
+    protected function transformCategory($category)
+    {
+        $transformed = $category->toArray();
+        $transformed['name'] = $category->getTranslated('name_json') ?: $category->name;
+        
+        if ($category->relationLoaded('children')) {
+            $transformed['children'] = $category->children->map(function ($child) {
+                return $this->transformCategory($child);
+            });
+        }
+        
+        return $transformed;
     }
 }

@@ -1,0 +1,20 @@
+<?php
+return [
+    'add_to_cart' => 'Add to Cart',
+    'adding' => 'Adding...',
+    'added' => 'Added',
+    'quick_view' => 'Quick View',
+    'moq' => 'MOQ',
+    'orders' => 'Orders',
+    'verified' => 'Verified',
+    'remove_from_wishlist' => 'Remove from wishlist',
+    'add_to_wishlist' => 'Add to wishlist',
+    'loading' => 'Loading...',
+    'empty' => 'Your cart is empty.',
+    'sold_by' => 'Sold by:',
+    'sub_total' => 'Sub Total:',
+    'tax' => 'Tax:',
+    'total' => 'Total:',
+    'view_cart' => 'View Cart',
+    'checkout' => 'Checkout',
+];

@@ -3,9 +3,19 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 export default function Register() {
+  const { localization } = usePage().props;
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const { data, setData, post, processing, errors, reset } = useForm({
     name: '',
     email: '',
@@ -16,7 +26,7 @@ export default function Register() {
   const submit = (e) => {
     e.preventDefault();
 
-    post(route('register'), {
+    post(getLocalizedRoute('register'), {
       onFinish: () => reset('password', 'password_confirmation'),
     });
   };
@@ -99,7 +109,7 @@ export default function Register() {
 
         <div className="mt-4 flex items-center justify-end">
           <Link
-            href={route('login')}
+            href={getLocalizedRoute('login')}
             className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
             Already registered?

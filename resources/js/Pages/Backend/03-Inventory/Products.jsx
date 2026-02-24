@@ -100,7 +100,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                 <div className="content-area">
                 <div className="page-header-section">
                     <div className="breadcrumb">
-                        <Link href={route('admin')}>Dashboard</Link>
+                        <Link href={route('admin.dashboard')}>Dashboard</Link>
                         <span>/</span>
                         <span>Inventory</span>
                         <span>/</span>
@@ -1007,7 +1007,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
             <Head title={`${pageTitle} - ZodicERP`} />
             <div className="products-ce-page">
                 <div className="breadcrumb">
-                    <Link href={route('admin')}>Dashboard</Link>
+                    <Link href={route('admin.dashboard')}>Dashboard</Link>
                     <span>/</span>
                     <span>Inventory</span>
                     <span>/</span>

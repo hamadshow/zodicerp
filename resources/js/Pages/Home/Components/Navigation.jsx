@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from '../../../Hooks/useTranslation';
 import '../../../../css/homepage/main.scss';
 
 const resolveMediaUrl = (value) => {
@@ -35,6 +36,7 @@ export default function Navigation({
   activeIndex = 0,
   categoriesData = [],
 }) {
+  const { t } = useTranslation();
   const [activeCategory, setActiveCategory] = useState(null);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const dropdownRef = useRef(null);
@@ -73,7 +75,7 @@ export default function Navigation({
                     onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
                 >
                     <i className="fas fa-bars"></i>
-                    <span>All Categories</span>
+                    <span>{t('home.all_categories', 'All Categories')}</span>
                 </button>
                 {showCategoryDropdown && (
                     <div className="category-dropdown-nav active">

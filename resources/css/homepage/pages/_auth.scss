@@ -49,7 +49,7 @@
 
 .auth-brand {
   margin-bottom: 32px;
-  text-align: left;
+  text-align: start;
 }
 
 .auth-card {
@@ -186,7 +186,7 @@
 
 .auth-hero-list {
   margin-top: 16px;
-  padding-left: 18px;
+  padding-inline-start: 18px;
   font-size: 13px;
   color: rgba(226, 232, 240, 0.9);
 }

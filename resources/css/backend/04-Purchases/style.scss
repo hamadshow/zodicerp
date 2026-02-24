@@ -59,6 +59,11 @@
     color: white;
     font-size: 28px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+
+    [dir="rtl"] & {
+        margin-right: 0;
+        margin-left: 20px;
+    }
 }
 
 .stat-content {
@@ -175,6 +180,10 @@
     padding: 16px 24px;
     border-bottom: 1px solid #e2e8f0;
     text-align: left;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .data-table td {
@@ -184,6 +193,11 @@
     font-size: 0.875rem;
     background-color: white;
     transition: background-color 0.2s ease;
+    text-align: left;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .data-table tr:hover td {

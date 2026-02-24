@@ -11,6 +11,10 @@
     gap: 12px;
     margin-top: auto;
     width: 100%;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 @media (max-width: 992px) {

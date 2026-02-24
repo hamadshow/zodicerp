@@ -1,5 +1,5 @@
 import React from 'react';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -7,6 +7,16 @@ import TextInput from '@/Components/TextInput';
 
 // Register Form Component
 const RegisterForm = ({ onClose, onSwitchToLogin }) => {
+  const { localization } = usePage().props;
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const { data, setData, post, processing, errors, reset } = useForm({
     name: '',
     email: '',
@@ -16,7 +26,7 @@ const RegisterForm = ({ onClose, onSwitchToLogin }) => {
 
   const submit = (e) => {
     e.preventDefault();
-    post(route('register'), {
+    post(getLocalizedRoute('register'), {
       onFinish: () => reset('password', 'password_confirmation'),
       onSuccess: () => onClose(),
     });

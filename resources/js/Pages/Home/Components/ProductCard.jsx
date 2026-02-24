@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from '@inertiajs/react';
+import { useCurrency } from '../../../Hooks/useCurrency';
+import { useTranslation } from '../../../Hooks/useTranslation';
 
 const FALLBACK_IMAGE = 'https://via.placeholder.com/300x200';
 
@@ -34,6 +36,17 @@ const ProductCard = ({
   const [isAdding, setIsAdding] = useState(false);
   const [added, setAdded] = useState(false);
 
+  const { formatMoney, localization } = useCurrency();
+  const { t } = useTranslation();
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const handleAddToCart = async () => {
     if (isAdding) return;
     setIsAdding(true);
@@ -48,6 +61,10 @@ const ProductCard = ({
     }
   };
 
+  const productUrl = getLocalizedRoute('product.details', {
+    identifier: product.id
+  });
+
   return (
     <div
       className="product-card fade-in"
@@ -55,7 +72,7 @@ const ProductCard = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       <Link
-        href={route('product.details', product.id)}
+        href={productUrl}
         className="product-card-link-overlay"
         aria-label={`View ${product.name}`}
       />
@@ -84,7 +101,7 @@ const ProductCard = ({
                 onQuickView && onQuickView(product);
               }}
             >
-              <i className="fas fa-eye"></i> Quick View
+              <i className="fas fa-eye"></i> {t('cart.quick_view', 'Quick View')}
             </button>
           </div>
         )}
@@ -94,39 +111,39 @@ const ProductCard = ({
         <div className="product-price">
           {product.min_price && product.max_price && product.min_price !== product.max_price ? (
             <>
-              ${product.max_price} ~ ${product.min_price}
+              {formatMoney(product.max_price)} ~ {formatMoney(product.min_price)}
             </>
           ) : (
             <>
               {product.product_type !== 'variable' && product.sale_price ? (
                 <>
-                  <span className="sale-price">${product.sale_price}</span>
+                  <span className="sale-price">{formatMoney(product.sale_price)}</span>
                   <span className="product-original-price" style={{ textDecoration: 'line-through', marginLeft: '8px', color: '#999', fontSize: '0.9em' }}>
-                    ${product.price}
+                    {formatMoney(product.price)}
                   </span>
                 </>
               ) : (
                 <>
-                  ${product.price}
+                  {formatMoney(product.price)}
                 </>
               )}
             </>
           )}
           {product.originalPrice && !product.sale_price && (
             <span className="product-original-price">
-              ${product.originalPrice}
+              {formatMoney(product.originalPrice)}
             </span>
           )}
         </div>
         <div className="product-info">
-          <span className="product-moq">MOQ: {product.moq}</span>
-          <span className="product-orders">Orders: {product.orders}</span>
+          <span className="product-moq">{t('cart.moq', 'MOQ')}: {product.moq}</span>
+          <span className="product-orders">{t('cart.orders', 'Orders')}: {product.orders}</span>
         </div>
         <div className="product-meta">
           <span className="product-supplier">{product.supplier}</span>
           {product.verified && (
             <span className="verified-badge">
-              <i className="fas fa-check-circle"></i> Verified
+              <i className="fas fa-check-circle"></i> {t('cart.verified', 'Verified')}
             </span>
           )}
         </div>
@@ -137,15 +154,15 @@ const ProductCard = ({
             disabled={isAdding}
           >
             <i className="fas fa-shopping-cart"></i>
-            {isAdding ? 'Adding...' : added ? 'Added' : 'Add to Cart'}
+            {isAdding ? t('cart.adding', 'Adding...') : added ? t('cart.added', 'Added') : t('cart.add_to_cart', 'Add to Cart')}
           </button>
           <button
             className={`btn btn-outline ${isInWishlist && isInWishlist(product.id) ? 'active' : ''}`}
             onClick={() => onWishlistToggle && onWishlistToggle(product)}
             title={
               isInWishlist && isInWishlist(product.id)
-                ? 'Remove from wishlist'
-                : 'Add to wishlist'
+                ? t('cart.remove_from_wishlist', 'Remove from wishlist')
+                : t('cart.add_to_wishlist', 'Add to wishlist')
             }
           >
             <i

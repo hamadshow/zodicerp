@@ -31,6 +31,10 @@
   align-items: center;
   margin-bottom: 2rem;
 
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
+
   h1 {
     font-size: 1.875rem;
     font-weight: 700;
@@ -77,6 +81,11 @@
   align-items: center;
   gap: 1rem;
   transition: transform 0.2s, box-shadow 0.2s;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+    text-align: right;
+  }
 
   &:hover {
     transform: translateY(-2px);
@@ -142,6 +151,10 @@
     color: var(--text-gray);
     border-bottom: 2px solid var(--border-color);
     background-color: #f9fafb;
+
+    [dir="rtl"] & {
+      text-align: right;
+    }
   }
 
   td {
@@ -150,6 +163,11 @@
     color: var(--text-dark);
     border-bottom: 1px solid var(--border-color);
     vertical-align: middle;
+    text-align: left;
+
+    [dir="rtl"] & {
+      text-align: right;
+    }
   }
 
   tr:hover td {
@@ -176,6 +194,10 @@
   .action-buttons {
     display: flex;
     gap: 0.5rem;
+
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
 
     button {
       padding: 0.5rem;
@@ -269,6 +291,9 @@
   .form-actions {
     display: flex;
     justify-content: flex-end;
+    [dir="rtl"] & {
+      justify-content: flex-start;
+    }
     gap: 1rem;
     margin-top: 2rem;
     padding-top: 1.5rem;
@@ -337,6 +362,10 @@
       outline: none;
       border-color: var(--primary-color);
     }
+
+    [dir="rtl"] & {
+      padding: 0.625rem 2.5rem 0.625rem 1rem;
+    }
   }
 
   .search-icon {
@@ -346,5 +375,10 @@
     transform: translateY(-50%);
     color: var(--text-gray);
     font-size: 1.25rem;
+
+    [dir="rtl"] & {
+      left: auto;
+      right: 0.75rem;
+    }
   }
 }

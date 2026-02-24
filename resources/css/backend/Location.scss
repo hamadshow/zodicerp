@@ -88,6 +88,11 @@
     margin-right: 8px;
 }
 
+[dir="rtl"] .tree-toggle {
+    margin-right: 0;
+    margin-left: 8px;
+}
+
 .tree-toggle.rotated {
     transform: rotate(90deg);
 }
@@ -96,6 +101,11 @@
     color: var(--gray-color);
     margin-right: 12px;
     flex-shrink: 0;
+}
+
+[dir="rtl"] .tree-icon {
+    margin-right: 0;
+    margin-left: 12px;
 }
 
 .tree-content {
@@ -115,6 +125,11 @@
     margin-left: 8px;
 }
 
+[dir="rtl"] .tree-badge {
+    margin-left: 0;
+    margin-right: 8px;
+}
+
 .child-count {
     background-color: var(--primary-color);
     color: white;
@@ -123,6 +138,11 @@
     font-size: 0.7rem;
     font-weight: 600;
     margin-left: 8px;
+}
+
+[dir="rtl"] .child-count {
+    margin-left: 0;
+    margin-right: 8px;
 }
 
 .tree-actions {
@@ -137,6 +157,15 @@
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.3s ease;
+}
+
+[dir="rtl"] .tree-children {
+    margin-left: 0;
+    margin-right: 32px;
+    border-left: none;
+    border-right: 2px solid var(--border-color);
+    padding-left: 0;
+    padding-right: 16px;
 }
 
 .tree-children.expanded {

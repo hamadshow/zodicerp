@@ -58,7 +58,7 @@ const ItemCollectionsList = ({ collections = [] }) => {
         <>
             <Head title="Item Collections - ZodicERP" />
             <div className="breadcrumb">
-                <Link href={route('admin')}>Dashboard</Link>
+                <Link href={route('admin.dashboard')}>Dashboard</Link>
                 <span>/</span>
                 <a href="#">Inventory</a>
                 <span>/</span>
@@ -234,7 +234,7 @@ const ItemCollectionsForm = ({ collection = null, collections = [] }) => {
             
             <div className="products-ce-page">
                 <div className="breadcrumb">
-                    <Link href={route('admin')}>Dashboard</Link>
+                    <Link href={route('admin.dashboard')}>Dashboard</Link>
                     <span>/</span>
                     <a href="#">Inventory</a>
                     <span>/</span>

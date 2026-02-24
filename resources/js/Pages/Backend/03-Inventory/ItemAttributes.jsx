@@ -240,7 +240,7 @@ const ItemAttributesForm = ({ attribute = null }) => {
             <Head title={`${pageTitle} - ZodicERP`} />
             <div className="products-ce-page">
                 <div className="breadcrumb">
-                    <Link href={route('admin')}>Dashboard</Link>
+                    <Link href={route('admin.dashboard')}>Dashboard</Link>
                     <span>/</span>
                     <a href="#">Inventory</a>
                     <span>/</span>

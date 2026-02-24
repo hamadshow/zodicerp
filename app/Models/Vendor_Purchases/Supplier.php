@@ -14,9 +14,11 @@ use App\Models\City;
 use App\Models\User;
 use App\Models\Products;
 
+use App\Traits\HasTranslations;
+
 class Supplier extends Authenticatable
 {
-    use HasFactory, SoftDeletes, Notifiable;
+    use HasFactory, SoftDeletes, Notifiable, HasTranslations;
 
     // Primary key is 'id' by default (INT AUTO_INCREMENT as requested), so we don't need to specify it unless it differs.
     // Previous version used 'supplier_id', but new request says 'id INT PRIMARY KEY'.
@@ -26,6 +28,10 @@ class Supplier extends Authenticatable
         'supplier_code',
         'name_ar',
         'name_en',
+        'store_name_json',
+        'store_description_json',
+        'commission_rate',
+        'verification_status',
         'supplier_group_id', // Renamed from group_id
         'account_id',
         'password',
@@ -56,6 +62,9 @@ class Supplier extends Authenticatable
     ];
 
     protected $casts = [
+        'store_name_json' => 'array',
+        'store_description_json' => 'array',
+        'commission_rate' => 'decimal:2',
         'supplier_group_id' => 'integer',
         'account_id' => 'integer',
         'currency_id' => 'integer',
@@ -135,5 +144,23 @@ class Supplier extends Authenticatable
         return $this->belongsToMany(Products::class, 'product_supplier', 'supplier_id', 'product_id')
             ->withPivot('cost_price', 'supplier_sku')
             ->withTimestamps();
+    }
+
+    public function wallet()
+    {
+        return $this->hasOne(VendorWallet::class, 'supplier_id');
+    }
+
+    protected static function booted()
+    {
+        static::created(function ($supplier) {
+            $supplier->wallet()->create([
+                'currency_id' => $supplier->currency_id ?: 1, // Default to base currency if not set
+                'balance' => 0.00,
+                'pending_balance' => 0.00,
+                'withdrawn_balance' => 0.00,
+                'is_active' => true,
+            ]);
+        });
     }
 }

@@ -20,7 +20,7 @@ const resolveMediaUrl = (value) => {
   return `/media-files/${relativePath}`;
 };
 
-const Header = ({ toggleSidebar }) => {
+const Header = ({ toggleSidebar, isRtl }) => {
   const { auth } = usePage().props;
   const user = auth.user;
 
@@ -31,7 +31,9 @@ const Header = ({ toggleSidebar }) => {
         id="mobileMenuToggle"
         onClick={toggleSidebar}
       >
-        <span className="material-icons-outlined">menu</span>
+        <span className="material-icons-outlined">
+          {isRtl ? 'menu_open' : 'menu'}
+        </span>
       </button>
 
       <div className="header-actions">
@@ -76,8 +78,14 @@ const Header = ({ toggleSidebar }) => {
             onClick={() => {
               document.getElementById('logout-form-header')?.submit();
             }}
+            title={isRtl ? 'تسجيل الخروج' : 'Logout'}
           >
-            <span className="material-icons-outlined">logout</span>
+            <span 
+              className="material-icons-outlined"
+              style={isRtl ? { transform: 'rotate(180deg)' } : {}}
+            >
+              logout
+            </span>
           </button>
         </div>
       </div>

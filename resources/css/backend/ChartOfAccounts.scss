@@ -8,6 +8,10 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .toolbar input {
@@ -15,6 +19,10 @@
   width: 300px;
   border-radius: 6px;
   border: 1px solid #cbd5e1;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .data-table {
@@ -34,6 +42,16 @@
 .data-table th {
   background: #f1f5f9;
   text-align: left;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
+}
+
+.data-table td {
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .status {
@@ -97,6 +115,10 @@
   display: flex;
   gap: 20px;
   margin-bottom: 16px;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .ChartOfAccounts-page .form-group {
@@ -104,12 +126,20 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .ChartOfAccounts-page .form-label {
   font-size: 0.875rem;
   font-weight: 500;
   color: #334155;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .ChartOfAccounts-page .modal input,
@@ -121,6 +151,10 @@
   border-radius: 6px;
   font-size: 0.95rem;
   transition: border-color 0.15s ease;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .ChartOfAccounts-page .modal input:focus,
@@ -143,6 +177,10 @@
   margin-top: 24px;
   padding-top: 20px;
   border-top: 1px solid #e2e8f0;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .accounts-card {
@@ -170,6 +208,16 @@
   background-color: #f8fafc;
   font-weight: 600;
   color: #0f172a;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
+}
+
+.accounts-table td {
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .account-row-stopped {
@@ -180,6 +228,10 @@
   display: flex;
   align-items: center;
   gap: 6px;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .account-toggle-btn {
@@ -207,6 +259,10 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .account-name span {

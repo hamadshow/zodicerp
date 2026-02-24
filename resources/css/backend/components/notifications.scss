@@ -12,11 +12,28 @@
   animation: slideInRight 0.3s ease;
   max-width: 300px;
   word-wrap: break-word;
+
+  [dir="rtl"] & {
+    right: auto;
+    left: 20px;
+    animation: slideInLeft 0.3s ease;
+  }
 }
 
 @keyframes slideInRight {
   from {
     transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
     opacity: 0;
   }
   to {
@@ -32,6 +49,17 @@
   }
   to {
     transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes slideOutLeft {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
     opacity: 0;
   }
 }

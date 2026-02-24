@@ -49,6 +49,18 @@
   padding: 6px 10px;
   font-size: 14px;
   cursor: pointer;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
+}
+
+.searchable-combobox-highlight {
+  background: #fef3c7;
+}
+
+.searchable-combobox-hidden-select {
+  display: none;
 }
 
 .searchable-combobox-option:hover,
@@ -60,12 +72,8 @@
   padding: 6px 10px;
   font-size: 14px;
   color: #94a3b8;
-}
 
-.searchable-combobox-highlight {
-  background: #fef3c7;
-}
-
-.searchable-combobox-hidden-select {
-  display: none;
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }

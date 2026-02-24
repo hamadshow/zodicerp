@@ -8,6 +8,19 @@
   border-top: 1px solid var(--border-color);
   flex-wrap: wrap;
   gap: var(--spacing-md);
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
+}
+
+/* Record count badge */
+.record-count-badge {
+  background-color: var(--gray-color);
+  color: var(--text-white);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-semibold);
 }
 
 .pagination-info {
@@ -61,3 +74,4 @@
   border-radius: var(--radius-sm);
   font-weight: var(--font-weight-semibold);
 }
+

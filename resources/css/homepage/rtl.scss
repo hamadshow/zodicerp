@@ -1,0 +1,36 @@
+// RTL Overrides
+$rtl: true;
+@import 'abstracts/variables';
+
+[dir="rtl"] {
+  body {
+    direction: rtl;
+    text-align: right;
+    font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+  }
+
+  // Float & Alignment utilities
+  .float-start { float: right !important; }
+  .float-end { float: left !important; }
+  .text-start { text-align: right !important; }
+  .text-end { text-align: left !important; }
+
+  // Margins & Padding (Logical Properties are better but for compatibility)
+  .ms-auto { margin-right: auto !important; margin-left: 0 !important; }
+  .me-auto { margin-left: auto !important; margin-right: 0 !important; }
+  
+  @for $i from 0 through 5 {
+    .ms-#{$i} { margin-right: map-get($spacers, $i) !important; margin-left: 0 !important; }
+    .me-#{$i} { margin-left: map-get($spacers, $i) !important; margin-right: 0 !important; }
+    .ps-#{$i} { padding-right: map-get($spacers, $i) !important; padding-left: 0 !important; }
+    .pe-#{$i} { padding-left: map-get($spacers, $i) !important; padding-right: 0 !important; }
+  }
+
+  // Icons and Arrows
+  .fa-chevron-right {
+    transform: scaleX(-1);
+  }
+  .fa-chevron-left {
+    transform: scaleX(-1);
+  }
+}

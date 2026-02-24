@@ -140,7 +140,7 @@
   .filter-scroll {
     max-height: 160px;
     overflow-y: auto;
-    padding-right: 6px;
+    padding-inline-end: 6px;
   }
 
   .stars {
@@ -181,7 +181,7 @@
   }
 
   .banner-subtitle {
-    margin-left: 10px;
+    margin-inline-start: 10px;
     font-size: 13px;
     opacity: 0.9;
   }
@@ -263,7 +263,7 @@
   .category-product-badge {
     position: absolute;
     top: 10px;
-    left: 10px;
+    inset-inline-start: 10px;
     background: #ff4d6d;
     color: #ffffff;
     font-size: 10px;
@@ -275,7 +275,7 @@
 
   .category-product-cart {
     position: absolute;
-    right: 10px;
+    inset-inline-end: 10px;
     bottom: 10px;
     width: 32px;
     height: 32px;

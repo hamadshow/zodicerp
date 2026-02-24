@@ -3,11 +3,19 @@
     background-color: #f8f9fa;
     min-height: 100vh;
 
+    [dir="rtl"] & {
+        direction: rtl;
+    }
+
     .page-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 2rem;
+
+        [dir="rtl"] & {
+            flex-direction: row-reverse;
+        }
 
         h1 {
             font-size: 1.5rem;
@@ -17,11 +25,20 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+
+            [dir="rtl"] & {
+                flex-direction: row-reverse;
+                text-align: right;
+            }
         }
 
         .actions {
             display: flex;
             gap: 0.5rem;
+
+            [dir="rtl"] & {
+                flex-direction: row-reverse;
+            }
         }
     }
 
@@ -36,6 +53,10 @@
         align-items: center;
         flex-wrap: wrap;
 
+        [dir="rtl"] & {
+            flex-direction: row-reverse;
+        }
+
         .search-input {
             flex: 1;
             min-width: 200px;
@@ -47,6 +68,11 @@
                 border: 1px solid #e2e8f0;
                 border-radius: 6px;
                 
+                [dir="rtl"] & {
+                    padding: 0.5rem 2.5rem 0.5rem 1rem;
+                    text-align: right;
+                }
+
                 &:focus {
                     outline: none;
                     border-color: #3b82f6;
@@ -60,6 +86,11 @@
                 top: 50%;
                 transform: translateY(-50%);
                 color: #94a3b8;
+
+                [dir="rtl"] & {
+                    left: auto;
+                    right: 0.75rem;
+                }
             }
         }
 
@@ -69,6 +100,11 @@
             border-radius: 6px;
             background-color: white;
             cursor: pointer;
+
+            [dir="rtl"] & {
+                padding: 0.5rem 1rem 0.5rem 2rem;
+                text-align: right;
+            }
         }
     }
 
@@ -79,9 +115,17 @@
         overflow: auto;
         max-height: 70vh;
 
+        [dir="rtl"] & {
+            text-align: right;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
+
+            [dir="rtl"] & {
+                direction: rtl;
+            }
 
             th {
                 background: #f8fafc;
@@ -94,6 +138,10 @@
                 position: sticky;
                 top: 0;
                 z-index: 10;
+
+                [dir="rtl"] & {
+                    text-align: right;
+                }
             }
 
             td {
@@ -101,6 +149,10 @@
                 border-bottom: 1px solid #f1f5f9;
                 color: #1e293b;
                 font-size: 0.875rem;
+
+                [dir="rtl"] & {
+                    text-align: right;
+                }
 
                 .status-badge {
                     padding: 0.25rem 0.75rem;
@@ -110,6 +162,10 @@
                     display: inline-flex;
                     align-items: center;
                     gap: 0.25rem;
+
+                    [dir="rtl"] & {
+                        flex-direction: row-reverse;
+                    }
 
                     &.active { background: #eff6ff; color: #1d4ed8; }
                     &.partially_utilized { background: #fff7ed; color: #c2410c; }
@@ -149,6 +205,10 @@
         max-width: 1000px;
         margin: 0 auto;
 
+        [dir="rtl"] & {
+            direction: rtl;
+        }
+
         .form-header {
             display: flex;
             justify-content: space-between;
@@ -156,10 +216,18 @@
             border-bottom: 1px solid #e2e8f0;
             padding-bottom: 1rem;
 
+            [dir="rtl"] & {
+                flex-direction: row-reverse;
+            }
+
             h2 {
                 font-size: 1.25rem;
                 font-weight: 600;
                 color: #1e293b;
+
+                [dir="rtl"] & {
+                    text-align: right;
+                }
             }
         }
 
@@ -168,6 +236,10 @@
             grid-template-columns: 1fr 1fr;
             gap: 2rem;
             
+            [dir="rtl"] & {
+                direction: rtl;
+            }
+
             @media (max-width: 768px) {
                 grid-template-columns: 1fr;
             }
@@ -182,6 +254,10 @@
             margin-top: 1rem;
             padding-bottom: 0.5rem;
             border-bottom: 1px dashed #e2e8f0;
+
+            [dir="rtl"] & {
+                text-align: right;
+            }
         }
 
         .form-group {
@@ -193,6 +269,10 @@
                 font-weight: 500;
                 color: #475569;
                 margin-bottom: 0.5rem;
+
+                [dir="rtl"] & {
+                    text-align: right;
+                }
             }
 
             input, select, textarea {
@@ -202,6 +282,10 @@
                 border-radius: 6px;
                 font-size: 0.875rem;
                 transition: all 0.2s;
+
+                [dir="rtl"] & {
+                    text-align: right;
+                }
 
                 &:focus {
                     border-color: #3b82f6;
@@ -222,6 +306,10 @@
                 display: flex;
                 justify-content: space-between;
                 
+                [dir="rtl"] & {
+                    flex-direction: row-reverse;
+                }
+
                 &.warning { color: #dc2626; }
             }
         }
@@ -237,11 +325,16 @@
                 display: flex;
                 justify-content: space-between;
                 margin-bottom: 0.5rem;
+
+                [dir="rtl"] & {
+                    flex-direction: row-reverse;
+                }
+
                 &:last-child { margin-bottom: 0; font-weight: bold; border-top: 1px solid #bae6fd; padding-top: 0.5rem; }
             }
         }
     }
-}
+
 
 // Dark Mode Support
 :global(.dark) {
@@ -305,4 +398,5 @@
             }
         }
     }
+}
 }

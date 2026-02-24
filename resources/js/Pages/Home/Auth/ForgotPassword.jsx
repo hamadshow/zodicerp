@@ -1,8 +1,18 @@
 import React, { useEffect } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import '../../../../css/homepage/main.scss';
 
 const ForgotPassword = ({ status }) => {
+  const { localization } = usePage().props;
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const { data, setData, post, processing, errors, reset } = useForm({
     email: '',
   });
@@ -16,7 +26,7 @@ const ForgotPassword = ({ status }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    post(route('password.email'), {
+    post(getLocalizedRoute('password.email'), {
       onFinish: () => {},
     });
   };
@@ -48,7 +58,7 @@ const ForgotPassword = ({ status }) => {
 
         <div className="auth-panel">
           <div className="auth-brand">
-            <Link href="/" className="auth-brand-link">
+            <Link href={getLocalizedRoute('home')} className="auth-brand-link">
               <div className="auth-brand-logo">
                 <span>Z</span>
               </div>
@@ -92,14 +102,14 @@ const ForgotPassword = ({ status }) => {
 
               <div className="auth-footer-text">
                 <span>Remember your password? </span>
-                <Link href={route('login')} className="auth-link">
+                <Link href={getLocalizedRoute('login')} className="auth-link">
                   Back to Login
                 </Link>
               </div>
 
               <div className="auth-footer-text">
                 <span>New to ZodiMarket? </span>
-                <Link href={route('register')} className="auth-link">
+                <Link href={getLocalizedRoute('register')} className="auth-link">
                   Create Account
                 </Link>
               </div>

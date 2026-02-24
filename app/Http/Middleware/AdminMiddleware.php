@@ -11,7 +11,38 @@ class AdminMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (Auth::user()->role !== 'admin') {
+        $user = Auth::user();
+        
+        if (!$user) {
+            // Check other guards just in case
+            if (Auth::guard('customer')->check()) {
+                $user = Auth::guard('customer')->user();
+            } elseif (Auth::guard('supplier')->check()) {
+                $user = Auth::guard('supplier')->user();
+            }
+        }
+
+        if (!$user) {
+            return redirect()->route('login', [
+                'country' => session('country_code', 'sa'),
+                'lang' => session('locale', 'ar')
+            ]);
+        }
+
+        $role = strtolower($user->role ?? '');
+
+        if ($role !== 'admin') {
+            $params = [
+                'country' => session('country_code', 'sa'),
+                'lang' => session('locale', 'ar')
+            ];
+
+            if ($role === 'customer' || Auth::guard('customer')->check()) {
+                return redirect()->route('customer.dashboard', $params);
+            } elseif ($role === 'supplier' || Auth::guard('supplier')->check()) {
+                return redirect()->route('supplier.dashboard', $params);
+            }
+
             abort(403, 'Unauthorized');
         }
 

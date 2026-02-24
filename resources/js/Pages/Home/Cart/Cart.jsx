@@ -3,6 +3,7 @@ import { Head, usePage, router } from '@inertiajs/react';
 import Header from '../Components/Header';
 import Footer from '../Components/Footer';
 import '../../../../css/homepage/main.scss';
+import { useCurrency } from '../../../Hooks/useCurrency';
 
 const CartItem = ({ item, currency, onIncrease, onDecrease, onRemove }) => {
   const lineTotal = useMemo(() => item.price * item.quantity, [item.price, item.quantity]);
@@ -75,6 +76,16 @@ const CartItem = ({ item, currency, onIncrease, onDecrease, onRemove }) => {
 
 const Cart = () => {
   const { props } = usePage();
+  const { localization } = useCurrency();
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const initialItems = props.cartItems || [];
   const currency = props.currency || 'EGP ';
   const categories = props.categories || [];
@@ -197,7 +208,7 @@ const Cart = () => {
                     type="button"
                     className="btn-primary cart-summary-checkout"
                     disabled={isEmpty}
-                    onClick={() => router.visit(route('checkout'))}
+                    onClick={() => router.visit(getLocalizedRoute('checkout'))}
                   >
                     Proceed to Checkout
                   </button>

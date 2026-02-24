@@ -3,9 +3,20 @@ import { Head, useForm, usePage } from '@inertiajs/react';
 import Header from '../Components/Header';
 import Footer from '../Components/Footer';
 import '../../../../css/homepage/main.scss';
+import { useCurrency } from '../../../Hooks/useCurrency';
 
 const Checkout = () => {
   const { props } = usePage();
+  const { localization } = useCurrency();
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const cartItems = props.cartItems || [];
   const currency = props.currency || '$';
   const categories = props.categories || [];
@@ -46,7 +57,7 @@ const Checkout = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    post(route('checkout.store'), {
+    post(getLocalizedRoute('checkout.store'), {
       preserveScroll: true,
       onSuccess: () => {
         reset();

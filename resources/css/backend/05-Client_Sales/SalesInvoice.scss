@@ -46,6 +46,10 @@
     align-items: center;
     margin-bottom: 2rem;
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     h1 {
       font-size: 1.5rem;
       font-weight: 600;
@@ -76,9 +80,13 @@
     border: 1px solid var(--border-color);
 
     table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
 
       th, td {
         padding: 8px 10px;
@@ -135,6 +143,10 @@
     border-bottom: 1px solid var(--border-color);
     background-color: var(--surface-light);
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     .company-info {
       h2 {
         font-size: 1.5rem;
@@ -159,6 +171,10 @@
         font-size: 0.875rem;
         font-weight: 500;
         text-align: right;
+
+        [dir="rtl"] & {
+          text-align: left;
+        }
       }
 
       input {
@@ -170,6 +186,10 @@
         color: var(--text-primary);
         width: 160px;
         text-align: right;
+
+        [dir="rtl"] & {
+          text-align: left;
+        }
 
         &:disabled {
           background-color: var(--background-light);
@@ -221,6 +241,10 @@
           font-weight: 500;
           color: var(--text-secondary);
           .required { color: var(--danger-color); }
+          
+          [dir="rtl"] & {
+            text-align: right;
+          }
         }
 
         input, select, textarea {
@@ -231,6 +255,10 @@
           color: var(--text-primary);
           font-size: 0.875rem;
           width: 100%;
+
+          [dir="rtl"] & {
+            text-align: right;
+          }
 
           &:focus {
             outline: none;
@@ -272,8 +300,17 @@
             text-transform: uppercase;
             color: var(--text-secondary);
             white-space: nowrap;
+
+            [dir="rtl"] & {
+              text-align: right;
+            }
             
-            &.text-right { text-align: right; }
+            &.text-right { 
+              text-align: right; 
+              [dir="rtl"] & {
+                text-align: left;
+              }
+            }
             &.text-center { text-align: center; }
           }
         }
@@ -306,7 +343,12 @@
                  border-color: var(--primary-color);
               }
 
-              &.text-right { text-align: right; }
+              &.text-right { 
+                text-align: right; 
+                [dir="rtl"] & {
+                  text-align: left;
+                }
+              }
             }
           }
         }
@@ -347,6 +389,10 @@
     padding: 2rem;
     background-color: var(--background-light);
     border-top: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+      grid-template-columns: 350px 1fr;
+    }
 
     .invoice-terms {
       .terms-grid {
@@ -408,11 +454,19 @@
         margin-bottom: 0.75rem;
         font-size: 0.875rem;
 
+        [dir="rtl"] & {
+          flex-direction: row-reverse;
+        }
+
         .label { color: var(--text-secondary); }
         
         input {
           width: 100px;
           text-align: right;
+
+          [dir="rtl"] & {
+            text-align: left;
+          }
           padding: 0.25rem 0.5rem;
           border: 1px solid var(--border-color);
           border-radius: var(--radius-md);
@@ -462,6 +516,10 @@
   z-index: 50;
   box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.05);
   width: 100%;
+
+  [dir="rtl"] & {
+    justify-content: flex-start;
+  }
   
   .btn {
     padding: 0.75rem 1.5rem;

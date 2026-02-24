@@ -31,6 +31,10 @@
   align-items: center;
   margin-bottom: 2rem;
 
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
+
   h1 {
     font-size: 1.875rem;
     font-weight: 700;
@@ -142,6 +146,10 @@
     color: var(--text-gray);
     border-bottom: 2px solid var(--border-color);
     background-color: #f9fafb;
+
+    [dir="rtl"] & {
+      text-align: right;
+    }
   }
 
   td {
@@ -150,6 +158,10 @@
     color: var(--text-dark);
     border-bottom: 1px solid var(--border-color);
     vertical-align: middle;
+
+    [dir="rtl"] & {
+      text-align: right;
+    }
   }
 
   tr:hover td {
@@ -176,6 +188,10 @@
   .action-buttons {
     display: flex;
     gap: 0.5rem;
+
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
 
     button {
       padding: 0.5rem;
@@ -232,6 +248,10 @@
       font-weight: 500;
       color: var(--text-dark);
       margin-bottom: 0.5rem;
+
+      [dir="rtl"] & {
+        text-align: right;
+      }
     }
 
     input, select, textarea {
@@ -241,6 +261,10 @@
       border-radius: var(--radius-md);
       font-size: 0.925rem;
       transition: border-color 0.2s, box-shadow 0.2s;
+
+      [dir="rtl"] & {
+        text-align: right;
+      }
 
       &:focus {
         outline: none;
@@ -273,6 +297,10 @@
     margin-top: 2rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+      justify-content: flex-start;
+    }
   }
 }
 
@@ -290,6 +318,10 @@
   border: 1px solid transparent;
   gap: 0.5rem;
 
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
+  
   &.btn-primary {
     background-color: var(--primary-color);
     color: white;
@@ -333,6 +365,11 @@
     border-radius: var(--radius-md);
     font-size: 0.875rem;
     
+    [dir="rtl"] & {
+      padding: 0.625rem 2.5rem 0.625rem 1rem;
+      text-align: right;
+    }
+
     &:focus {
       outline: none;
       border-color: var(--primary-color);
@@ -346,5 +383,10 @@
     transform: translateY(-50%);
     color: var(--text-gray);
     font-size: 1.25rem;
+
+    [dir="rtl"] & {
+      left: auto;
+      right: 0.75rem;
+    }
   }
 }

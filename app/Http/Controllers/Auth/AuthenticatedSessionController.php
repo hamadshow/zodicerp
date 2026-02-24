@@ -19,7 +19,7 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Home/Auth/Login', [
+        return Inertia::render('Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
         ]);
@@ -47,26 +47,21 @@ class AuthenticatedSessionController extends Controller
             ])->onlyInput('email');
         }
 
-        $target = route('frontend', absolute: false);
+        $params = [
+            'country' => session('country_code', 'sa'),
+            'lang' => session('locale', 'ar')
+        ];
+
+        $target = route('home', $params);
 
         if ($user) {
-            if (method_exists($user, 'hasRole')) {
-                if ($user->hasRole('admin')) {
-                    $target = route('admin', absolute: false);
-                } elseif ($user->hasRole('supplier')) {
-                    $target = route('suppliers', absolute: false);
-                } elseif ($user->hasRole('customer')) {
-                    $target = route('customers.dashboard', absolute: false);
-                }
-            } else {
-                $role = $user->role ?? null;
-                if ($role === 'admin') {
-                    $target = route('admin', absolute: false);
-                } elseif ($role === 'supplier') {
-                    $target = route('suppliers', absolute: false);
-                } elseif ($role === 'customer') {
-                    $target = route('customers.dashboard', absolute: false);
-                }
+            $role = strtolower($user->role ?? '');
+            if ($role === 'admin') {
+                $target = route('admin.dashboard', $params);
+            } elseif ($role === 'supplier') {
+                $target = route('supplier.dashboard', $params);
+            } elseif ($role === 'customer') {
+                $target = route('customer.dashboard', $params);
             }
         }
 
@@ -84,6 +79,11 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect()->to(route('frontend', absolute: false));
+        $params = [
+            'country' => session('country_code', 'sa'),
+            'lang' => session('locale', 'ar')
+        ];
+
+        return redirect()->to(route('home', $params));
     }
 }

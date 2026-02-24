@@ -11,7 +11,38 @@ class CustomerMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (Auth::user()->role !== 'customer') {
+        $user = Auth::user();
+
+        if (!$user) {
+            // Check other guards just in case
+            if (Auth::guard('customer')->check()) {
+                $user = Auth::guard('customer')->user();
+            } elseif (Auth::guard('supplier')->check()) {
+                $user = Auth::guard('supplier')->user();
+            }
+        }
+
+        if (!$user) {
+            return redirect()->route('login', [
+                'country' => session('country_code', 'sa'),
+                'lang' => session('locale', 'ar')
+            ]);
+        }
+
+        $role = strtolower($user->role ?? '');
+
+        if ($role !== 'customer') {
+            $params = [
+                'country' => session('country_code', 'sa'),
+                'lang' => session('locale', 'ar')
+            ];
+
+            if ($role === 'admin') {
+                return redirect()->route('admin.dashboard', $params);
+            } elseif ($role === 'supplier') {
+                return redirect()->route('supplier.dashboard', $params);
+            }
+
             abort(403, 'Unauthorized');
         }
 

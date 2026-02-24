@@ -28,7 +28,7 @@ class SupplierAuthController extends Controller
         if (Auth::guard('supplier')->attempt($request->only('email', 'password'), $request->boolean('remember'))) {
             $request->session()->regenerate();
 
-            return redirect()->intended('/suppliers/dashboard');
+            return redirect()->intended(route('supplier.dashboard'));
         }
 
         throw ValidationException::withMessages([
@@ -68,7 +68,7 @@ class SupplierAuthController extends Controller
 
         Auth::guard('supplier')->login($supplier);
 
-        return redirect('/suppliers/dashboard');
+        return redirect()->route('supplier.dashboard');
     }
 
     public function logout(Request $request)
@@ -78,6 +78,6 @@ class SupplierAuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect('/suppliers');
+        return redirect()->route('home');
     }
 }

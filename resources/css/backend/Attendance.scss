@@ -5,6 +5,10 @@
     box-shadow: var(--shadow-md);
     padding: 24px;
     margin-bottom: 24px;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .attendance-actions {
@@ -12,6 +16,10 @@
     gap: 12px;
     align-items: center;
     flex-wrap: wrap;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .attendance-status {
@@ -58,6 +66,10 @@
     display: flex;
     align-items: center;
     gap: 12px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .employee-avatar {
@@ -75,6 +87,10 @@
 .employee-details {
     display: flex;
     flex-direction: column;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .employee-name {
@@ -114,6 +130,11 @@
     font-size: 0.75rem;
     font-weight: 500;
     margin-right: 4px;
+
+    [dir="rtl"] & {
+        margin-right: 0;
+        margin-left: 4px;
+    }
 }
 
 /* Modal styles */
@@ -144,6 +165,10 @@
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
     animation: modalSlideIn 0.3s ease;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 @keyframes modalSlideIn {
@@ -164,6 +189,10 @@
     margin-bottom: 20px;
     padding-bottom: 16px;
     border-bottom: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .modal-title {
@@ -196,6 +225,11 @@
     gap: 12px;
     padding-top: 20px;
     border-top: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        justify-content: flex-start;
+        flex-direction: row-reverse;
+    }
 }
 
 .form-group {
@@ -206,6 +240,10 @@
     display: flex;
     gap: 16px;
     margin-bottom: 16px;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .form-row .form-group {
@@ -219,6 +257,10 @@
     font-weight: 500;
     color: var(--dark-color);
     font-size: 0.9rem;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-control {
@@ -228,6 +270,10 @@
     border-radius: 6px;
     font-size: 0.9rem;
     transition: border-color 0.2s ease;
+
+    [dir="rtl"] & {
+        text-align: right;
+    }
 }
 
 .form-control:focus {
@@ -258,6 +304,11 @@
     align-items: center;
     gap: 16px;
     transition: transform 0.2s ease;
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+        text-align: right;
+    }
 }
 
 .stat-card:hover {
@@ -302,6 +353,10 @@
     padding: 8px 12px;
     border-radius: 6px;
     border: 1px solid var(--border-color);
+
+    [dir="rtl"] & {
+        flex-direction: row-reverse;
+    }
 }
 
 .date-filter input {

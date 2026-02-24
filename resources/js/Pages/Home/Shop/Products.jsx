@@ -4,6 +4,7 @@ import Header from '../Components/Header.jsx';
 import Footer from '../Components/Footer.jsx';
 import { debounce } from 'lodash';
 import ProductCard from '../Components/ProductCard.jsx';
+import { useCurrency } from '../../../Hooks/useCurrency';
 
 // Import styles
 import '../../../../css/homepage/main.scss';
@@ -89,6 +90,16 @@ const CategoryTreeItem = ({ category, selectedSlugs, onToggle, level = 0 }) => {
 };
 
 export default function Products({ products, categories, level2Categories, brands, attributes, filters }) {
+    const { localization } = useCurrency();
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [queryParams, setQueryParams] = useState({
         search: filters.search || '',
         category: filters.category ? filters.category.split(',') : [],
@@ -167,7 +178,7 @@ export default function Products({ products, categories, level2Categories, brand
                 return acc;
             }, {});
 
-            router.get(route('products.index'), cleanParams, {
+            router.get(getLocalizedRoute('products.index'), cleanParams, {
                 preserveState: true,
                 preserveScroll: true,
                 replace: true,
@@ -254,7 +265,7 @@ export default function Products({ products, categories, level2Categories, brand
             brands: [],
             sort: 'newest'
         });
-        router.get(route('products.index'));
+        router.get(getLocalizedRoute('products.index'));
     };
 
     const getProductCardData = (product) => {

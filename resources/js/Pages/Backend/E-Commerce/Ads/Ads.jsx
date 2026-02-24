@@ -221,7 +221,7 @@ const Ads = () => {
                 <div className="ads-header">
                     <div>
                         <div className="breadcrumb">
-                            <Link href={route('admin')}>Dashboard</Link>
+                            <Link href={route('admin.dashboard')}>Dashboard</Link>
                             <span>/</span>
                             <span>E-Commerce</span>
                             <span>/</span>

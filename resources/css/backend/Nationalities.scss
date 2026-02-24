@@ -1,6 +1,10 @@
 .nationalities-page {
   padding: 24px;
   background: #f8fafc;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .page-header {
@@ -8,6 +12,10 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }
 
 .toolbar input {
@@ -15,6 +23,10 @@
   width: 300px;
   border-radius: 6px;
   border: 1px solid #cbd5e1;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .data-table {
@@ -23,12 +35,20 @@
   border-radius: 8px;
   overflow: hidden;
   border-collapse: collapse;
+
+  [dir="rtl"] & {
+    direction: rtl;
+  }
 }
 
 .data-table th,
 .data-table td {
   padding: 12px;
   border-bottom: 1px solid #e2e8f0;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .data-table th {
@@ -84,16 +104,28 @@
   padding: 20px;
   width: 400px;
   border-radius: 8px;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .modal input {
   width: 100%;
   margin-bottom: 10px;
   padding: 8px;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+  }
 }

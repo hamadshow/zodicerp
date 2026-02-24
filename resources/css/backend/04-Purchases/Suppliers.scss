@@ -68,6 +68,10 @@
     align-items: center;
     margin-bottom: 2rem;
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     h1 {
       font-size: 1.875rem;
       font-weight: 700;
@@ -134,6 +138,10 @@
       border-spacing: 0;
       text-align: left;
 
+      [dir="rtl"] & {
+        text-align: right;
+      }
+
       th, td {
         padding: 1rem 1.5rem;
         border-bottom: 1px solid var(--border-color);
@@ -149,12 +157,22 @@
         position: sticky;
         top: 0;
         z-index: 10;
+        text-align: left;
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
 
       td {
         font-size: 0.875rem;
         color: var(--text-primary);
         vertical-align: middle;
+        text-align: left;
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
 
       tbody tr {
@@ -240,6 +258,10 @@
     margin-bottom: 2rem;
     gap: 2rem;
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     .tab-btn {
       padding: 1rem 0;
       background: none;
@@ -287,6 +309,10 @@
     flex-direction: column;
     gap: 0.5rem;
 
+    [dir="rtl"] & {
+      text-align: right;
+    }
+
     label {
       font-size: 0.875rem;
       font-weight: 500;
@@ -294,6 +320,10 @@
       display: flex;
       justify-content: space-between;
       
+      [dir="rtl"] & {
+        flex-direction: row-reverse;
+      }
+
       .required { color: var(--danger-color); margin-left: 0.25rem; }
     }
 
@@ -306,6 +336,11 @@
       font-size: 0.875rem;
       transition: all var(--transition-fast);
       width: 100%;
+
+      [dir="rtl"] & {
+        text-align: right;
+        direction: rtl;
+      }
       
       /* Ensure native controls match the theme */
 
@@ -352,6 +387,11 @@
       cursor: pointer;
       transition: all var(--transition-fast);
       text-align: left;
+
+      [dir="rtl"] & {
+        text-align: right;
+        flex-direction: row-reverse;
+      }
     }
 
     .select-dropdown__button:hover {
@@ -402,6 +442,10 @@
       font-size: 0.875rem;
       font-family: inherit;
       line-height: 1.25rem;
+
+      [dir="rtl"] & {
+        text-align: right;
+      }
     }
 
     .select-dropdown__option:hover,
@@ -443,6 +487,9 @@
   &__actions {
       display: flex;
       justify-content: flex-end;
+      [dir="rtl"] & {
+        justify-content: flex-start;
+      }
       gap: 1rem;
       margin-top: 2rem;
       padding-top: 2rem;
@@ -555,6 +602,9 @@
         border-top: 1px solid var(--border-color);
         display: flex;
         justify-content: flex-end;
+        [dir="rtl"] & {
+            justify-content: flex-start;
+        }
         gap: 1rem;
         background-color: var(--background-light);
     }
@@ -637,6 +687,10 @@
         border-bottom: 2px solid var(--border-color);
         font-weight: 600;
         color: var(--text-secondary);
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
     }
     
     td {
@@ -782,6 +836,11 @@
         position: absolute;
         top: 1rem;
         right: 1rem;
+        
+        [dir="rtl"] & {
+            right: auto;
+            left: 1rem;
+        }
         
         button {
             color: var(--danger-color);

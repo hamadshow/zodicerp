@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import '../../../../css/homepage/main.scss';
 
 const Login = ({ status }) => {
+  const { localization } = usePage().props;
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const [globalError, setGlobalError] = useState('');
 
   const { data, setData, post, processing, errors, reset } = useForm({
@@ -29,7 +39,7 @@ const Login = ({ status }) => {
     e.preventDefault();
     setGlobalError('');
 
-    post(route('login'), {
+    post(getLocalizedRoute('customer.authenticate'), {
       onFinish: () => reset('password'),
     });
   };
@@ -59,7 +69,7 @@ const Login = ({ status }) => {
 
         <div className="auth-panel">
           <div className="auth-brand">
-            <Link href="/" className="auth-brand-link">
+            <Link href={getLocalizedRoute('home')} className="auth-brand-link">
               <div className="auth-brand-logo">
                 <span>Z</span>
               </div>
@@ -68,7 +78,7 @@ const Login = ({ status }) => {
             <h2 className="auth-title">Sign in to your account</h2>
             <p className="auth-subtitle">
               New to ZodiMarket?{' '}
-              <Link href={route('register')} className="auth-link">
+              <Link href={getLocalizedRoute('customer.register')} className="auth-link">
                 Create an account
               </Link>
             </p>

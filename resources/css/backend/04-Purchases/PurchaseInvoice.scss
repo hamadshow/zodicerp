@@ -41,6 +41,10 @@
     align-items: center;
     margin-bottom: 2rem;
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     h1 {
       font-size: 1.5rem;
       font-weight: 600;
@@ -76,6 +80,10 @@
       border-collapse: collapse;
       text-align: left;
 
+      [dir="rtl"] & {
+        text-align: right;
+      }
+
       th, td {
         padding: 8px 10px;
         border-bottom: 1px solid var(--border-color);
@@ -90,6 +98,11 @@
 
       td {
         font-size: 0.875rem;
+        text-align: left;
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
 
       tr:hover {
@@ -153,6 +166,10 @@
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 2rem;
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     .tab-btn {
       padding: 0.75rem 1rem;
       border: none;
@@ -189,6 +206,10 @@
     flex-direction: column;
     gap: 0.5rem;
 
+    [dir="rtl"] & {
+      text-align: right;
+    }
+
     &.full-width {
       grid-column: 1 / -1;
     }
@@ -208,6 +229,11 @@
       background-color: var(--input-bg);
       color: var(--text-primary);
       font-size: 0.875rem;
+
+      [dir="rtl"] & {
+        text-align: right;
+        direction: rtl;
+      }
 
       &:focus {
         outline: none;
@@ -245,6 +271,10 @@
       font-size: 0.8rem;
       padding: 0.5rem;
       white-space: nowrap;
+
+      [dir="rtl"] & {
+        text-align: right;
+      }
     }
     
     td {
@@ -259,6 +289,11 @@
       font-size: 0.8rem;
       border: 1px solid var(--border-color);
       border-radius: var(--radius-md);
+
+      [dir="rtl"] & {
+        text-align: right;
+        direction: rtl;
+      }
       
       &.readonly {
         background-color: var(--background-light);
@@ -302,6 +337,11 @@
     gap: 0.5rem;
     max-width: 350px;
     margin-left: auto;
+
+    [dir="rtl"] & {
+      margin-left: 0;
+      margin-right: auto;
+    }
     background-color: var(--background-light);
     padding: 1rem;
     border-radius: var(--radius-md);
@@ -333,6 +373,10 @@
         border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
         text-align: right;
+
+        [dir="rtl"] & {
+          text-align: left;
+        }
       }
     }
   }
@@ -340,6 +384,10 @@
   &__actions {
     display: flex;
     justify-content: flex-end;
+
+    [dir="rtl"] & {
+      justify-content: flex-start;
+    }
     gap: 1rem;
     margin-top: 2rem;
     padding-top: 1rem;

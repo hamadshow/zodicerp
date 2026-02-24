@@ -43,6 +43,10 @@
     align-items: center;
     margin-bottom: 2rem;
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     h1 {
       font-size: 1.5rem;
       font-weight: 600;
@@ -76,6 +80,10 @@
       width: 100%;
       border-collapse: collapse;
       text-align: left;
+
+      [dir="rtl"] & {
+        text-align: right;
+      }
 
       th, td {
         padding: 8px 10px;
@@ -131,6 +139,10 @@
     border-bottom: 1px solid var(--border-color);
     background-color: var(--surface-light);
 
+    [dir="rtl"] & {
+      flex-direction: row-reverse;
+    }
+
     .company-info {
       h2 {
         font-size: 1.5rem;
@@ -141,6 +153,10 @@
       p {
         color: var(--text-secondary);
         font-size: 0.875rem;
+      }
+
+      [dir="rtl"] & {
+        text-align: right;
       }
     }
 
@@ -155,6 +171,10 @@
         font-size: 0.875rem;
         font-weight: 500;
         text-align: right;
+
+        [dir="rtl"] & {
+          text-align: left;
+        }
       }
 
       input {
@@ -166,6 +186,10 @@
         color: var(--text-primary);
         width: 160px;
         text-align: right;
+
+        [dir="rtl"] & {
+          text-align: left;
+        }
 
         &:disabled {
           background-color: var(--background-light);
@@ -195,6 +219,10 @@
         font-weight: 600;
         border-bottom: 1px solid var(--border-color);
         padding-bottom: 0.5rem;
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
 
       .form-grid {
@@ -216,6 +244,11 @@
           font-size: 0.75rem;
           font-weight: 500;
           color: var(--text-secondary);
+
+          [dir="rtl"] & {
+            text-align: right;
+          }
+
           .required { color: var(--danger-color); }
         }
 
@@ -227,6 +260,11 @@
           color: var(--text-primary);
           font-size: 0.875rem;
           width: 100%;
+
+          [dir="rtl"] & {
+            text-align: right;
+            direction: rtl;
+          }
 
           &:focus {
             outline: none;
@@ -268,8 +306,17 @@
             text-transform: uppercase;
             color: var(--text-secondary);
             white-space: nowrap;
+
+            [dir="rtl"] & {
+              text-align: right;
+            }
             
-            &.text-right { text-align: right; }
+            &.text-right { 
+                text-align: right; 
+                [dir="rtl"] & {
+                  text-align: left;
+                }
+              }
             &.text-center { text-align: center; }
           }
         }
@@ -283,6 +330,10 @@
           td {
             padding: 0.5rem 1rem;
             vertical-align: middle;
+
+            [dir="rtl"] & {
+              text-align: right;
+            }
 
             input, select {
               width: 100%;
@@ -302,7 +353,12 @@
                  border-color: var(--primary-color);
               }
 
-              &.text-right { text-align: right; }
+              &.text-right { 
+                text-align: right; 
+                [dir="rtl"] & {
+                  text-align: left;
+                }
+              }
             }
           }
         }
@@ -344,6 +400,10 @@
     background-color: var(--background-light);
     border-top: 1px solid var(--border-color);
 
+    [dir="rtl"] & {
+      direction: rtl;
+    }
+
     .invoice-terms {
       .terms-grid {
         display: grid;
@@ -357,6 +417,10 @@
         font-weight: 600;
         color: var(--text-secondary);
         margin-bottom: 0.75rem;
+
+        [dir="rtl"] & {
+          text-align: right;
+        }
       }
 
       textarea {
@@ -369,6 +433,11 @@
         color: var(--text-primary);
         resize: vertical;
         min-height: 80px;
+
+        [dir="rtl"] & {
+          text-align: right;
+          direction: rtl;
+        }
       }
       
       .form-group {
@@ -378,6 +447,10 @@
             margin-bottom: 0.25rem; 
             font-size: 0.75rem; 
             color: var(--text-secondary); 
+
+            [dir="rtl"] & {
+              text-align: right;
+            }
         }
         input, select {
             width: 100%;
@@ -386,6 +459,11 @@
             border-radius: var(--radius-md);
             background-color: var(--surface-light);
             font-size: 0.875rem;
+
+            [dir="rtl"] & {
+              text-align: right;
+              direction: rtl;
+            }
         }
       }
     }
@@ -409,6 +487,10 @@
         input {
           width: 100px;
           text-align: right;
+
+          [dir="rtl"] & {
+            text-align: left;
+          }
           padding: 0.25rem 0.5rem;
           border: 1px solid var(--border-color);
           border-radius: var(--radius-md);
@@ -454,6 +536,10 @@
   padding: 1rem 2rem;
   display: flex;
   justify-content: flex-end;
+
+  [dir="rtl"] & {
+    justify-content: flex-start;
+  }
   gap: 1rem;
   z-index: 50;
   box-shadow: 0 -4px 6px -1px rgb(0 0 0 / 0.05);
@@ -529,6 +615,9 @@
 
     .doc-info {
       text-align: right;
+      [dir="rtl"] & {
+        text-align: left;
+      }
       h2 { margin: 0; font-size: 16pt; color: #333; }
       .meta-row {
         margin-top: 5px;
@@ -564,6 +653,9 @@
             border-bottom: 2px solid #333; 
             padding: 8px 5px; 
             text-align: left; 
+            [dir="rtl"] & {
+              text-align: right;
+            }
             font-weight: bold; 
             text-transform: uppercase;
             font-size: 9pt;
@@ -576,10 +668,18 @@
             border-bottom: 1px solid #eee; 
             padding: 8px 5px; 
             vertical-align: top;
+            [dir="rtl"] & {
+              text-align: right;
+            }
         }
     }
 
-    .text-right { text-align: right; }
+    .text-right { 
+      text-align: right; 
+      [dir="rtl"] & {
+        text-align: left;
+      }
+    }
     .text-center { text-align: center; }
     .font-bold { font-weight: bold; }
   }
@@ -587,6 +687,9 @@
   .print-totals {
     display: flex;
     justify-content: flex-end;
+    [dir="rtl"] & {
+      justify-content: flex-start;
+    }
     margin-bottom: 3rem;
     page-break-inside: avoid;
 

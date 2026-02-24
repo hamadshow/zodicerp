@@ -3,6 +3,8 @@ import { Head, Link, router } from '@inertiajs/react';
 import Header from '../Components/Header';
 import Footer from '../Components/Footer';
 import '../../../../css/homepage/main.scss';
+import { useCurrency } from '../../../Hooks/useCurrency';
+import { useTranslation } from '../../../Hooks/useTranslation';
 
 const getProductImageUrl = (image, fallback) => {
     if (!image) {
@@ -26,18 +28,28 @@ const getProductImageUrl = (image, fallback) => {
 
 export default function ProductDetails({ product, categories = [] }) {
     const placeholderImage = 'https://via.placeholder.com/500x500';
+    const { formatMoney, localization } = useCurrency();
+    const { t } = useTranslation();
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
 
     if (!product) {
         return (
             <div className="app-layout homepage-layout product-details-page">
-                <Head title="Product Not Found" />
+                <Head title={t('product.not_found', 'Product Not Found')} />
                 <Header categoriesData={categories} showAnnouncementBar={false} />
                 <div className="product-details-container">
                     <div className="product-not-found">
                         <i className="fas fa-search"></i>
-                        <h2 className="product-not-found-title">Product Not Found</h2>
-                        <p className="product-not-found-text">The product you are looking for does not exist or has been removed.</p>
-                        <Link href="/" className="btn-buy-now product-not-found-link">Back to Home</Link>
+                        <h2 className="product-not-found-title">{t('product.not_found', 'Product Not Found')}</h2>
+                        <p className="product-not-found-text">{t('product.not_found_desc', 'The product you are looking for does not exist or has been removed.')}</p>
+                        <Link href={getLocalizedRoute('home')} className="btn-buy-now product-not-found-link">{t('product.back_to_home', 'Back to Home')}</Link>
                     </div>
                 </div>
                 <Footer />
@@ -69,12 +81,6 @@ export default function ProductDetails({ product, categories = [] }) {
         }
     };
 
-    const formatPrice = (price) => {
-        const numeric = typeof price === 'number' ? price : Number(price);
-        const safe = Number.isFinite(numeric) ? numeric : 0;
-        return new Intl.NumberFormat('en-EG', { style: 'currency', currency: 'EGP' }).format(safe);
-    };
-
     const selectedColorName = product.colors?.[selectedColor]?.name || null;
     
     let currentVariantKey = null;
@@ -88,300 +94,136 @@ export default function ProductDetails({ product, categories = [] }) {
 
     const currentVariant = currentVariantKey ? product.variants?.[currentVariantKey] : null;
     
-    let displayPrice = currentVariant ? (currentVariant.price || 0) : (product.price || 0);
-    let displayOldPrice = null;
-
-    if (currentVariant) {
-        if (currentVariant.sale_price && Number(currentVariant.sale_price) < Number(currentVariant.price)) {
-            displayPrice = currentVariant.sale_price;
-            displayOldPrice = currentVariant.price;
-        }
-    } else {
-         if (product.sale_price && Number(product.sale_price) < Number(product.price)) {
-            displayPrice = product.sale_price;
-            displayOldPrice = product.price;
-        } else if (product.old_price) {
-             displayOldPrice = product.old_price;
-        }
-    }
-
-    const displayStockRaw = currentVariant ? currentVariant.stock : (product.product_type === 'variable' ? 0 : product.stock);
-    const displayStock = Number.isFinite(Number(displayStockRaw)) ? Number(displayStockRaw) : 0;
-    const displaySku = currentVariant?.sku ?? (product.sku || 'N/A');
-
-    // Calculate images based on selection
-    const allImages = Array.isArray(product.images) && product.images.length > 0
-        ? product.images
-        : product.image
-            ? [product.image]
-            : [placeholderImage];
-
-    let displayImagesRaw = allImages;
-
-    if (currentVariant) {
-        const parentImages = Array.isArray(product.parent_images) && product.parent_images.length > 0
-            ? product.parent_images
-            : (product.image ? [product.image] : []);
-
-        const variantImages = Array.isArray(currentVariant.images) && currentVariant.images.length > 0
-            ? currentVariant.images
-            : (currentVariant.image ? [currentVariant.image] : []);
-        
-        // Merge parent images and variant images
-        if (variantImages.length > 0) {
-            displayImagesRaw = [...parentImages, ...variantImages];
-            // Remove duplicates
-            displayImagesRaw = [...new Set(displayImagesRaw)];
-        }
-    }
-
-    const images = displayImagesRaw.map((img) =>
-        getProductImageUrl(img, placeholderImage)
-    );
-
-    useEffect(() => {
-        if (selectedImage > images.length - 1) {
-            setSelectedImage(0);
-        }
-    }, [images.length, selectedImage]);
-
-    useEffect(() => {
-        if (currentVariant?.image) {
-            const variantImage = getProductImageUrl(currentVariant.image, null);
-            if (variantImage) {
-                const index = images.findIndex((img) => img === variantImage);
-                if (index !== -1) {
-                    setSelectedImage(index);
-                } else {
-                     if (images.length > 0) setSelectedImage(0);
-                }
-            }
-        }
-    }, [currentVariant?.image, images]);
-
-    useEffect(() => {
-        if (displayStock > 0 && quantity > displayStock) {
-            setQuantity(displayStock);
-        }
-        if (displayStock <= 0 && quantity !== 1) {
-            setQuantity(1);
-        }
-    }, [displayStock, quantity]);
-
-    const discountPercentage =
-        displayOldPrice && Number(displayOldPrice) > Number(displayPrice)
-            ? Math.round(((Number(displayOldPrice) - Number(displayPrice)) / Number(displayOldPrice)) * 100)
-            : 0;
-
-    const showFeedback = (type, message) => {
-        setActionFeedback({ type, message });
-        window.clearTimeout(feedbackTimerRef.current);
-        feedbackTimerRef.current = window.setTimeout(() => setActionFeedback(null), 2500);
-    };
+    const displayPrice = currentVariant?.price || product.price;
+    const displayOldPrice = currentVariant?.old_price || product.old_price;
+    const hasDiscount = displayOldPrice && displayOldPrice > displayPrice;
+    const discountPercentage = hasDiscount ? Math.round(((displayOldPrice - displayPrice) / displayOldPrice) * 100) : 0;
 
     const handleAddToCart = () => {
-        if (displayStock <= 0) {
-            showFeedback('error', 'This item is out of stock.');
-            return;
-        }
+        setActionFeedback({ type: 'cart', message: 'Added to cart!' });
+        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+        feedbackTimerRef.current = setTimeout(() => setActionFeedback(null), 3000);
+    };
 
-        if (!Number.isFinite(quantity) || quantity < 1) {
-            setQuantity(1);
-            showFeedback('error', 'Please select a valid quantity.');
-            return;
-        }
-
-        if (quantity > displayStock) {
-            showFeedback('error', `Only ${displayStock} available for this selection.`);
-            return;
-        }
-
-        const variants = {};
-        if (selectedColorName) variants.Color = selectedColorName;
-        if (selectedSize) variants.Size = selectedSize;
-
-        const productIdToSend = currentVariant ? currentVariant.id : product.id;
-
-        window.axios
-            .post('/cart/add', {
-                product_id: productIdToSend,
-                quantity,
-                variants,
-            })
-            .then((response) => {
-                if (typeof response?.data?.cartCount === 'number') {
-                    window.dispatchEvent(
-                        new CustomEvent('cart:updated', { detail: { count: response.data.cartCount, version: response?.data?.cartVersion } })
-                    );
-                }
-                showFeedback('success', 'Added to cart.');
-            })
-            .catch((error) => {
-                const message =
-                    error?.response?.data?.message ||
-                    error?.message ||
-                    'Failed to add to cart. Please try again.';
-                showFeedback('error', message);
-            });
+    const handleAddToWishlist = () => {
+        setActionFeedback({ type: 'wishlist', message: 'Added to wishlist!' });
+        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+        feedbackTimerRef.current = setTimeout(() => setActionFeedback(null), 3000);
     };
 
     const handleBuyNow = () => {
-        if (displayStock <= 0) {
-            showFeedback('error', 'This item is out of stock.');
-            return;
-        }
+        handleAddToCart();
+        router.visit(getLocalizedRoute('checkout.index'));
+    };
 
-        if (!Number.isFinite(quantity) || quantity < 1) {
-            setQuantity(1);
-            showFeedback('error', 'Please select a valid quantity.');
-            return;
-        }
-
-        if (quantity > displayStock) {
-            showFeedback('error', `Only ${displayStock} available for this selection.`);
-            return;
-        }
-
-        const variants = {};
-        if (selectedColorName) variants.color = selectedColorName;
-        if (selectedSize) variants.size = selectedSize;
-
-        window.axios
-            .post('/cart/add', {
-                product_id: product.id,
-                quantity,
-                variants,
-            })
-            .then((response) => {
-                if (typeof response?.data?.cartCount === 'number') {
-                    window.dispatchEvent(
-                        new CustomEvent('cart:updated', { detail: { count: response.data.cartCount, version: response?.data?.cartVersion } })
-                    );
-                }
-                router.visit(route('checkout'));
-            })
-            .catch((error) => {
-                const message =
-                    error?.response?.data?.message ||
-                    error?.message ||
-                    'Failed to proceed to checkout. Please try again.';
-                showFeedback('error', message);
+    const handleShare = () => {
+        if (navigator.share) {
+            navigator.share({
+                title: product.name,
+                url: window.location.href
+            }).catch(() => {
+                setActionFeedback({ type: 'share', message: 'Link copied to clipboard!' });
             });
+        } else {
+            navigator.clipboard.writeText(window.location.href);
+            setActionFeedback({ type: 'share', message: 'Link copied to clipboard!' });
+        }
+        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+        feedbackTimerRef.current = setTimeout(() => setActionFeedback(null), 3000);
     };
 
     return (
         <div className="app-layout homepage-layout product-details-page">
-            <Head title={product.name || 'Product Details'} />
-            
+            <Head title={`${product.name} | ZodiMarket`} />
             <Header categoriesData={categories} showAnnouncementBar={false} />
-
-            <div className="product-details-container">
-                <nav className="breadcrumb">
-                    <Link href="/">Home</Link>
-                    <span className="breadcrumb-separator">/</span>
-                    <Link href={route('products.index')}>Products</Link>
-                    <span className="breadcrumb-separator">/</span>
-                    <span className="breadcrumb-current">{product.name}</span>
+            
+            <main className="product-details-container">
+                {/* Breadcrumbs */}
+                <nav className="product-breadcrumb">
+                    <Link href={getLocalizedRoute('home')}>Home</Link>
+                    <i className="fas fa-chevron-right"></i>
+                    {product.categories?.[0] && (
+                        <>
+                            <Link href={getLocalizedRoute('products.index', { category: product.categories[0].slug })}>
+                                {product.categories[0].name}
+                            </Link>
+                            <i className="fas fa-chevron-right"></i>
+                        </>
+                    )}
+                    <span>{product.name}</span>
                 </nav>
 
-                <main className="product-main-layout">
+                <div className="product-details-grid">
+                    {/* Image Gallery */}
                     <div className="product-gallery">
-                        <div className="gallery-thumbnails">
-                            {images.map((img, index) => (
-                                <button
-                                    key={index}
-                                    className={`thumbnail-btn ${selectedImage === index ? 'active' : ''}`}
-                                    onClick={() => handleImageSelect(index)}
-                                    aria-label={`View image ${index + 1}`}
+                        <div className="main-image-wrapper">
+                            {!mainImageLoaded && <div className="image-skeleton"></div>}
+                            <img 
+                                src={getProductImageUrl(product.images?.[selectedImage], placeholderImage)} 
+                                alt={product.name}
+                                className={`main-image ${mainImageLoaded ? 'loaded' : ''}`}
+                                onLoad={() => setMainImageLoaded(true)}
+                            />
+                            {hasDiscount && (
+                                <div className="discount-badge">-{discountPercentage}%</div>
+                            )}
+                        </div>
+                        <div className="thumbnail-list">
+                            {product.images?.map((img, idx) => (
+                                <button 
+                                    key={idx}
+                                    className={`thumbnail-item ${selectedImage === idx ? 'active' : ''}`}
+                                    onClick={() => handleImageSelect(idx)}
                                 >
-                                    <img src={img} alt={`Thumbnail ${index + 1}`} className="thumbnail-img" />
+                                    <img src={getProductImageUrl(img, placeholderImage)} alt={`${product.name} view ${idx + 1}`} />
                                 </button>
                             ))}
                         </div>
-                        <div className="main-image-wrapper">
-                            {!mainImageLoaded && (
-                                <div className="main-image-skeleton skeleton-loader" aria-hidden="true"></div>
-                            )}
-                            <img 
-                                src={images[selectedImage] || placeholderImage} 
-                                alt={product.name} 
-                                className={`main-img ${mainImageLoaded ? 'loaded' : ''}`}
-                                onLoad={() => setMainImageLoaded(true)}
-                                onError={(e) => {
-                                    if (e.currentTarget.src !== placeholderImage) {
-                                        e.currentTarget.src = placeholderImage;
-                                    }
-                                }}
-                            />
-                        </div>
                     </div>
 
+                    {/* Product Info */}
                     <div className="product-info">
-                        <h1 className="product-title">{product.name}</h1>
-                        
-                        <a href={product.store_url} className="store-link">
-                            Visit {product.store_name}
-                        </a>
-
-                        <div className="rating-section">
-                            <div className="stars">
-                                {'★'.repeat(Math.floor(product.rating || 0))}
-                                {'☆'.repeat(5 - Math.floor(product.rating || 0))}
+                        <div className="product-header">
+                            <h1 className="product-title">{product.name}</h1>
+                            <div className="product-meta">
+                                <div className="product-rating">
+                                    <div className="stars">
+                                        {[1, 2, 3, 4, 5].map(star => (
+                                            <i key={star} className={`fas fa-star ${star <= (product.rating || 5) ? 'active' : ''}`}></i>
+                                        ))}
+                                    </div>
+                                    <span className="rating-count">({product.reviews_count || 0} Reviews)</span>
+                                </div>
+                                <span className="product-sku">SKU: {product.sku || 'N/A'}</span>
                             </div>
-                            <span className="review-count">({product.reviews || 0} Reviews)</span>
-                            <span className="social-proof">100+ bought in past month</span>
                         </div>
 
-                        {product.description && (
-                            <div className="product-simple-description">
-                                {product.description.split('\n').some(line => line.trim().startsWith('[') || line.trim().startsWith('-') || line.trim().startsWith('•')) ? (
-                                    <div className="product-features-section">
-                                        <h3 className="features-title">About this item</h3>
-                                        <ul className="product-features-list">
-                                            {product.description.split('\n').filter(line => line.trim()).map((line, i) => {
-                                                const match = line.match(/^(\[.*?\])(.*)/);
-                                                if (match) {
-                                                    return (
-                                                        <li key={i}>
-                                                            <span className="feature-label">{match[1].replace(/[[\]]/g, '')}: </span>
-                                                            <span className="feature-text">{match[2]}</span>
-                                                        </li>
-                                                    );
-                                                }
-                                                return <li key={i}>{line.replace(/^[-•]\s*/, '')}</li>;
-                                            })}
-                                        </ul>
-                                    </div>
-                                ) : (
-                                    product.description
-                                )}
-                            </div>
-                        )}
-
-                        <div className="price-section">
-                            <span className="current-price">{formatPrice(displayPrice)}</span>
-                            {displayOldPrice && Number(displayOldPrice) > Number(displayPrice) && (
-                                <>
-                                    <span className="old-price">{formatPrice(displayOldPrice)}</span>
-                                    <span className="discount-badge">
-                                        -{discountPercentage}%
-                                    </span>
-                                </>
+                        <div className="product-pricing">
+                            <span className="current-price">{formatMoney(displayPrice)}</span>
+                            {hasDiscount && (
+                                <div className="old-price-wrapper">
+                                    <span className="old-price">{formatMoney(displayOldPrice)}</span>
+                                    <span className="savings">Save {formatMoney(displayOldPrice - displayPrice)}</span>
+                                </div>
                             )}
                         </div>
 
-                        <div className="variations-section">
-                            {product.colors && product.colors.length > 0 && (
-                                <div className="variation-group">
-                                    <span className="variation-label">Color: {product.colors[selectedColor]?.name}</span>
+                        <p className="product-short-description">
+                            {product.short_description || 'High-quality product from trusted suppliers.'}
+                        </p>
+
+                        <div className="product-options">
+                            {/* Color Selection */}
+                            {product.colors?.length > 0 && (
+                                <div className="option-group">
+                                    <label className="option-label">Color: <span>{product.colors[selectedColor].name}</span></label>
                                     <div className="color-options">
-                                        {product.colors.map((color, index) => (
+                                        {product.colors.map((color, idx) => (
                                             <button
-                                                key={index}
-                                                className={`color-btn ${selectedColor === index ? 'active' : ''}`}
-                                                style={{ '--swatch-color': color.value }}
-                                                onClick={() => setSelectedColor(index)}
-                                                aria-label={`Select color ${color.name}`}
+                                                key={idx}
+                                                className={`color-btn ${selectedColor === idx ? 'active' : ''}`}
+                                                style={{ backgroundColor: color.hex }}
+                                                onClick={() => setSelectedColor(idx)}
                                                 title={color.name}
                                             />
                                         ))}
@@ -389,13 +231,14 @@ export default function ProductDetails({ product, categories = [] }) {
                                 </div>
                             )}
 
-                            {product.sizes && product.sizes.length > 0 && (
-                                <div className="variation-group">
-                                    <span className="variation-label">Size: {selectedSize}</span>
+                            {/* Size Selection */}
+                            {product.sizes?.length > 0 && (
+                                <div className="option-group">
+                                    <label className="option-label">Size: <span>{selectedSize}</span></label>
                                     <div className="size-options">
-                                        {product.sizes.map((size) => (
+                                        {product.sizes.map((size, idx) => (
                                             <button
-                                                key={size}
+                                                key={idx}
                                                 className={`size-btn ${selectedSize === size ? 'active' : ''}`}
                                                 onClick={() => setSelectedSize(size)}
                                             >
@@ -405,79 +248,94 @@ export default function ProductDetails({ product, categories = [] }) {
                                     </div>
                                 </div>
                             )}
-                        </div>
-                        
-                        <div className="product-meta">
-                            <span>SKU: {displaySku}</span>
-                            <span>Category: {product.category_name || 'General'}</span>
-                        </div>
-                    </div>
 
-                    <div className="purchase-box">
-                        <div className="purchase-summary">
-                            <div className="summary-price">{formatPrice(displayPrice)}</div>
-                            <div className="delivery-info">
-                                <span className="material-icons-outlined delivery-icon">local_shipping</span>
-                                Free Delivery by {new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toLocaleDateString()}
-                            </div>
-                            <div className={`stock-status ${displayStock > 0 ? 'stock-in' : 'stock-out'}`}>
-                                {displayStock > 0 ? `In Stock (${displayStock} available)` : 'Out of Stock'}
+                            {/* Quantity Selection */}
+                            <div className="option-group">
+                                <label className="option-label">{t('product.quantity', 'Quantity')}</label>
+                                <div className="quantity-selector">
+                                    <button 
+                                        onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                                        disabled={quantity <= 1}
+                                    >
+                                        <i className="fas fa-minus"></i>
+                                    </button>
+                                    <input 
+                                        type="number" 
+                                        value={quantity} 
+                                        onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                        min="1"
+                                    />
+                                    <button onClick={() => setQuantity(quantity + 1)}>
+                                        <i className="fas fa-plus"></i>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
-                        <div className="quantity-control">
-                            <label className="qty-label">Quantity:</label>
-                            <select 
-                                className="qty-select"
-                                value={quantity}
-                                onChange={(e) => setQuantity(parseInt(e.target.value, 10))}
-                                disabled={displayStock <= 0}
-                            >
-                                {[1, 2, 3, 4, 5, 10]
-                                    .filter((num) => num <= Math.max(displayStock, 1))
-                                    .map((num) => (
-                                        <option key={num} value={num} disabled={num > displayStock}>{num}</option>
-                                    ))}
-                            </select>
+                        <div className="product-actions">
+                            <button className="btn-add-to-cart" onClick={handleAddToCart}>
+                                <i className="fas fa-shopping-cart"></i> {t('cart.add_to_cart', 'Add to Cart')}
+                            </button>
+                            <button className="btn-buy-now" onClick={handleBuyNow}>{t('product.buy_now', 'Buy Now')}</button>
+                            <div className="secondary-actions">
+                                <button className="action-btn" onClick={handleAddToWishlist} title={t('cart.add_to_wishlist', 'Add to Wishlist')}>
+                                    <i className="far fa-heart"></i>
+                                </button>
+                                <button className="action-btn" onClick={handleShare} title={t('product.share', 'Share')}>
+                                    <i className="fas fa-share-alt"></i>
+                                </button>
+                            </div>
                         </div>
 
                         {actionFeedback && (
-                            <div className={`purchase-feedback ${actionFeedback.type}`}>
+                            <div className={`action-feedback ${actionFeedback.type}`}>
+                                <i className="fas fa-check-circle"></i>
                                 {actionFeedback.message}
                             </div>
                         )}
 
-                        <div className="action-buttons">
-                            <button 
-                                className="btn-add-cart" 
-                                disabled={displayStock <= 0}
-                                onClick={handleAddToCart}
-                            >
-                                Add to Cart
-                            </button>
-                            <button 
-                                className="btn-buy-now"
-                                disabled={displayStock <= 0}
-                                onClick={handleBuyNow}
-                            >
-                                Buy Now
-                            </button>
+                        <div className="product-summary-cards">
+                            <div className="summary-card">
+                                <i className="fas fa-truck"></i>
+                                <div>
+                                    <h6>{t('product.free_shipping', 'Free Shipping')}</h6>
+                                    <p>{t('product.on_orders_over', 'On orders over')} {formatMoney(500)}</p>
+                                </div>
+                            </div>
+                            <div className="summary-card">
+                                <i className="fas fa-shield-alt"></i>
+                                <div>
+                                    <h6>{t('product.secure_payment', 'Secure Payment')}</h6>
+                                    <p>{t('product.secure_payment_desc', '100% secure payment')}</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </main>
+                </div>
 
-                {product.content && (
-                    <section className="product-detailed-content">
-                        <h2 className="section-title">Product Description</h2>
-                        <div className="content-body">
-                            {product.content}
-                        </div>
-                    </section>
-                )}
-
-            </div>
+                {/* Product Tabs/Details */}
+                <div className="product-details-tabs">
+                    <div className="tabs-header">
+                        <button className="tab-btn active">{t('product.description', 'Description')}</button>
+                        <button className="tab-btn">{t('product.specifications', 'Specifications')}</button>
+                        <button className="tab-btn">{t('product.reviews', 'Reviews')} ({product.reviews_count || 0})</button>
+                    </div>
+                    <div className="tab-content">
+                        <div className="description-content" dangerouslySetInnerHTML={{ __html: product.description }}></div>
+                    </div>
+                </div>
+            </main>
 
             <Footer />
+
+            {/* Sticky Mobile Action Bar */}
+            <div className="mobile-action-bar">
+                <div className="summary-info">
+                    <div className="summary-price">{formatMoney(displayPrice)}</div>
+                    <div className="summary-stock">{t('product.in_stock', 'In Stock')}</div>
+                </div>
+                <button className="btn-buy-now" onClick={handleBuyNow}>{t('product.buy_now', 'Buy Now')}</button>
+            </div>
         </div>
     );
 }

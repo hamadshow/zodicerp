@@ -3,9 +3,19 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 
 export default function SupplierRegister() {
+  const { localization } = usePage().props;
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
   const { data, setData, post, processing, errors, reset } = useForm({
     supplier_code: '',
     name_ar: '',
@@ -18,7 +28,7 @@ export default function SupplierRegister() {
   const submit = (e) => {
     e.preventDefault();
 
-    post(route('supplier.store'), {
+    post(getLocalizedRoute('supplier.store'), {
       onFinish: () => reset('password', 'password_confirmation'),
     });
   };
@@ -121,7 +131,7 @@ export default function SupplierRegister() {
 
         <div className="mt-4 flex items-center justify-end">
           <Link
-            href={route('supplier.login')}
+            href={getLocalizedRoute('supplier.login')}
             className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
             Already registered?

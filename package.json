@@ -55,6 +55,7 @@
         "html2pdf.js": "^0.14.0",
         "leaflet": "^1.9.4",
         "lodash": "^4.17.23",
+        "lucide-react": "^0.575.0",
         "puppeteer": "^24.34.0",
         "react-datepicker": "^9.1.0",
         "react-leaflet": "^4.2.1",
