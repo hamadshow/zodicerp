@@ -18,11 +18,26 @@ class HandleInertiaRequests extends Middleware
     protected function getTranslations()
     {
         $locale = App::getLocale();
-        return LanguageLine::all()->mapWithKeys(function ($line) use ($locale) {
+        $dbTranslations = LanguageLine::all()->mapWithKeys(function ($line) use ($locale) {
             $key = $line->group . '.' . $line->key;
             $text = $line->text[$locale] ?? ($line->text[config('app.fallback_locale')] ?? $line->key);
             return [$key => $text];
         })->toArray();
+
+        $fileTranslations = [];
+        $files = ['home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar'];
+        
+        foreach ($files as $file) {
+            $path = lang_path("$locale/$file.php");
+            if (file_exists($path)) {
+                $translations = require $path;
+                foreach ($translations as $key => $value) {
+                    $fileTranslations["$file.$key"] = $value;
+                }
+            }
+        }
+
+        return array_merge($fileTranslations, $dbTranslations);
     }
 
     /**

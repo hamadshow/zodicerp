@@ -153,12 +153,49 @@ Route::group([
             Route::post('/move', [MediaController::class, 'move'])->name('move');
         });
 
+        // Essential Data
+        Route::resource('currencies', \App\Http\Controllers\Essential_Data_Controllers\CurrencyController::class);
+        Route::resource('exchange-rates', \App\Http\Controllers\Essential_Data_Controllers\ExchangeRateController::class);
+        Route::resource('companies', \App\Http\Controllers\Essential_Data_Controllers\CompanyController::class);
+        Route::resource('branches', \App\Http\Controllers\Essential_Data_Controllers\BranchController::class);
+
+        // Human Resources
+        Route::get('hr/dashboard', function () { return Inertia::render('Backend/02_human_resource/dashboard'); })->name('hr.dashboard');
+        Route::resource('employees', \App\Http\Controllers\HumanResource\EmployeeController::class);
+        Route::resource('nationalities', \App\Http\Controllers\HumanResource\NationalityController::class);
+        Route::get('departments', function () { return Inertia::render('Backend/02_human_resource/Departments'); })->name('departments.index');
+        Route::get('profession', function () { return Inertia::render('Backend/02_human_resource/Profession'); })->name('profession.index');
+        Route::get('attendance', function () { return Inertia::render('Backend/02_human_resource/Attendance'); })->name('attendance.index');
+        Route::get('payroll-advance', function () { return Inertia::render('Backend/02_human_resource/Payroll-Advance'); })->name('payroll-advance.index');
+        Route::get('deductions', function () { return Inertia::render('Backend/02_human_resource/Deductions'); })->name('deductions.index');
+        Route::get('vacations', function () { return Inertia::render('Backend/02_human_resource/Vacations'); })->name('vacations.index');
+        Route::get('salary-receipt', function () { return Inertia::render('Backend/02_human_resource/Salary-Receipt'); })->name('salary-receipt.index');
+
         // Inventory
         Route::resource('products', \App\Http\Controllers\Inventory\ProductsController::class);
         Route::resource('categories', \App\Http\Controllers\Inventory\CategoriesController::class);
         Route::resource('brands', \App\Http\Controllers\Inventory\BrandsController::class);
         Route::resource('warehouses', \App\Http\Controllers\Inventory\WarehousesController::class);
+        Route::resource('item-units', \App\Http\Controllers\Inventory\ItemUnitController::class);
+        Route::resource('item-attributes', \App\Http\Controllers\Inventory\ItemAttributeController::class);
+        Route::resource('item-collections', \App\Http\Controllers\Inventory\ItemCollectionController::class);
 
+        // Accounting & Business
+        Route::get('chart-of-accounts', function () { return Inertia::render('Backend/07-Accounting/ChartOfAccounts'); })->name('chart-of-accounts');
+        Route::get('financial-reports', [FinancialReportController::class, 'index'])->name('financial-reports.index');
+        Route::get('financial-reports/coa', [FinancialReportController::class, 'coaReport'])->name('financial-reports.coa');
+
+        // Budgeting
+        Route::prefix('budget')->name('budget.')->group(function () {
+            Route::get('/', function () { return Inertia::render('Backend/Budget/BudgeDashBoard'); })->name('dashboard');
+            Route::get('/categories', function () { return Inertia::render('Backend/Budget/BudgetCategory'); })->name('categories');
+            Route::get('/list', function () { return Inertia::render('Backend/Budget/Budget'); })->name('index');
+            Route::get('/forecasts', function () { return Inertia::render('Backend/Budget/BudgetForecast'); })->name('forecasts');
+            Route::get('/monitoring', function () { return Inertia::render('Backend/Budget/BudgetMonitoring'); })->name('monitoring');
+            Route::get('/transfers', function () { return Inertia::render('Backend/Budget/BudgetTransfer'); })->name('transfers');
+            Route::get('/commitments', function () { return Inertia::render('Backend/Budget/BudgetCommitment'); })->name('commitments');
+        });
+        
         // Location
         Route::prefix('location')->name('location.')->group(function () {
             Route::get('/', [LocationController::class, 'index'])->name('index');
@@ -167,10 +204,6 @@ Route::group([
             Route::post('/areas', [LocationController::class, 'storeArea']);
         });
 
-        // Accounting & Business
-        Route::resource('currencies', \App\Http\Controllers\Essential_Data_Controllers\CurrencyController::class);
-        Route::get('chart-of-accounts', function () { return Inertia::render('Backend/07-Accounting/ChartOfAccounts'); })->name('chart-of-accounts');
-        
         // Settings
         Route::get('settings', function () { return Inertia::render('Backend/Settings/Settings'); })->name('settings');
         
