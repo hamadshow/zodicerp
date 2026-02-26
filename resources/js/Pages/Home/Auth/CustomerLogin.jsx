@@ -144,6 +144,14 @@ const Login = ({ status }) => {
                 {processing ? 'Signing in...' : 'Login'}
               </button>
 
+              <Link
+                href={getLocalizedRoute('customer.register')}
+                className="auth-submit-button"
+                style={{ marginTop: '1rem', backgroundColor: '#6b7280', textAlign: 'center', display: 'block', textDecoration: 'none' }}
+              >
+                Register
+              </Link>
+
               <div className="auth-footer-text">
                 <span>By continuing, you agree to our </span>
                 <Link href="/terms" className="auth-link">

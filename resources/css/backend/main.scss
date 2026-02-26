@@ -90,6 +90,9 @@
 @use 'pages/Sales';
 @use 'pages/LegacySettings';
 @use 'pages/Profession';
+@use 'pages/ThemeTranslations';
+@use 'pages/OtherTranslations';
+@use 'pages/Locales';
 
 // Global RTL Support
 [dir="rtl"] {

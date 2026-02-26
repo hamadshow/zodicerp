@@ -121,16 +121,16 @@ export default function HeaderTop({
     0
   );
 
-  const user = usePage().props.auth?.user;
+  const { auth } = usePage().props;
+  // console.log('HeaderTop Auth Props:', auth);
+  const user = auth?.customer || auth?.user;
 
   const handleLogout = () => {
     router.post(getLocalizedRoute('customer.logout'));
   };
 
   const handleDashboard = () => {
-    if (user?.role === 'customer') {
-      router.visit(getLocalizedRoute('customer.dashboard'));
-    }
+    router.visit(getLocalizedRoute('customer.dashboard'));
   };
 
   return (
@@ -210,7 +210,7 @@ export default function HeaderTop({
               <i className="fas fa-user"></i>
               <div className="user-account-text">
                 <span className="user-account-name" onClick={handleDashboard}>
-                  {user.name}
+                  {user.name || (localization?.current_locale === 'ar' ? user.name_ar : user.name_en) || user.name_en || user.name_ar}
                 </span>
                 <button
                   type="button"

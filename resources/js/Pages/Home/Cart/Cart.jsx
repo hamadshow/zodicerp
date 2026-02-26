@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Head, usePage, router } from '@inertiajs/react';
 import Header from '../Components/Header';
 import Footer from '../Components/Footer';
@@ -42,7 +42,7 @@ const CartItem = ({ item, currency, onIncrease, onDecrease, onRemove }) => {
         <button
           type="button"
           className="qty-btn"
-          onClick={() => onDecrease(item.id)}
+          onClick={() => onDecrease(item.itemKey)}
           disabled={item.quantity <= 1}
         >
           -
@@ -51,7 +51,7 @@ const CartItem = ({ item, currency, onIncrease, onDecrease, onRemove }) => {
         <button
           type="button"
           className="qty-btn"
-          onClick={() => onIncrease(item.id)}
+          onClick={() => onIncrease(item.itemKey)}
         >
           +
         </button>
@@ -64,7 +64,7 @@ const CartItem = ({ item, currency, onIncrease, onDecrease, onRemove }) => {
         <button
           type="button"
           className="remove-btn"
-          onClick={() => onRemove(item.id)}
+          onClick={() => onRemove(item.itemKey)}
           aria-label="Remove item"
         >
           x
@@ -92,26 +92,62 @@ const Cart = () => {
 
   const [items, setItems] = useState(initialItems);
 
-  const handleIncrease = (id) => {
+  const syncCartCount = useCallback((response) => {
+    if (typeof response?.data?.cartCount === 'number') {
+      window.dispatchEvent(
+        new CustomEvent('cart:updated', { detail: { count: response.data.cartCount, version: response?.data?.cartVersion } })
+      );
+    }
+  }, []);
+
+  const updateCartQuantity = useCallback(async (itemKey, quantity) => {
+    const response = await window.axios.post(getLocalizedRoute('cart.update'), {
+      item_key: itemKey,
+      quantity,
+    });
+    syncCartCount(response);
+  }, [getLocalizedRoute, syncCartCount]);
+
+  const removeCartItem = useCallback(async (itemKey) => {
+    const response = await window.axios.post(getLocalizedRoute('cart.remove'), {
+      item_key: itemKey,
+    });
+    syncCartCount(response);
+  }, [getLocalizedRoute, syncCartCount]);
+
+  const handleIncrease = (itemKey) => {
+    const currentItem = items.find((item) => item.itemKey === itemKey);
+    if (!currentItem) {
+      return;
+    }
+    const nextQuantity = currentItem.quantity + 1;
     setItems((prev) =>
       prev.map((item) =>
-        item.id === id ? { ...item, quantity: item.quantity + 1 } : item
+        item.itemKey === itemKey ? { ...item, quantity: nextQuantity } : item
       )
     );
+    updateCartQuantity(itemKey, nextQuantity);
   };
 
-  const handleDecrease = (id) => {
+  const handleDecrease = (itemKey) => {
+    const currentItem = items.find((item) => item.itemKey === itemKey);
+    if (!currentItem || currentItem.quantity <= 1) {
+      return;
+    }
+    const nextQuantity = currentItem.quantity - 1;
     setItems((prev) =>
       prev.map((item) =>
-        item.id === id && item.quantity > 1
-          ? { ...item, quantity: item.quantity - 1 }
+        item.itemKey === itemKey
+          ? { ...item, quantity: nextQuantity }
           : item
       )
     );
+    updateCartQuantity(itemKey, nextQuantity);
   };
 
-  const handleRemove = (id) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+  const handleRemove = (itemKey) => {
+    setItems((prev) => prev.filter((item) => item.itemKey !== itemKey));
+    removeCartItem(itemKey);
   };
 
   const subtotal = useMemo(
@@ -157,7 +193,7 @@ const Cart = () => {
                       {items.map((item) => {
                         return (
                           <CartItem
-                            key={item.id}
+                            key={item.itemKey}
                             item={item}
                             currency={currency}
                             onIncrease={handleIncrease}

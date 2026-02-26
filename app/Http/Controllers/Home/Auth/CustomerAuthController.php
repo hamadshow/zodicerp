@@ -15,7 +15,7 @@ class CustomerAuthController extends Controller
 {
     public function showLoginForm()
     {
-        return Inertia::render('Backend/Auth/CustomerLogin');
+        return Inertia::render('Home/Auth/CustomerLogin');
     }
 
     public function login(Request $request)
@@ -28,7 +28,7 @@ class CustomerAuthController extends Controller
         if (Auth::guard('customer')->attempt($request->only('email', 'password'), $request->boolean('remember'))) {
             $request->session()->regenerate();
 
-            return redirect()->intended(route('customer.dashboard'));
+            return redirect()->intended(route('home'));
         }
 
         throw ValidationException::withMessages([
@@ -38,17 +38,18 @@ class CustomerAuthController extends Controller
 
     public function showRegisterForm()
     {
-        return Inertia::render('Backend/Auth/CustomerRegister');
+        return Inertia::render('Home/Auth/CustomerRegister');
     }
 
     public function register(Request $request)
     {
         $request->validate([
-            'name_ar' => 'required|string|max:255',
-            'name_en' => 'nullable|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:customers',
-            'password' => 'required|confirmed|min:8',
-            'customer_code' => 'required|string|unique:customers',
+            'phone' => 'nullable|string|max:20',
+            'password' => 'required|confirmed|min:6',
+            'terms' => 'accepted',
         ]);
 
         $group = CustomerGroup::firstOrCreate(
@@ -56,19 +57,29 @@ class CustomerAuthController extends Controller
             ['name_ar' => 'Default Group', 'name_en' => 'Default Group', 'is_active' => true]
         );
 
+        // Generate a customer code
+        $latestCustomer = Customer::latest('id')->first();
+        $nextId = $latestCustomer ? $latestCustomer->id + 1 : 1;
+        $customerCode = 'CUST-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+
+        // Combine names
+        $fullName = $request->first_name . ' ' . $request->last_name;
+
         $customer = Customer::create([
-            'name_ar' => $request->name_ar,
-            'name_en' => $request->name_en,
+            'name_ar' => $fullName,
+            'name_en' => $fullName,
             'email' => $request->email,
+            'mobile' => $request->phone,
             'password' => Hash::make($request->password),
-            'customer_code' => $request->customer_code,
+            'customer_code' => $customerCode,
             'customer_group_id' => $group->id,
             'is_active' => true,
+            'registration_date' => now(),
         ]);
 
         Auth::guard('customer')->login($customer);
 
-        return redirect()->route('customer.dashboard');
+        return redirect()->route('home');
     }
 
     public function logout(Request $request)

@@ -684,13 +684,13 @@ const Home = ({
   const { localization } = useCurrency();
   const { toggleWishlist, isInWishlist } = useWishlist();
 
-  const getLocalizedRoute = (name, params = {}) => {
+  const getLocalizedRoute = useCallback((name, params = {}) => {
     return route(name, {
       country: localization?.country_code || 'sa',
       lang: localization?.current_locale || 'ar',
       ...params
     });
-  };
+  }, [localization?.country_code, localization?.current_locale]);
 
   const [toast, setToast] = useState(null);
   const filteredFeaturedProducts = (featuredProducts || []).filter(
@@ -705,7 +705,7 @@ const Home = ({
   const handleAddToCart = useCallback(
     async (product) => {
       try {
-        const response = await window.axios.post('/cart/add', {
+        const response = await window.axios.post(getLocalizedRoute('cart.add'), {
           product_id: product.id,
           quantity: 1,
           variants: {},
@@ -729,7 +729,7 @@ const Home = ({
         throw error;
       }
     },
-    [addToCart, showToast, t]
+    [addToCart, getLocalizedRoute, showToast, t]
   );
 
   const handleQuickView = useCallback((product) => {

@@ -231,4 +231,33 @@ class CartController extends Controller
             'cartVersion' => $cartVersion,
         ]);
     }
+
+    public function update(Request $request)
+    {
+        $validated = $request->validate([
+            'item_key' => ['required', 'string'],
+            'quantity' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $cart = $request->session()->get('cart', []);
+        if (!is_array($cart)) {
+            $cart = [];
+        }
+
+        if (!isset($cart[$validated['item_key']])) {
+            return response()->json([
+                'message' => 'Item not found in cart.',
+            ], 404);
+        }
+
+        $cart[$validated['item_key']]['quantity'] = (int) $validated['quantity'];
+        $request->session()->put('cart', $cart);
+        $cartVersion = $this->bumpCartVersion($request);
+
+        return response()->json([
+            'message' => 'Cart updated.',
+            ...$this->formatCartSummary($cart),
+            'cartVersion' => $cartVersion,
+        ]);
+    }
 }

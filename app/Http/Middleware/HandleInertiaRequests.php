@@ -57,13 +57,23 @@ class HandleInertiaRequests extends Middleware
                 }
             }
         }
+        
+        $user = $request->user();
+        $customer = $request->user('customer');
+        $supplier = $request->user('supplier');
+
+        // \Illuminate\Support\Facades\Log::info('Inertia Share Auth:', [
+        //     'user' => $user ? $user->id : null,
+        //     'customer' => $customer ? $customer->id : null,
+        //     'supplier' => $supplier ? $supplier->id : null,
+        // ]);
 
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $request->user(),
-                'customer' => $request->user('customer'),
-                'supplier' => $request->user('supplier'),
+                'user' => $user,
+                'customer' => $customer,
+                'supplier' => $supplier,
             ],
             'localization' => [
                 'current_country' => config('app.country'),
