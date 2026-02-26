@@ -2,15 +2,15 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
-use App\Http\Controllers\Tasks\TaskController;
-use App\Http\Controllers\Tasks\TaskAssignmentController;
-use App\Http\Controllers\Tasks\TaskAttachmentController;
-use App\Http\Controllers\Tasks\TaskCategoryController;
-use App\Http\Controllers\Tasks\TaskCommentController;
-use App\Http\Controllers\Tasks\TaskPriorityController;
-use App\Http\Controllers\Tasks\TaskStatusController;
-use App\Http\Controllers\HumanResource\EmployeeController;
-use App\Http\Controllers\Location\LocationController;
+use App\Http\Controllers\Backend\Tasks\TaskController;
+use App\Http\Controllers\Backend\Tasks\TaskAssignmentController;
+use App\Http\Controllers\Backend\Tasks\TaskAttachmentController;
+use App\Http\Controllers\Backend\Tasks\TaskCategoryController;
+use App\Http\Controllers\Backend\Tasks\TaskCommentController;
+use App\Http\Controllers\Backend\Tasks\TaskPriorityController;
+use App\Http\Controllers\Backend\Tasks\TaskStatusController;
+use App\Http\Controllers\Backend\HumanResource\EmployeeController;
+use App\Http\Controllers\Backend\Location\LocationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -43,29 +43,29 @@ Route::middleware('web')->group(function () {
      Route::post('employees/bulk-update-status', [EmployeeController::class, 'bulkUpdateStatus']);
     
     // Account Routes
-    Route::get('accounts', [\App\Http\Controllers\Accounting\AccountsController::class, 'index']);
-    Route::get('accounts/tree', [\App\Http\Controllers\Accounting\AccountsController::class, 'tree']);
-    Route::get('accounts/valid-parents', [\App\Http\Controllers\Accounting\AccountsController::class, 'validParents']);
-    Route::post('accounts', [\App\Http\Controllers\Accounting\AccountsController::class, 'store']);
-    Route::get('accounts/{account}', [\App\Http\Controllers\Accounting\AccountsController::class, 'show']);
-    Route::put('accounts/{account}', [\App\Http\Controllers\Accounting\AccountsController::class, 'update']);
-    Route::delete('accounts/{account}', [\App\Http\Controllers\Accounting\AccountsController::class, 'destroy']);
-    Route::patch('accounts/{account}/stop', [\App\Http\Controllers\Accounting\AccountsController::class, 'stop']);
+    Route::get('accounts', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'index']);
+    Route::get('accounts/tree', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'tree']);
+    Route::get('accounts/valid-parents', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'validParents']);
+    Route::post('accounts', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'store']);
+    Route::get('accounts/{account}', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'show']);
+    Route::put('accounts/{account}', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'update']);
+    Route::delete('accounts/{account}', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'destroy']);
+    Route::patch('accounts/{account}/stop', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'stop']);
 
     // Journal Routes
-    Route::get('journals/next-code', [\App\Http\Controllers\Accounting\JournalController::class, 'nextCode']);
-    Route::get('journals', [\App\Http\Controllers\Accounting\JournalController::class, 'index']);
-    Route::post('journals', [\App\Http\Controllers\Accounting\JournalController::class, 'store']);
-    Route::get('journals/{entryCode}', [\App\Http\Controllers\Accounting\JournalController::class, 'show']);
-    Route::put('journals/{entryCode}', [\App\Http\Controllers\Accounting\JournalController::class, 'update']);
-    Route::delete('journals/{entryCode}', [\App\Http\Controllers\Accounting\JournalController::class, 'destroy']);
+    Route::get('journals/next-code', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'nextCode']);
+    Route::get('journals', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'index']);
+    Route::post('journals', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'store']);
+    Route::get('journals/{entryCode}', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'show']);
+    Route::put('journals/{entryCode}', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'update']);
+    Route::delete('journals/{entryCode}', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'destroy']);
 
     // Financial Reports Routes
-    Route::get('financial-reports', [\App\Http\Controllers\Accounting\FinancialReportController::class, 'getData']);
-    Route::post('reports/favorite', [\App\Http\Controllers\Accounting\FinancialReportController::class, 'toggleFavorite']);
+    Route::get('financial-reports', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getData']);
+    Route::post('reports/favorite', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'toggleFavorite']);
 
     // Branch Routes
-    Route::get('branches', [\App\Http\Controllers\Essential_Data_Controllers\BranchController::class, 'getBranches']);
+    Route::get('branches', [\App\Http\Controllers\Backend\Essential_Data_Controllers\BranchController::class, 'getBranches']);
 
     // Location API Routes for Dependent Dropdowns
     Route::get('countries', [LocationController::class, 'getCountries']);

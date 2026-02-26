@@ -5,7 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Products;
 use App\Models\User;
-use App\Http\Controllers\Inventory\ProductsController;
+use App\Http\Controllers\Backend\Inventory\ProductsController;
 use App\Http\Requests\Inventory\UpdateProductsRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
