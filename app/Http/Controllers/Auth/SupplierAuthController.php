@@ -38,7 +38,7 @@ class SupplierAuthController extends Controller
 
     public function showRegisterForm()
     {
-        return Inertia::render('Auth/SupplierRegister');
+        return Inertia::render('Backend/Auth/SupplierRegister');
     }
 
     public function register(Request $request)

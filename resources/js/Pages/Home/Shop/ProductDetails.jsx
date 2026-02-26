@@ -153,9 +153,20 @@ export default function ProductDetails({ product, categories = [] }) {
                     <span>{product.name}</span>
                 </nav>
 
-                <div className="product-details-grid">
+                <div className="product-main-layout">
                     {/* Image Gallery */}
                     <div className="product-gallery">
+                        <div className="gallery-thumbnails">
+                            {product.images?.map((img, idx) => (
+                                <button 
+                                    key={idx}
+                                    className={`thumbnail-btn ${selectedImage === idx ? 'active' : ''}`}
+                                    onClick={() => handleImageSelect(idx)}
+                                >
+                                    <img src={getProductImageUrl(img, placeholderImage)} alt={`${product.name} view ${idx + 1}`} className="thumbnail-img" />
+                                </button>
+                            ))}
+                        </div>
                         <div className="main-image-wrapper">
                             {!mainImageLoaded && <div className="image-skeleton"></div>}
                             <img 
@@ -167,17 +178,6 @@ export default function ProductDetails({ product, categories = [] }) {
                             {hasDiscount && (
                                 <div className="discount-badge">-{discountPercentage}%</div>
                             )}
-                        </div>
-                        <div className="thumbnail-list">
-                            {product.images?.map((img, idx) => (
-                                <button 
-                                    key={idx}
-                                    className={`thumbnail-item ${selectedImage === idx ? 'active' : ''}`}
-                                    onClick={() => handleImageSelect(idx)}
-                                >
-                                    <img src={getProductImageUrl(img, placeholderImage)} alt={`${product.name} view ${idx + 1}`} />
-                                </button>
-                            ))}
                         </div>
                     </div>
 
@@ -198,7 +198,7 @@ export default function ProductDetails({ product, categories = [] }) {
                             </div>
                         </div>
 
-                        <div className="product-pricing">
+                        <div className="price-section">
                             <span className="current-price">{formatMoney(displayPrice)}</span>
                             {hasDiscount && (
                                 <div className="old-price-wrapper">
@@ -212,11 +212,11 @@ export default function ProductDetails({ product, categories = [] }) {
                             {product.short_description || 'High-quality product from trusted suppliers.'}
                         </p>
 
-                        <div className="product-options">
+                        <div className="variations-section">
                             {/* Color Selection */}
                             {product.colors?.length > 0 && (
-                                <div className="option-group">
-                                    <label className="option-label">Color: <span>{product.colors[selectedColor].name}</span></label>
+                                <div className="variation-group">
+                                    <label className="variation-label">Color: <span>{product.colors[selectedColor].name}</span></label>
                                     <div className="color-options">
                                         {product.colors.map((color, idx) => (
                                             <button
@@ -233,8 +233,8 @@ export default function ProductDetails({ product, categories = [] }) {
 
                             {/* Size Selection */}
                             {product.sizes?.length > 0 && (
-                                <div className="option-group">
-                                    <label className="option-label">Size: <span>{selectedSize}</span></label>
+                                <div className="variation-group">
+                                    <label className="variation-label">Size: <span>{selectedSize}</span></label>
                                     <div className="size-options">
                                         {product.sizes.map((size, idx) => (
                                             <button
@@ -250,8 +250,8 @@ export default function ProductDetails({ product, categories = [] }) {
                             )}
 
                             {/* Quantity Selection */}
-                            <div className="option-group">
-                                <label className="option-label">{t('product.quantity', 'Quantity')}</label>
+                            <div className="variation-group">
+                                <label className="variation-label">{t('product.quantity', 'Quantity')}</label>
                                 <div className="quantity-selector">
                                     <button 
                                         onClick={() => setQuantity(Math.max(1, quantity - 1))}

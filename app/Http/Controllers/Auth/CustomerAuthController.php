@@ -15,7 +15,7 @@ class CustomerAuthController extends Controller
 {
     public function showLoginForm()
     {
-        return Inertia::render('Home/Auth/Login');
+        return Inertia::render('Backend/Auth/CustomerLogin');
     }
 
     public function login(Request $request)
@@ -38,7 +38,7 @@ class CustomerAuthController extends Controller
 
     public function showRegisterForm()
     {
-        return Inertia::render('Auth/CustomerRegister');
+        return Inertia::render('Backend/Auth/CustomerRegister');
     }
 
     public function register(Request $request)

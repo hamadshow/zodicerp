@@ -1,35 +1,53 @@
 <?php
 
-use App\Http\Controllers\Accounting\AccountsController;
-use App\Http\Controllers\Accounting\JournalController;
-use App\Http\Controllers\CheckoutController;
-use App\Http\Controllers\CartController;
-use App\Http\Controllers\HomeController;
-use App\Http\Controllers\Accounting\FinancialReportController;
-use App\Http\Controllers\HumanResource\EmployeeController;
-use App\Http\Controllers\HumanResource\NationalityController;
-use App\Http\Controllers\Location\LocationController;
-use App\Http\Controllers\Media\MediaController;
-use App\Http\Controllers\ECommerce\AdsController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\CartController;
+use App\Http\Controllers\CheckoutController;
+use App\Http\Controllers\HomeController;
 use App\Http\Controllers\Profile\ProfileController;
+
+// Authentication Controllers
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\CustomerAuthController;
 use App\Http\Controllers\Auth\SupplierAuthController;
-use App\Http\Controllers\Auth\AuthenticatedSessionController;
-use App\Http\Controllers\Client_Sales\CustomerAddressController;
+
+// Accounting Controllers
+use App\Http\Controllers\Accounting\AccountsController;
+use App\Http\Controllers\Accounting\FinancialReportController;
+use App\Http\Controllers\Accounting\JournalController;
+
+// Human Resource Controllers
+use App\Http\Controllers\HumanResource\EmployeeController;
+use App\Http\Controllers\HumanResource\NationalityController;
+
+// Location & Media Controllers
+use App\Http\Controllers\Location\LocationController;
+use App\Http\Controllers\Media\MediaController;
+
+// Purchases & Sales Controllers
 use App\Http\Controllers\Purchases\SupplierController;
-use App\Http\Controllers\Sales\CustomerController;
+use App\Http\Controllers\Client_Sales\CustomerAddressController;
+use App\Http\Controllers\Client_Sales\CustomerController as ClientSalesCustomerController; // Alias to avoid conflict if needed
+use App\Http\Controllers\Sales\CustomerController; // Check usage, seems to be dashboard controller
+
+// Other Controllers
+use App\Http\Controllers\ECommerce\AdsController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
-| Web Routes
+| Web Routes (مسارات الويب)
 |--------------------------------------------------------------------------
+|
+| تنظيم ملف المسارات ليشمل أقسام واضحة مع تعليقات باللغة العربية
+|
 */
 
-// 1. Media Files (No localization)
+// ========================================================================
+// 1. Media Files (ملفات الوسائط - بدون توطين)
+// ========================================================================
 Route::get('/media-files/{path}', function (string $path) {
     $relativePath = ltrim($path, '/');
     $normalized = preg_replace('#^(files|storage|media-files)/#', '', $relativePath);
@@ -47,38 +65,24 @@ Route::get('/media-files/{path}', function (string $path) {
     abort(404);
 })->where('path', '.*');
 
-// 2. Root Redirect to default country/lang
+// ========================================================================
+// 2. Root Redirect (إعادة توجيه الجذر للدولة واللغة الافتراضية)
+// ========================================================================
 Route::get('/', function () {
     $country = session('country_code', 'sa');
     $lang = session('locale', 'ar');
     return redirect("/$country/$lang");
 });
 
-Route::get('/Auth', function () {
-    $country = session('country_code', 'sa');
-    $lang = session('locale', 'ar');
-    return redirect("/$country/$lang/Auth");
-});
+// Redirect helper routes
+Route::get('/Auth', fn() => redirect("/".session('country_code', 'sa')."/".session('locale', 'ar')."/Auth"));
+Route::get('/auth', fn() => redirect("/".session('country_code', 'sa')."/".session('locale', 'ar')."/Auth"));
+Route::get('/login', fn() => redirect("/".session('country_code', 'sa')."/".session('locale', 'ar')."/Auth"));
+Route::get('/admin', fn() => redirect("/".session('country_code', 'sa')."/".session('locale', 'ar')."/admin"));
 
-Route::get('/auth', function () {
-    $country = session('country_code', 'sa');
-    $lang = session('locale', 'ar');
-    return redirect("/$country/$lang/Auth");
-});
-
-Route::get('/login', function () {
-    $country = session('country_code', 'sa');
-    $lang = session('locale', 'ar');
-    return redirect("/$country/$lang/Auth");
-});
-
-Route::get('/admin', function () {
-    $country = session('country_code', 'sa');
-    $lang = session('locale', 'ar');
-    return redirect("/$country/$lang/admin");
-});
-
-// 3. Main Enterprise Routing with Country and Language Prefixes
+// ========================================================================
+// 3. Main Enterprise Routing (التوجيه الرئيسي للمؤسسة)
+// ========================================================================
 Route::group([
     'prefix' => '{country}/{lang}',
     'where' => [
@@ -88,25 +92,50 @@ Route::group([
     'middleware' => ['web', \App\Http\Middleware\SetLocalization::class]
 ], function () {
 
-    // --- Frontend Routes ---
+    // ------------------------------------------------------------------------
+    // A. Frontend Routes (المسارات الأمامية - المتجر)
+    // ------------------------------------------------------------------------
     Route::get('/', [HomeController::class, 'index'])->name('home');
     Route::get('/products', [HomeController::class, 'products'])->name('products.index');
     Route::get('/product/{identifier}', [HomeController::class, 'productDetails'])->name('product.details');
+    
+    // Shopping Cart (عربة التسوق)
     Route::get('/cart', [HomeController::class, 'cart'])->name('cart.index');
     Route::get('/cart/mini', [CartController::class, 'mini'])->name('cart.mini');
     Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
     Route::post('/cart/remove', [CartController::class, 'remove'])->name('cart.remove');
     Route::post('/cart/update', [CartController::class, 'update'])->name('cart.update');
+    
+    // Checkout (إتمام الطلب)
     Route::get('/checkout', [HomeController::class, 'checkout'])->name('checkout');
     Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');
     Route::get('/checkout/success', [CheckoutController::class, 'success'])->name('checkout.success');
 
-    // --- Auth Routes ---
+    // ------------------------------------------------------------------------
+    // B. Authentication & Profile (المصادقة والملف الشخصي)
+    // ------------------------------------------------------------------------
+    
+    // 1. Standard Auth Routes (مسارات المصادقة الأساسية)
     require __DIR__.'/auth.php';
-    Route::get('/sign-in', function () { return Inertia::render('Auth/SignIn'); })->name('sign-in');
-    Route::get('/sign-up', function () { return Inertia::render('Auth/SignUp'); })->name('sign-up');
+    
+    // 2. Global Login Override (تجاوز تسجيل الدخول العام)
+    // GET: يوجه لصفحة دخول العملاء
+    Route::get('login', [CustomerAuthController::class, 'showLoginForm'])->name('login');
+    // POST: يعالج تسجيل الدخول لجميع المستخدمين (أدمن، مورد، عميل)
+    Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
-    // Customer Auth
+    // Sign In/Up Shortcuts
+    Route::get('/sign-in', function () { return Inertia::render('Backend/Auth/SignIn'); })->name('sign-in');
+    Route::get('/sign-up', function () { return Inertia::render('Backend/Auth/SignUp'); })->name('sign-up');
+
+    // 3. Profile Management (إدارة الملف الشخصي)
+    Route::middleware('auth')->group(function () {
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    });
+
+    // 4. Customer Auth (مصادقة العملاء)
     Route::prefix('customer')->name('customer.')->group(function () {
         Route::middleware('guest:customer')->group(function () {
             Route::get('login', [CustomerAuthController::class, 'showLoginForm'])->name('login');
@@ -124,7 +153,7 @@ Route::group([
         });
     });
 
-    // Supplier Auth & Dashboard
+    // 5. Supplier Auth (مصادقة الموردين)
     Route::prefix('supplier')->name('supplier.')->group(function () {
        Route::middleware('guest:supplier')->group(function () {
            Route::get('register', [SupplierAuthController::class, 'showRegisterForm'])->name('register');
@@ -139,11 +168,15 @@ Route::group([
        });
     });
 
-    // --- Admin & Backend Routes ---
+    // ------------------------------------------------------------------------
+    // C. Admin & Backend Routes (مسارات لوحة التحكم والإدارة)
+    // ------------------------------------------------------------------------
     Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+        
+        // Dashboard (لوحة التحكم الرئيسية)
         Route::get('/', [AdminController::class, 'index'])->name('dashboard');
 
-        // Media
+        // 1. Media Management (إدارة الوسائط)
         Route::prefix('media')->name('media.')->group(function () {
             Route::get('/{tab?}', [MediaController::class, 'index'])->where('tab', 'images|videos|documents')->name('index');
             Route::post('/store', [MediaController::class, 'store'])->name('store');
@@ -153,14 +186,14 @@ Route::group([
             Route::post('/move', [MediaController::class, 'move'])->name('move');
         });
 
-        // Essential Data
+        // 2. Essential Data (البيانات الأساسية)
         Route::resource('currencies', \App\Http\Controllers\Essential_Data_Controllers\CurrencyController::class);
         Route::post('exchange-rates/fetch', [\App\Http\Controllers\Essential_Data_Controllers\ExchangeRateController::class, 'fetchRates'])->name('exchange-rates.fetch');
         Route::resource('exchange-rates', \App\Http\Controllers\Essential_Data_Controllers\ExchangeRateController::class);
         Route::resource('companies', \App\Http\Controllers\Essential_Data_Controllers\CompanyController::class);
         Route::resource('branches', \App\Http\Controllers\Essential_Data_Controllers\BranchController::class);
 
-        // Human Resources
+        // 3. Human Resources (الموارد البشرية)
         Route::get('hr/dashboard', function () { return Inertia::render('Backend/02_human_resource/dashboard'); })->name('hr.dashboard');
         Route::resource('employees', \App\Http\Controllers\HumanResource\EmployeeController::class);
         Route::resource('nationalities', \App\Http\Controllers\HumanResource\NationalityController::class);
@@ -177,7 +210,7 @@ Route::group([
         Route::get('permissions', function () { return Inertia::render('Backend/02_human_resource/Permissions'); })->name('permissions.index');
         Route::get('traffic-violations', function () { return Inertia::render('Backend/02_human_resource/Traffic-Violations'); })->name('traffic-violations.index');
 
-        // Assets
+        // 4. Assets (الأصول الثابتة)
         Route::prefix('assets')->name('assets.')->group(function () {
              Route::resource('categories', \App\Http\Controllers\Assets\AssetCategoryController::class);
              Route::resource('attributes', \App\Http\Controllers\Assets\AssetAttributeController::class);
@@ -190,7 +223,7 @@ Route::group([
              Route::get('depreciation/report', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Depreciation Report']); })->name('depreciation.report');
         });
 
-        // Purchases
+        // 5. Purchases (المشتريات)
         Route::prefix('purchases')->name('purchases.')->group(function () {
              Route::get('dashboard', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Purchase Dashboard']); })->name('dashboard');
              Route::resource('supplier-groups', \App\Http\Controllers\Purchases\SupplierGroupController::class);
@@ -201,7 +234,7 @@ Route::group([
              Route::resource('invoices', \App\Http\Controllers\Purchases\PurchaseInvoiceController::class);
              Route::get('returns', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Purchase Returns']); })->name('returns.index');
              
-             // Discounts & Taxes within Purchases context if needed, or separate
+             // Discounts & Taxes
              Route::get('discounts', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Purchase Discounts']); })->name('discounts.index');
              Route::get('discounts/rules', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Discount Rules']); })->name('discounts.rules');
              Route::get('taxes', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Tax Management']); })->name('taxes.index');
@@ -214,43 +247,7 @@ Route::group([
              Route::get('cost-allocation', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Cost Allocation']); })->name('cost-allocation.index');
         });
 
-        // Investing Stack
-        Route::prefix('investing')->name('investing.')->group(function () {
-             Route::resource('industries', \App\Http\Controllers\InvestingStack\IndustryController::class);
-             Route::resource('companies', \App\Http\Controllers\InvestingStack\ListedCompanyController::class);
-             Route::resource('brokers', \App\Http\Controllers\InvestingStack\BrokerController::class);
-             Route::resource('prices', \App\Http\Controllers\InvestingStack\MarketPriceController::class);
-        });
-
-        // Tasks
-        Route::resource('tasks', \App\Http\Controllers\Tasks\TaskController::class);
-
-        // Taxes
-        Route::prefix('taxes')->name('taxes.')->group(function () {
-             Route::resource('types', \App\Http\Controllers\Taxes\TaxTypeController::class);
-             Route::get('settings', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Tax Settings']); })->name('settings.index');
-             Route::get('reports', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Tax Reports']); })->name('reports.index');
-        });
-
-        // E-Commerce
-        Route::prefix('ecommerce')->name('ecommerce.')->group(function () {
-             Route::resource('ads', \App\Http\Controllers\ECommerce\AdsController::class);
-             Route::get('financial-reports', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'E-Commerce Financial Reports']); })->name('financial-reports.index');
-        });
-
-        // Cash & Banks
-        Route::resource('banks', \App\Http\Controllers\Cash\BankController::class);
-        Route::prefix('banks')->name('banks.')->group(function () {
-             Route::get('{bank}/accounts', [\App\Http\Controllers\Cash\BankController::class, 'getAccounts'])->name('accounts.index');
-             Route::post('accounts', [\App\Http\Controllers\Cash\BankController::class, 'storeAccount'])->name('accounts.store');
-             Route::put('accounts/{bankAccount}', [\App\Http\Controllers\Cash\BankController::class, 'updateAccount'])->name('accounts.update');
-             Route::delete('accounts/{bankAccount}', [\App\Http\Controllers\Cash\BankController::class, 'destroyAccount'])->name('accounts.destroy');
-        });
-        Route::resource('petty-cash', \App\Http\Controllers\Cash\PettyCashController::class);
-        Route::resource('cheques', \App\Http\Controllers\Cash\ChequeController::class);
-        Route::resource('bank-transactions', \App\Http\Controllers\Cash\BankTransactionController::class)->only(['index', 'store', 'update', 'destroy']);
-
-        // Client & Sales
+        // 6. Client & Sales (العملاء والمبيعات)
         Route::prefix('client-sales')->name('client-sales.')->group(function () {
             Route::resource('customer-groups', \App\Http\Controllers\Client_Sales\CustomerGroupController::class);
             Route::post('customers/bulk-store', [\App\Http\Controllers\Client_Sales\CustomerController::class, 'bulkStore'])->name('customers.bulk-store');
@@ -261,7 +258,7 @@ Route::group([
             Route::get('flash-sales', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Flash Sales']); })->name('flash-sales.index');
         });
 
-        // Inventory
+        // 7. Inventory (المخزون)
         Route::resource('products', \App\Http\Controllers\Inventory\ProductsController::class);
         Route::resource('categories', \App\Http\Controllers\Inventory\CategoriesController::class);
         Route::resource('brands', \App\Http\Controllers\Inventory\BrandsController::class);
@@ -276,19 +273,38 @@ Route::group([
              Route::get('reports', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Inventory Reports']); })->name('reports.index');
         });
 
-        // Accounting & Business
+        // 8. Accounting & Business (المحاسبة)
         Route::get('chart-of-accounts', function () { return Inertia::render('Backend/07-Accounting/ChartOfAccounts'); })->name('chart-of-accounts');
         Route::get('journal-entries', function () { return Inertia::render('Backend/07-Accounting/JournalEntity'); })->name('journal-entries');
         Route::get('financial-reports', [FinancialReportController::class, 'index'])->name('financial-reports.index');
         Route::get('financial-reports/coa', [FinancialReportController::class, 'coaReport'])->name('financial-reports.coa');
 
-        // Budgeting (General)
+        // 9. Cash & Banks (النقدية والبنوك)
+        Route::resource('banks', \App\Http\Controllers\Cash\BankController::class);
+        Route::prefix('banks')->name('banks.')->group(function () {
+             Route::get('{bank}/accounts', [\App\Http\Controllers\Cash\BankController::class, 'getAccounts'])->name('accounts.index');
+             Route::post('accounts', [\App\Http\Controllers\Cash\BankController::class, 'storeAccount'])->name('accounts.store');
+             Route::put('accounts/{bankAccount}', [\App\Http\Controllers\Cash\BankController::class, 'updateAccount'])->name('accounts.update');
+             Route::delete('accounts/{bankAccount}', [\App\Http\Controllers\Cash\BankController::class, 'destroyAccount'])->name('accounts.destroy');
+        });
+        Route::resource('petty-cash', \App\Http\Controllers\Cash\PettyCashController::class);
+        Route::resource('cheques', \App\Http\Controllers\Cash\ChequeController::class);
+        Route::resource('bank-transactions', \App\Http\Controllers\Cash\BankTransactionController::class)->only(['index', 'store', 'update', 'destroy']);
+
+        // 10. Investing (الاستثمار)
+        Route::prefix('investing')->name('investing.')->group(function () {
+             Route::resource('industries', \App\Http\Controllers\InvestingStack\IndustryController::class);
+             Route::resource('companies', \App\Http\Controllers\InvestingStack\ListedCompanyController::class);
+             Route::resource('brokers', \App\Http\Controllers\InvestingStack\BrokerController::class);
+             Route::resource('prices', \App\Http\Controllers\InvestingStack\MarketPriceController::class);
+        });
+
+        // 11. Budgeting (الموازنة)
         Route::prefix('budgeting')->name('budgeting.')->group(function () {
              Route::get('budgets', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Budgets']); })->name('budgets.index');
              Route::get('reports', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Budget Reports']); })->name('reports.index');
         });
 
-        // Budget (Specific Module)
         Route::prefix('budget')->name('budget.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Budget\BudgetMonitoringController::class, 'dashboard'])->name('dashboard');
             Route::get('/categories', [\App\Http\Controllers\Budget\BudgetCategoryController::class, 'index'])->name('categories');
@@ -299,9 +315,20 @@ Route::group([
             Route::get('/commitments', [\App\Http\Controllers\Budget\BudgetCommitmentController::class, 'index'])->name('commitments');
         });
 
-        // E-Commerce
-        
-        // Location
+        // 12. Taxes (الضرائب)
+        Route::prefix('taxes')->name('taxes.')->group(function () {
+             Route::resource('types', \App\Http\Controllers\Taxes\TaxTypeController::class);
+             Route::get('settings', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Tax Settings']); })->name('settings.index');
+             Route::get('reports', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Tax Reports']); })->name('reports.index');
+        });
+
+        // 13. E-Commerce (التجارة الإلكترونية)
+        Route::prefix('ecommerce')->name('ecommerce.')->group(function () {
+             Route::resource('ads', \App\Http\Controllers\ECommerce\AdsController::class);
+             Route::get('financial-reports', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'E-Commerce Financial Reports']); })->name('financial-reports.index');
+        });
+
+        // 14. Locations (المواقع الجغرافية)
         Route::prefix('location')->name('location.')->group(function () {
             Route::get('/', [LocationController::class, 'index'])->name('index');
             Route::post('/countries', [LocationController::class, 'storeCountry']);
@@ -309,7 +336,7 @@ Route::group([
             Route::post('/areas', [LocationController::class, 'storeArea']);
         });
 
-        // Settings
+        // 15. Settings (الإعدادات)
         Route::get('settings', function () { return Inertia::render('Backend/Settings/Settings'); })->name('settings');
         
         Route::prefix('settings/locales')->name('settings.locales.')->group(function () {
@@ -332,7 +359,10 @@ Route::group([
             Route::put('/{languageLine}', [\App\Http\Controllers\Backend\LanguageLineController::class, 'update'])->name('update');
         });
 
-        // Pages / CMS
+        // 16. Tasks (المهام)
+        Route::resource('tasks', \App\Http\Controllers\Tasks\TaskController::class);
+
+        // 17. CMS / Pages (إدارة المحتوى)
         Route::prefix('pages')->name('pages.')->group(function () {
              Route::get('blog', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Blog']); })->name('blog.index');
              Route::get('payments', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Payments']); })->name('payments.index');
@@ -350,7 +380,9 @@ Route::group([
         Route::get('platform-admin', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Platform Administration']); })->name('platform-admin.index');
     });
 
-    // --- API & Search (Prefixed by Country/Lang for context) ---
+    // ------------------------------------------------------------------------
+    // D. API & Search (واجهة برمجة التطبيقات والبحث)
+    // ------------------------------------------------------------------------
     Route::prefix('api')->name('api.')->group(function () {
         Route::get('/search', [HomeController::class, 'globalSearch'])->name('search');
         Route::get('/countries', [LocationController::class, 'getCountries']);

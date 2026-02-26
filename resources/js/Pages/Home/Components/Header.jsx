@@ -4,6 +4,7 @@ import '../../../../css/homepage/main.scss';
 import AnnouncementBar from './AnnouncementBar';
 import HeaderTop from './HeaderTop';
 import Navigation from './Navigation';
+import MobileMenu from './MobileMenu';
 
 export default function Header({
   categoriesData = [],
@@ -15,6 +16,7 @@ export default function Header({
   const serverCartVersion = page.props?.cart?.version ?? 0;
 
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [liveCartCount, setLiveCartCount] = useState(
@@ -87,6 +89,11 @@ export default function Header({
     }
   };
 
+  const handleLogout = () => {
+    router.post(getLocalizedRoute('customer.logout'));
+    setIsMobileMenuOpen(false);
+  };
+
   const navigationItems = ['Home', ...categoriesData.map((c) => c.name)];
 
   return (
@@ -101,10 +108,21 @@ export default function Header({
             onSearch={handleSearch}
             cartCount={liveCartCount}
             cartVersion={liveCartVersion}
+            onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
           />
         </div>
         <Navigation items={navigationItems} categoriesData={categoriesData} />
       </header>
+      
+      <MobileMenu 
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        categoriesData={categoriesData}
+        localization={localization}
+        user={page.props.auth?.user}
+        onLogout={handleLogout}
+      />
+
       {suggestions.length > 0 && (
         <div className="search-suggestions-container">
           <div className="header-container">

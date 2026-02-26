@@ -30,6 +30,7 @@ export default function HeaderTop({
   onSearch,
   cartCount = 0,
   cartVersion = 0,
+  onToggleMobileMenu,
 }) {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -122,12 +123,6 @@ export default function HeaderTop({
 
   const user = usePage().props.auth?.user;
 
-  const handleUserButtonClick = () => {
-    if (!user) {
-      window.location.href = getLocalizedRoute('login');
-    }
-  };
-
   const handleLogout = () => {
     router.post(getLocalizedRoute('customer.logout'));
   };
@@ -140,16 +135,29 @@ export default function HeaderTop({
 
   return (
     <div className="header-top">
-      <Link href="/" className="logo" aria-label="ZodiMarket Home">
-        <div className="logo-icon">Z</div>
-        <div className="logo-text">odiMarket</div>
-      </Link>
-      <SearchBar
-        categoriesData={categoriesData}
-        query={query}
-        setQuery={setQuery}
-        onSearch={onSearch}
-      />
+      <div className="header-top__left">
+        <button 
+          className="mobile-menu-trigger" 
+          onClick={onToggleMobileMenu}
+          aria-label="Open Menu"
+        >
+          <i className="fas fa-bars"></i>
+        </button>
+        <Link href="/" className="logo" aria-label="ZodiMarket Home">
+          <div className="logo-icon">Z</div>
+          <div className="logo-text">odiMarket</div>
+        </Link>
+      </div>
+
+      <div className="header-top__center">
+        <SearchBar
+          categoriesData={categoriesData}
+          query={query}
+          setQuery={setQuery}
+          onSearch={onSearch}
+        />
+      </div>
+
       <div className="header-actions">
         <div className="language-selector-wrapper">
           <div 
@@ -214,14 +222,13 @@ export default function HeaderTop({
               </div>
             </div>
           ) : (
-            <button
-              type="button"
+            <Link
+              href={getLocalizedRoute('login')}
               className="menu-item sign-in"
-              onClick={handleUserButtonClick}
             >
               <i className="fas fa-user"></i>
               <span>{t('header.sign_in', 'Sign In')}</span>
-            </button>
+            </Link>
           )}
           <div
             className="menu-item cart-badge"
