@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Head, router } from '@inertiajs/react';
-import '../../../../css/backend/Location.scss';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import AdminLayout from '../components/AdminLayout';
+import '../../../../css/backend/main.scss';
 import * as XLSX from 'xlsx';
 
 const Location = ({

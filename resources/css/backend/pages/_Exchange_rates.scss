@@ -1,0 +1,261 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Exchange Rates-specific styles */
+.exchange-rates-card {
+    @include card-base;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-lg;
+}
+
+.exchange-rates-actions {
+    @include flex-center;
+    justify-content: flex-start;
+    gap: $spacing-sm;
+    flex-wrap: wrap;
+
+    @include media-breakpoint-down(md) {
+        flex-direction: column;
+        align-items: stretch;
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+}
+
+.currency-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: $radius-full;
+    background-color: $light-color;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    color: $text-primary;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+}
+
+.currency-icon-small {
+    width: 24px;
+    height: 24px;
+    border-radius: $radius-full;
+    @include flex-center;
+    font-size: 10px;
+    color: $white;
+    font-weight: $font-weight-bold;
+    flex-shrink: 0;
+}
+
+.rate-display {
+    font-family: $font-family-mono;
+    font-weight: $font-weight-semibold;
+    font-size: $font-size-base;
+    color: $text-primary;
+}
+
+.exchange-info {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+}
+
+/* Modal styles */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba($black, 0.5);
+    z-index: $z-index-modal-backdrop;
+    @include flex-center;
+    opacity: 0;
+    visibility: hidden;
+    @include transition-standard;
+
+    &.active {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+.modal {
+    background-color: $white;
+    border-radius: $radius-lg;
+    padding: $spacing-lg;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: $shadow-lg;
+    transform: translateY(-20px);
+    @include transition-standard;
+
+    .modal-overlay.active & {
+        transform: translateY(0);
+    }
+
+    @include media-breakpoint-down(sm) {
+        width: 95%;
+        padding: $spacing-md;
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $spacing-lg;
+    padding-bottom: $spacing-md;
+    border-bottom: 1px solid $border-color;
+}
+
+.modal-title {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $text-primary;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: $text-muted;
+    padding: $spacing-xs;
+    border-radius: $radius-sm;
+    @include transition-standard;
+
+    &:hover {
+        background-color: $light-color;
+        color: $text-primary;
+    }
+}
+
+.modal-body {
+    margin-bottom: $spacing-lg;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: $spacing-sm;
+    padding-top: $spacing-lg;
+    border-top: 1px solid $border-color;
+}
+
+/* Form Styles */
+.form-group {
+    margin-bottom: $spacing-md;
+}
+
+.form-row {
+    display: flex;
+    gap: $spacing-md;
+    margin-bottom: $spacing-md;
+
+    .form-group {
+        flex: 1;
+        margin-bottom: 0;
+    }
+
+    @include media-breakpoint-down(md) {
+        flex-direction: column;
+        gap: $spacing-sm;
+    }
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: $font-weight-medium;
+    color: $text-primary;
+    font-size: $font-size-sm;
+}
+
+.form-control {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid $border-color;
+    border-radius: $radius-md;
+    font-size: $font-size-sm;
+    @include transition-standard(border-color);
+
+    &:focus {
+        outline: none;
+        border-color: $primary-color;
+        box-shadow: 0 0 0 3px color-mix(in srgb, $primary-color, transparent 90%);
+    }
+}
+
+/* Quick stats */
+.stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+
+    @include media-breakpoint-down(md) {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+}
+
+.stat-card {
+    @include card-base;
+    padding: $spacing-md;
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    @include transition-standard;
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: $shadow-md;
+    }
+
+    @include media-breakpoint-down(sm) {
+        padding: $spacing-sm;
+    }
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: $radius-md;
+    @include flex-center;
+    color: $white;
+    font-size: 24px;
+
+    @include media-breakpoint-down(sm) {
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+    }
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-value {
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+    line-height: 1;
+
+    @include media-breakpoint-down(sm) {
+        font-size: $font-size-lg;
+    }
+}
+
+.stat-label {
+    font-size: $font-size-xs;
+    color: $text-muted;
+    margin-top: 4px;
+}

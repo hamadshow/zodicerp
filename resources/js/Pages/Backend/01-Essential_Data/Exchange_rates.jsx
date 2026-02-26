@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Exchange_rates.scss';
+import '../../../../css/backend/main.scss';
+
 
 const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
     const { errors } = usePage().props;
@@ -153,11 +154,11 @@ const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
         };
 
         if (currentRate) {
-            router.put(route('admin.exchange_rates.update', currentRate.id), data, {
+            router.put(route('admin.exchange-rates.update', currentRate.id), data, {
                 onSuccess: () => closeModal(),
             });
         } else {
-            router.post(route('admin.exchange_rates.store'), data, {
+            router.post(route('admin.exchange-rates.store'), data, {
                 onSuccess: () => closeModal(),
             });
         }
@@ -165,13 +166,13 @@ const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this exchange rate?')) {
-            router.delete(route('admin.exchange_rates.destroy', id));
+            router.delete(route('admin.exchange-rates.destroy', id));
         }
     };
 
     const handleFetchRates = () => {
         if (window.confirm('This will fetch current exchange rates from external API. Continue?')) {
-            router.post(route('admin.exchange_rates.fetch'), {}, {
+            router.post(route('admin.exchange-rates.fetch'), {}, {
                 preserveScroll: true,
                 onSuccess: () => window.location.reload(),
             });
@@ -195,9 +196,9 @@ const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
         localStorage.setItem('exchange_auto_interval', String(autoInterval));
         let timerId = null;
         if (autoUpdate) {
-            router.post(route('admin.exchange_rates.fetch'), {}, { preserveScroll: true });
+            router.post(route('admin.exchange-rates.fetch'), {}, { preserveScroll: true });
             timerId = setInterval(() => {
-                router.post(route('admin.exchange_rates.fetch'), {}, { preserveScroll: true });
+                router.post(route('admin.exchange-rates.fetch'), {}, { preserveScroll: true });
             }, autoInterval * 60 * 1000);
         }
         return () => {
@@ -230,13 +231,13 @@ const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
                 <div className="stat-card">
                     <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
                         <span className="material-icons-outlined">today</span>
-                        icon={<Calendar className="h-6 w-6" />}
+                    </div>
                     <div className="stat-content">
                         <div className="stat-value">{stats.today}</div>
                         <div className="stat-label">Added Today</div>
                     </div>
                 </div>
-                        icon={<Activity className="h-6 w-6" />}
+                <div className="stat-card">
                     <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
                         <span className="material-icons-outlined">compare_arrows</span>
                     </div>

@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
-import '../../../../css/backend/Budget/BudgeDashBoard.scss';
+import '../../../../css/backend/main.scss';
+
 
 const BudgeDashBoard = ({
     budgets,

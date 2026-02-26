@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Head } from '@inertiajs/react';
-import '../../../../css/backend/ChartOfAccounts.scss';
 import AdminLayout from '../components/AdminLayout';
+import '../../../../css/backend/main.scss';
 import { apiService } from '../../../services/api';
 
 const ACCOUNT_TYPES = [
@@ -99,6 +99,7 @@ export default function ChartOfAccounts() {
   });
   const [expanded, setExpanded] = useState({});
   const [parentOptionsRemote, setParentOptionsRemote] = useState(null);
+  const [branches, setBranches] = useState([]);
 
   const loadAccounts = async () => {
     setLoading(true);
@@ -119,8 +120,18 @@ export default function ChartOfAccounts() {
     }
   };
 
+  const loadBranches = async () => {
+    try {
+      const response = await apiService.get('/branches');
+      setBranches(Array.isArray(response.data) ? response.data : []);
+    } catch (e) {
+      console.error('Failed to load branches', e);
+    }
+  };
+
   useEffect(() => {
     loadAccounts();
+    loadBranches();
   }, []);
 
   useEffect(() => {
@@ -766,18 +777,20 @@ export default function ChartOfAccounts() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-final">
-                    Final Account
+                    Final Account Type
                   </label>
-                  <input
+                  <select
                     id="acc-final"
                     name="AccFinal"
-                    type="number"
                     className="form-control"
                     value={form.AccFinal ? 1 : 0}
                     onChange={(e) =>
                       handleFieldChange('AccFinal', Number(e.target.value) === 1)
                     }
-                  />
+                  >
+                    <option value={0}>Balance Sheet</option>
+                    <option value={1}>P&L</option>
+                  </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-max-limit">
@@ -813,14 +826,20 @@ export default function ChartOfAccounts() {
                   <label className="form-label" htmlFor="acc-branch">
                     Branch
                   </label>
-                  <input
+                  <select
                     id="acc-branch"
                     name="AccBranch"
-                    type="number"
                     className="form-control"
                     value={form.AccBranch}
                     onChange={(e) => handleFieldChange('AccBranch', e.target.value)}
-                  />
+                  >
+                    <option value="">Global (All Branches)</option>
+                    {branches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.branch_name} ({b.branch_code})
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="form-group">

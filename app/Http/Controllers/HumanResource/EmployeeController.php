@@ -69,6 +69,11 @@ class EmployeeController extends Controller
         // Create full name
         $validated['name'] = $validated['first_name'] . ' ' . $validated['last_name'];
 
+        // Set default role for employees if not provided
+        if (!isset($validated['role'])) {
+            $validated['role'] = 'employee';
+        }
+
         // Hash password
         $validated['password'] = Hash::make($validated['password']);
 

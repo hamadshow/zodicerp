@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/05-Client_Sales/CustomerGroup.scss';
 
 // --- View Section Component ---
 const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
@@ -294,28 +293,35 @@ const FormSection = ({ mode, initialData, parentGroups, onBack, onSubmit }) => {
 
 // --- Main Container Component ---
 const CustomerGroups = ({ groups = [], parentGroups = [] }) => {
-    const [mode, setMode] = useState('view'); // 'view' | 'create' | 'edit'
-    const [selectedGroup, setSelectedGroup] = useState(null);
-    const { flash } = usePage().props;
+    const { flash, localization } = usePage().props;
 
-    // Reset mode to view on successful Inertia navigation if strictly needed, 
-    // but we control mode locally for smoother experience.
-    // However, since Inertia reloads props, we might want to watch for success messages.
+    const [mode, setMode] = useState('view'); // 'view', 'create', 'edit'
+    const [selectedGroup, setSelectedGroup] = useState(null);
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+          });
+    };
+
+    // Reset mode to view on successful Inertia navigation
     useEffect(() => {
         if (flash?.success) {
             setMode('view');
             setSelectedGroup(null);
         }
-    }, [flash, groups]); // groups dependency ensures we update when data changes
+    }, [flash, groups]);
 
     const handleCreateClick = () => {
-        setSelectedGroup(null);
         setMode('create');
+        setSelectedGroup(null);
     };
 
     const handleEditClick = (group) => {
-        setSelectedGroup(group);
         setMode('edit');
+        setSelectedGroup(group);
     };
 
     const handleBackClick = () => {
@@ -325,7 +331,7 @@ const CustomerGroups = ({ groups = [], parentGroups = [] }) => {
 
     const handleFormSubmit = (data) => {
         if (mode === 'edit' && selectedGroup) {
-            router.put(route('admin.client-sales.customer-groups.update', selectedGroup.id), data, {
+            router.put(getLocalizedRoute('admin.client-sales.customer-groups.update', { customer_group: selectedGroup.id }), data, {
                 preserveScroll: true,
                 onSuccess: () => {
                     setMode('view');
@@ -333,11 +339,10 @@ const CustomerGroups = ({ groups = [], parentGroups = [] }) => {
                 }
             });
         } else {
-            router.post(route('admin.client-sales.customer-groups.store'), data, {
+            router.post(getLocalizedRoute('admin.client-sales.customer-groups.store'), data, {
                 preserveScroll: true,
                 onSuccess: () => {
                     setMode('view');
-                    setSelectedGroup(null);
                 }
             });
         }
@@ -345,11 +350,12 @@ const CustomerGroups = ({ groups = [], parentGroups = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this group?')) {
-            router.delete(route('admin.client-sales.customer-groups.destroy', id), {
+            router.delete(getLocalizedRoute('admin.client-sales.customer-groups.destroy', { customer_group: id }), {
                 preserveScroll: true
             });
         }
     };
+
 
     return (
         <AdminLayout activeMenu="Customer Groups">
@@ -365,7 +371,7 @@ const CustomerGroups = ({ groups = [], parentGroups = [] }) => {
                     </h1>
                     {mode !== 'view' && (
                         <button className="btn btn-secondary" onClick={handleBackClick}>
-                            <span className="material-icons-outlined">arrow_back</span>
+                            <span className="material-icons-outlined mirror-rtl">arrow_back</span>
                             Back to List
                         </button>
                     )}

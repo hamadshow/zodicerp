@@ -1,0 +1,68 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Notification Toast Styles */
+.notification-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: $dark-color;
+    color: #ffffff; // var(--text-white)
+    padding: $spacing-md $spacing-lg;
+    border-radius: $radius-md;
+    z-index: $z-index-tooltip; // Using tooltip z-index as fallback for toast
+    box-shadow: $shadow-lg;
+    animation: slideInRight 0.3s ease;
+    max-width: 300px;
+    word-wrap: break-word;
+
+    @include rtl {
+        right: auto;
+        left: 20px;
+        animation: slideInLeft 0.3s ease;
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+}
+
+@keyframes slideOutLeft {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+}

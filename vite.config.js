@@ -19,7 +19,11 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       laravel({
-        input: ['resources/js/app.jsx', 'resources/css/homepage/rtl.scss'],
+        input: [
+          'resources/js/app.jsx',
+          'resources/css/homepage/rtl.scss',
+          'resources/css/backend/main.scss'
+        ],
         refresh: true,
       }),
     ],

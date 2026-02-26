@@ -2,9 +2,10 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
-import '../../../../css/backend/Budget/BudgetMonitoring.scss';
 import axios from 'axios';
 import { format } from 'date-fns';
+import '../../../../css/backend/main.scss';
+
 
 // ==========================================
 // Custom Hooks

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Budget/BudgetCommitment.scss';
 import axios from 'axios';
+import '../../../../css/backend/main.scss';
+
 
 export default function BudgetCommitment({ commitments, budgets, filters }) {
     const [viewMode, setViewMode] = useState('list'); // list, create, edit, details

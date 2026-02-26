@@ -1,0 +1,146 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Location Management Styles */
+
+/* Tree View */
+.tree-view {
+    background-color: $white; // var(--text-white)
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+    padding: $spacing-lg;
+}
+
+.tree-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid $border-color;
+    position: relative;
+
+    &:last-child {
+        border-bottom: none;
+    }
+}
+
+.tree-toggle {
+    width: 24px;
+    height: 24px;
+    @include flex-center;
+    cursor: pointer;
+    color: $gray-color;
+    transition: transform $transition-fast;
+    margin-right: $spacing-sm;
+
+    @include rtl {
+        margin-right: 0;
+        margin-left: $spacing-sm;
+    }
+
+    &.rotated {
+        transform: rotate(90deg);
+    }
+}
+
+.tree-icon {
+    color: $gray-color;
+    margin-right: $spacing-md;
+    flex-shrink: 0;
+
+    @include rtl {
+        margin-right: 0;
+        margin-left: $spacing-md;
+    }
+}
+
+.tree-content {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tree-badge {
+    background-color: $info-color;
+    color: $white; // var(--text-white)
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    margin-left: $spacing-sm;
+
+    @include rtl {
+        margin-left: 0;
+        margin-right: $spacing-sm;
+    }
+}
+
+.child-count {
+    background-color: $primary-color;
+    color: $white; // var(--text-white)
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    margin-left: $spacing-sm;
+
+    @include rtl {
+        margin-left: 0;
+        margin-right: $spacing-sm;
+    }
+}
+
+.tree-actions {
+    display: flex;
+    gap: $spacing-sm;
+}
+
+.tree-children {
+    margin-left: 32px;
+    border-left: 2px solid $border-color;
+    padding-left: $spacing-md;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height $transition-base;
+
+    @include rtl {
+        margin-left: 0;
+        margin-right: 32px;
+        border-left: none;
+        border-right: 2px solid $border-color;
+        padding-left: 0;
+        padding-right: $spacing-md;
+    }
+
+    &.expanded {
+        max-height: 1000px;
+    }
+}
+
+/* Flag Styles */
+.flag {
+    width: 24px;
+    height: 18px;
+    border-radius: 2px;
+    border: 1px solid #ddd;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    transition: transform $transition-fast;
+
+    &:hover {
+        transform: scale(1.1);
+    }
+
+    &.eg {
+        background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIxNSI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjUiIGZpbGw9IiM5RjAwMDAiLz48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iNSIgeT0iNSIgZmlsbD0iIzAwMDAwMCIvPjxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSI1IiB5PSIxMCIgZmlsbD0iI0ZGRkZGRiIvPjxwYXRoIGQ9Ik0xMCA3IEwxMCAxMiBMOSAxMiBMOSA3IEwxMCA3IHoiIGZpbGw9IiM5RjAwMDAiLz48L3N2Zz4=');
+    }
+
+    &.us {
+        background-image: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIxNSI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjE1IiBmaWxsPSIjRkZGRkZGIi8+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjMiIGZpbGw9IiMzQzYxRDgiLz48cmVjdCB3aWR0aD0iMjAiIGhlaWdodD0iMyIgeT0iNiIgZmlsbD0iIzNDNjFEOCIvPjxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIzIiB5PSI5IiBmaWxsPSIjM0M2MUQ4Ii8+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjMiIHk9IjEyIiBmaWxsPSIjM0M2MUQ4Ii8+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjE1IiBmaWxsPSIjQjAzMjUxIi8+PHBhdGggZD0iTTEgMSBMMSAzIEwxIDUgTDEgNyBMMSA5IEwxIDExIEwxIDEzIEwxIDEzIEwxIDEzIEwxIDEzIEwxIDExIEwxIDkgTDEgNyBMMSA1IEwxIDMgTDEgMSB6IiBmaWxsPSIjRkZGRkZGIi8+PHBhdGggZD0iTTEgMiBMMSA0IEwxIDYgTDEgOCBMMSAxMCBMMSAxMiBMMSAxNCBMMSAxMiBMMSAxMCBMMSA4IEwxIDYgTDEgNCBMMSAyIHoiIGZpbGw9IiNGRkZGRkYiLz48L3N2Zz4=');
+    }
+}
+
+.flag-default {
+    background-color: $gray-color;
+}

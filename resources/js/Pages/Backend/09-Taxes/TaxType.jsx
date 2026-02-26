@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/09-Taxes/TaxType.scss';
 
 const TaxType = ({ taxTypes = [], countries = [] }) => {
     const [filteredTaxTypes, setFilteredTaxTypes] = useState(taxTypes);

@@ -39,7 +39,11 @@
         <!-- Scripts -->
         @routes
         @viteReactRefresh
-        @vite(['resources/js/app.jsx', 'resources/css/homepage/rtl.scss'])
+        @vite([
+            'resources/js/app.jsx',
+            'resources/css/homepage/rtl.scss',
+            'resources/css/backend/main.scss'
+        ])
         @inertiaHead
     </head>
     <body class="font-sans antialiased">

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Head, Link, router, usePage, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import MediaPickerModal from '../Media/MediaPickerModal';
-import '../../../../css/backend/08-Assets/Assets.scss';
 
 const resolveMediaUrl = (value) => {
     if (!value) {

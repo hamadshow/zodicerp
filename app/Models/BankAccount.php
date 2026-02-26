@@ -41,7 +41,7 @@ class BankAccount extends Model
 
     public function currencyInfo()
     {
-        return $this->belongsTo(Currency::class, 'Currency', 'id');
+        return $this->belongsTo(Currency::class, 'currency', 'id');
     }
 
     public function payments()

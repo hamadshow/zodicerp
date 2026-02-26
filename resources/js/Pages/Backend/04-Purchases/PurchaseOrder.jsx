@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
-import '../../../../css/backend/04-Purchases/PurchaseOrder.scss';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
 

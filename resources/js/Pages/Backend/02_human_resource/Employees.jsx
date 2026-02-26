@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
-import '../../../../css/backend/Employees.scss';
 import AdminLayout from '../components/AdminLayout';
+import '../../../../css/backend/main.scss';
 import { apiService } from '../../../services/api';
 
 const resolveMediaUrl = (value) => {
@@ -235,13 +235,13 @@ const EmployeesManagement = () => {
         search,
       });
       const data = response.data;
-      setEmployees(data.data);
+      setEmployees(Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
       // totalEmployees state removed
-      setCurrentPage(data.current_page);
+      setCurrentPage(data.current_page || 1);
     } catch (error) {
       console.error('Error fetching employees:', error);
       showToast('Error loading employees', 'error');
-      setEmployees(sampleEmployees);
+      setEmployees(Array.isArray(sampleEmployees) ? sampleEmployees : []);
       // totalEmployees state removed
     } finally {
       // loading indicator removed
@@ -261,7 +261,7 @@ const EmployeesManagement = () => {
   }, [searchTerm]);
 
   // Filter employees based on search term
-  const filteredEmployees = employees.filter(
+  const filteredEmployees = (employees || []).filter(
     (emp) =>
       emp.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -270,17 +270,17 @@ const EmployeesManagement = () => {
   );
 
   // Calculate pagination
-  const totalPages = Math.ceil(filteredEmployees.length / rowsPerPage);
+  const totalPages = Math.ceil((filteredEmployees || []).length / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = Math.min(startIndex + rowsPerPage, filteredEmployees.length);
-  const paginatedEmployees = filteredEmployees.slice(startIndex, endIndex);
+  const endIndex = Math.min(startIndex + rowsPerPage, (filteredEmployees || []).length);
+  const paginatedEmployees = (filteredEmployees || []).slice(startIndex, endIndex);
 
   // Calculate stats
   const stats = {
-    totalEmployees: employees.length,
-    activeEmployees: employees.filter((e) => e.status === 'active').length,
-    onLeaveEmployees: employees.filter((e) => e.status === 'on-leave').length,
-    totalDepartments: [...new Set(employees.map((e) => e.department))].length,
+    totalEmployees: (employees || []).length,
+    activeEmployees: (employees || []).filter((e) => e.status === 'active').length,
+    onLeaveEmployees: (employees || []).filter((e) => e.status === 'on-leave').length,
+    totalDepartments: [...new Set((employees || []).map((e) => e.department))].length,
   };
 
   // Toast notification
@@ -298,6 +298,7 @@ const EmployeesManagement = () => {
         last_name: employee.last_name,
         email: employee.email,
         phone: employee.phone || '',
+        role: employee.role || 'employee',
         department: employee.department,
         position: employee.position,
         hire_date: employee.hire_date,
@@ -328,6 +329,7 @@ const EmployeesManagement = () => {
       email: '',
       password: '',
       phone: '',
+      role: 'employee',
       department: '',
       position: '',
       hire_date: new Date().toISOString().split('T')[0],
@@ -403,6 +405,7 @@ const EmployeesManagement = () => {
       submitData.append('email', formData.email);
       if (formData.password) submitData.append('password', formData.password);
       if (formData.phone) submitData.append('phone', formData.phone);
+      if (formData.role) submitData.append('role', formData.role);
       submitData.append('department', formData.department);
       submitData.append('position', formData.position);
       submitData.append('hire_date', formData.hire_date);
@@ -414,24 +417,23 @@ const EmployeesManagement = () => {
       if (formData.notes) submitData.append('notes', formData.notes);
       if (avatarFile) submitData.append('avatar', avatarFile);
 
-      const url = editingEmployee
-        ? `/api/employees/${editingEmployee.id}`
-        : '/api/employees';
-      const method = 'POST';
+      let response;
       if (editingEmployee) {
         submitData.append('_method', 'PUT');
+        response = await apiService.post(`/employees/${editingEmployee.id}`, submitData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      } else {
+        response = await apiService.post('/employees', submitData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
       }
 
-      const csrfToken = document.querySelector('meta[name="csrf-token"]');
-      const response = await fetch(url, {
-        method: method,
-        body: submitData,
-        headers: {
-          'X-CSRF-TOKEN': csrfToken ? csrfToken.getAttribute('content') : '',
-        },
-      });
-
-      const result = await response.json();
+      const result = response.data;
 
       if (result.success) {
         showToast(result.message, 'success');
@@ -441,7 +443,7 @@ const EmployeesManagement = () => {
         showToast('Error saving employee', 'error');
       }
     } catch (error) {
-      showToast('Error saving employee. Please try again.', 'error');
+      showToast('Error saving employee', 'error');
       console.error('Error saving employee:', error);
     }
   };
@@ -456,15 +458,8 @@ const EmployeesManagement = () => {
     if (!deleteItem) return;
 
     try {
-      const csrfToken = document.querySelector('meta[name="csrf-token"]');
-      const response = await fetch(`/api/employees/${deleteItem.id}`, {
-        method: 'DELETE',
-        headers: {
-          'X-CSRF-TOKEN': csrfToken ? csrfToken.getAttribute('content') : '',
-        },
-      });
-
-      const result = await response.json();
+      const response = await apiService.delete(`/employees/${deleteItem.id}`);
+      const result = response.data;
 
       if (result.success) {
         showToast(result.message, 'success');
@@ -513,8 +508,11 @@ const EmployeesManagement = () => {
   };
 
   const applyBulkAction = async (action) => {
+    if (!action) return;
+
     if (selectedIds.length === 0) {
       showToast('Please select at least one employee.', 'warning');
+      document.getElementById('bulkActions').value = '';
       return;
     }
 
@@ -525,19 +523,10 @@ const EmployeesManagement = () => {
         )
       ) {
         try {
-          const csrfToken = document.querySelector('meta[name="csrf-token"]');
-          const response = await fetch('/api/employees/bulk-delete', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-TOKEN': csrfToken
-                ? csrfToken.getAttribute('content')
-                : '',
-            },
-            body: JSON.stringify({ ids: selectedIds }),
+          const response = await apiService.post('/employees/bulk-delete', {
+            ids: selectedIds,
           });
-
-          const result = await response.json();
+          const result = response.data;
 
           if (result.success) {
             showToast(result.message, 'success');
@@ -551,24 +540,16 @@ const EmployeesManagement = () => {
           console.error('Error deleting employees:', error);
         }
       }
+      document.getElementById('bulkActions').value = '';
       return;
     }
 
     try {
-      const csrfToken = document.querySelector('meta[name="csrf-token"]');
-      const response = await fetch('/api/employees/bulk-status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': csrfToken ? csrfToken.getAttribute('content') : '',
-        },
-        body: JSON.stringify({
-          ids: selectedIds,
-          status: action === 'activate' ? 'active' : 'inactive',
-        }),
+      const response = await apiService.post('/employees/bulk-update-status', {
+        ids: selectedIds,
+        status: action === 'activate' ? 'active' : 'inactive',
       });
-
-      const result = await response.json();
+      const result = response.data;
 
       if (result.success) {
         showToast(result.message, 'success');
@@ -580,6 +561,8 @@ const EmployeesManagement = () => {
     } catch (error) {
       showToast('Error updating employee status', 'error');
       console.error('Error updating employee status:', error);
+    } finally {
+      document.getElementById('bulkActions').value = '';
     }
   };
 
@@ -680,7 +663,21 @@ const EmployeesManagement = () => {
                       placeholder="Enter phone number"
                     />
                   </div>
-                  <div className="form-group">{/* Empty for spacing */}</div>
+                  <div className="form-group">
+                    <label className="form-label">Role *</label>
+                    <select
+                      className="form-control"
+                      id="role"
+                      value={formData.role}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="employee">Employee</option>
+                      <option value="admin">Admin</option>
+                      <option value="supplier">Supplier</option>
+                      <option value="customer">Customer</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="form-row">
@@ -924,6 +921,12 @@ const EmployeesManagement = () => {
                     </span>
                   </div>
                   <div className="detail-row">
+                    <span className="detail-label">Role:</span>
+                    <span className="detail-value" style={{ textTransform: 'capitalize' }}>
+                      {viewingEmployee.role || 'Employee'}
+                    </span>
+                  </div>
+                  <div className="detail-row">
                     <span className="detail-label">Department:</span>
                     <span className="detail-value">
                       {departmentNames[viewingEmployee.department] ||
@@ -1131,14 +1134,15 @@ const EmployeesManagement = () => {
                     type="checkbox"
                     id="selectAll"
                     checked={
-                      selectedIds.length === paginatedEmployees.length &&
-                      paginatedEmployees.length > 0
+                      selectedIds.length === (paginatedEmployees || []).length &&
+                      (paginatedEmployees || []).length > 0
                     }
                     onChange={(e) => handleSelectAll(e.target.checked)}
                   />
                 </th>
                 <th>ID</th>
                 <th>EMPLOYEE</th>
+                <th>ROLE</th>
                 <th>DEPARTMENT</th>
                 <th>POSITION</th>
                 <th>SALARY</th>
@@ -1148,7 +1152,7 @@ const EmployeesManagement = () => {
               </tr>
             </thead>
             <tbody>
-              {paginatedEmployees.length === 0 ? (
+              {(paginatedEmployees || []).length === 0 ? (
                 <tr>
                   <td
                     colSpan="9"
@@ -1173,7 +1177,7 @@ const EmployeesManagement = () => {
                   </td>
                 </tr>
               ) : (
-                paginatedEmployees.map((emp) => (
+                (paginatedEmployees || []).map((emp) => (
                   <tr key={emp.id}>
                     <td>
                       <input
@@ -1210,6 +1214,9 @@ const EmployeesManagement = () => {
                           <div className="employee-position">{emp.email}</div>
                         </div>
                       </div>
+                    </td>
+                    <td style={{ textTransform: 'capitalize' }}>
+                      {emp.role || 'Employee'}
                     </td>
                     <td>
                       <span className="department-badge">
@@ -1291,7 +1298,7 @@ const EmployeesManagement = () => {
                   marginLeft: '8px',
                 }}
               >
-                {filteredEmployees.length}
+                {(filteredEmployees || []).length}
               </span>{' '}
               records
             </span>

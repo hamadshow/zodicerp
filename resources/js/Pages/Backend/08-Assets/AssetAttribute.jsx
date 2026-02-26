@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/main.scss';
-import '../../../../css/backend/08-Assets/AssetAttribute.scss';
 
 const AssetAttributesList = ({ attributes = [] }) => {
     const [filteredAttributes, setFilteredAttributes] = useState(attributes);

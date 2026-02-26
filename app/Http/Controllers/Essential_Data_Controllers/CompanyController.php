@@ -21,7 +21,7 @@ class CompanyController extends Controller
 
     public function create()
     {
-        return Inertia::render('Backend/01-Essential_Data/CompanyForm');
+        return Inertia::render('Backend/01-Essential_Data/Company');
     }
 
     public function store(Request $request)
@@ -95,7 +95,7 @@ class CompanyController extends Controller
 
     public function edit(Company $company)
     {
-        return Inertia::render('Backend/01-Essential_Data/CompanyForm', [
+        return Inertia::render('Backend/01-Essential_Data/Company', [
             'company' => $company
         ]);
     }
@@ -113,7 +113,8 @@ class CompanyController extends Controller
             'city' => 'nullable|string',
             'area' => 'nullable|string',
             'address' => 'nullable|string',
-            'logo' => 'nullable|nullable|image|max:1024',
+            'logo' => 'nullable|image|max:1024',
+            'logo_path' => 'nullable|string|max:255',
             
             'accountant_name' => 'nullable|string',
             'commercial_registration' => 'nullable|string',

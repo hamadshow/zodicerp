@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
-import '../../../../css/backend/04-Purchases/PurchaseInvoice.scss';
 
 export default function PurchaseInvoice({ invoices, suppliers, orders, currencies, products, paymentTerms }) {
     const [mode, setMode] = useState('list'); // list, create, edit

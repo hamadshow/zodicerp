@@ -8,9 +8,17 @@ use App\Models\UserFavoriteReport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+use Inertia\Inertia;
+use Inertia\Response;
+
 class FinancialReportController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(): Response
+    {
+        return Inertia::render('Backend/07-Accounting/FinancialReports');
+    }
+
+    public function getData(Request $request): JsonResponse
     {
         $user = $request->user();
 
@@ -135,6 +143,11 @@ class FinancialReportController extends Controller
             'report_id' => $reportId,
             'is_favorite' => $isFavorite,
         ]);
+    }
+
+    public function coaReport(): Response
+    {
+        return Inertia::render('Backend/07-Accounting/FinancialReports/COAReport');
     }
 }
 

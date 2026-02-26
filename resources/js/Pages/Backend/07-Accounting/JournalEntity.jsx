@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Head } from '@inertiajs/react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import '../../../../css/backend/JournalEntity.scss';
 import AdminLayout from '../components/AdminLayout';
+import '../../../../css/backend/main.scss';
 import SearchableComboBox from '../components/SearchableComboBox';
 import { apiService } from '../../../services/api';
 

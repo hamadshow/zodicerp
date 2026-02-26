@@ -34,7 +34,7 @@ class BranchController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'company_id' => 'required|exists:companies,id',
+            'company_id' => 'required|exists:company,id',
             'branch_name' => 'required|string|max:255',
             'english_name' => 'nullable|string',
             'branch_type' => 'nullable|string',
@@ -96,6 +96,11 @@ class BranchController extends Controller
         return redirect()->route('admin.branches.index')->with('success', 'Branch created successfully.');
     }
 
+    public function getBranches()
+    {
+        return response()->json(Branch::select('id', 'branch_name', 'branch_code')->get());
+    }
+
     public function edit(Branch $branch)
     {
         $companies = Company::select('id', 'company_name')->get();
@@ -109,7 +114,7 @@ class BranchController extends Controller
     public function update(Request $request, Branch $branch)
     {
          $validated = $request->validate([
-            'company_id' => 'required|exists:companies,id',
+            'company_id' => 'required|exists:company,id',
             'branch_name' => 'required|string|max:255',
             'english_name' => 'nullable|string',
             'branch_type' => 'nullable|string',

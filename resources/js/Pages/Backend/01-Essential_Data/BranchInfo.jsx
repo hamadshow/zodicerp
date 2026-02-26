@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, Link } from '@inertiajs/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { apiService } from '@/services/api';
 import '../../../../css/backend/main.scss';
-import '../../../../css/backend/BranchInfo.scss';
+
 
 const resolveMediaUrl = (value) => {
     if (!value) {
@@ -344,9 +344,9 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
         <AdminLayout activeMenu="Branch Info">
             <Head title="Branch Information - ZodicERP" />
             <div className="breadcrumb">
-                <a href="#">Dashboard</a>
+                <Link href={route('admin.dashboard')}>Dashboard</Link>
                 <span>/</span>
-                <a href="#">Essential Data</a>
+                <Link href="#">Essential Data</Link>
                 <span>/</span>
                 <span>Branches</span>
             </div>

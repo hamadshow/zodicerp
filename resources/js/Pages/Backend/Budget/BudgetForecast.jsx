@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
 import SearchableComboBox from '@/Pages/Backend/components/SearchableComboBox';
-import '../../../../css/backend/Budget/BudgetForecast.scss';
 import axios from 'axios';
+import '../../../../css/backend/main.scss';
+
 
 export default function BudgetForecast({ forecasts, budgets }) {
     const [activeTab, setActiveTab] = useState('info');

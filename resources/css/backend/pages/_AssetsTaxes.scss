@@ -1,0 +1,163 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   Assets & Taxes Module
+   (Assets, Categories, Attributes, Tax Types)
+   ========================================================================== */
+
+/* 1. Common Assets Layout */
+.assets-page {
+    padding: $spacing-lg;
+    background-color: $light-color;
+    min-height: 100vh;
+
+    @include rtl {
+        direction: rtl;
+    }
+}
+
+/* 2. Asset Dashboard & Stats */
+.asset-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: $spacing-lg;
+    margin-bottom: $spacing-xl;
+
+    &__card {
+        background: $white;
+        border-radius: $radius-lg;
+        padding: $spacing-xl;
+        display: flex;
+        align-items: center;
+        gap: $spacing-lg;
+        box-shadow: $shadow-sm;
+        border: 1px solid $border-color;
+        position: relative;
+        overflow: hidden;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+
+        &:hover {
+            transform: translateY(-4px);
+            box-shadow: $shadow-md;
+        }
+
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, $primary-color, $secondary-color);
+        }
+    }
+
+    &__icon {
+        width: 56px;
+        height: 56px;
+        border-radius: $radius-md;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        color: $white;
+        
+        &--blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        &--green { background: linear-gradient(135deg, #10b981, #059669); }
+        &--indigo { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+        &--amber { background: linear-gradient(135deg, #f59e0b, #d97706); }
+    }
+
+    &__content {
+        flex: 1;
+    }
+
+    &__value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: $text-primary;
+        line-height: 1.2;
+    }
+
+    &__label {
+        font-size: 0.875rem;
+        color: $text-muted;
+        font-weight: 500;
+    }
+}
+
+/* 3. Asset Management (List/Form) */
+.asset-module {
+    &__table-card {
+        background: $white;
+        border-radius: $radius-lg;
+        box-shadow: $shadow-sm;
+        border: 1px solid $border-color;
+        overflow: hidden;
+    }
+
+    &__header {
+        padding: $spacing-lg;
+        border-bottom: 1px solid $border-color;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: $spacing-md;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+}
+
+/* 4. Tax Management */
+.tax-type-card {
+    background: $white;
+    border-radius: $radius-md;
+    border: 1px solid $border-color;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-md;
+
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: $spacing-md;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+
+    &__name {
+        font-weight: 600;
+        font-size: 1.125rem;
+    }
+
+    &__rate {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: $primary-color;
+    }
+
+    &__details {
+        font-size: 0.875rem;
+        color: $text-muted;
+    }
+}
+
+/* 5. Asset Attributes & Categories */
+.asset-attribute-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: $spacing-md;
+    
+    &__item {
+        background: $light-color;
+        padding: $spacing-md;
+        border-radius: $border-radius-sm;
+        border: 1px solid $border-color;
+    }
+}

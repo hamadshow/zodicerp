@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
-import '../../../../../css/backend/Reports/GeneralLedger.scss';
-import '../../../../../css/backend/JournalEntity.scss';
 import AdminLayout from '../../components/AdminLayout';
 import SearchableComboBox from '../../components/SearchableComboBox';
 import { apiService } from '../../../../services/api';

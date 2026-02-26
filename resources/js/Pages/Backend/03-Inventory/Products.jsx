@@ -2,8 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Head, Link, usePage, useForm } from '@inertiajs/react';
 import { Inertia } from '@inertiajs/inertia';
 import AdminLayout from '../components/AdminLayout';
-import MediaPickerModal from '../Media/MediaPickerModal';
 import '../../../../css/backend/main.scss';
+import MediaPickerModal from '../Media/MediaPickerModal';
 
 // ==========================================
 // Helper Components

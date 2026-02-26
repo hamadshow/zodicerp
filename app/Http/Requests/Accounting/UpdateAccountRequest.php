@@ -41,7 +41,7 @@ class UpdateAccountRequest extends FormRequest
             'Nature' => [
                 'nullable',
                 'string',
-                Rule::in(['asset', 'cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income']),
+                Rule::in(['asset', 'Inventory', 'Accounts Receivable', 'cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income']),
             ],
             'AccDmType' => [
                 'required',

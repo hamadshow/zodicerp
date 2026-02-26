@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/InvestingStack/Brokers.scss';
 import { debounce } from 'lodash';
 
 const ViewSection = ({ brokers, filters, onEdit, onCreate, onDelete }) => {

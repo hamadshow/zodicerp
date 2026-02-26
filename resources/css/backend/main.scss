@@ -1,6 +1,112 @@
-@use 'Products';
-@use 'Settings/Settings';
-@use 'Settings/Locales';
-@use 'Settings/ThemeTranslations';
-@use 'Settings/OtherTranslations';
-@use 'Warehouses';
+@use 'base/variables';
+@use 'base/mixins';
+@use 'base/base';
+
+// Layout
+@use 'layout/sidebar';
+@use 'layout/navbar';
+@use 'layout/footer';
+
+// Components
+@use 'components/notifications';
+@use 'components/stats';
+@use 'components/pagination';
+@use 'components/table';
+@use 'components/SearchableComboBox';
+
+// Page-specific styles
+@use 'pages/Ads';
+@use 'pages/AssetAttribute';
+@use 'pages/AssetCategory';
+@use 'pages/Assets';
+@use 'pages/bank';
+@use 'pages/BankTransactions';
+@use 'pages/Brands';
+@use 'pages/Brokers';
+@use 'pages/BudgeDashBoard';
+@use 'pages/BudgetCategory';
+@use 'pages/BudgetCommitment';
+@use 'pages/BudgetForecast';
+@use 'pages/BudgetMonitoring';
+@use 'pages/BudgetTransfer';
+@use 'pages/Cheque';
+@use 'pages/ChequeCE';
+@use 'pages/COAReport';
+@use 'pages/Deductions';
+@use 'pages/Departments';
+@use 'pages/GeneralLedger';
+@use 'pages/industries';
+@use 'pages/ItemAttributes';
+@use 'pages/ItemUnits';
+@use 'pages/ListedCompanies';
+@use 'pages/MarketPrices';
+@use 'pages/Nationalities';
+@use 'pages/Payroll-Advance';
+@use 'pages/Permissions';
+@use 'pages/PettyCash';
+@use 'pages/Purchase_quotations';
+@use 'pages/PurchaseInvoice';
+@use 'pages/PurchaseOrder';
+@use 'pages/Salary-Receipt';
+@use 'pages/Sales_Orders';
+@use 'pages/Sales_Quotations';
+@use 'pages/SalesInvoice';
+@use 'pages/Supplier_groups';
+@use 'pages/Suppliers';
+@use 'pages/Tasks';
+@use 'pages/TaxType';
+@use 'pages/TrafficViolations';
+@use 'pages/Vacations';
+@use 'pages/Warehouses';
+
+// Existing/Additional pages
+@use 'pages/Location';
+@use 'pages/Purchases';
+@use 'pages/Categories';
+@use 'pages/AssetsTaxes';
+@use 'pages/Products';
+@use 'pages/HR';
+@use 'pages/Settings';
+@use 'pages/Budget';
+@use 'pages/Inventory';
+@use 'pages/Accounting';
+@use 'pages/Investing';
+@use 'pages/Login';
+@use 'pages/Media';
+@use 'pages/Currencies';
+@use 'pages/Exchange_rates';
+@use 'pages/Company';
+@use 'pages/BranchInfo';
+@use 'pages/Attendance';
+@use 'pages/Employees';
+@use 'pages/Reward';
+@use 'pages/OverTime';
+@use 'pages/End-of-service';
+@use 'pages/ChartOfAccounts';
+@use 'pages/JournalEntity';
+@use 'pages/FinancialReports';
+@use 'pages/CustomerGroup';
+@use 'pages/Customer';
+@use 'pages/Sales';
+@use 'pages/LegacySettings';
+@use 'pages/Profession';
+
+// Global RTL Support
+[dir="rtl"] {
+    direction: rtl;
+    text-align: right;
+
+    .flex, .d-flex {
+        &.flex-row {
+            flex-direction: row-reverse;
+        }
+    }
+
+    // Logical properties for common spacing
+    .ms-auto { margin-right: auto; margin-left: 0; }
+    .me-auto { margin-left: auto; margin-right: 0; }
+    
+    // Reverse margins/padding if physical properties are used
+    .ml-auto { margin-right: auto; margin-left: 0; }
+    .mr-auto { margin-left: auto; margin-right: 0; }
+}

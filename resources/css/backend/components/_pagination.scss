@@ -1,0 +1,70 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Pagination Styles */
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: $spacing-lg;
+    padding-top: $spacing-lg;
+    border-top: 1px solid $border-color;
+    flex-wrap: wrap;
+    gap: $spacing-md;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+}
+
+/* Record count badge */
+.record-count-badge {
+    background-color: $gray-color;
+    color: #ffffff; // var(--text-white)
+    padding: $spacing-xs $spacing-sm;
+    border-radius: $radius-sm;
+    font-weight: $font-weight-semibold;
+}
+
+.pagination-info {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    font-size: $font-size-sm;
+    flex-wrap: wrap;
+}
+
+.pagination-controls {
+    display: flex;
+    gap: $spacing-xs;
+    flex-wrap: wrap;
+}
+
+.page-btn {
+    padding: $spacing-xs $spacing-md;
+    border: 1px solid $border-color;
+    border-radius: $radius-sm;
+    cursor: pointer;
+    background-color: #ffffff; // var(--text-white)
+    font-size: $font-size-sm;
+    transition: all $transition-fast;
+
+    &.active {
+        background-color: $primary-color;
+        color: #ffffff; // var(--text-white)
+        border-color: $primary-color;
+    }
+
+    &:hover:not(.active) {
+        background-color: $light-color; // Using $light-color as fallback for $light-bg
+    }
+}
+
+.select-dropdown {
+    padding: $spacing-xs $spacing-md;
+    border: 1px solid $border-color;
+    border-radius: $radius-sm;
+    background-color: #ffffff; // var(--text-white)
+    cursor: pointer;
+    font-size: $font-size-sm;
+}

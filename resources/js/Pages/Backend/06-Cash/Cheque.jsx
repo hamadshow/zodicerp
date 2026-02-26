@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
-import '../../../../css/backend/Cheque.scss';
+import '../../../../css/backend/main.scss';
+
 
 const Cheque = ({ cheques, filters, stats }) => {
     const safeFilters = filters || {};

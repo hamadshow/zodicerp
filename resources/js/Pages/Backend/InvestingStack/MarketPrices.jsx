@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/InvestingStack/MarketPrices.scss';
 import { debounce } from 'lodash';
 
 const ViewSection = ({ marketPrices, filters, onEdit, onCreate, onDelete }) => {

@@ -1,0 +1,311 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   Settings & Configuration Module
+   (Company, Branch, Media, Locales, Translations)
+   ========================================================================== */
+
+/* 1. Common Settings Layout */
+.settings-page {
+    padding: $spacing-lg;
+    background-color: $light-color;
+    min-height: 100vh;
+
+    @include rtl {
+        direction: rtl;
+    }
+}
+
+.settings-card {
+    background-color: $white;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+    margin-bottom: $spacing-lg;
+    border: 1px solid $border-color;
+    overflow: hidden;
+
+    &__header {
+        padding: $spacing-lg;
+        border-bottom: 1px solid $light-color;
+        background-color: rgba($light-color, 0.5);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+
+    &__title {
+        font-size: 1.125rem;
+        font-weight: $font-weight-bold;
+        color: $dark-color;
+        margin: 0;
+    }
+
+    &__body {
+        padding: $spacing-xl;
+    }
+}
+
+/* 2. Settings Grid & Items */
+.settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: $spacing-lg;
+
+    @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.settings-item {
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-md;
+    padding: $spacing-md;
+    border-radius: $radius-md;
+    text-decoration: none;
+    transition: $transition-base;
+    border: 1px solid transparent;
+
+    @include rtl {
+        flex-direction: row-reverse;
+        text-align: right;
+    }
+
+    &:hover {
+        background-color: rgba($primary-color, 0.05);
+        border-color: rgba($primary-color, 0.1);
+        
+        .settings-item__title {
+            color: $primary-color;
+        }
+    }
+
+    &__icon {
+        flex-shrink: 0;
+        width: 48px;
+        height: 48px;
+        @include flex-center;
+        background-color: $light-color;
+        border-radius: $radius-md;
+        color: $gray-color;
+        font-size: 1.5rem;
+    }
+
+    &__content {
+        flex: 1;
+    }
+
+    &__title {
+        font-size: 1rem;
+        font-weight: $font-weight-semibold;
+        color: $dark-color;
+        margin: 0 0 4px 0;
+    }
+
+    &__description {
+        font-size: $font-size-sm;
+        color: $gray-color;
+        margin: 0;
+        line-height: 1.4;
+    }
+}
+
+/* 3. Company & Branch Info (Tabs & Forms) */
+.essential-data {
+    &__tabs {
+        display: flex;
+        border-bottom: 1px solid $border-color;
+        margin-bottom: $spacing-lg;
+        overflow-x: auto;
+        gap: $spacing-md;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+
+    &__tab {
+        padding: $spacing-md $spacing-lg;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        font-weight: $font-weight-semibold;
+        color: $gray-color;
+        white-space: nowrap;
+        transition: $transition-base;
+
+        &:hover {
+            color: $dark-color;
+        }
+
+        &.active {
+            color: $primary-color;
+            border-bottom-color: $primary-color;
+        }
+    }
+
+    &__form-columns {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: $spacing-xl;
+    }
+}
+
+/* 4. Media Management */
+.media-module {
+    &__wrapper {
+        display: flex;
+        background: $white;
+        border-radius: $radius-lg;
+        box-shadow: $shadow-md;
+        min-height: 600px;
+        border: 1px solid $border-color;
+        overflow: hidden;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+
+    &__sidebar {
+        width: 250px;
+        background: $white;
+        border-right: 1px solid $border-color;
+        padding: $spacing-lg;
+        flex-shrink: 0;
+
+        @include rtl {
+            border-right: none;
+            border-left: 1px solid $border-color;
+        }
+    }
+
+    &__content {
+        flex: 1;
+        padding: $spacing-lg;
+        position: relative;
+    }
+
+    &__toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: $spacing-lg;
+        gap: $spacing-md;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+}
+
+/* 5. Locales & Translations */
+.translation-module {
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: $spacing-md;
+    }
+
+    &__item {
+        padding: $spacing-md;
+        background: $white;
+        border: 1px solid $border-color;
+        border-radius: $radius-md;
+        text-align: center;
+    }
+}
+
+.settings-container {
+    padding: $spacing-md;
+
+    .settings-card {
+        background: $white;
+        border-radius: $radius-md;
+        border: 1px solid $border-color;
+        box-shadow: $shadow-sm;
+        margin-bottom: $spacing-xl;
+
+        &-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid rgba($gray-color, 0.1);
+
+            .settings-card-title {
+                font-size: $font-size-lg;
+                font-weight: $font-weight-semibold;
+                color: $dark-color;
+                margin: 0;
+            }
+        }
+
+        &-body {
+            padding: 1.5rem;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: $spacing-xl;
+
+            @media (max-width: 768px) {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .settings-item {
+            display: flex;
+            align-items: flex-start;
+            gap: $spacing-md;
+            text-decoration: none;
+            transition: $transition-fast;
+            padding: $spacing-sm;
+            border-radius: $radius-sm;
+
+            &:hover {
+                background-color: $light-color;
+
+                .settings-item-title {
+                    color: $secondary-color;
+                }
+            }
+
+            &-icon {
+                flex-shrink: 0;
+                width: 48px;
+                height: 48px;
+                @include flex-center;
+                background-color: $light-color;
+                border-radius: $radius-md;
+                color: $gray-color;
+
+                .material-icons-outlined {
+                    font-size: 24px;
+                }
+            }
+
+            &-content {
+                @include rtl {
+                    text-align: right;
+                }
+
+                .settings-item-title {
+                    font-size: $font-size-base;
+                    font-weight: $font-weight-medium;
+                    color: #2563eb; // Blue color from original
+                    margin: 0 0 $spacing-xs 0;
+                }
+
+                .settings-item-description {
+                    font-size: $font-size-sm;
+                    color: $gray-color;
+                    margin: 0;
+                    line-height: 1.4;
+                }
+            }
+        }
+    }
+}

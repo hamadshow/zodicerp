@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
-import '../../../../css/backend/FinancialReports.scss';
 import AdminLayout from '../components/AdminLayout';
+import '../../../../css/backend/main.scss';
 
 export default function FinancialReports({ activeReport }) {
   const [reports, setReports] = useState([]);

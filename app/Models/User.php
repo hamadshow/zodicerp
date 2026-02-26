@@ -42,7 +42,7 @@ class User extends Authenticatable
     public static function getRoleValidationRules(): array
     {
         return [
-            'role' => 'nullable|string|in:admin,supplier,customer',
+            'role' => 'nullable|string|in:admin,supplier,customer,employee',
         ];
     }
 

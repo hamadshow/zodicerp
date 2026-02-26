@@ -1,0 +1,26 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Footer Styles */
+.footer {
+    padding: 16px 24px;
+    background-color: white;
+    border-top: 1px solid $border-color;
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: $gray-color;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: auto;
+    width: 100%;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+
+    @include media-breakpoint-down('lg') {
+        flex-direction: column;
+        text-align: center;
+    }
+}

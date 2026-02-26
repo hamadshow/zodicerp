@@ -1,0 +1,70 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Pagination Styles */
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid $border-color;
+  flex-wrap: wrap;
+  gap: 16px;
+
+  @include rtl {
+    flex-direction: row-reverse;
+  }
+}
+
+/* Record count badge */
+.record-count-badge {
+  background-color: $gray-color;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.pagination-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.page-btn {
+  padding: 4px 16px;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: white;
+  font-size: 0.875rem;
+  @include transition-standard;
+
+  &.active {
+    background-color: $primary-color;
+    color: white;
+    border-color: $primary-color;
+  }
+
+  &:hover:not(.active) {
+    background-color: #f8fafc;
+  }
+}
+
+.select-dropdown {
+  padding: 4px 16px;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  background-color: white;
+  cursor: pointer;
+  font-size: 0.875rem;
+}

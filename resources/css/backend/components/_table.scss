@@ -1,0 +1,129 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Table Styles */
+.table-container {
+    overflow-x: auto;
+    border-radius: $radius-md;
+    border: 1px solid $border-color;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: $font-size-sm;
+    min-width: 800px;
+}
+
+th, td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid $border-color;
+
+    @include rtl {
+        text-align: right;
+    }
+}
+
+th {
+    background-color: $light-color; // Fallback for $light-bg
+    font-weight: $font-weight-semibold;
+    color: $gray-color;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    white-space: nowrap;
+}
+
+tr:hover {
+    background-color: $light-color; // Fallback for $light-bg
+}
+
+/* Status badges */
+.status {
+    padding: $spacing-xs $spacing-md;
+    border-radius: 20px;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    display: inline-block;
+    text-align: center;
+    min-width: 80px;
+}
+
+.status-published {
+    background-color: $success-color; // Fallback for $success-green
+    color: #ffffff; // var(--text-white)
+}
+
+.status-draft {
+    background-color: $warning-color; // Fallback for $warning-yellow
+    color: #ffffff; // var(--text-white)
+}
+
+.status-pending {
+    background-color: $info-color;
+    color: #ffffff; // var(--text-white)
+}
+
+.status-active {
+    background-color: $success-color; // Fallback for $success-green
+    color: #ffffff; // var(--text-white)
+}
+
+.status-inactive {
+    background-color: $danger-color; // Fallback for $danger-red
+    color: #ffffff; // var(--text-white)
+}
+
+/* Icon buttons */
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: $spacing-xs;
+    border-radius: $radius-sm;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color $transition-fast;
+
+    &.edit {
+        color: $info-color;
+    }
+
+    &.delete {
+        color: $danger-color; // Fallback for $danger-red
+    }
+
+    &:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+    }
+
+    .material-icons-outlined {
+        font-size: 18px;
+    }
+}
+
+/* Table header icons */
+.table-header-icon {
+    font-size: $font-size-base;
+}
+
+/* Status icons */
+.status-icon {
+    font-size: 18px;
+
+    &.success {
+        color: $success-color;
+    }
+
+    &.info {
+        color: $info-color;
+    }
+}
+
+/* Table links */
+.table-link {
+    color: $info-color;
+    text-decoration: none;
+}

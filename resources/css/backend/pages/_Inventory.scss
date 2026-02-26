@@ -1,0 +1,287 @@
+@use 'sass:color';
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   Inventory Module (Suppliers, Item Units, Warehouses)
+   ========================================================================== */
+
+/* Layout & Panels */
+.inventory-layout, .categories-layout {
+    display: flex;
+    gap: $spacing-lg;
+    align-items: flex-start;
+    margin-top: $spacing-lg;
+    min-height: calc(100vh - 150px);
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+
+    @media (max-width: 1024px) {
+        flex-direction: column;
+    }
+}
+
+.inventory-sidebar, .categories-tree-panel {
+    width: 350px;
+    background: $white;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    max-height: calc(100vh - 100px);
+    position: sticky;
+    top: 20px;
+
+    @media (max-width: 1024px) {
+        width: 100%;
+        position: static;
+    }
+}
+
+.inventory-main, .categories-main {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Tree / List View */
+.tree-container {
+    padding: $spacing-sm 0;
+    overflow-y: auto;
+    flex: 1;
+
+    .category-node {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .category-content {
+        display: flex;
+        align-items: center;
+        padding: $spacing-xs $spacing-md;
+        cursor: pointer;
+        transition: all $transition-fast;
+        border-left: 3px solid transparent;
+        position: relative;
+
+        @include rtl {
+            flex-direction: row-reverse;
+            border-left: none;
+            border-right: 3px solid transparent;
+        }
+
+        &:hover {
+            background-color: $light-color;
+        }
+
+        &.selected {
+            background-color: rgba($primary-color, 0.05);
+            border-left-color: $primary-color;
+            @include rtl { border-right-color: $primary-color; }
+        }
+
+        .category-info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: $spacing-xs;
+            overflow: hidden;
+            @include rtl { flex-direction: row-reverse; }
+        }
+    }
+}
+
+/* Cards & Containers */
+.inventory-card, .suppliers-card, .warehouses-card {
+    background-color: $white;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-lg;
+}
+
+/* Status Badges */
+.inventory-status, .supplier-status, .warehouse-status {
+    padding: 4px 12px;
+    border-radius: $radius-full;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    display: inline-block;
+    text-align: center;
+    min-width: 80px;
+    text-transform: capitalize;
+
+    &.active, &.status-active {
+        background-color: $success-color;
+        color: $white;
+    }
+
+    &.inactive, &.status-inactive {
+        background-color: $gray-color;
+        color: $white;
+    }
+
+    &.maintenance, &.status-maintenance {
+        background-color: $warning-color;
+        color: $white;
+    }
+}
+
+/* Supplier / Warehouse Info (Table Cells) */
+.inventory-info-cell, .supplier-info, .warehouse-info {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+
+    @include rtl {
+        flex-direction: row-reverse;
+        text-align: right;
+    }
+
+    .info-icon, .warehouse-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: $radius-md;
+        @include flex-center;
+        font-size: 1.25rem;
+        color: $white;
+    }
+
+    .info-details, .supplier-details, .warehouse-details {
+        display: flex;
+        flex-direction: column;
+        @include rtl { align-items: flex-end; }
+
+        .name, .supplier-name, .warehouse-name {
+            font-weight: $font-weight-semibold;
+            color: $dark-color;
+        }
+
+        .subtext, .warehouse-manager {
+            font-size: $font-size-xs;
+            color: $gray-color;
+        }
+    }
+}
+
+/* Forms & Controls */
+.inventory-form-row, .form-row {
+    display: flex;
+    gap: $spacing-md;
+    margin-bottom: $spacing-md;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+
+    @media (max-width: 768px) {
+        flex-direction: column;
+    }
+
+    .form-group {
+        flex: 1;
+        margin-bottom: 0;
+    }
+}
+
+/* Profile Specifics */
+.profile-header-card {
+    background: $white;
+    border-radius: $radius-lg;
+    overflow: hidden;
+    box-shadow: $shadow-md;
+    margin-bottom: $spacing-lg;
+    position: relative;
+
+    .profile-cover {
+        height: 150px;
+        background: linear-gradient(135deg, $primary-color, color.adjust($primary-color, $lightness: -15%));
+    }
+
+    .profile-info-wrapper {
+        padding: 0 $spacing-xl $spacing-xl;
+        display: flex;
+        align-items: flex-end;
+        gap: $spacing-lg;
+        margin-top: -50px;
+        flex-wrap: wrap;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+
+    .profile-avatar-large {
+        width: 100px;
+        height: 100px;
+        background: $white;
+        border-radius: $radius-full;
+        border: 4px solid $white;
+        box-shadow: $shadow-sm;
+        @include flex-center;
+        font-size: 2.5rem;
+        font-weight: $font-weight-bold;
+        color: $primary-color;
+    }
+}
+
+.profile-content-grid {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: $spacing-lg;
+
+    @include rtl {
+        direction: rtl;
+    }
+
+    @media (max-width: 1024px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Specialized Selectors (Icons/Colors) */
+.icon-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: $spacing-sm;
+    margin-top: $spacing-xs;
+
+    .icon-option {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: $spacing-sm;
+        border: 2px solid $border-color;
+        border-radius: $radius-md;
+        cursor: pointer;
+        transition: all $transition-fast;
+
+        &:hover, &.selected {
+            border-color: $primary-color;
+            background-color: rgba($primary-color, 0.05);
+        }
+    }
+}
+
+.color-picker {
+    display: flex;
+    gap: $spacing-sm;
+    margin-top: $spacing-xs;
+    flex-wrap: wrap;
+
+    .color-option {
+        width: 30px;
+        height: 30px;
+        border-radius: $radius-full;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all $transition-fast;
+
+        &:hover, &.selected {
+            transform: scale(1.1);
+            border-color: $dark-color;
+        }
+    }
+}

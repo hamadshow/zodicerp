@@ -1,0 +1,486 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   HR & Employee Management Module
+   (Employees, Departments, Attendance, Payroll, Vacations, etc.)
+   ========================================================================== */
+
+/* 1. Common HR Components */
+.hr-page {
+    padding: $spacing-lg;
+    background-color: $light-color;
+    min-height: 100vh;
+
+    @include rtl {
+        direction: rtl;
+    }
+}
+
+.hr-search {
+    position: relative;
+    max-width: 300px;
+
+    &__icon {
+        position: absolute;
+        left: $spacing-md;
+        top: 50%;
+        transform: translateY(-50%);
+        color: $gray-color;
+        pointer-events: none;
+
+        @include rtl {
+            left: auto;
+            right: $spacing-md;
+        }
+    }
+
+    input {
+        padding-left: 40px !important;
+
+        @include rtl {
+            padding-left: $spacing-md !important;
+            padding-right: 40px !important;
+            text-align: right;
+        }
+    }
+}
+
+.hr-card {
+    background-color: $white;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-md;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-lg;
+    border: 1px solid $border-color;
+
+    @include rtl {
+        text-align: right;
+    }
+
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: $spacing-lg;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+
+    &__title {
+        font-size: 1.25rem;
+        font-weight: $font-weight-bold;
+        color: $dark-color;
+        margin: 0;
+    }
+
+    &__actions {
+        display: flex;
+        gap: $spacing-md;
+        align-items: center;
+        flex-wrap: wrap;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+}
+
+/* Employee Info & Avatar */
+.employee-info {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+
+    &__avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 1px solid $border-color;
+        @include flex-center;
+        background-color: $light-color;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    }
+
+    &__details {
+        display: flex;
+        flex-direction: column;
+
+        @include rtl {
+            text-align: right;
+        }
+    }
+
+    &__name {
+        font-weight: $font-weight-semibold;
+        color: $dark-color;
+    }
+
+    &__position {
+        font-size: $font-size-xs;
+        color: $gray-color;
+    }
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    display: inline-block;
+    text-align: center;
+    min-width: 80px;
+
+    &--present, &--active, &--paid, &--approved, &--processed {
+        background-color: $success-color;
+        color: $white;
+    }
+
+    &--absent, &--rejected, &--cancelled, &--terminated {
+        background-color: $danger-color;
+        color: $white;
+    }
+
+    &--late, &--pending, &--warning {
+        background-color: $warning-color;
+        color: $white;
+    }
+
+    &--leave, &--info, &--processing, &--on-leave {
+        background-color: $info-color;
+        color: $white;
+    }
+
+    &--half-day {
+        background-color: #f59e0b;
+        color: $white;
+    }
+
+    &--holiday, &--overtime {
+        background-color: #8b5cf6;
+        color: $white;
+    }
+
+    &--inactive {
+        background-color: $gray-color;
+        color: $white;
+    }
+}
+
+/* 2. Attendance & Tasks */
+.attendance-module, .tasks-module {
+    .attendance-card, .task-card {
+        @extend .hr-card;
+    }
+
+    .attendance-actions, .task-actions {
+        @extend .hr-card__actions;
+    }
+}
+
+.task-priority {
+    &--high { color: $danger-color; }
+    &--medium { color: $warning-color; }
+    &--low { color: $success-color; }
+}
+
+/* 3. Payroll, Salaries & Advances */
+.payroll-module {
+    .salary-card, .advance-card, .receipt-card {
+        @extend .hr-card;
+    }
+
+    .salary-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: $spacing-md;
+        margin-bottom: $spacing-lg;
+        padding: $spacing-md;
+        background-color: $light-color;
+        border-radius: $radius-md;
+
+        &__item {
+            display: flex;
+            flex-direction: column;
+            
+            label {
+                font-size: $font-size-xs;
+                color: $gray-color;
+                margin-bottom: 4px;
+            }
+            
+            span {
+                font-weight: $font-weight-bold;
+                color: $dark-color;
+            }
+        }
+    }
+}
+
+/* 4. Vacations & EOS */
+.vacation-module, .eos-module {
+    .vacation-card, .eos-card {
+        @extend .hr-card;
+    }
+
+    .leave-balance {
+        display: flex;
+        gap: $spacing-lg;
+        margin-bottom: $spacing-lg;
+
+        &__item {
+            flex: 1;
+            padding: $spacing-md;
+            background: $white;
+            border: 1px solid $border-color;
+            border-radius: $radius-md;
+            text-align: center;
+        }
+
+        &__value {
+            font-size: 1.5rem;
+            font-weight: $font-weight-bold;
+            color: $primary-color;
+            display: block;
+        }
+
+        &__label {
+            font-size: $font-size-xs;
+            color: $gray-color;
+        }
+    }
+}
+
+/* 5. Roles & Permissions */
+.permissions-module {
+    .permission-section {
+        background-color: $light-color;
+        border-radius: $radius-md;
+        padding: $spacing-md;
+        margin-bottom: $spacing-md;
+        border: 1px solid $border-color;
+
+        @include rtl {
+            text-align: right;
+        }
+
+        &__header {
+            margin: 0 0 $spacing-md 0;
+            color: $dark-color;
+            font-size: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            @include rtl {
+                flex-direction: row-reverse;
+            }
+        }
+    }
+
+    .permission-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: $spacing-md;
+
+        @include rtl {
+            direction: rtl;
+        }
+    }
+
+    .permission-item {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        padding: $spacing-sm $spacing-md;
+        background-color: $white;
+        border-radius: $radius-sm;
+        border: 1px solid $border-color;
+        transition: $transition-base;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+
+        &:hover {
+            border-color: $primary-color;
+            background-color: rgba($primary-color, 0.05);
+        }
+    }
+}
+
+/* 6. HR Modals */
+.hr-modal {
+    &__overlay {
+        @include flex-center;
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1050;
+        backdrop-filter: blur(4px);
+    }
+
+    &__content {
+        background-color: $white;
+        border-radius: $radius-lg;
+        padding: $spacing-xl;
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: $shadow-lg;
+
+        @include rtl {
+            text-align: right;
+        }
+    }
+
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: $spacing-lg;
+        padding-bottom: $spacing-md;
+        border-bottom: 1px solid $border-color;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+
+    &__title {
+        font-size: 1.25rem;
+        font-weight: $font-weight-bold;
+        color: $dark-color;
+        margin: 0;
+    }
+
+    &__close {
+        background: none;
+        border: none;
+        color: $gray-color;
+        cursor: pointer;
+        padding: $spacing-xs;
+        border-radius: 50%;
+        transition: $transition-base;
+
+        &:hover {
+            background-color: $light-color;
+            color: $danger-color;
+        }
+    }
+
+    &__footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: $spacing-md;
+        margin-top: $spacing-xl;
+        padding-top: $spacing-lg;
+        border-top: 1px solid $border-color;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+}
+
+.department-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: $radius-md;
+    @include flex-center;
+    font-size: 20px;
+    color: $white;
+    background-color: $primary-color;
+}
+
+.department-details {
+    @extend .employee-info__details;
+}
+
+.department-name {
+    @extend .employee-info__name;
+}
+
+.department-head {
+    font-size: $font-size-xs;
+    color: $gray-color;
+}
+
+.employee-count {
+    display: inline-block;
+    background-color: #e0f2fe;
+    color: #0369a1;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    margin-right: $spacing-xs;
+
+    @include rtl {
+        margin-right: 0;
+        margin-left: $spacing-xs;
+    }
+}
+
+/* Common HR Elements */
+.hr-actions {
+    display: flex;
+    gap: $spacing-md;
+    align-items: center;
+    flex-wrap: wrap;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+}
+
+.search-box {
+    position: relative;
+
+    .search-icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: $gray-color;
+
+        @include rtl {
+            left: auto;
+            right: 12px;
+        }
+    }
+
+    input {
+        padding-left: 40px;
+
+        @include rtl {
+            padding-left: $spacing-sm;
+            padding-right: 40px;
+            text-align: right;
+        }
+    }
+}
+
+.salary-display, .budget-display {
+    font-size: $font-size-sm;
+    color: $success-color;
+    font-weight: $font-weight-medium;
+
+    @include rtl {
+        text-align: left;
+    }
+}

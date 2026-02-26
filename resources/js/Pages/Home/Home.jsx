@@ -465,7 +465,6 @@ const ProductSlider = ({
   isInWishlist,
   onQuickView,
 }) => {
-  const { t } = useTranslation();
   const { trackRef, canScrollLeft, canScrollRight, scrollLeft, scrollRight } =
     useHorizontalSlider();
 

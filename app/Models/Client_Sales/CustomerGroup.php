@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Account;
+use App\Models\Client_Sales\Customer;
 
 class CustomerGroup extends Model
 {
@@ -45,5 +46,10 @@ class CustomerGroup extends Model
     public function account()
     {
         return $this->belongsTo(Account::class, 'account_id', 'AccID');
+    }
+
+    public function customers()
+    {
+        return $this->hasMany(Customer::class, 'customer_group_id');
     }
 }

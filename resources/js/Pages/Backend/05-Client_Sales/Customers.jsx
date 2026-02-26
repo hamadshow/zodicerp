@@ -2,8 +2,8 @@ import React, { useState, useRef } from 'react';
 import { Head, useForm, usePage, router } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../components/AdminLayout';
+import '../../../../css/backend/main.scss';
 import Pagination from '../components/Pagination';
-import '../../../../css/backend/05-Client_Sales/Customers.scss';
 
 export default function Customers({ customers, groups, countries, cities, currencies, accounts, warehouses, priceLists, salesAgents }) {
     const [mode, setMode] = useState('list'); // list, create, edit
@@ -19,6 +19,15 @@ export default function Customers({ customers, groups, countries, cities, curren
 
     const { props } = usePage();
     const flash = (props && props.flash) ? props.flash : {};
+    const localization = props.localization;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+          });
+    };
 
     const { data, setData, post, put, delete: destroy, processing, errors, reset } = useForm({
         customer_code: '',
@@ -95,20 +104,20 @@ export default function Customers({ customers, groups, countries, cities, curren
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this customer?')) {
-            destroy(route('admin.client-sales.customers.destroy', { customer: id }));
+            destroy(getLocalizedRoute('admin.client-sales.customers.destroy', { customer: id }));
         }
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (mode === 'create') {
-            post(route('admin.client-sales.customers.store'), {
+            post(getLocalizedRoute('admin.client-sales.customers.store'), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
                 onError: () => setActiveTab('general'),
             });
         } else {
-            put(route('admin.client-sales.customers.update', { customer: data.id }), {
+            put(getLocalizedRoute('admin.client-sales.customers.update', { customer: data.id }), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
                 onError: () => setActiveTab('general'),
@@ -258,7 +267,7 @@ export default function Customers({ customers, groups, countries, cities, curren
     const submitImport = () => {
         if (excelRows.length === 0) return;
         const batch_id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-        router.post(route('admin.client-sales.customers.bulk-store'), {
+        router.post(getLocalizedRoute('admin.client-sales.customers.bulk-store'), {
             customers: excelRows,
             batch_id: batch_id
         }, {
@@ -278,7 +287,21 @@ export default function Customers({ customers, groups, countries, cities, curren
             
             <div className="customers-module">
                 <div className="customers-module__header">
-                    <h1>Customers Management</h1>
+                    <div className="header-title">
+                        {mode !== 'list' && (
+                            <button 
+                                className="btn-back" 
+                                onClick={() => setMode('list')}
+                                title="Back to List"
+                            >
+                                <i className="material-icons mirror-rtl">arrow_back</i>
+                            </button>
+                        )}
+                        <h1>
+                            {mode === 'list' ? 'Customers Management' : 
+                             mode === 'create' ? 'Add New Customer' : 'Edit Customer'}
+                        </h1>
+                    </div>
                     {mode === 'list' && (
                         <div className="header-actions">
                              <button className="btn-import" onClick={() => setShowImport(true)}>
@@ -347,8 +370,8 @@ export default function Customers({ customers, groups, countries, cities, curren
                             totalPages={customers.last_page}
                             totalRecords={customers.total}
                             recordsPerPage={customers.per_page}
-                            onPageChange={(page) => router.get(route('admin.client-sales.customers.index'), { page, per_page: customers.per_page }, { preserveState: true })}
-                            onRecordsPerPageChange={(perPage) => router.get(route('admin.client-sales.customers.index'), { page: 1, per_page: perPage }, { preserveState: true })}
+                            onPageChange={(page) => router.get(getLocalizedRoute('admin.client-sales.customers.index'), { page, per_page: customers.per_page }, { preserveState: true })}
+                            onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.client-sales.customers.index'), { page: 1, per_page: perPage }, { preserveState: true })}
                         />
                     </div>
                 ) : (
@@ -695,8 +718,12 @@ export default function Customers({ customers, groups, countries, cities, curren
                         </div>
 
                         <div className="customers-module__actions">
-                            <button type="button" className="btn-secondary" onClick={() => setMode('list')}>Cancel</button>
+                            <button type="button" className="btn-secondary" onClick={() => setMode('list')}>
+                                <i className="material-icons mirror-rtl">arrow_back</i>
+                                Cancel
+                            </button>
                             <button type="submit" className="btn-primary" disabled={processing}>
+                                <i className="material-icons">save</i>
                                 {mode === 'create' ? 'Create Customer' : 'Update Customer'}
                             </button>
                         </div>

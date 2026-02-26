@@ -193,8 +193,10 @@ class CustomerGroupController extends Controller
                 throw new \Exception('Cannot delete group with subgroups.');
             }
             
-            // Check if used by customers (if relation exists)
-            // if ($group->customers()->exists()) { ... }
+            // Check if used by customers
+            if ($group->customers()->exists()) {
+                throw new \Exception('Cannot delete group assigned to customers.');
+            }
 
             $group->delete();
 

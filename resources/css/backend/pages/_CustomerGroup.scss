@@ -1,0 +1,378 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Customer Groups Professional Styles */
+
+// Main Container
+.customer-groups-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: $spacing-lg;
+}
+
+// Header Section
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-xl;
+
+  h1 {
+    font-size: $font-size-2xl;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
+    margin: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: $spacing-md;
+  }
+
+  @include rtl {
+    flex-direction: row-reverse;
+  }
+}
+
+// Animations
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-slide {
+  animation: fadeInSlide $transition-normal forwards;
+}
+
+// Stats Cards
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: $spacing-lg;
+  margin-bottom: $spacing-xl;
+}
+
+.stat-card {
+  @include card-base;
+  padding: $spacing-lg;
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+  @include transition-standard(transform, box-shadow);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: $shadow-md;
+  }
+
+  .stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: $radius-lg;
+    @include flex-center;
+    font-size: 1.5rem;
+    color: $white;
+
+    &.blue { background-color: $primary-color; }
+    &.green { background-color: $success-color; }
+    &.gray { background-color: $gray-color; }
+  }
+
+  .stat-info {
+    display: flex;
+    flex-direction: column;
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: $font-weight-bold;
+      color: $text-primary;
+    }
+
+    .stat-label {
+      font-size: $font-size-sm;
+      color: $text-muted;
+    }
+  }
+
+  @include rtl {
+    flex-direction: row-reverse;
+    text-align: right;
+  }
+}
+
+// Content Card (Table/Form)
+.content-card {
+  @include card-base;
+  overflow: hidden;
+  padding: $spacing-xl;
+}
+
+// Table Styles
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.professional-table {
+  width: 100%;
+  border-collapse: collapse;
+  
+  th {
+    text-align: left;
+    padding: $spacing-md;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $text-secondary;
+    border-bottom: 2px solid $border-color;
+    background-color: $light-color;
+
+    @include rtl {
+      text-align: right;
+    }
+  }
+
+  td {
+    padding: $spacing-md;
+    font-size: 0.925rem;
+    color: $text-primary;
+    border-bottom: 1px solid $border-color;
+    vertical-align: middle;
+
+    @include rtl {
+      text-align: right;
+    }
+  }
+
+  tr:hover td {
+    background-color: $light-color;
+  }
+
+  .status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: $radius-full;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+
+    &.active {
+      background-color: $success-light;
+      color: $success-color;
+    }
+
+    &.inactive {
+      background-color: $light-color;
+      color: $text-muted;
+    }
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: $spacing-sm;
+
+    button {
+      padding: $spacing-sm;
+      border-radius: $radius-md;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      @include transition-standard(background, color);
+      color: $text-muted;
+
+      &:hover {
+        background-color: $light-color;
+        color: $primary-color;
+      }
+
+      &.delete-btn:hover {
+        color: $danger-color;
+      }
+    }
+  }
+}
+
+// Form Styles
+.form-container {
+  max-width: 800px;
+  margin: 0 auto;
+
+  .form-section-title {
+    font-size: $font-size-xl;
+    font-weight: $font-weight-semibold;
+    color: $text-primary;
+    margin-bottom: $spacing-lg;
+    padding-bottom: $spacing-sm;
+    border-bottom: 1px solid $border-color;
+
+    @include rtl {
+      text-align: right;
+    }
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: $spacing-lg;
+    margin-bottom: $spacing-lg;
+
+    @include media-breakpoint-down('md') {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .form-group {
+    margin-bottom: $spacing-lg;
+
+    label {
+      display: block;
+      font-size: $font-size-sm;
+      font-weight: $font-weight-medium;
+      color: $text-primary;
+      margin-bottom: $spacing-sm;
+
+      @include rtl {
+        text-align: right;
+      }
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 0.75rem $spacing-md;
+      border: 1px solid $border-color;
+      border-radius: $radius-md;
+      font-size: 0.925rem;
+      @include transition-standard(border-color, box-shadow);
+
+      &:focus {
+        outline: none;
+        border-color: $primary-color;
+        box-shadow: 0 0 0 3px $primary-light;
+      }
+
+      &:disabled {
+        background-color: $light-color;
+        cursor: not-allowed;
+      }
+
+      @include rtl {
+        text-align: right;
+      }
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .error-message {
+      color: $danger-color;
+      font-size: $font-size-xs;
+      margin-top: $spacing-xs;
+
+      @include rtl {
+        text-align: right;
+      }
+    }
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: $spacing-md;
+    margin-top: $spacing-xl;
+    padding-top: $spacing-lg;
+    border-top: 1px solid $border-color;
+
+    @include rtl {
+      flex-direction: row-reverse;
+    }
+  }
+}
+
+// Buttons
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem $spacing-lg;
+  border-radius: $radius-md;
+  font-weight: $font-weight-medium;
+  font-size: $font-size-sm;
+  cursor: pointer;
+  @include transition-standard;
+  border: 1px solid transparent;
+  gap: $spacing-sm;
+
+  &.btn-primary {
+    background-color: $primary-color;
+    color: $white;
+    
+    &:hover {
+      background-color: $secondary-color;
+      box-shadow: 0 4px 6px -1px rgba($primary-color, 0.4);
+    }
+  }
+
+  &.btn-secondary {
+    background-color: $white;
+    border-color: $border-color;
+    color: $text-primary;
+
+    &:hover {
+      background-color: $light-color;
+      border-color: darken($border-color, 10%);
+    }
+  }
+
+  &.btn-danger {
+    background-color: $danger-color;
+    color: $white;
+
+    &:hover {
+      background-color: darken($danger-color, 10%);
+    }
+  }
+}
+
+// Search Box
+.search-box {
+  position: relative;
+  width: 300px;
+
+  input {
+    width: 100%;
+    padding: 0.625rem $spacing-md 0.625rem 2.5rem;
+    border: 1px solid $border-color;
+    border-radius: $radius-md;
+    font-size: $font-size-sm;
+    
+    &:focus {
+      outline: none;
+      border-color: $primary-color;
+    }
+
+    @include rtl {
+      padding: 0.625rem 2.5rem 0.625rem $spacing-md;
+      text-align: right;
+    }
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: $text-muted;
+    font-size: 1.25rem;
+
+    @include rtl {
+      left: auto;
+      right: 0.75rem;
+    }
+  }
+}

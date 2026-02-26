@@ -1,0 +1,195 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Categories Management Styles */
+
+$category-sidebar-width: 350px;
+
+.categories-layout {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    margin-top: 24px;
+    min-height: calc(100vh - 150px);
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+}
+
+.categories-tree-panel {
+    width: $category-sidebar-width;
+    background: $white; // var(--bg-white)
+    border-radius: $radius-md;
+    box-shadow: $shadow-sm;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    max-height: calc(100vh - 100px);
+    position: sticky;
+    top: 20px;
+
+    @include rtl {
+        direction: rtl;
+    }
+}
+
+.categories-main {
+    flex: 1;
+    min-width: 0; /* Prevent overflow */
+}
+
+/* Sidebar (Tree View) */
+.tree-panel-header {
+    padding: 20px;
+    border-bottom: 1px solid $border-color;
+    background: $white; // var(--bg-white)
+    border-radius: $radius-md $radius-md 0 0;
+    z-index: 10;
+}
+
+.instruction-text {
+    font-size: 13px;
+    color: $gray-color; // var(--text-muted)
+    line-height: 1.4;
+    margin: 0;
+
+    @include rtl {
+        text-align: right;
+    }
+}
+
+.tree-container {
+    padding: 12px 0;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.category-node {
+    display: flex;
+    flex-direction: column;
+}
+
+.category-content {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all $transition-fast;
+    border-left: 3px solid transparent;
+    position: relative;
+
+    @include rtl {
+        flex-direction: row-reverse;
+        border-left: none;
+        border-right: 3px solid transparent;
+    }
+
+    &:hover {
+        background-color: $light-color; // var(--bg-light)
+    }
+
+    &.selected {
+        background-color: #eff6ff; /* Light blue tint */
+        border-left-color: $info-color;
+
+        @include rtl {
+            border-left-color: transparent;
+            border-right-color: $info-color;
+        }
+    }
+
+    &.drag-over {
+        background-color: #fff7ed;
+        border: 1px dashed $primary-color;
+    }
+}
+
+.category-handle {
+    color: #cbd5e1;
+    cursor: grab;
+    margin-right: $spacing-sm;
+    @include flex-center;
+
+    @include rtl {
+        margin-right: 0;
+        margin-left: $spacing-sm;
+    }
+
+    &:hover {
+        color: $gray-color;
+    }
+}
+
+.category-toggle {
+    width: 24px;
+    height: 24px;
+    @include flex-center;
+    color: $gray-color;
+    cursor: pointer;
+    margin-right: 4px;
+    border-radius: 4px;
+
+    @include rtl {
+        margin-right: 0;
+        margin-left: 4px;
+    }
+
+    &:hover {
+        background: rgba(0, 0, 0, 0.05);
+    }
+}
+
+.category-icon {
+    color: #fbbf24; /* Amber folder color */
+    margin-right: $spacing-sm;
+    @include flex-center;
+
+    @include rtl {
+        margin-right: 0;
+        margin-left: $spacing-sm;
+    }
+}
+
+.category-info {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+}
+
+.category-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: $dark-color;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    @include rtl {
+        text-align: right;
+    }
+}
+
+.category-count {
+    font-size: 11px;
+    padding: 2px 6px;
+    background: #f1f5f9;
+    color: $gray-color;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.category-children {
+    padding-left: 20px;
+
+    @include rtl {
+        padding-left: 0;
+        padding-right: 20px;
+    }
+}

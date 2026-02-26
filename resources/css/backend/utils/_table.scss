@@ -1,0 +1,105 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Table Styles */
+.table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid $border-color;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  min-width: 800px;
+}
+
+th, td {
+  padding: 8px 10px;
+  text-align: left;
+  border-bottom: 1px solid $border-color;
+
+  @include rtl {
+    text-align: right;
+  }
+}
+
+th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: $gray-color;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+tr:hover {
+  background-color: #f8fafc;
+}
+
+/* Status badges */
+.status {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+  text-align: center;
+  min-width: 80px;
+}
+
+.status-published {
+  background-color: $success-color;
+  color: white;
+}
+
+.status-draft {
+  background-color: $warning-color;
+  color: white;
+}
+
+.status-pending {
+  background-color: $info-color;
+  color: white;
+}
+
+.status-active {
+  background-color: $success-color;
+  color: white;
+}
+
+.status-inactive {
+  background-color: $danger-color;
+  color: white;
+}
+
+/* Icon buttons */
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  @include transition-standard;
+}
+
+.icon-btn.edit {
+  color: $info-color;
+}
+
+.icon-btn.delete {
+  color: $danger-color;
+}
+
+.icon-btn:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.icon-btn .material-icons-outlined {
+  font-size: 18px;
+}

@@ -1,0 +1,70 @@
+@use 'sass:map';
+@use 'variables' as *;
+
+// Responsive breakpoints
+$breakpoints: (
+    'xs': 0,
+    'sm': 576px,
+    'md': 768px,
+    'lg': 992px,
+    'xl': 1200px,
+    'xxl': 1400px
+);
+
+@mixin media-breakpoint-up($name) {
+    $min: map.get($breakpoints, $name);
+    @if $min and $min > 0 {
+        @media (min-width: $min) {
+            @content;
+        }
+    } @else {
+        @content;
+    }
+}
+
+@mixin media-breakpoint-down($name) {
+    $max: map.get($breakpoints, $name);
+    @if $max and $max > 0 {
+        @media (max-width: $max - 0.02px) {
+            @content;
+        }
+    } @else {
+        @content;
+    }
+}
+
+// RTL Support mixin
+@mixin rtl {
+    [dir="rtl"] & {
+        @content;
+    }
+}
+
+// Flex center
+@mixin flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+// Transitions
+@mixin transition-standard($properties...) {
+    @if length($properties) == 0 {
+        $properties: all;
+    }
+    
+    $transitions: ();
+    @each $prop in $properties {
+        $transitions: append($transitions, $prop $transition-speed ease, comma);
+    }
+    
+    transition: $transitions;
+}
+
+// Card style
+@mixin card-base {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: $shadow-sm;
+    border: 1px solid $border-color;
+}

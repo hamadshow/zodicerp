@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Budget/BudgetCategory.scss';
+import '../../../../css/backend/main.scss';
+
 
 // --- View Section Component ---
 const ViewSection = ({ categories, onEdit, onCreate, onDelete }) => {

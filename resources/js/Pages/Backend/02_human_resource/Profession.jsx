@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import './Profession.scss';
+import '../../../../css/backend/main.scss';
 
 const Profession = () => {
     // Sample profession data

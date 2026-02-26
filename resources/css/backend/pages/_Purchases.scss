@@ -1,0 +1,148 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   Purchases & Suppliers Module
+   (Purchase Invoices, Orders, Quotations, Suppliers, Groups)
+   ========================================================================== */
+
+/* 1. Common Purchases Components */
+.purchases-page {
+    padding: $spacing-lg;
+    background-color: $light-color;
+    min-height: 100vh;
+
+    @include rtl {
+        direction: rtl;
+    }
+}
+
+/* 2. Purchase Invoices & Orders */
+.purchase-module {
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: $spacing-xl;
+        flex-wrap: wrap;
+        gap: $spacing-md;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+
+    &__title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: $primary-color;
+        margin: 0;
+    }
+
+    &__stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: $spacing-lg;
+        margin-bottom: $spacing-xl;
+    }
+
+    &__card {
+        background: $white;
+        padding: $spacing-lg;
+        border-radius: $radius-lg;
+        box-shadow: $shadow-sm;
+        border: 1px solid $border-color;
+        transition: transform 0.2s, box-shadow 0.2s;
+
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: $shadow-md;
+        }
+    }
+}
+
+/* 3. Invoice Form & Line Items */
+.invoice-form {
+    background: $white;
+    padding: $spacing-xl;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-md;
+
+    &__section {
+        margin-bottom: $spacing-xl;
+        padding-bottom: $spacing-lg;
+        border-bottom: 1px solid $border-color;
+
+        &:last-child {
+            border-bottom: none;
+        }
+    }
+
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: $spacing-lg;
+    }
+
+    &__table-wrapper {
+        overflow-x: auto;
+        margin: $spacing-lg 0;
+    }
+
+    &__totals {
+        width: 300px;
+        margin-left: auto;
+        
+        @include rtl {
+            margin-left: 0;
+            margin-right: auto;
+        }
+    }
+}
+
+/* 4. Supplier Management */
+.supplier-card {
+    display: flex;
+    align-items: center;
+    gap: $spacing-lg;
+    padding: $spacing-lg;
+    background: $white;
+    border-radius: $radius-md;
+    border: 1px solid $border-color;
+
+    &__avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: $primary-light;
+        color: $primary-color;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+
+    &__info {
+        flex: 1;
+    }
+
+    &__name {
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+
+    &__meta {
+        font-size: 0.875rem;
+        color: $text-muted;
+    }
+}
+
+/* 5. Status Badges for Purchases */
+.status-badge {
+    &--draft { background-color: $light-color; color: $gray-color; }
+    &--pending { background-color: $warning-light; color: $warning-color; }
+    &--approved { background-color: $success-light; color: $success-color; }
+    &--partially-paid { background-color: $info-light; color: $info-color; }
+    &--paid { background-color: $success-light; color: $success-color; }
+    &--cancelled { background-color: $danger-light; color: $danger-color; }
+}

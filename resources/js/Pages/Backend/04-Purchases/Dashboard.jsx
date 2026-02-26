@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/04-Purchases/style.scss';
+import '../../../../css/backend/main.scss';
 
 const Dashboard = () => {
   return (

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/04-Purchases/Supplier_groups.scss';
 
 // --- View Section Component ---
 const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {

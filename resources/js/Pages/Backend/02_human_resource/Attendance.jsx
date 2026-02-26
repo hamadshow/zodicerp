@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Attendance.scss';
+import '../../../../css/backend/main.scss';
+
 
 export default function Attendance() {
   const [attendanceRecords, setAttendanceRecords] = useState([

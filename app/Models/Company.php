@@ -9,6 +9,8 @@ class Company extends Model
 {
     use HasFactory;
 
+    protected $table = 'company';
+
     protected $guarded = [];
 
     public function countryData()

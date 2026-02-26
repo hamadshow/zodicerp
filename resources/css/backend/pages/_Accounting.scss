@@ -1,0 +1,400 @@
+@use 'sass:color';
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   Accounting & Finance Module
+   (Chart of Accounts, Journal, Bank, Cheques, Currencies, Reports)
+   ========================================================================== */
+
+/* Page Container */
+.accounting-page,
+.gl-page,
+.coa-report-page,
+.financial-reports-page {
+    padding: $spacing-lg;
+    background-color: $light-color;
+    min-height: 100vh;
+
+    @include rtl {
+        direction: rtl;
+    }
+}
+
+/* Common Header */
+.accounting-header,
+.report-header,
+.gl-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: $spacing-lg;
+    background: $white;
+    padding: $spacing-lg;
+    border-radius: $radius-md;
+    box-shadow: $shadow-sm;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+
+    &__title-section {
+        h1 {
+            font-size: 1.5rem;
+            font-weight: $font-weight-bold;
+            color: $dark-color;
+            margin: 0 0 $spacing-xs;
+
+            @include rtl {
+                text-align: right;
+            }
+        }
+
+        p, .subtitle {
+            font-size: $font-size-sm;
+            color: $gray-color;
+            margin: 0;
+
+            @include rtl {
+                text-align: right;
+            }
+        }
+    }
+
+    &__actions {
+        display: flex;
+        gap: $spacing-md;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+}
+
+/* 1. Chart of Accounts */
+.coa-layout {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: $spacing-lg;
+    margin-top: $spacing-lg;
+
+    @include rtl {
+        direction: rtl;
+    }
+
+    @media (max-width: 1024px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.coa-tree-panel {
+    background: $white;
+    border-radius: $radius-lg;
+    padding: $spacing-lg;
+    box-shadow: $shadow-sm;
+    border: 1px solid $border-color;
+    height: fit-content;
+}
+
+.coa-details-panel {
+    background: $white;
+    border-radius: $radius-lg;
+    padding: $spacing-xl;
+    box-shadow: $shadow-sm;
+    border: 1px solid $border-color;
+}
+
+/* 2. Journal Entries */
+.journal-table {
+    width: 100%;
+    border-collapse: collapse;
+
+    th, td {
+        padding: $spacing-md;
+        border-bottom: 1px solid $border-color;
+        font-size: $font-size-sm;
+
+        @include rtl {
+            text-align: right;
+        }
+    }
+
+    th {
+        background: $light-color;
+        font-weight: $font-weight-semibold;
+        color: $gray-color;
+    }
+
+    &__amount {
+        font-family: 'Courier New', monospace;
+        font-weight: $font-weight-bold;
+        text-align: right;
+
+        @include rtl {
+            text-align: left;
+        }
+
+        &--debit { color: $primary-color; }
+        &--credit { color: $success-color; }
+    }
+}
+
+/* 3. Bank & Petty Cash */
+.bank-card,
+.cheques-card {
+    background: $white;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+    overflow: hidden;
+    margin-bottom: $spacing-lg;
+}
+
+.stat-card {
+    background: $white;
+    border-radius: $radius-lg;
+    padding: $spacing-lg;
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    box-shadow: $shadow-sm;
+    border: 1px solid $border-color;
+    transition: transform $transition-normal, box-shadow $transition-normal;
+
+    &:hover {
+        transform: translateY(-4px);
+        box-shadow: $shadow-md;
+    }
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+
+    &__icon {
+        width: 48px;
+        height: 48px;
+        border-radius: $radius-md;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: $white;
+        font-size: 1.5rem;
+    }
+
+    &__content {
+        flex: 1;
+
+        @include rtl {
+            text-align: right;
+        }
+    }
+
+    &__value {
+        font-size: 1.5rem;
+        font-weight: $font-weight-bold;
+        color: $dark-color;
+        line-height: 1.2;
+    }
+
+    &__label {
+        font-size: $font-size-sm;
+        color: $gray-color;
+        margin-top: 4px;
+    }
+}
+
+/* 4. Cheques */
+.cheque-ce-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: $spacing-lg;
+}
+
+.form-card {
+    background: $white;
+    border-radius: $radius-lg;
+    padding: $spacing-xl;
+    box-shadow: $shadow-md;
+    border: 1px solid $border-color;
+    margin-bottom: $spacing-lg;
+
+    @include rtl {
+        direction: rtl;
+    }
+}
+
+.type-selector {
+    display: flex;
+    gap: $spacing-md;
+    margin-bottom: $spacing-md;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+
+    &__option {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        padding: $spacing-md;
+        border: 1px solid $border-color;
+        border-radius: $radius-md;
+        cursor: pointer;
+        transition: all $transition-fast;
+        flex: 1;
+        justify-content: center;
+        font-weight: $font-weight-medium;
+        color: $gray-color;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+
+        &:hover {
+            background-color: $light-color;
+        }
+
+        &--active {
+            background-color: rgba($primary-color, 0.1);
+            border-color: $primary-color;
+            color: $primary-color;
+        }
+    }
+}
+
+/* 5. Currencies & Exchange Rates */
+.currency-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: $spacing-xs;
+    padding: 4px 10px;
+    border-radius: $radius-full;
+    background-color: $light-color;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    color: $dark-color;
+}
+
+.rate-display {
+    font-family: 'Courier New', monospace;
+    font-weight: $font-weight-bold;
+    font-size: $font-size-md;
+    color: $dark-color;
+}
+
+/* 6. Reports & General Ledger */
+.gl-filters-card {
+    background-color: $white;
+    border-radius: $radius-md;
+    padding: $spacing-lg;
+    box-shadow: $shadow-sm;
+    border: 1px solid $border-color;
+    margin-bottom: $spacing-lg;
+
+    @include rtl {
+        text-align: right;
+    }
+}
+
+.gl-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+
+    @include rtl {
+        direction: rtl;
+    }
+
+    &__item {
+        background-color: $white;
+        border-radius: $radius-md;
+        padding: $spacing-md;
+        box-shadow: $shadow-xs;
+        border: 1px solid $border-color;
+
+        @include rtl {
+            text-align: right;
+        }
+    }
+
+    &__label {
+        display: block;
+        font-size: $font-size-xs;
+        color: $gray-color;
+        margin-bottom: 2px;
+    }
+
+    &__value {
+        font-size: $font-size-sm;
+        font-weight: $font-weight-bold;
+        color: $dark-color;
+    }
+}
+
+.report-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: $spacing-lg;
+}
+
+.report-card {
+    background-color: $white;
+    border-radius: $radius-md;
+    padding: $spacing-lg;
+    box-shadow: $shadow-sm;
+    border: 1px solid $border-color;
+    transition: all $transition-normal;
+    text-decoration: none;
+    color: inherit;
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: $shadow-md;
+        border-color: $primary-color;
+    }
+
+    &__header {
+        display: flex;
+        gap: $spacing-md;
+        align-items: flex-start;
+        margin-bottom: $spacing-md;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+
+    &__icon {
+        width: 40px;
+        height: 40px;
+        border-radius: $radius-md;
+        background: linear-gradient(135deg, $primary-color, color.adjust($primary-color, $lightness: -15%));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: $white;
+        flex-shrink: 0;
+    }
+
+    &__info {
+        flex: 1;
+
+        @include rtl {
+            text-align: right;
+        }
+    }
+
+    &__name {
+        font-size: $font-size-md;
+        font-weight: $font-weight-bold;
+        color: $dark-color;
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    &__description {
+        font-size: $font-size-xs;
+        color: $gray-color;
+        margin: 0;
+    }
+}

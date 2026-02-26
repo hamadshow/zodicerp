@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, usePage, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Settings/_Locales.scss';
 
 const Locales = () => {
   const { localization, locales_data } = usePage().props;

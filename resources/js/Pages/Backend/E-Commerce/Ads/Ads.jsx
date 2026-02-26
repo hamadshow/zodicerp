@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import AdminLayout from '../../components/AdminLayout';
 import { apiService } from '../../../../services/api';
-import '../../../../../css/backend/Ads.scss';
 
 const resolveMediaUrl = (value) => {
     if (!value) {

@@ -1,0 +1,151 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Legacy Settings (Locales, Translations, etc.) */
+
+/* Locales Page */
+.locales-page-container {
+    padding: $spacing-md;
+    background-color: $light-color;
+    min-height: calc(100vh - 120px);
+
+    .locales-breadcrumbs {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        margin-bottom: $spacing-xl;
+        font-size: $font-size-xs;
+        font-weight: $font-weight-semibold;
+        color: $primary-color;
+
+        a {
+            text-decoration: none;
+            color: inherit;
+            transition: $transition-fast;
+
+            &:hover {
+                color: $secondary-color;
+            }
+        }
+
+        .separator {
+            color: $gray-color;
+        }
+
+        .current {
+            color: $gray-color;
+        }
+    }
+
+    .locales-content-grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: $spacing-lg;
+        align-items: start;
+
+        @media (max-width: 1024px) {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .locales-card {
+        background: $white;
+        border-radius: $radius-md;
+        border: 1px solid $border-color;
+        box-shadow: $shadow-sm;
+        overflow: hidden;
+
+        .card-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid rgba($gray-color, 0.1);
+
+            .card-title {
+                font-size: $font-size-lg;
+                font-weight: $font-weight-semibold;
+                color: $dark-color;
+                margin: 0;
+            }
+        }
+
+        .card-body {
+            padding: 1.5rem;
+
+            &.p-0 {
+                padding: 0;
+            }
+        }
+    }
+}
+
+/* Add Locale Card */
+.add-locale-card {
+    .form-group {
+        margin-bottom: 1.5rem;
+
+        .select-wrapper {
+            position: relative;
+
+            &::after {
+                content: 'expand_more';
+                font-family: 'Material Icons Outlined';
+                position: absolute;
+                right: 1rem;
+                top: 50%;
+                transform: translateY(-50%);
+                color: $gray-color;
+                pointer-events: none;
+            }
+        }
+
+        .locale-select {
+            width: 100%;
+            padding: 0.625rem 1rem;
+            border: 1px solid $border-color;
+            border-radius: $radius-sm;
+            background-color: $white;
+            font-size: $font-size-sm;
+            color: $dark-color;
+            appearance: none;
+            outline: none;
+            transition: border-color $transition-fast;
+
+            &:focus {
+                border-color: $primary-color;
+            }
+        }
+    }
+}
+
+/* Translation Tables */
+.translation-table-card {
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .translation-table {
+        width: 100%;
+        border-collapse: collapse;
+
+        th {
+            background-color: $light-color;
+            padding: 0.75rem 1.5rem;
+            text-align: left;
+            font-size: $font-size-xs;
+            font-weight: $font-weight-semibold;
+            color: $gray-color;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid $border-color;
+
+            @include rtl {
+                text-align: right;
+            }
+        }
+
+        td {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid $border-color;
+            vertical-align: middle;
+        }
+    }
+}

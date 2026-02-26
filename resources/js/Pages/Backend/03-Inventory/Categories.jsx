@@ -3,7 +3,6 @@ import { Head, router, useForm, Link } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import IconPicker from '../../../Components/IconPicker';
 import MediaPickerModal from '../Media/MediaPickerModal';
-import '../../../../css/backend/Categories.scss';
 
 const resolveMediaUrl = (value) => {
     if (!value) {

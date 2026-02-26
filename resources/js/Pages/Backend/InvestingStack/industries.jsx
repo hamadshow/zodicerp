@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/InvestingStack/industries.scss';
 
 // Tree Item for Industries
 const IndustryItem = ({ item, level = 0, selectedId, onSelect, onDelete, onDrop, onDragStart }) => {

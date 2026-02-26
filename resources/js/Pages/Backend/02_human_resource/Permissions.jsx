@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Permissions.scss';
 
 const Permissions = () => {
   // Permission Templates

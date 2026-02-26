@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Budget/BudgetTransfer.scss';
 import axios from 'axios';
+import '../../../../css/backend/main.scss';
+
 
 const BudgetTransfer = ({ transfers, budgets, filters }) => {
     const [viewMode, setViewMode] = useState('list'); // 'list', 'create', 'edit'

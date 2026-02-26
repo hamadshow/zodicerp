@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Nationalities.scss';
 
 const initialData = [
     {

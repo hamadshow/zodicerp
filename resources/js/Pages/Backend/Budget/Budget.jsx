@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
-import '../../../../css/backend/Budget/Budget.scss';
+import '../../../../css/backend/main.scss';
+
 
 const Budget = ({ budgets, departments, branches, currencies, categories, accounts, projects, costCenters }) => {
     const [viewMode, setViewMode] = useState('list'); // list, create, edit

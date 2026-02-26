@@ -1,0 +1,622 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Budget Module Styles */
+
+.budget-module {
+    padding: $spacing-lg;
+    background-color: $light-color;
+    min-height: 100vh;
+    color: $dark-color;
+
+    @include rtl {
+        direction: rtl;
+    }
+
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: $spacing-xl;
+        flex-wrap: wrap;
+        gap: $spacing-md;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: $font-weight-bold;
+            color: $dark-color;
+            margin: 0;
+
+            @include rtl {
+                text-align: right;
+            }
+        }
+
+        .subtitle {
+            margin-top: $spacing-xs;
+            color: $gray-color;
+            font-size: $font-size-sm;
+        }
+    }
+
+    &__actions {
+        display: flex;
+        gap: $spacing-sm;
+        flex-wrap: wrap;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+}
+
+/* Dashboard KPIs & Grid */
+.budget-dashboard {
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: $spacing-md;
+        margin-bottom: $spacing-lg;
+    }
+
+    .kpi-card {
+        background: $white;
+        border: 1px solid $border-color;
+        border-radius: $radius-lg;
+        padding: $spacing-md $spacing-lg;
+        box-shadow: $shadow-sm;
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+
+        .kpi-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: $radius-md;
+            @include flex-center;
+            color: $white;
+
+            &.primary { background: linear-gradient(135deg, $primary-color, $info-color); }
+            &.warning { background: linear-gradient(135deg, $warning-color, #f97316); }
+            &.success { background: linear-gradient(135deg, $success-color, #22c55e); }
+            &.danger  { background: linear-gradient(135deg, $danger-color, #f87171); }
+        }
+
+        .kpi-content {
+            flex: 1;
+
+            .kpi-label {
+                font-size: $font-size-xs;
+                color: $gray-color;
+                @include rtl { text-align: right; }
+            }
+
+            .kpi-value {
+                font-size: $font-size-lg;
+                font-weight: $font-weight-bold;
+                @include rtl { text-align: right; }
+            }
+        }
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: $spacing-md;
+
+        &.two-columns {
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        }
+    }
+}
+
+/* Stats Cards (Budget Category / Location Styles) */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: $spacing-lg;
+    margin-bottom: $spacing-xl;
+}
+
+.stat-card {
+    background: $white;
+    padding: $spacing-lg;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    transition: transform $transition-fast, box-shadow $transition-fast;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: $shadow-md;
+    }
+
+    .stat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: $radius-md;
+        @include flex-center;
+        font-size: 1.5rem;
+        color: $white;
+
+        &.blue { background-color: $primary-color; }
+        &.green { background-color: $success-color; }
+        &.gray { background-color: $gray-color; }
+    }
+
+    .stat-info {
+        display: flex;
+        flex-direction: column;
+
+        @include rtl {
+            text-align: right;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: $font-weight-bold;
+            color: $dark-color;
+        }
+
+        .stat-label {
+            font-size: $font-size-sm;
+            color: $gray-color;
+        }
+    }
+}
+
+/* Content Cards & Tables */
+.budget-card {
+    background: $white;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-lg;
+
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: $spacing-lg;
+        border-bottom: 1px solid $border-color;
+        padding-bottom: $spacing-sm;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            font-weight: $font-weight-semibold;
+            margin: 0;
+            @include rtl { text-align: right; }
+        }
+    }
+}
+
+.budget-table-container {
+    width: 100%;
+    overflow-x: auto;
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: $font-size-sm;
+
+        th {
+            background-color: $light-color;
+            padding: $spacing-md;
+            text-align: left;
+            font-weight: $font-weight-semibold;
+            color: $gray-color;
+            border-bottom: 2px solid $border-color;
+            white-space: nowrap;
+
+            @include rtl {
+                text-align: right;
+            }
+        }
+
+        td {
+            padding: $spacing-md;
+            color: $dark-color;
+            border-bottom: 1px solid $border-color;
+            vertical-align: middle;
+
+            @include rtl {
+                text-align: right;
+            }
+        }
+
+        tr:hover {
+            background-color: rgba($light-color, 0.5);
+        }
+    }
+}
+
+/* Badges & Pills */
+.status-pill {
+    padding: 0.25rem 0.75rem;
+    border-radius: $radius-full;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-medium;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+
+    &.success, &.approved, &.active, &.favorable {
+        background-color: rgba($success-color, 0.1);
+        color: $success-color;
+    }
+
+    &.danger, &.rejected, &.inactive, &.unfavorable {
+        background-color: rgba($danger-color, 0.1);
+        color: $danger-color;
+    }
+
+    &.warning, &.pending {
+        background-color: rgba($warning-color, 0.1);
+        color: $warning-color;
+    }
+
+    &.info, &.draft {
+        background-color: rgba($info-color, 0.1);
+        color: $info-color;
+    }
+}
+
+/* Forms & Panels */
+.budget-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: $spacing-lg;
+    margin-bottom: $spacing-xl;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+
+    label {
+        font-size: $font-size-sm;
+        font-weight: $font-weight-medium;
+        color: $gray-color;
+        @include rtl { text-align: right; }
+    }
+
+    input, select, textarea {
+        padding: $spacing-sm $spacing-md;
+        border: 1px solid $border-color;
+        border-radius: $radius-md;
+        font-size: $font-size-sm;
+        transition: border-color $transition-fast, box-shadow $transition-fast;
+
+        @include rtl { text-align: right; }
+
+        &:focus {
+            outline: none;
+            border-color: $primary-color;
+            box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+        }
+
+        &:disabled {
+            background-color: $light-color;
+            cursor: not-allowed;
+        }
+    }
+}
+
+/* Comparison & Forecast Panels */
+.comparison-panel {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: $spacing-lg;
+    margin-top: $spacing-lg;
+
+    @include rtl {
+        direction: rtl;
+    }
+
+    .amount-column {
+        background-color: $light-color;
+        padding: $spacing-lg;
+        border-radius: $radius-lg;
+        border: 1px solid $border-color;
+
+        @include rtl {
+            text-align: right;
+        }
+
+        h3 {
+            font-size: $font-size-md;
+            color: $dark-color;
+            margin-bottom: $spacing-md;
+            border-bottom: 1px solid rgba($border-color, 0.5);
+            padding-bottom: $spacing-xs;
+            @include rtl { text-align: right; }
+        }
+
+        .amount-display {
+            font-size: 1.75rem;
+            font-weight: $font-weight-bold;
+            color: $primary-color;
+            @include rtl { text-align: right; }
+        }
+    }
+
+    .diff-indicator {
+        margin-top: $spacing-md;
+        padding: $spacing-sm $spacing-md;
+        border-radius: $radius-md;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: $font-weight-semibold;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+
+        &.positive, &.favorable {
+            background-color: rgba($success-color, 0.1);
+            color: $success-color;
+        }
+
+        &.negative, &.unfavorable {
+            background-color: rgba($danger-color, 0.1);
+            color: $danger-color;
+        }
+
+        &.neutral {
+            background-color: rgba($info-color, 0.1);
+            color: $info-color;
+        }
+    }
+}
+
+/* Transfer Panels */
+.transfer-panels, .panels-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $spacing-xl;
+    margin-top: $spacing-lg;
+
+    @include rtl {
+        direction: rtl;
+    }
+
+    @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+    }
+
+    .panel {
+        padding: $spacing-lg;
+        border-radius: $radius-lg;
+        border: 1px solid $border-color;
+        background: $white;
+
+        &--from, &.from-panel {
+            border-left: 4px solid $danger-color;
+            @include rtl {
+                border-left: none;
+                border-right: 4px solid $danger-color;
+            }
+        }
+
+        &--to, &.to-panel {
+            border-left: 4px solid $success-color;
+            @include rtl {
+                border-left: none;
+                border-right: 4px solid $success-color;
+            }
+        }
+
+        h3 {
+            font-size: $font-size-md;
+            margin-bottom: $spacing-md;
+            display: flex;
+            align-items: center;
+            gap: $spacing-xs;
+            @include rtl { flex-direction: row-reverse; }
+        }
+    }
+}
+
+/* Monitoring Specifics */
+.monitoring-table {
+    @extend .budget-table-container;
+    
+    tbody tr {
+        &.row-status-warning {
+            background-color: rgba($warning-color, 0.05);
+        }
+        &.row-status-critical {
+            background-color: rgba($danger-color, 0.05);
+        }
+
+        .amount-col {
+            font-family: $font-family-mono;
+            font-weight: $font-weight-medium;
+            @include rtl { text-align: left; }
+        }
+    }
+}
+
+/* Forecast Specifics */
+.forecast-tabs {
+    display: flex;
+    background-color: $light-color;
+    border-bottom: 1px solid $border-color;
+    border-radius: $radius-lg $radius-lg 0 0;
+    padding: 0 $spacing-sm;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+
+    .tab-btn {
+        padding: $spacing-md $spacing-lg;
+        border: none;
+        background: none;
+        font-weight: $font-weight-semibold;
+        color: $gray-color;
+        cursor: pointer;
+        position: relative;
+        
+        &.active {
+            color: $primary-color;
+            
+            &::after {
+                content: '';
+                position: absolute;
+                bottom: -1px;
+                left: 0;
+                width: 100%;
+                height: 2px;
+                background-color: $primary-color;
+
+                @include rtl {
+                    left: auto;
+                    right: 0;
+                }
+            }
+        }
+    }
+}
+
+/* Filters & Search */
+.budget-filters, .filters-bar, .filter-panel {
+    background: $white;
+    padding: $spacing-md;
+    border-radius: $radius-md;
+    box-shadow: $shadow-sm;
+    margin-bottom: $spacing-lg;
+    display: flex;
+    gap: $spacing-md;
+    align-items: center;
+    flex-wrap: wrap;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+
+    &.grid-layout {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        align-items: end;
+    }
+
+    .search-input {
+        flex: 1;
+        min-width: 240px;
+        position: relative;
+
+        input {
+            width: 100%;
+            padding: $spacing-sm $spacing-md;
+            padding-left: 2.5rem;
+            border: 1px solid $border-color;
+            border-radius: $radius-sm;
+
+            @include rtl {
+                padding-left: $spacing-md;
+                padding-right: 2.5rem;
+                text-align: right;
+            }
+        }
+
+        i {
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: $gray-color;
+
+            @include rtl {
+                left: auto;
+                right: 0.75rem;
+            }
+        }
+    }
+}
+
+/* Detail Drawers */
+.drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: $z-index-modal-backdrop;
+    display: flex;
+    justify-content: flex-end;
+
+    @include rtl {
+        justify-content: flex-start;
+    }
+}
+
+.detail-drawer {
+    width: 100%;
+    max-width: 500px;
+    background: $white;
+    height: 100%;
+    box-shadow: $shadow-lg;
+    display: flex;
+    flex-direction: column;
+    animation: slideIn 0.3s ease-out;
+
+    @include rtl {
+        animation: slideInRtl 0.3s ease-out;
+    }
+
+    &__header {
+        padding: $spacing-lg;
+        border-bottom: 1px solid $border-color;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        @include rtl { flex-direction: row-reverse; }
+    }
+
+    &__content {
+        padding: $spacing-lg;
+        flex: 1;
+        overflow-y: auto;
+    }
+
+    &__footer {
+        padding: $spacing-lg;
+        border-top: 1px solid $border-color;
+        display: flex;
+        justify-content: flex-end;
+        gap: $spacing-md;
+        @include rtl { flex-direction: row-reverse; }
+    }
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes slideInRtl {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+}

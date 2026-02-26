@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, usePage, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Settings/_ThemeTranslations.scss';
 
 const ThemeTranslations = ({ translations, languages, filters }) => {
   const { localization } = usePage().props;

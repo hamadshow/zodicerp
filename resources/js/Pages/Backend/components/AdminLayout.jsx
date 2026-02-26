@@ -4,7 +4,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-import '../../../../css/backend/common/app.scss';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
@@ -86,12 +85,12 @@ const AdminLayout = ({
           href: '#',
         },
         { icon: 'access_time', label: 'Attendance', href: getLocalizedRoute('admin.attendance.index') },
-        { icon: 'stars', label: 'Reward', href: '#' },
-        { icon: 'schedule', label: 'OverTime', href: '#' },
+        { icon: 'stars', label: 'Reward', href: getLocalizedRoute('admin.reward.index') },
+        { icon: 'schedule', label: 'OverTime', href: getLocalizedRoute('admin.overtime.index') },
         {
           icon: 'work_off',
           label: 'End-of-service',
-          href: '#',
+          href: getLocalizedRoute('admin.end-of-service.index'),
         },
         {
           icon: 'payments',
@@ -102,7 +101,7 @@ const AdminLayout = ({
         {
           icon: 'traffic',
           label: 'Traffic Violations',
-          href: '#',
+          href: getLocalizedRoute('admin.traffic-violations.index'),
         },
         { icon: 'card_travel', label: 'Vacations', href: getLocalizedRoute('admin.vacations.index') },
         {
@@ -125,9 +124,9 @@ const AdminLayout = ({
         { icon: 'branding_watermark', label: 'Brands', href: getLocalizedRoute('admin.brands.index') },
         { icon: 'inventory', label: 'Products', href: getLocalizedRoute('admin.products.index') },
         // Items without routes commented out until implemented
-        { icon: 'transfer_within_a_station', label: 'Stock Transfers' },
-        { icon: 'assignment', label: 'Stock Adjustments' },
-        { icon: 'report', label: 'Inventory Reports' },
+        { icon: 'transfer_within_a_station', label: 'Stock Transfers', href: getLocalizedRoute('admin.inventory.stock-transfers.index') },
+        { icon: 'assignment', label: 'Stock Adjustments', href: getLocalizedRoute('admin.inventory.stock-adjustments.index') },
+        { icon: 'report', label: 'Inventory Reports', href: getLocalizedRoute('admin.inventory.reports.index') },
       ],
     },
     {
@@ -135,14 +134,14 @@ const AdminLayout = ({
       label: 'Supplier & Purchase',
       hasSubmenu: true,
       submenuItems: [
-        // { icon: 'dashboard', label: 'Purchase Dashboard', href: getLocalizedRoute('admin.purchases.dashboard') },
-        { icon: 'groups', label: 'Supplier Groups', href: '#' },
-        { icon: 'people', label: 'Suppliers', href: '#' },
-        { icon: 'request_quote', label: 'Quotations', href: '#' },
-        { icon: 'shopping_bag', label: 'Purchase Orders', href: '#' },
-        // { icon: 'inventory', label: 'Goods Receipts', href: getLocalizedRoute('admin.purchases.goods-receipts.index') },
-        { icon: 'receipt', label: 'Purchase Invoices', href: '#' },
-        // { icon: 'keyboard_return', label: 'Purchase Returns', href: getLocalizedRoute('admin.purchases.returns.index') },
+        { icon: 'dashboard', label: 'Purchase Dashboard', href: getLocalizedRoute('admin.purchases.dashboard') },
+        { icon: 'groups', label: 'Supplier Groups', href: getLocalizedRoute('admin.purchases.supplier-groups.index') },
+        { icon: 'people', label: 'Suppliers', href: getLocalizedRoute('admin.purchases.suppliers.index') },
+        { icon: 'request_quote', label: 'Quotations', href: getLocalizedRoute('admin.purchases.quotations.index') },
+        { icon: 'shopping_bag', label: 'Purchase Orders', href: getLocalizedRoute('admin.purchases.orders.index') },
+        { icon: 'inventory', label: 'Goods Receipts', href: getLocalizedRoute('admin.purchases.goods-receipts.index') },
+        { icon: 'receipt', label: 'Purchase Invoices', href: getLocalizedRoute('admin.purchases.invoices.index') },
+        { icon: 'keyboard_return', label: 'Purchase Returns', href: getLocalizedRoute('admin.purchases.returns.index') },
       ],
     },
 
@@ -151,10 +150,10 @@ const AdminLayout = ({
       label: 'Discounts & Taxes',
       hasSubmenu: true,
       submenuItems: [
-        // { icon: 'local_offer', label: 'Purchase Discounts', href: getLocalizedRoute('admin.purchases.discounts.index') },
-        // { icon: 'rule', label: 'Discount Rules', href: getLocalizedRoute('admin.purchases.discounts.rules') },
-        // { icon: 'gavel', label: 'Tax Management', href: getLocalizedRoute('admin.purchases.taxes.index') },
-        // { icon: 'calculate', label: 'Tax Calculations', href: getLocalizedRoute('admin.purchases.taxes.calculations') },
+        { icon: 'local_offer', label: 'Purchase Discounts', href: getLocalizedRoute('admin.purchases.discounts.index') },
+        { icon: 'rule', label: 'Discount Rules', href: getLocalizedRoute('admin.purchases.discounts.rules') },
+        { icon: 'gavel', label: 'Tax Management', href: getLocalizedRoute('admin.purchases.taxes.index') },
+        { icon: 'calculate', label: 'Tax Calculations', href: getLocalizedRoute('admin.purchases.taxes.calculations') },
       ],
     },
     {
@@ -162,10 +161,10 @@ const AdminLayout = ({
       label: 'Costing & Expenses',
       hasSubmenu: true,
       submenuItems: [
-        // { icon: 'price_check', label: 'Purchase Costing', href: getLocalizedRoute('admin.purchases.costing.index') },
-        // { icon: 'receipt_long', label: 'Expense Management', href: getLocalizedRoute('admin.purchases.expenses.index') },
-        // { icon: 'flight_land', label: 'Landed Costs', href: getLocalizedRoute('admin.purchases.landed-costs.index') },
-        // { icon: 'pie_chart', label: 'Cost Allocation', href: getLocalizedRoute('admin.purchases.cost-allocation.index') },
+        { icon: 'price_check', label: 'Purchase Costing', href: getLocalizedRoute('admin.purchases.costing.index') },
+        { icon: 'receipt_long', label: 'Expense Management', href: getLocalizedRoute('admin.purchases.expenses.index') },
+        { icon: 'flight_land', label: 'Landed Costs', href: getLocalizedRoute('admin.purchases.landed-costs.index') },
+        { icon: 'pie_chart', label: 'Cost Allocation', href: getLocalizedRoute('admin.purchases.cost-allocation.index') },
       ],
     },
     {
@@ -173,12 +172,12 @@ const AdminLayout = ({
       label: 'Client & Sales',
       hasSubmenu: true,
       submenuItems: [
-        { icon: 'person_add', label: 'Clients', href: '#' },
-        { icon: 'groups', label: 'Client Group', href: '#' },
-        { icon: 'request_quote', label: 'Sales Quotations', href: '#' },
-        { icon: 'receipt_long', label: 'Sales Orders', href: '#' },
-        { icon: 'receipt', label: 'Sales Invoices', href: '#' },
-        { icon: 'bolt', label: 'Flash Sales' },
+        { icon: 'groups', label: 'Customers Group', href: getLocalizedRoute('admin.client-sales.customer-groups.index') },
+        { icon: 'person_add', label: 'Customers', href: getLocalizedRoute('admin.client-sales.customers.index') },
+        { icon: 'request_quote', label: 'Sales Quotations', href: getLocalizedRoute('admin.client-sales.quotations.index') },
+        { icon: 'receipt_long', label: 'Sales Orders', href: getLocalizedRoute('admin.client-sales.orders.index') },
+        { icon: 'receipt', label: 'Sales Invoices', href: getLocalizedRoute('admin.client-sales.invoices.index') },
+        { icon: 'bolt', label: 'Flash Sales', href: getLocalizedRoute('admin.client-sales.flash-sales.index') },
       ],
     },
     {
@@ -186,15 +185,15 @@ const AdminLayout = ({
       label: 'Fixed Assets',
       hasSubmenu: true,
       submenuItems: [
-        { icon: 'category', label: 'Asset Categories', href: '#' },
-        { icon: 'tune', label: 'Asset Attributes', href: '#' },
-        { icon: 'web_asset', label: 'Assets Register', href: '#' },
-        { icon: 'swap_horiz', label: 'Asset Movements', href: '#' },
-        { icon: 'trending_up', label: 'Asset Revaluation', href: '#' },
-        { icon: 'delete_forever', label: 'Asset Disposal', href: '#' },
-        { icon: 'calculate', label: 'Run Depr', href: '#' },
-        { icon: 'calendar_today', label: 'Depr Schedule', href: '#' },
-        { icon: 'assessment', label: 'Depr Report', href: '#' },
+        { icon: 'category', label: 'Asset Categories', href: getLocalizedRoute('admin.assets.categories.index') },
+        { icon: 'tune', label: 'Asset Attributes', href: getLocalizedRoute('admin.assets.attributes.index') },
+        { icon: 'web_asset', label: 'Assets Register', href: getLocalizedRoute('admin.assets.register.index') },
+        { icon: 'swap_horiz', label: 'Asset Movements', href: getLocalizedRoute('admin.assets.movements.index') },
+        { icon: 'trending_up', label: 'Asset Revaluation', href: getLocalizedRoute('admin.assets.revaluation.index') },
+        { icon: 'delete_forever', label: 'Asset Disposal', href: getLocalizedRoute('admin.assets.disposal.index') },
+        { icon: 'calculate', label: 'Run Depr', href: getLocalizedRoute('admin.assets.depreciation.run') },
+        { icon: 'calendar_today', label: 'Depr Schedule', href: getLocalizedRoute('admin.assets.depreciation.schedule') },
+        { icon: 'assessment', label: 'Depr Report', href: getLocalizedRoute('admin.assets.depreciation.report') },
       ],
     },
     {
@@ -202,10 +201,10 @@ const AdminLayout = ({
       label: 'Bank and Cash',
       hasSubmenu: true,
       submenuItems: [
-          { icon: 'account_balance_wallet', label: 'Cash', href: '#' },
-          { icon: 'account_balance', label: 'Banks', href: '#' },
-          { icon: 'payments', label: 'Cheque', href: '#' },
-          { icon: 'swap_horiz', label: 'Bank Transactions', href: '#' }
+          { icon: 'account_balance_wallet', label: 'Cash', href: getLocalizedRoute('admin.petty-cash.index') },
+          { icon: 'account_balance', label: 'Banks', href: getLocalizedRoute('admin.banks.index') },
+          { icon: 'payments', label: 'Cheque', href: getLocalizedRoute('admin.cheques.index') },
+          { icon: 'swap_horiz', label: 'Bank Transactions', href: getLocalizedRoute('admin.bank-transactions.index') }
       ],
     },
     {
@@ -213,9 +212,9 @@ const AdminLayout = ({
             label: 'TAX & VAT',
             hasSubmenu: true,
             submenuItems: [
-                { icon: 'settings', label: 'Tax Types', href: '#' },
-                { icon: 'settings', label: 'Tax Settings', href: '#' },
-                { icon: 'description', label: 'Tax Reports', href: '#' },
+                { icon: 'settings', label: 'Tax Types', href: getLocalizedRoute('admin.taxes.types.index') },
+                { icon: 'settings', label: 'Tax Settings', href: getLocalizedRoute('admin.taxes.settings.index') },
+                { icon: 'description', label: 'Tax Reports', href: getLocalizedRoute('admin.taxes.reports.index') },
             ],
         },
     {
@@ -224,7 +223,7 @@ const AdminLayout = ({
       hasSubmenu: true,
       submenuItems: [
         { icon: 'account_tree', label: 'Chart of Accounts', href: getLocalizedRoute('admin.chart-of-accounts') },
-        { icon: 'edit_note', label: 'Journal Entries', href: '#' },
+        { icon: 'edit_note', label: 'Journal Entries', href: getLocalizedRoute('admin.journal-entries') },
         { icon: 'bar_chart', label: 'Financial Reports', href: getLocalizedRoute('admin.financial-reports.index') },
       ],
     },
@@ -233,8 +232,8 @@ const AdminLayout = ({
       label: 'Budgeting',
       hasSubmenu: true,
       submenuItems: [
-        // { icon: 'show_chart', label: 'Budgets' },
-        // { icon: 'insights', label: 'Budget Reports' },
+        { icon: 'show_chart', label: 'Budgets', href: getLocalizedRoute('admin.budgeting.budgets.index') },
+        { icon: 'insights', label: 'Budget Reports', href: getLocalizedRoute('admin.budgeting.reports.index') },
       ],
     },
     {
@@ -242,8 +241,8 @@ const AdminLayout = ({
       label: 'E-Commerce',
       hasSubmenu: true,
       submenuItems: [
-        { icon: 'campaign', label: 'Ads', href: '#' },
-        { icon: 'bar_chart', label: 'Financial Reports', href: '#' },
+        { icon: 'campaign', label: 'Ads', href: getLocalizedRoute('admin.ecommerce.ads.index') },
+        { icon: 'bar_chart', label: 'Financial Reports', href: getLocalizedRoute('admin.ecommerce.financial-reports.index') },
       ],
     },
     {
@@ -265,38 +264,38 @@ const AdminLayout = ({
       label: 'Investing Stack',
       hasSubmenu: true,
       submenuItems: [
-        { icon: 'business', label: 'Industries', href: '#' },
-        { icon: 'apartment', label: 'Listed Companies', href: '#' },
-        { icon: 'handshake', label: 'Brokers', href: '#' },
-        { icon: 'trending_up', label: 'Market Prices', href: '#' },
+        { icon: 'business', label: 'Industries', href: getLocalizedRoute('admin.investing.industries.index') },
+        { icon: 'apartment', label: 'Listed Companies', href: getLocalizedRoute('admin.investing.companies.index') },
+        { icon: 'handshake', label: 'Brokers', href: getLocalizedRoute('admin.investing.brokers.index') },
+        { icon: 'trending_up', label: 'Market Prices', href: getLocalizedRoute('admin.investing.prices.index') },
       ],
     },
     { icon: 'folder', label: 'Media', href: getLocalizedRoute('admin.media.index') },
-    { icon: 'assignment', label: 'Tasks', href: '#' },
+    { icon: 'assignment', label: 'Tasks', href: getLocalizedRoute('admin.tasks.index') },
     // { icon: 'store', label: 'Marketplace' },
     {
       icon: 'description',
       label: 'Pages',
       hasSubmenu: true,
       submenuItems: [
-        // { icon: 'article', label: 'Blog' },
-        // { icon: 'payments', label: 'Payments' },
-        // { icon: 'campaign', label: 'Ads' },
-        // { icon: 'contact_page', label: 'Contact' },
-        // { icon: 'slideshow', label: 'Simple Sliders' },
-        // { icon: 'help_center', label: 'FAQs' },
-        // { icon: 'mail', label: 'Newsletters' },
-        // { icon: 'image', label: 'Media' }, // Duplicate
-        // { icon: 'palette', label: 'Appearance' },
-        // { icon: 'extension', label: 'Plugins' },
-        // { icon: 'build', label: 'Tools' },
-        // { icon: 'chat', label: 'WhatsApp Floating Button' },
-        // { icon: 'settings', label: 'Settings' },
-        // { icon: 'admin_panel_settings', label: 'Platform Administration' },
+        { icon: 'article', label: 'Blog', href: getLocalizedRoute('admin.pages.blog.index') },
+        { icon: 'payments', label: 'Payments', href: getLocalizedRoute('admin.pages.payments.index') },
+        { icon: 'campaign', label: 'Ads', href: getLocalizedRoute('admin.pages.ads.index') },
+        { icon: 'contact_page', label: 'Contact', href: getLocalizedRoute('admin.pages.contact.index') },
+        { icon: 'slideshow', label: 'Simple Sliders', href: getLocalizedRoute('admin.pages.sliders.index') },
+        { icon: 'help_center', label: 'FAQs', href: getLocalizedRoute('admin.pages.faqs.index') },
+        { icon: 'mail', label: 'Newsletters', href: getLocalizedRoute('admin.pages.newsletters.index') },
+        { icon: 'image', label: 'Media', href: getLocalizedRoute('admin.media.index') }, 
+        { icon: 'palette', label: 'Appearance', href: getLocalizedRoute('admin.pages.appearance.index') },
+        { icon: 'extension', label: 'Plugins', href: getLocalizedRoute('admin.pages.plugins.index') },
+        { icon: 'build', label: 'Tools', href: getLocalizedRoute('admin.pages.tools.index') },
+        { icon: 'chat', label: 'WhatsApp Floating Button', href: getLocalizedRoute('admin.pages.whatsapp.index') },
+        { icon: 'settings', label: 'Settings', href: getLocalizedRoute('admin.settings') },
+        { icon: 'admin_panel_settings', label: 'Platform Administration', href: getLocalizedRoute('admin.platform-admin.index') },
       ],
     },
     { icon: 'settings', label: 'Settings', href: getLocalizedRoute('admin.settings') },
-    { icon: 'admin_panel_settings', label: 'Platform Admin', href: '#' },
+    { icon: 'admin_panel_settings', label: 'Platform Admin', href: getLocalizedRoute('admin.platform-admin.index') },
   ].filter(item => {
       // Filter out items with empty submenus if they are meant to be submenu parents
       if (item.hasSubmenu && (!item.submenuItems || item.submenuItems.length === 0)) {

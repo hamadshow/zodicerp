@@ -1,0 +1,167 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   Investing & Stock Market Module
+   (Brokers, Listed Companies, Market Prices, Industries)
+   ========================================================================== */
+
+/* 1. Common Investing Components */
+.investing-page {
+    padding: $spacing-lg;
+    background-color: $light-color;
+    min-height: 100vh;
+    max-width: 1600px;
+    margin: 0 auto;
+
+    @include rtl {
+        direction: rtl;
+    }
+}
+
+.investing-card {
+    background-color: $white;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-md;
+    padding: $spacing-lg;
+    margin-bottom: $spacing-lg;
+    border: 1px solid $border-color;
+    transition: $transition-base;
+
+    &:hover {
+        box-shadow: $shadow-lg;
+    }
+
+    @include rtl {
+        text-align: right;
+    }
+}
+
+/* 2. Market Prices & Analysis */
+.market-analysis {
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: $spacing-lg;
+        margin-bottom: $spacing-lg;
+    }
+
+    &__price-card {
+        @extend .investing-card;
+        display: flex;
+        flex-direction: column;
+        gap: $spacing-sm;
+    }
+
+    &__price-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+
+    &__symbol {
+        font-weight: $font-weight-bold;
+        font-size: 1.25rem;
+        color: $primary-color;
+    }
+
+    &__change {
+        font-size: $font-size-sm;
+        font-weight: $font-weight-semibold;
+        
+        &--up { color: $success-color; }
+        &--down { color: $danger-color; }
+    }
+}
+
+/* 3. Brokers & Companies */
+.entity-module {
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: $spacing-xl;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+
+        h1 {
+            font-size: 1.875rem;
+            font-weight: $font-weight-bold;
+            color: $dark-color;
+            margin: 0;
+        }
+    }
+
+    &__stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: $spacing-lg;
+        margin-bottom: $spacing-xl;
+    }
+
+    &__stat-card {
+        @extend .investing-card;
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+
+    &__icon {
+        width: 48px;
+        height: 48px;
+        border-radius: $radius-md;
+        @include flex-center;
+        color: $white;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+
+        &--brokers { background-color: $primary-color; }
+        &--companies { background-color: $info-color; }
+        &--industries { background-color: $warning-color; }
+    }
+}
+
+/* 4. Industries & Categories */
+.industry-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: $spacing-md;
+
+    &__item {
+        @extend .investing-card;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: $spacing-md;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+}
+
+/* 5. Animations */
+@keyframes fadeInSlide {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-slide {
+    animation: fadeInSlide 0.3s ease-out forwards;
+}

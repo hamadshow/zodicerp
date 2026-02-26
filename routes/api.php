@@ -32,8 +32,45 @@ Route::middleware('web')->group(function () {
     Route::get('tasks/priorities', [TaskPriorityController::class, 'index']);
     Route::get('tasks/statuses', [TaskStatusController::class, 'index']);
     Route::get('tasks/statistics', [TaskController::class, 'statistics']);
-    Route::get('employees', [EmployeeController::class, 'index']);
+    
+    // Employee Routes
+     Route::get('employees', [EmployeeController::class, 'getEmployees']);
+     Route::post('employees', [EmployeeController::class, 'store']);
+     Route::get('employees/{employee}', [EmployeeController::class, 'show']);
+     Route::put('employees/{employee}', [EmployeeController::class, 'update']);
+     Route::delete('employees/{employee}', [EmployeeController::class, 'destroy']);
+     Route::post('employees/bulk-delete', [EmployeeController::class, 'bulkDelete']);
+     Route::post('employees/bulk-update-status', [EmployeeController::class, 'bulkUpdateStatus']);
+    
+    // Account Routes
     Route::get('accounts', [\App\Http\Controllers\Accounting\AccountsController::class, 'index']);
+    Route::get('accounts/tree', [\App\Http\Controllers\Accounting\AccountsController::class, 'tree']);
+    Route::get('accounts/valid-parents', [\App\Http\Controllers\Accounting\AccountsController::class, 'validParents']);
+    Route::post('accounts', [\App\Http\Controllers\Accounting\AccountsController::class, 'store']);
+    Route::get('accounts/{account}', [\App\Http\Controllers\Accounting\AccountsController::class, 'show']);
+    Route::put('accounts/{account}', [\App\Http\Controllers\Accounting\AccountsController::class, 'update']);
+    Route::delete('accounts/{account}', [\App\Http\Controllers\Accounting\AccountsController::class, 'destroy']);
+    Route::patch('accounts/{account}/stop', [\App\Http\Controllers\Accounting\AccountsController::class, 'stop']);
+
+    // Journal Routes
+    Route::get('journals/next-code', [\App\Http\Controllers\Accounting\JournalController::class, 'nextCode']);
+    Route::get('journals', [\App\Http\Controllers\Accounting\JournalController::class, 'index']);
+    Route::post('journals', [\App\Http\Controllers\Accounting\JournalController::class, 'store']);
+    Route::get('journals/{entryCode}', [\App\Http\Controllers\Accounting\JournalController::class, 'show']);
+    Route::put('journals/{entryCode}', [\App\Http\Controllers\Accounting\JournalController::class, 'update']);
+    Route::delete('journals/{entryCode}', [\App\Http\Controllers\Accounting\JournalController::class, 'destroy']);
+
+    // Financial Reports Routes
+    Route::get('financial-reports', [\App\Http\Controllers\Accounting\FinancialReportController::class, 'getData']);
+    Route::post('reports/favorite', [\App\Http\Controllers\Accounting\FinancialReportController::class, 'toggleFavorite']);
+
+    // Branch Routes
+    Route::get('branches', [\App\Http\Controllers\Essential_Data_Controllers\BranchController::class, 'getBranches']);
+
+    // Location API Routes for Dependent Dropdowns
+    Route::get('countries', [LocationController::class, 'getCountries']);
+    Route::get('cities', [LocationController::class, 'getCities']);
+    Route::get('areas', [LocationController::class, 'getAreas']);
 
     // Dashboard Statistics and Activity
     Route::get('/dashboard/stats', function () {

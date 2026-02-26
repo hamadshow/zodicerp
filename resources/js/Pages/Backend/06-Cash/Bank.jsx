@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Head, router, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/bank.scss';
+import '../../../../css/backend/main.scss';
+
 
 const resolveMediaUrl = (value) => {
     if (!value) {

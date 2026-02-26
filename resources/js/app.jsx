@@ -1,4 +1,5 @@
 import 'leaflet/dist/leaflet.css';
+import '../css/backend/main.scss';
 import './bootstrap';
 
 import { createInertiaApp } from '@inertiajs/react';

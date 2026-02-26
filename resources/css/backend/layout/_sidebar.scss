@@ -1,0 +1,385 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* Sidebar Container */
+.new-sidebar {
+    width: $sidebar-width;
+    background-color: $sidebar-bg;
+    color: $sidebar-text;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: $z-index-dropdown;
+    display: flex;
+    flex-direction: column;
+    @include transition-standard;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    overflow-x: hidden;
+
+    @include rtl {
+        left: auto;
+        right: 0;
+        box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    &.collapsed {
+        width: $sidebar-collapsed-width;
+    }
+}
+
+/* Header Section (Logo & Toggle) */
+.sidebar-header {
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 15px;
+    padding: 0 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    @include transition-standard;
+    background-color: transparent;
+
+    .collapsed & {
+        padding: 0;
+        justify-content: center;
+        flex-direction: column;
+        gap: 8px;
+    }
+}
+
+/* Brand Logo Group */
+.brand-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    overflow: hidden;
+    @include transition-standard;
+
+    .collapsed & {
+        gap: 0;
+        justify-content: center;
+    }
+}
+
+.brand-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, $sidebar-accent, #60a5fa);
+    border-radius: 8px;
+    @include flex-center;
+    color: white;
+    flex-shrink: 0;
+    @include transition-standard;
+
+    .collapsed & {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+    }
+}
+
+.brand-text {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #fff;
+    white-space: nowrap;
+    opacity: 1;
+    @include transition-standard(opacity);
+
+    .collapsed & {
+        opacity: 0;
+        width: 0;
+        display: none;
+    }
+}
+
+/* Toggle Button */
+.toggle-btn {
+    background: transparent;
+    border: none;
+    color: $sidebar-text;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    @include flex-center;
+    @include transition-standard;
+
+    &:hover {
+        color: #fff;
+        background-color: $sidebar-hover-bg;
+    }
+
+    .collapsed & {
+        padding: 4px;
+        
+        .material-icons-outlined {
+            font-size: 20px;
+        }
+    }
+}
+
+/* Menu List */
+.sidebar-menu {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
+    &::-webkit-scrollbar {
+        width: 0px;
+        background: transparent;
+        display: none;
+    }
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: $sidebar-text;
+    text-decoration: none;
+    @include transition-standard;
+    white-space: nowrap;
+    position: relative;
+    min-height: 44px;
+    outline: none;
+    border-left: none;
+
+    &:hover, &:focus {
+        background-color: $sidebar-hover-bg;
+        color: #fff;
+        transform: none;
+    }
+
+    &.active {
+        background-color: $sidebar-active-bg;
+        color: $sidebar-accent;
+        font-weight: 500;
+
+        &::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 20px;
+            width: 3px;
+            background-color: $sidebar-accent;
+            border-radius: 0 4px 4px 0;
+
+            @include rtl {
+                left: auto;
+                right: 0;
+                border-radius: 4px 0 0 4px;
+            }
+        }
+    }
+
+    &.menu-open {
+        background-color: rgba(255, 255, 255, 0.03);
+        color: #fff;
+    }
+
+    .collapsed & {
+        justify-content: center;
+        padding: 10px 0;
+    }
+}
+
+.menu-icon {
+    margin-right: 12px;
+    font-size: 20px;
+    @include flex-center;
+    width: 24px;
+    flex-shrink: 0;
+
+    @include rtl {
+        margin-right: 0;
+        margin-left: 12px;
+    }
+
+    .collapsed & {
+        margin-right: 0;
+        margin-left: 0;
+    }
+}
+
+.menu-label {
+    font-size: 0.9rem;
+    opacity: 1;
+    @include transition-standard(opacity);
+
+    .collapsed & {
+        opacity: 0;
+        width: 0;
+        display: none;
+    }
+}
+
+/* Chevron for submenu */
+.menu-chevron {
+    margin-left: auto;
+    font-size: 16px;
+    @include transition-standard(transform);
+
+    &.rotated {
+        transform: rotate(180deg);
+    }
+
+    .collapsed & {
+        display: none;
+    }
+}
+
+/* Submenu */
+.submenu {
+    display: block !important;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s ease-out, opacity 0.3s ease;
+    padding-left: 0;
+    opacity: 0;
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    margin-top: 2px;
+
+    &.show {
+        max-height: none !important;
+        overflow: visible !important;
+        opacity: 1;
+    }
+
+    .collapsed & {
+        display: none !important;
+    }
+}
+
+.submenu-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px 8px 48px;
+    color: $sidebar-text;
+    font-size: 0.85rem;
+    text-decoration: none;
+    @include transition-standard(color);
+    white-space: nowrap;
+
+    @include rtl {
+        padding: 8px 48px 8px 12px;
+    }
+
+    &:hover {
+        color: #fff;
+        background-color: transparent;
+    }
+
+    &.active {
+        color: $sidebar-accent;
+        background-color: transparent;
+    }
+}
+
+.submenu-icon {
+    font-size: 18px;
+    margin-right: 10px;
+    opacity: 0.7;
+}
+
+/* Floating Submenu (Popover) */
+.floating-submenu {
+    position: fixed;
+    z-index: $z-index-modal;
+    background-color: $sidebar-bg;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    min-width: 220px;
+    padding: 8px 0;
+    animation: fadeIn 0.2s ease;
+    overflow-y: auto;
+    max-height: 80vh;
+
+    &::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2px;
+    }
+}
+
+.floating-header {
+    padding: 10px 16px;
+    font-weight: 600;
+    color: #fff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 4px;
+    font-size: 0.95rem;
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.floating-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    color: $sidebar-text;
+    text-decoration: none;
+    font-size: 0.9rem;
+    @include transition-standard;
+
+    &:hover {
+        background-color: $sidebar-hover-bg;
+        color: #fff;
+    }
+
+    &.active {
+        color: $sidebar-accent;
+        background-color: $sidebar-active-bg;
+    }
+}
+
+.floating-icon {
+    font-size: 18px;
+    margin-right: 10px;
+    opacity: 0.8;
+}
+
+/* Tooltip for collapsed mode */
+.menu-item[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    margin-left: 10px;
+    z-index: $z-index-modal;
+    pointer-events: none;
+    opacity: 0;
+    @include transition-standard(opacity);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+
+    @include rtl {
+        left: auto;
+        right: 100%;
+        margin-left: 0;
+        margin-right: 10px;
+    }
+
+    .collapsed & {
+        opacity: 1;
+    }
+}

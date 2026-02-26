@@ -3,7 +3,6 @@ import { Head, useForm, usePage, router } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../components/AdminLayout';
 import Pagination from '../components/Pagination';
-import '../../../../css/backend/04-Purchases/Suppliers.scss';
 
 export default function Suppliers({ suppliers, groups, countries, cities, currencies, accounts, filters }) {
     const [mode, setMode] = useState('list'); // list, create, edit

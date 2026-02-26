@@ -1,7 +1,6 @@
 import React from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/Settings/_Settings.scss';
 
 const Settings = () => {
   const { localization } = usePage().props;

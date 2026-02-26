@@ -1,4 +1,4 @@
-@import 'colors';
+@use 'colors' as *;
 
 // Typography
 $font-family-sans-serif: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -43,5 +43,5 @@ $transition-collapse: height 0.35s ease;
 
 // RTL Support
 $rtl: false !default;
-$start: if($rtl, right, left);
-$end: if($rtl, left, right);
+$start: if(sass($rtl): right; else: left);
+$end: if(sass($rtl): left; else: right);

@@ -1,6 +1,8 @@
 // RTL Overrides
-$rtl: true;
-@import 'abstracts/variables';
+@use 'sass:map';
+@use 'abstracts/variables' as * with (
+  $rtl: true
+);
 
 [dir="rtl"] {
   body {
@@ -20,10 +22,10 @@ $rtl: true;
   .me-auto { margin-left: auto !important; margin-right: 0 !important; }
   
   @for $i from 0 through 5 {
-    .ms-#{$i} { margin-right: map-get($spacers, $i) !important; margin-left: 0 !important; }
-    .me-#{$i} { margin-left: map-get($spacers, $i) !important; margin-right: 0 !important; }
-    .ps-#{$i} { padding-right: map-get($spacers, $i) !important; padding-left: 0 !important; }
-    .pe-#{$i} { padding-left: map-get($spacers, $i) !important; padding-right: 0 !important; }
+    .ms-#{$i} { margin-right: map.get($spacers, $i) !important; margin-left: 0 !important; }
+    .me-#{$i} { margin-left: map.get($spacers, $i) !important; margin-right: 0 !important; }
+    .ps-#{$i} { padding-right: map.get($spacers, $i) !important; padding-left: 0 !important; }
+    .pe-#{$i} { padding-left: map.get($spacers, $i) !important; padding-right: 0 !important; }
   }
 
   // Icons and Arrows
