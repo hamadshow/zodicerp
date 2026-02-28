@@ -4,10 +4,12 @@ import Header from '../Components/Header';
 import Footer from '../Components/Footer';
 import '../../../../css/homepage/main.scss';
 import { useCurrency } from '../../../Hooks/useCurrency';
+import { useTranslation } from '../../../Hooks/useTranslation';
 
 const Checkout = () => {
   const { props } = usePage();
   const { localization } = useCurrency();
+  const { t } = useTranslation();
 
   const getLocalizedRoute = (name, params = {}) => {
     return route(name, {
@@ -67,20 +69,20 @@ const Checkout = () => {
 
   return (
     <>
-      <Head title="Checkout" />
+      <Head title={t('cart.checkout_title', 'Checkout')} />
       <div className="app-layout homepage-layout checkout-page">
         <Header categoriesData={categories} />
         <main className="checkout-container">
           <div className="container">
             <div className="checkout-grid">
               <section className="checkout-main">
-                <h1 className="checkout-title">Checkout</h1>
+                <h1 className="checkout-title">{t('cart.checkout_title', 'Checkout')}</h1>
                 <form className="checkout-form" onSubmit={handleSubmit}>
                   <div className="checkout-card">
-                    <h2 className="checkout-card-title">Shipping Information</h2>
+                    <h2 className="checkout-card-title">{t('cart.shipping_information', 'Shipping Information')}</h2>
                     <div className="checkout-card-body">
                       <div className="form-group">
-                        <label htmlFor="full_name">Full Name</label>
+                        <label htmlFor="full_name">{t('cart.full_name', 'Full Name')}</label>
                         <input
                           id="full_name"
                           type="text"
@@ -97,7 +99,7 @@ const Checkout = () => {
                       </div>
 
                       <div className="form-group">
-                        <label htmlFor="email">Email</label>
+                        <label htmlFor="email">{t('cart.email', 'Email')}</label>
                         <input
                           id="email"
                           type="email"
@@ -114,7 +116,7 @@ const Checkout = () => {
                       </div>
 
                       <div className="form-group">
-                        <label htmlFor="phone">Phone</label>
+                        <label htmlFor="phone">{t('cart.phone', 'Phone')}</label>
                         <input
                           id="phone"
                           type="tel"
@@ -131,7 +133,7 @@ const Checkout = () => {
                       </div>
 
                       <div className="form-group">
-                        <label htmlFor="address">Address</label>
+                        <label htmlFor="address">{t('cart.address', 'Address')}</label>
                         <textarea
                           id="address"
                           name="address"
@@ -148,7 +150,7 @@ const Checkout = () => {
 
                       <div className="form-grid">
                         <div className="form-group">
-                          <label htmlFor="city">City</label>
+                          <label htmlFor="city">{t('cart.city', 'City')}</label>
                           <input
                             id="city"
                             type="text"
@@ -164,7 +166,7 @@ const Checkout = () => {
                         </div>
 
                         <div className="form-group">
-                          <label htmlFor="country">Country</label>
+                          <label htmlFor="country">{t('cart.country', 'Country')}</label>
                           <input
                             id="country"
                             type="text"
@@ -183,7 +185,7 @@ const Checkout = () => {
                   </div>
 
                   <div className="checkout-card">
-                    <h2 className="checkout-card-title">Payment Method</h2>
+                    <h2 className="checkout-card-title">{t('cart.payment_method', 'Payment Method')}</h2>
                     <div className="checkout-card-body">
                       <div className="payment-options">
                         <label className="payment-option">
@@ -197,10 +199,10 @@ const Checkout = () => {
                           />
                           <div className="payment-option-content">
                             <span className="payment-option-title">
-                              Cash on Delivery
+                              {t('cart.cash_on_delivery', 'Cash on Delivery')}
                             </span>
                             <span className="payment-option-subtitle">
-                              Pay with cash when your order is delivered
+                              {t('cart.cash_on_delivery_subtitle', 'Pay with cash when your order is delivered')}
                             </span>
                           </div>
                         </label>
@@ -216,10 +218,10 @@ const Checkout = () => {
                           />
                           <div className="payment-option-content">
                             <span className="payment-option-title">
-                              Credit Card
+                              {t('cart.credit_card', 'Credit Card')}
                             </span>
                             <span className="payment-option-subtitle">
-                              Coming soon
+                              {t('cart.coming_soon', 'Coming soon')}
                             </span>
                           </div>
                         </label>
@@ -233,11 +235,11 @@ const Checkout = () => {
                       className="btn-primary checkout-submit"
                       disabled={processing || cartItems.length === 0}
                     >
-                      {processing ? 'Placing Order...' : 'Place Order'}
+                      {processing ? t('cart.placing_order', 'Placing Order...') : t('cart.place_order', 'Place Order')}
                     </button>
                     {cartItems.length === 0 && (
                       <div className="input-error">
-                        Your cart is empty.
+                        {t('cart.empty', 'Your cart is empty.')}
                       </div>
                     )}
                   </div>
@@ -246,12 +248,12 @@ const Checkout = () => {
 
               <aside className="checkout-summary-wrapper">
                 <div className="checkout-card checkout-summary">
-                  <h2 className="checkout-card-title">Order Summary</h2>
+                  <h2 className="checkout-card-title">{t('cart.order_summary', 'Order Summary')}</h2>
                   <div className="checkout-card-body">
                     <div className="summary-items">
                       {cartItems.length === 0 && (
                         <div className="summary-empty">
-                          No items in your cart.
+                          {t('cart.no_items', 'No items in your cart.')}
                         </div>
                       )}
                       {cartItems.map((item) => (
@@ -278,7 +280,7 @@ const Checkout = () => {
                               </div>
                             )}
                             <div className="summary-item-meta">
-                              Qty: {item.quantity || 1}
+                              {t('cart.qty', 'Qty')}: {item.quantity || 1}
                             </div>
                           </div>
                           <div className="summary-item-price">
@@ -291,28 +293,28 @@ const Checkout = () => {
 
                     <div className="summary-totals">
                       <div className="summary-row">
-                        <span>Subtotal</span>
+                        <span>{t('cart.sub_total', 'Sub Total:')}</span>
                         <span>
                           {currency}
                           {subtotal.toFixed(2)}
                         </span>
                       </div>
                       <div className="summary-row">
-                        <span>Shipping</span>
+                        <span>{t('cart.shipping', 'Shipping')}</span>
                         <span>
                           {currency}
                           {shipping.toFixed(2)}
                         </span>
                       </div>
                       <div className="summary-row">
-                        <span>Tax</span>
+                        <span>{t('cart.tax', 'Tax:')}</span>
                         <span>
                           {currency}
                           {tax.toFixed(2)}
                         </span>
                       </div>
                       <div className="summary-row summary-row-total">
-                        <span>Total</span>
+                        <span>{t('cart.total', 'Total:')}</span>
                         <span>
                           {currency}
                           {total.toFixed(2)}

@@ -12,6 +12,10 @@ class AdsController extends Controller
 {
     public function index(Request $request)
     {
+        if (!$request->wantsJson()) {
+            return \Inertia\Inertia::render('Backend/E-Commerce/Ads/Ads');
+        }
+
         $query = Ad::query();
 
         if ($request->filled('search')) {

@@ -119,7 +119,7 @@ const AdminLayout = ({
         { icon: 'warehouse', label: 'Warehouses', href: getLocalizedRoute('admin.warehouses.index') },
         { icon: 'straighten', label: 'Item Units', href: getLocalizedRoute('admin.item-units.index') },
         { icon: 'tune', label: 'Item Attributes', href: getLocalizedRoute('admin.item-attributes.index') },
-        { icon: 'collections_bookmark', label: 'Item Collections', href: getLocalizedRoute('admin.item-collections.index') },
+        { icon: 'collections_bookmark', label: 'Product Collections', href: getLocalizedRoute('admin.product-collections.index') },
         { icon: 'category', label: 'Categories', href: getLocalizedRoute('admin.categories.index') },
         { icon: 'branding_watermark', label: 'Brands', href: getLocalizedRoute('admin.brands.index') },
         { icon: 'inventory', label: 'Products', href: getLocalizedRoute('admin.products.index') },
@@ -168,6 +168,15 @@ const AdminLayout = ({
       ],
     },
     {
+      icon: 'shopping_cart',
+      label: 'E-Commerce',
+      hasSubmenu: true,
+      submenuItems: [
+        { icon: 'campaign', label: 'Ads', href: getLocalizedRoute('admin.ecommerce.ads.index') },
+        { icon: 'bolt', label: 'Flash Sales', href: getLocalizedRoute('admin.client-sales.flash-sales.index') },
+      ],
+    },
+    {
       icon: 'point_of_sale',
       label: 'Client & Sales',
       hasSubmenu: true,
@@ -177,7 +186,6 @@ const AdminLayout = ({
         { icon: 'request_quote', label: 'Sales Quotations', href: getLocalizedRoute('admin.client-sales.quotations.index') },
         { icon: 'receipt_long', label: 'Sales Orders', href: getLocalizedRoute('admin.client-sales.orders.index') },
         { icon: 'receipt', label: 'Sales Invoices', href: getLocalizedRoute('admin.client-sales.invoices.index') },
-        { icon: 'bolt', label: 'Flash Sales', href: getLocalizedRoute('admin.client-sales.flash-sales.index') },
       ],
     },
     {
@@ -234,15 +242,6 @@ const AdminLayout = ({
       submenuItems: [
         { icon: 'show_chart', label: 'Budgets', href: getLocalizedRoute('admin.budgeting.budgets.index') },
         { icon: 'insights', label: 'Budget Reports', href: getLocalizedRoute('admin.budgeting.reports.index') },
-      ],
-    },
-    {
-      icon: 'shopping_cart',
-      label: 'E-Commerce',
-      hasSubmenu: true,
-      submenuItems: [
-        { icon: 'campaign', label: 'Ads', href: getLocalizedRoute('admin.ecommerce.ads.index') },
-        { icon: 'bar_chart', label: 'Financial Reports', href: getLocalizedRoute('admin.ecommerce.financial-reports.index') },
       ],
     },
     {

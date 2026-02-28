@@ -34,25 +34,23 @@ export default function Login({ status, canResetPassword }) {
   return (
     <div className="auth-page">
       <Head title="Log in" />
-      
       <div className="auth-card">
-        <div className="auth-header">
-          <div className="auth-logo">
-            <Link href={getLocalizedRoute('home')}>
-              <ApplicationLogo className="h-16 w-16 fill-current text-primary" />
-            </Link>
+        <div className="auth-card-header">
+          <Link href={getLocalizedRoute('home')} className="auth-logo">
+            <ApplicationLogo className="h-16 w-16 fill-current text-primary" />
+          </Link>
+          <div className="auth-heading">
+            <h2 className="auth-title">مرحباً بك مجدداً</h2>
+            <p className="auth-subtitle">الرجاء تسجيل الدخول للوصول إلى لوحة التحكم</p>
           </div>
-          <h2 className="auth-title">مرحباً بك مجدداً</h2>
-          <p className="auth-subtitle">الرجاء تسجيل الدخول للوصول إلى لوحة التحكم</p>
         </div>
 
-        {status && <div className="login-status">{status}</div>}
+        <div className="auth-card-content">
+          {status && <div className="login-status">{status}</div>}
 
-        <form onSubmit={submit} className="login-form">
-          <div className="login-field">
-            <InputLabel htmlFor="email" value="البريد الإلكتروني" className="login-label" />
-
-            <div className="input-with-icon">
+          <form onSubmit={submit} className="login-form">
+            <div className="login-field">
+              <InputLabel htmlFor="email" value="البريد الإلكتروني" className="login-label" />
               <TextInput
                 id="email"
                 type="email"
@@ -64,19 +62,15 @@ export default function Login({ status, canResetPassword }) {
                 placeholder="example@domain.com"
                 onChange={(e) => setData('email', e.target.value)}
               />
+              <InputError message={errors.email} className="login-input-error" />
             </div>
 
-            <InputError message={errors.email} className="login-input-error" />
-          </div>
-
-          <div className="login-field">
-            <InputLabel
-              htmlFor="password"
-              value="كلمة المرور"
-              className="login-label"
-            />
-
-            <div className="input-with-icon">
+            <div className="login-field">
+              <InputLabel
+                htmlFor="password"
+                value="كلمة المرور"
+                className="login-label"
+              />
               <TextInput
                 id="password"
                 type="password"
@@ -87,16 +81,13 @@ export default function Login({ status, canResetPassword }) {
                 placeholder="••••••••"
                 onChange={(e) => setData('password', e.target.value)}
               />
+              <InputError
+                message={errors.password}
+                className="login-input-error"
+              />
             </div>
 
-            <InputError
-              message={errors.password}
-              className="login-input-error"
-            />
-          </div>
-
-          <div className="login-options">
-            <div className="login-remember">
+            <div className="login-options">
               <label className="login-remember-label">
                 <Checkbox
                   name="remember"
@@ -105,21 +96,21 @@ export default function Login({ status, canResetPassword }) {
                 />
                 <span className="login-remember-text">تذكرني</span>
               </label>
+
+              {canResetPassword && (
+                <Link href={getLocalizedRoute('password.request')} className="login-forgot">
+                  نسيت كلمة المرور؟
+                </Link>
+              )}
             </div>
 
-            {canResetPassword && (
-              <Link href={getLocalizedRoute('password.request')} className="login-forgot">
-                نسيت كلمة المرور؟
-              </Link>
-            )}
-          </div>
-
-          <div className="login-actions">
-            <PrimaryButton className="login-submit-btn" disabled={processing}>
-              {processing ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
-            </PrimaryButton>
-          </div>
-        </form>
+            <div className="login-actions">
+              <PrimaryButton className="login-submit-btn" disabled={processing}>
+                {processing ? 'جاري تسجيل الدخول...' : 'تسجيل الدخول'}
+              </PrimaryButton>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

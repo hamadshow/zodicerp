@@ -56,13 +56,18 @@ const Ads = () => {
         setLoading(true);
         setError('');
 
-        apiService
-            .get('/ads', {
-                page,
-                per_page: perPage,
-                search: filters.search || undefined,
-                status: filters.status || undefined,
-                location: filters.location || undefined,
+        window.axios
+            .get(route('admin.ecommerce.ads.index'), {
+                params: {
+                    page,
+                    per_page: perPage,
+                    search: filters.search || undefined,
+                    status: filters.status || undefined,
+                    location: filters.location || undefined,
+                },
+                headers: {
+                    'Accept': 'application/json'
+                }
             })
             .then((response) => {
                 const payload = response.data;
@@ -72,7 +77,8 @@ const Ads = () => {
                 setPage(payload.current_page || page);
                 setSelectedIds([]);
             })
-            .catch(() => {
+            .catch((err) => {
+                console.error(err);
                 setError('Failed to load ads. Please try again.');
             })
             .finally(() => {
@@ -119,8 +125,8 @@ const Ads = () => {
             return;
         }
 
-        apiService
-            .delete(`/ads/${id}`)
+        window.axios
+            .delete(route('admin.ecommerce.ads.destroy', id))
             .then(() => {
                 loadAds();
             })
@@ -137,8 +143,8 @@ const Ads = () => {
             return;
         }
 
-        apiService
-            .post('/ads/bulk-delete', { ids: selectedIds })
+        window.axios
+            .post(route('admin.ecommerce.ads.bulk-delete'), { ids: selectedIds })
             .then(() => {
                 loadAds();
             })
@@ -152,8 +158,8 @@ const Ads = () => {
             return;
         }
 
-        apiService
-            .post('/ads/bulk-status', {
+        window.axios
+            .post(route('admin.ecommerce.ads.bulk-status'), {
                 ids: selectedIds,
                 status,
             })

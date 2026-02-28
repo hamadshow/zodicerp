@@ -5,7 +5,12 @@ export default function SearchableComboBox({
   options,
   value,
   onChange,
+  onSearch,
+  renderOption,
+  disableFiltering = false,
   disabled = false,
+  required = false,
+  name,
   placeholder = 'Select',
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -35,6 +40,9 @@ export default function SearchableComboBox({
   };
 
   const filteredOptions = useMemo(() => {
+    if (disableFiltering) {
+      return options;
+    }
     const term = searchTerm.trim().toLowerCase();
     const limited = options;
     if (!term) {
@@ -43,7 +51,7 @@ export default function SearchableComboBox({
     return limited.filter((opt) =>
       String(opt.label || '').toLowerCase().includes(term),
     );
-  }, [options, searchTerm]);
+  }, [options, searchTerm, disableFiltering]);
 
   useEffect(() => {
     const current = options.find(
@@ -51,10 +59,10 @@ export default function SearchableComboBox({
     );
     if (current) {
       setSearchTerm(current.label || '');
-    } else {
+    } else if (!onSearch || (String(value) !== '' && value != null)) {
       setSearchTerm('');
     }
-  }, [value, options]);
+  }, [value, options, onSearch]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -110,7 +118,11 @@ export default function SearchableComboBox({
 
   const handleInputChange = (e) => {
     if (disabled) return;
-    setSearchTerm(e.target.value);
+    const term = e.target.value;
+    setSearchTerm(term);
+    if (onSearch) {
+      onSearch(term);
+    }
     setIsOpen(true);
     updateDropdownPosition();
   };
@@ -228,7 +240,11 @@ export default function SearchableComboBox({
                   selectOption(opt);
                 }}
               >
-                {highlightText(opt.label || '', searchTerm)}
+                {renderOption ? (
+                  renderOption(opt, searchTerm)
+                ) : (
+                  highlightText(opt.label || '', searchTerm)
+                )}
               </div>
             ))
           )}
@@ -273,7 +289,8 @@ export default function SearchableComboBox({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        required
+        required={required}
+        name={name}
       >
         <option value="">Select</option>
         {options.map((opt) => (

@@ -99,6 +99,11 @@ class Products extends Model
         return \App\Services\CurrencyConverter::convert($this->price);
     }
 
+    public function productCollections()
+    {
+        return $this->belongsToMany(ProductCollection::class, 'product_collection_products', 'product_id', 'product_collection_id');
+    }
+
     public function getConvertedSalePriceAttribute()
     {
         return $this->sale_price ? \App\Services\CurrencyConverter::convert($this->sale_price) : null;
@@ -138,11 +143,5 @@ class Products extends Model
     public function approver()
     {
         return $this->belongsTo(\App\Models\User::class, 'approved_by');
-    }
-
-    public function collections()
-    {
-        return $this->belongsToMany(ItemCollection::class, 'item_collection_product', 'product_id', 'item_collection_id')
-            ->withTimestamps();
     }
 }

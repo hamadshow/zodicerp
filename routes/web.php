@@ -5,6 +5,14 @@ use App\Http\Controllers\Home\CartController;
 use App\Http\Controllers\Home\CheckoutController;
 use App\Http\Controllers\Home\HomeController;
 use App\Http\Controllers\Backend\Profile\ProfileController;
+use App\Http\Controllers\Backend\Auth\ConfirmablePasswordController;
+use App\Http\Controllers\Backend\Auth\EmailVerificationNotificationController;
+use App\Http\Controllers\Backend\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Backend\Auth\NewPasswordController;
+use App\Http\Controllers\Backend\Auth\PasswordController;
+use App\Http\Controllers\Backend\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Backend\Auth\VerifyEmailController;
+use App\Http\Controllers\Home\Auth\RegisteredUserController;
 
 // Authentication Controllers
 use App\Http\Controllers\Backend\Auth\AuthenticatedSessionController;
@@ -54,12 +62,12 @@ Route::get('/media-files/{path}', function (string $path) {
     
     // Check if it's already a full path from public
     if (Storage::disk('public')->exists($normalized)) {
-        return Storage::disk('public')->response($normalized);
+        return response()->file(Storage::disk('public')->path($normalized));
     }
     
     // Check if it's in media subfolder
     if (Storage::disk('public')->exists('media/' . $normalized)) {
-        return Storage::disk('public')->response('media/' . $normalized);
+        return response()->file(Storage::disk('public')->path('media/' . $normalized));
     }
 
     abort(404);
@@ -115,9 +123,55 @@ Route::group([
     // B. Authentication & Profile (المصادقة والملف الشخصي)
     // ------------------------------------------------------------------------
     
-    // 1. Standard Auth Routes (مسارات المصادقة الأساسية)
-    require __DIR__.'/auth.php';
-    
+    Route::middleware('guest')->group(function () {
+        Route::get('register', [RegisteredUserController::class, 'create'])
+            ->name('register');
+
+        Route::post('register', [RegisteredUserController::class, 'store']);
+
+        Route::get('Auth', [AuthenticatedSessionController::class, 'create'])
+            ->name('auth.login');
+        Route::get('auth', [AuthenticatedSessionController::class, 'create']);
+
+        Route::post('Auth', [AuthenticatedSessionController::class, 'store']);
+        Route::post('auth', [AuthenticatedSessionController::class, 'store']);
+
+        Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
+            ->name('password.request');
+
+        Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+            ->name('password.email');
+
+        Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
+            ->name('password.reset');
+
+        Route::post('reset-password', [NewPasswordController::class, 'store'])
+            ->name('password.store');
+    });
+
+    Route::middleware('auth')->group(function () {
+        Route::get('verify-email', EmailVerificationPromptController::class)
+            ->name('verification.notice');
+
+        Route::get('verify-email/{id}/{hash}', VerifyEmailController::class)
+            ->middleware(['signed', 'throttle:6,1'])
+            ->name('verification.verify');
+
+        Route::post('email/verification-notification', [EmailVerificationNotificationController::class, 'store'])
+            ->middleware('throttle:6,1')
+            ->name('verification.send');
+
+        Route::get('confirm-password', [ConfirmablePasswordController::class, 'show'])
+            ->name('password.confirm');
+
+        Route::post('confirm-password', [ConfirmablePasswordController::class, 'store']);
+
+        Route::put('password', [PasswordController::class, 'update'])->name('password.update');
+
+        Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
+            ->name('logout');
+    });
+
     // 2. Global Login Override (تجاوز تسجيل الدخول العام)
     // GET: يوجه لصفحة دخول العملاء
     Route::get('login', [CustomerAuthController::class, 'showLoginForm'])->name('login');
@@ -255,7 +309,8 @@ Route::group([
             Route::resource('quotations', \App\Http\Controllers\Backend\Client_Sales\SalesQuotationController::class);
             Route::resource('orders', \App\Http\Controllers\Backend\Client_Sales\SalesOrderController::class);
             Route::resource('invoices', \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController::class);
-            Route::get('flash-sales', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Flash Sales']); })->name('flash-sales.index');
+            Route::get('flash-sales/search-products', [\App\Http\Controllers\Backend\Client_Sales\FlashSaleController::class, 'searchProducts'])->name('flash-sales.search-products');
+            Route::resource('flash-sales', \App\Http\Controllers\Backend\Client_Sales\FlashSaleController::class);
         });
 
         // 7. Inventory (المخزون)
@@ -265,7 +320,8 @@ Route::group([
         Route::resource('warehouses', \App\Http\Controllers\Backend\Inventory\WarehousesController::class);
         Route::resource('item-units', \App\Http\Controllers\Backend\Inventory\ItemUnitController::class);
         Route::resource('item-attributes', \App\Http\Controllers\Backend\Inventory\ItemAttributeController::class);
-        Route::resource('item-collections', \App\Http\Controllers\Backend\Inventory\ItemCollectionController::class);
+        Route::get('product-collections/get-products', [\App\Http\Controllers\Backend\Inventory\ProductCollectionController::class, 'getProducts'])->name('product-collections.get-products');
+        Route::resource('product-collections', \App\Http\Controllers\Backend\Inventory\ProductCollectionController::class);
         
         Route::prefix('inventory')->name('inventory.')->group(function () {
              Route::get('stock-transfers', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Stock Transfers']); })->name('stock-transfers.index');
@@ -324,6 +380,8 @@ Route::group([
 
         // 13. E-Commerce (التجارة الإلكترونية)
         Route::prefix('ecommerce')->name('ecommerce.')->group(function () {
+             Route::post('ads/bulk-delete', [\App\Http\Controllers\Backend\ECommerce\AdsController::class, 'bulkDelete'])->name('ads.bulk-delete');
+             Route::post('ads/bulk-status', [\App\Http\Controllers\Backend\ECommerce\AdsController::class, 'bulkStatus'])->name('ads.bulk-status');
              Route::resource('ads', \App\Http\Controllers\Backend\ECommerce\AdsController::class);
              Route::get('financial-reports', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'E-Commerce Financial Reports']); })->name('financial-reports.index');
         });

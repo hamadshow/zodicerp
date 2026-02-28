@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import SearchableComboBox from '../components/SearchableComboBox';
 import '../../../../css/backend/main.scss';
 
-const ItemCollectionsList = ({ collections = [] }) => {
+const ProductCollectionsList = ({ collections = [] }) => {
     const [filteredCollections, setFilteredCollections] = useState(collections);
     const [searchTerm, setSearchTerm] = useState('');
     const [stats, setStats] = useState({
@@ -49,19 +50,20 @@ const ItemCollectionsList = ({ collections = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this collection?')) {
-            router.delete(route('admin.item-collections.destroy', id));
+            router.delete(route('admin.product-collections.destroy', id));
         }
     };
 
     return (
         <>
-            <Head title="Item Collections - ZodicERP" />
+            <Head title="Product Collections - ZodicERP" />
+            
             <div className="breadcrumb">
                 <Link href={route('admin.dashboard')}>Dashboard</Link>
                 <span>/</span>
                 <a href="#">Inventory</a>
                 <span>/</span>
-                <span>Item Collections</span>
+                <span>Product Collections</span>
             </div>
 
             {/* Quick Stats */}
@@ -122,7 +124,7 @@ const ItemCollectionsList = ({ collections = [] }) => {
                         </div>
                     </div>
                     <div className="actions">
-                        <Link href={route('admin.item-collections.create')} className="btn btn-primary">
+                        <Link href={route('admin.product-collections.create')} className="btn btn-primary">
                             <span className="material-icons-outlined">add</span>
                             <span>Add Collection</span>
                         </Link>
@@ -139,7 +141,6 @@ const ItemCollectionsList = ({ collections = [] }) => {
                             <tr>
                                 <th><input type="checkbox" /></th>
                                 <th>NAME <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>PARENT <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
                                 <th>STATUS <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
                                 <th>FEATURED</th>
                                 <th>OPERATIONS</th>
@@ -162,9 +163,6 @@ const ItemCollectionsList = ({ collections = [] }) => {
                                             </div>
                                         </td>
                                         <td>
-                                            {collection.parent ? collection.parent.name : <span className="text-gray-400">-</span>}
-                                        </td>
-                                        <td>
                                             <span className={`warehouse-status status-${collection.status === 'published' ? 'active' : 'inactive'}`}>
                                                 {collection.status.charAt(0).toUpperCase() + collection.status.slice(1)}
                                             </span>
@@ -177,7 +175,7 @@ const ItemCollectionsList = ({ collections = [] }) => {
                                             )}
                                         </td>
                                         <td>
-                                            <Link href={route('admin.item-collections.edit', collection.id)} className="icon-btn edit">
+                                            <Link href={route('admin.product-collections.edit', collection.id)} className="icon-btn edit">
                                                 <span className="material-icons-outlined">edit</span>
                                             </Link>
                                             <button className="icon-btn delete" onClick={() => handleDelete(collection.id)}>
@@ -188,7 +186,7 @@ const ItemCollectionsList = ({ collections = [] }) => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="6" className="text-center py-4">No collections found.</td>
+                                    <td colSpan="5" className="text-center py-4">No collections found.</td>
                                 </tr>
                             )}
                         </tbody>
@@ -199,30 +197,97 @@ const ItemCollectionsList = ({ collections = [] }) => {
     );
 };
 
-const ItemCollectionsForm = ({ collection = null, collections = [] }) => {
+const ProductCollectionsForm = ({ collection = null }) => {
     const isEdit = !!collection;
+    const { props } = usePage();
+    const localization = props.localization || {};
     
     const { data, setData, post, put, processing, errors } = useForm({
         name: collection?.name || '',
         slug: collection?.slug || '',
         description: collection?.description || '',
         status: collection?.status || 'published',
-        parent_id: collection?.parent_id || '',
         image: collection?.image || '',
         is_featured: collection?.is_featured ?? false,
+        products: collection?.products?.map(p => p.id) || [],
     });
 
-    const submitWithAction = () => {
-        if (isEdit) {
-            put(route('admin.item-collections.update', collection.id));
-        } else {
-            post(route('admin.item-collections.store'));
+    // Products selection state
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [selectedProducts, setSelectedProducts] = useState(collection?.products || []);
+    const [isSearching, setIsSearching] = useState(false);
+    const [resetKey, setResetKey] = useState(0);
+
+    // Helper for localization
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization.country_code || 'sa',
+            lang: localization.current_locale || 'ar',
+            ...params
+        });
+    };
+
+    // Search products
+    useEffect(() => {
+        const delayDebounceFn = setTimeout(() => {
+            if (searchTerm.length > 1) {
+                setIsSearching(true);
+                try {
+                    // Try to use localized route if available, fallback to standard route
+                    let url;
+                    try {
+                        url = getLocalizedRoute('admin.product-collections.get-products');
+                    } catch (e) {
+                        url = route('admin.product-collections.get-products');
+                    }
+                    
+                    window.axios.get(url, { params: { query: searchTerm } })
+                        .then(response => {
+                            setSearchResults(response.data);
+                            setIsSearching(false);
+                        })
+                        .catch(error => {
+                            console.error("Error searching products:", error);
+                            setIsSearching(false);
+                        });
+                } catch (e) {
+                    console.error("Route generation error", e);
+                    setIsSearching(false);
+                }
+            } else {
+                setSearchResults([]);
+            }
+        }, 500);
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchTerm]);
+
+    const handleSelectProduct = (product) => {
+        if (!selectedProducts.find(p => p.id === product.id)) {
+            const newSelected = [...selectedProducts, product];
+            setSelectedProducts(newSelected);
+            setData('products', newSelected.map(p => p.id));
         }
+        setSearchTerm('');
+        setSearchResults([]);
+        setResetKey(prev => prev + 1);
+    };
+
+    const handleRemoveProduct = (productId) => {
+        const newSelected = selectedProducts.filter(p => p.id !== productId);
+        setSelectedProducts(newSelected);
+        setData('products', newSelected.map(p => p.id));
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        submitWithAction('save');
+        
+        if (isEdit) {
+            put(route('admin.product-collections.update', collection.id));
+        } else {
+            post(route('admin.product-collections.store'));
+        }
     };
 
     const pageTitle = isEdit ? 'Edit Collection' : 'Create New Collection';
@@ -230,14 +295,13 @@ const ItemCollectionsForm = ({ collection = null, collections = [] }) => {
     return (
         <>
             <Head title={`${pageTitle} - ZodicERP`} />
-            
             <div className="products-ce-page">
                 <div className="breadcrumb">
                     <Link href={route('admin.dashboard')}>Dashboard</Link>
                     <span>/</span>
                     <a href="#">Inventory</a>
                     <span>/</span>
-                    <Link href={route('admin.item-collections.index')}>Item Collections</Link>
+                    <Link href={route('admin.product-collections.index')}>Product Collections</Link>
                     <span>/</span>
                     <span>{pageTitle}</span>
                 </div>
@@ -251,7 +315,6 @@ const ItemCollectionsForm = ({ collection = null, collections = [] }) => {
                     
                     <div className="products-ce-body">
                         <div className="products-layout">
-                            {/* Main Column */}
                             <div className="products-main">
                                 <div className="products-section-card">
                                     <div className="products-section-header">
@@ -291,39 +354,140 @@ const ItemCollectionsForm = ({ collection = null, collections = [] }) => {
                                                 className={`form-control ${errors.description ? 'is-invalid' : ''}`}
                                                 value={data.description}
                                                 onChange={e => setData('description', e.target.value)}
-                                                rows="4"
+                                                rows="3"
                                                 placeholder="Collection description..."
                                             />
                                             {errors.description && <div className="invalid-feedback text-error">{errors.description}</div>}
                                         </div>
+
+                                        {/* Image URL */}
+                                        <div className="form-group mt-4">
+                                            <label className="form-label">Image URL</label>
+                                            <input
+                                                type="text"
+                                                className={`form-control ${errors.image ? 'is-invalid' : ''}`}
+                                                value={data.image}
+                                                onChange={e => setData('image', e.target.value)}
+                                                placeholder="https://example.com/image.jpg"
+                                            />
+                                            {data.image && (
+                                                <div className="mt-2">
+                                                    <img src={data.image} alt="Preview" className="h-20 w-auto rounded border border-gray-200 object-cover" />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="products-section-card">
+                                <div className="products-section-card mt-4">
                                     <div className="products-section-header">
-                                        <h4 className="products-section-title">Hierarchy</h4>
+                                        <h4 className="products-section-title">Products</h4>
                                     </div>
                                     <div className="products-section-content">
-                                        {/* Parent Collection */}
-                                        <div className="form-group">
-                                            <label className="form-label">Parent Collection</label>
-                                            <select
-                                                className={`form-control ${errors.parent_id ? 'is-invalid' : ''}`}
-                                                value={data.parent_id}
-                                                onChange={e => setData('parent_id', e.target.value)}
-                                            >
-                                                <option value="">None</option>
-                                                {collections.map(c => (
-                                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                                ))}
-                                            </select>
-                                            {errors.parent_id && <div className="invalid-feedback text-error">{errors.parent_id}</div>}
+                                        <div className="form-group position-relative">
+                                            <label className="form-label">Add Product</label>
+                                            <SearchableComboBox
+                                                key={resetKey}
+                                                options={searchResults.map(p => ({
+                                                    value: p.id,
+                                                    label: p.name,
+                                                    ...p
+                                                }))}
+                                                value=""
+                                                onChange={(val) => {
+                                                    const product = searchResults.find(p => p.id == val);
+                                                    if (product) handleSelectProduct(product);
+                                                }}
+                                                onSearch={setSearchTerm}
+                                                disableFiltering={true}
+                                                placeholder="Search for products..."
+                                                renderOption={(opt) => (
+                                                    <div className="d-flex align-items-center">
+                                                         {(opt.image && typeof opt.image === 'string') ? (
+                                                             <img 
+                                                                 src={opt.image.startsWith('http') ? opt.image : `/storage/${opt.image}`} 
+                                                                 alt={opt.name} 
+                                                                 className="rounded me-2" 
+                                                                 style={{width: '40px', height: '40px', objectFit: 'cover'}} 
+                                                                 onError={(e) => {e.target.style.display = 'none'}}
+                                                             />
+                                                         ) : (
+                                                             <div className="bg-light rounded me-2 d-flex align-items-center justify-content-center" style={{width: '40px', height: '40px'}}>
+                                                                 <span className="material-icons-outlined text-muted" style={{fontSize: '20px'}}>image</span>
+                                                             </div>
+                                                         )}
+                                                         <div>
+                                                             <div className="fw-bold">{opt.name}</div>
+                                                             {opt.price && <div className="small text-muted">Price: {opt.price}</div>}
+                                                         </div>
+                                                    </div>
+                                                )}
+                                            />
+                                            {isSearching && <div className="text-muted small mt-1 position-absolute" style={{right: 0, top: 0}}>Searching...</div>}
+                                        </div>
+
+                                        <div className="mt-4">
+                                            <label className="form-label mb-2">Selected Products</label>
+                                        <div className="table-responsive mt-3">
+                                            <table className="table align-middle">
+                                                <thead className="table-light">
+                                                    <tr>
+                                                        <th style={{ width: '80px' }}>IMAGE</th>
+                                                        <th>PRODUCT NAME</th>
+                                                        <th style={{ width: '150px' }}>PRICE</th>
+                                                        <th style={{ width: '100px' }}>ACTION</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {selectedProducts.length > 0 ? (
+                                                        selectedProducts.map(product => (
+                                                            <tr key={product.id}>
+                                                                <td>
+                                                                    {(product.image && typeof product.image === 'string') ? (
+                                                                        <img 
+                                                                            src={product.image.startsWith('http') ? product.image : `/storage/${product.image}`} 
+                                                                            alt={product.name} 
+                                                                            className="rounded" 
+                                                                            style={{ width: 40, height: 40, objectFit: 'cover' }} 
+                                                                            onError={(e) => {e.target.style.display = 'none'}}
+                                                                        />
+                                                                    ) : (
+                                                                        <div className="bg-light rounded d-flex align-items-center justify-content-center" style={{width: '40px', height: '40px'}}>
+                                                                            <span className="material-icons-outlined text-muted" style={{fontSize: '20px'}}>image</span>
+                                                                        </div>
+                                                                    )}
+                                                                </td>
+                                                                <td>{product.name}</td>
+                                                                <td>
+                                                                    {product.price || '-'}
+                                                                </td>
+                                                                <td>
+                                                                    <button 
+                                                                        type="button" 
+                                                                        className="btn btn-sm btn-outline-danger d-flex align-items-center justify-content-center"
+                                                                        style={{ width: '32px', height: '32px' }}
+                                                                        onClick={() => handleRemoveProduct(product.id)}
+                                                                    >
+                                                                        <span className="material-icons-outlined" style={{ fontSize: '18px' }}>close</span>
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    ) : (
+                                                        <tr>
+                                                            <td colSpan="4" className="text-center text-muted py-4">
+                                                                No products added yet.
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Sidebar Column */}
                             <div className="products-sidebar">
                                 <div className="sidebar-card">
                                     <div className="sidebar-card-header">
@@ -331,9 +495,9 @@ const ItemCollectionsForm = ({ collection = null, collections = [] }) => {
                                     </div>
                                     <div className="sidebar-card-body">
                                         <div className="sidebar-button-group">
-                                            <button 
-                                                type="submit" 
-                                                className="btn btn-primary w-full" 
+                                            <button
+                                                type="submit"
+                                                className="btn btn-primary btn-block"
                                                 disabled={processing}
                                             >
                                                 <span className="material-icons-outlined sidebar-button-icon">save</span>
@@ -341,7 +505,7 @@ const ItemCollectionsForm = ({ collection = null, collections = [] }) => {
                                             </button>
                                         </div>
                                         <div className="mt-3">
-                                            <Link href={route('admin.item-collections.index')} className="btn btn-outline w-full text-center block">
+                                            <Link href={route('admin.product-collections.index')} className="btn btn-outline btn-block text-center">
                                                 Cancel
                                             </Link>
                                         </div>
@@ -368,34 +532,11 @@ const ItemCollectionsForm = ({ collection = null, collections = [] }) => {
 
                                 <div className="sidebar-card">
                                     <div className="sidebar-card-header">
-                                        <h4 className="sidebar-card-title">Image</h4>
+                                        <h4 className="sidebar-card-title">Settings</h4>
                                     </div>
                                     <div className="sidebar-card-body">
-                                        {/* Simplified Image Input - In real app, use Media Manager */}
-                                        <div className="form-group">
-                                            <input
-                                                type="text"
-                                                className={`form-control ${errors.image ? 'is-invalid' : ''}`}
-                                                value={data.image}
-                                                onChange={e => setData('image', e.target.value)}
-                                                placeholder="Image URL"
-                                            />
-                                            {data.image && (
-                                                <div className="mt-2">
-                                                    <img src={data.image} alt="Preview" className="w-full h-auto rounded border border-gray-200" />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="sidebar-card">
-                                    <div className="sidebar-card-header">
-                                        <h4 className="sidebar-card-title">Configuration</h4>
-                                    </div>
-                                    <div className="sidebar-card-body">
-                                        <div className="form-check mb-4">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Is Featured?</label>
+                                        <div className="sidebar-field">
+                                            <label className="sidebar-label">Featured Collection</label>
                                             <label className="toggle-switch">
                                                 <input
                                                     type="checkbox"
@@ -416,18 +557,21 @@ const ItemCollectionsForm = ({ collection = null, collections = [] }) => {
     );
 };
 
-const ItemCollectionsPage = (props) => {
-    const isList = route().current('admin.item-collections.index');
+const ProductCollectionsPage = ({ collections = [], collection = null, mode = null }) => {
+    // Check if we are in create or edit mode based on route or props
+    const isCreateRoute = typeof route === 'function' && route().current('admin.product-collections.create');
+    const isEditRoute = typeof route === 'function' && route().current('admin.product-collections.edit');
+    const isFormMode = mode === 'create' || mode === 'edit' || isCreateRoute || isEditRoute || !!collection;
 
     return (
         <AdminLayout activeMenu="Inventory">
-            {isList ? (
-                <ItemCollectionsList {...props} />
+            {isFormMode ? (
+                <ProductCollectionsForm collection={collection} />
             ) : (
-                <ItemCollectionsForm {...props} />
+                <ProductCollectionsList collections={collections} />
             )}
         </AdminLayout>
     );
 };
 
-export default ItemCollectionsPage;
+export default ProductCollectionsPage;

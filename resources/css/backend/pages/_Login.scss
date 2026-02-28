@@ -49,45 +49,58 @@
         }
     }
 
-    .auth-header {
-        text-align: center;
+    .auth-card-header {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
         margin-bottom: $spacing-xl;
+    }
 
-        .auth-logo {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 80px;
-            height: 80px;
-            background: #f8fafc;
-            border-radius: 50%;
-            margin-bottom: $spacing-md;
-            box-shadow: $shadow-sm;
-            transition: $transition-normal;
+    .auth-card-content {
+        display: grid;
+        gap: $spacing-md;
+    }
 
-            &:hover {
-                transform: scale(1.05) rotate(5deg);
-                background: #f1f5f9;
-            }
+    .auth-logo {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 72px;
+        height: 72px;
+        background: #f8fafc;
+        border-radius: 18px;
+        box-shadow: $shadow-sm;
+        transition: $transition-normal;
 
-            svg {
-                width: 48px;
-                height: 48px;
-                color: $primary-color;
-            }
+        &:hover {
+            transform: translateY(-2px);
+            background: #f1f5f9;
         }
 
-        .auth-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: $dark-color;
-            margin-bottom: $spacing-xs;
+        svg {
+            width: 42px;
+            height: 42px;
+            color: $primary-color;
         }
+    }
 
-        .auth-subtitle {
-            font-size: $font-size-sm;
-            color: $gray-color;
-        }
+    .auth-heading {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .auth-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: $dark-color;
+        margin: 0;
+    }
+
+    .auth-subtitle {
+        font-size: $font-size-sm;
+        color: $gray-color;
+        margin: 0;
     }
 
     .login-status {
@@ -95,14 +108,17 @@
         color: #065f46;
         padding: $spacing-sm $spacing-md;
         border-radius: $radius-md;
-        margin-bottom: $spacing-md;
+        margin-bottom: 0;
         font-size: $font-size-sm;
         border: 1px solid #a7f3d0;
     }
 
     .login-form {
+        display: grid;
+        gap: $spacing-lg;
+
         .login-field {
-            margin-bottom: $spacing-lg;
+            margin-bottom: 0;
 
             .login-label {
                 display: block;
@@ -116,28 +132,24 @@
                 }
             }
 
-            .input-with-icon {
-                position: relative;
+            .login-input {
+                width: 100%;
+                padding: 12px 16px;
+                border: 1.5px solid $border-color;
+                border-radius: $radius-md;
+                font-size: $font-size-base;
+                transition: $transition-fast;
+                background: #fcfcfc;
 
-                .login-input {
-                    width: 100%;
-                    padding: 12px 16px;
-                    border: 1.5px solid $border-color;
-                    border-radius: $radius-md;
-                    font-size: $font-size-base;
-                    transition: $transition-fast;
-                    background: #fcfcfc;
+                &:focus {
+                    outline: none;
+                    border-color: $primary-color;
+                    background: $white;
+                    box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.1);
+                }
 
-                    &:focus {
-                        outline: none;
-                        border-color: $primary-color;
-                        background: $white;
-                        box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.1);
-                    }
-
-                    &::placeholder {
-                        color: #cbd5e1;
-                    }
+                &::placeholder {
+                    color: #cbd5e1;
                 }
             }
 
@@ -157,42 +169,40 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: $spacing-xl;
+            margin-bottom: 0;
 
             @include rtl {
                 flex-direction: row-reverse;
             }
 
-            .login-remember {
-                .login-remember-label {
-                    display: flex;
-                    align-items: center;
-                    cursor: pointer;
+            .login-remember-label {
+                display: flex;
+                align-items: center;
+                cursor: pointer;
 
-                    .login-remember-text {
-                        margin-right: 8px;
-                        font-size: $font-size-sm;
-                        color: $gray-color;
-                        user-select: none;
+                .login-remember-text {
+                    margin-right: 8px;
+                    font-size: $font-size-sm;
+                    color: $gray-color;
+                    user-select: none;
 
-                        @include rtl {
-                            margin-right: 0;
-                            margin-left: 8px;
-                        }
+                    @include rtl {
+                        margin-right: 0;
+                        margin-left: 8px;
                     }
+                }
 
-                    input[type="checkbox"] {
-                        width: 18px;
-                        height: 18px;
-                        border-radius: 4px;
-                        border: 1.5px solid $border-color;
-                        cursor: pointer;
-                        transition: $transition-fast;
+                input[type="checkbox"] {
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 4px;
+                    border: 1.5px solid $border-color;
+                    cursor: pointer;
+                    transition: $transition-fast;
 
-                        &:checked {
-                            background-color: $primary-color;
-                            border-color: $primary-color;
-                        }
+                    &:checked {
+                        background-color: $primary-color;
+                        border-color: $primary-color;
                     }
                 }
             }

@@ -9,6 +9,7 @@ use App\Models\Categories;
 use App\Models\Country;
 use App\Models\City;
 use App\Models\Client_Sales\CustomerAddress;
+use App\Models\Backend\Client_Sales\FlashSale;
 use App\Services\CurrencyConverter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -122,11 +123,62 @@ class HomeController extends Controller
             ->values()
             ->all();
 
+        // Flash Sale Logic
+        $flashSale = FlashSale::with(['items.product.brand', 'items.product.variations.product'])
+            ->where('status', 'published')
+            ->where('end_date', '>', $now)
+            ->orderBy('end_date', 'asc')
+            ->first();
+
+        $flashSaleData = null;
+        if ($flashSale) {
+            $flashSaleData = [
+                'id' => $flashSale->id,
+                'name' => $flashSale->name,
+                'end_date' => $flashSale->end_date,
+                'products' => $flashSale->items->map(function ($item) {
+                    $product = $item->product;
+                    if (!$product) return null;
+
+                    $imagePath = null;
+                    if ($product->image) {
+                        $imagePath = $product->image;
+                    } elseif (is_array($product->images) && count($product->images) > 0) {
+                        $imagePath = $product->images[0];
+                    }
+
+                    $price = $item->price; // Flash sale price
+                    $originalPrice = $product->price;
+
+                    // Calculate discount percentage
+                    $discount = 0;
+                    if ($originalPrice > 0) {
+                        $discount = round((($originalPrice - $price) / $originalPrice) * 100);
+                    }
+
+                    return [
+                        'id' => $product->id,
+                        'name' => $product->getTranslated('name_json') ?: $product->name,
+                        'product_type' => $product->product_type,
+                        'price' => CurrencyConverter::convert($price),
+                        'originalPrice' => CurrencyConverter::convert($originalPrice),
+                        'moq' => $product->minimum_order_quantity ? $product->minimum_order_quantity . ' pcs' : '1 pc',
+                        'orders' => ($product->views ?? 0) . ' Views',
+                        'image' => $this->formatMediaUrl($imagePath, 'https://via.placeholder.com/300x300'),
+                        'badge' => '-' . $discount . '%',
+                        'verified' => true,
+                        'supplier' => $product->brand ? $product->brand->name : 'ZodiMarket',
+                    ];
+                })->filter()->values()->all(),
+            ];
+        }
+
         return Inertia::render('Home/Home', [
             'featuredProducts' => $featuredProducts,
             'categories' => $categories,
             'heroAds' => $heroAds,
             'sideAds' => $sideAds,
+            'flashSale' => $flashSaleData,
         ]);
     }
 
@@ -228,13 +280,13 @@ class HomeController extends Controller
 
                     $attribute = $item->attribute; // ItemAttribute model
 
-                    if ($attribute && strtolower($attribute->title) === 'color') {
+                    if ($attribute && (strtolower($attribute->title) === 'color' || strtolower($attribute->title) === 'colors' || $attribute->title === 'اللون' || $attribute->title === 'الألوان' || !empty($detail->color))) {
                         $colorsMap[$detail->id] = [
                             'name' => $detail->title,
-                            'value' => $detail->color ?? $detail->title // Use color hex or name
+                            'hex' => $detail->color ?? $detail->title // Use color hex or name
                         ];
                         $variantColorName = $detail->title;
-                    } elseif ($attribute && strtolower($attribute->title) === 'size') {
+                    } elseif ($attribute && (strtolower($attribute->title) === 'size' || strtolower($attribute->title) === 'sizes' || $attribute->title === 'المقاس' || $attribute->title === 'الحجم')) {
                         $sizesMap[$detail->id] = $detail->title;
                         $variantSizeName = $detail->title;
                     }

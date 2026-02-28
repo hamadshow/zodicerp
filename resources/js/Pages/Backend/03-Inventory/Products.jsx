@@ -176,7 +176,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                     <span className="material-icons-outlined">search</span>
                                 </button>
                             </div>
-                            <Link className="btn btn-primary" href="/admin/products/create">
+                            <Link className="btn btn-primary" href={route('admin.products.create')}>
                                 <span className="material-icons-outlined">add</span>
                                 Add Product
                             </Link>
@@ -252,7 +252,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                                 <div className="actions-cell">
                                                     <button
                                                         className="icon-btn edit"
-                                                        onClick={() => Inertia.get(`/admin/products/${product.id}/edit`)}
+                                                        onClick={() => Inertia.get(route('admin.products.edit', product.id))}
                                                         title="Edit"
                                                     >
                                                         <span className="material-icons-outlined">edit</span>

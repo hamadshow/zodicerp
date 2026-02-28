@@ -677,6 +677,7 @@ const Home = ({
   featuredProducts,
   heroAds = [],
   sideAds = [],
+  flashSale = null,
 }) => {
   const { t } = useTranslation();
   const [showAnnouncementBar] = useState(true);
@@ -756,19 +757,35 @@ const Home = ({
     showToast(t('home.coming_soon_suppliers', 'Suppliers page is coming soon.'), 'info');
   }, [showToast, t]);
 
-  const [timeLeft, setTimeLeft] = useState({ hours: 2, minutes: 45, seconds: 18 });
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
+    if (!flashSale || !flashSale.end_date) return;
+
+    const calculateTimeLeft = () => {
+      const difference = +new Date(flashSale.end_date) - +new Date();
+      let timeLeft = {};
+
+      if (difference > 0) {
+        timeLeft = {
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24) + Math.floor(difference / (1000 * 60 * 60 * 24)) * 24, // Include days in hours or handle days separately
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60),
+        };
+      } else {
+        timeLeft = { hours: 0, minutes: 0, seconds: 0 };
+      }
+      return timeLeft;
+    };
+
+    setTimeLeft(calculateTimeLeft());
+
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev.seconds > 0) return { ...prev, seconds: prev.seconds - 1 };
-        if (prev.minutes > 0) return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
-        if (prev.hours > 0) return { ...prev, hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        return prev;
-      });
+      setTimeLeft(calculateTimeLeft());
     }, 1000);
+
     return () => clearInterval(timer);
-  }, []);
+  }, [flashSale]);
 
   const formatTime = (num) => num.toString().padStart(2, '0');
   
@@ -837,11 +854,12 @@ const Home = ({
         />
 
         {/* Flash Sale Banner */}
+        {flashSale && (
         <section className="homepage__flash-sale">
           <div className="container">
             <div className="homepage__flash-sale-content">
               <div className="homepage__flash-sale-header">
-                <h2 className="homepage__flash-sale-title">{t('home.flash_sale', 'Flash Sale')}</h2>
+                <h2 className="homepage__flash-sale-title">{flashSale.name || t('home.flash_sale', 'Flash Sale')}</h2>
                 <div className="homepage__flash-sale-timer">
                   <span className="homepage__timer-label">{t('home.ends_in', 'Ends in:')}</span>
                   <div className="homepage__timer">
@@ -863,14 +881,10 @@ const Home = ({
               </div>
 
               <div className="homepage__flash-sale-products">
-                {productsData.slice(0, 4).map((product) => (
+                {flashSale.products && flashSale.products.map((product) => (
                   <ProductCard
                     key={product.id}
-                    product={{
-                      ...product,
-                      badge: '-30%',
-                      originalPrice: (parseFloat(product.price) * 1.4).toFixed(2),
-                    }}
+                    product={product}
                     onAddToCart={handleAddToCart}
                     onWishlistToggle={handleWishlistToggle}
                     isInWishlist={isInWishlist}
@@ -881,6 +895,7 @@ const Home = ({
             </div>
           </div>
         </section>
+        )}
 
 
         <ProductSlider

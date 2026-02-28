@@ -77,7 +77,7 @@ const AdsCE = () => {
                         typeof ad.order === 'number' && Number.isFinite(ad.order)
                             ? String(ad.order)
                             : '',
-                    expired_at: ad.expired_at || '',
+                    expired_at: ad.expired_at ? ad.expired_at.substring(0, 16).replace(' ', 'T') : '',
                     open_in_new_tab: Boolean(ad.open_in_new_tab),
                     ads_type: ad.ads_type || '',
                     google_adsense_slot_id: ad.google_adsense_slot_id || '',

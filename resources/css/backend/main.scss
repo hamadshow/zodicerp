@@ -39,6 +39,7 @@
 @use 'pages/ItemAttributes';
 @use 'pages/ItemUnits';
 @use 'pages/ListedCompanies';
+@use 'pages/Login';
 @use 'pages/MarketPrices';
 @use 'pages/Nationalities';
 @use 'pages/Payroll-Advance';
@@ -71,7 +72,6 @@
 @use 'pages/Inventory';
 @use 'pages/Accounting';
 @use 'pages/Investing';
-@use 'pages/Login';
 @use 'pages/Media';
 @use 'pages/Currencies';
 @use 'pages/Exchange_rates';
@@ -93,6 +93,7 @@
 @use 'pages/ThemeTranslations';
 @use 'pages/OtherTranslations';
 @use 'pages/Locales';
+@use 'pages/FlashSales';
 
 // Global RTL Support
 [dir="rtl"] {

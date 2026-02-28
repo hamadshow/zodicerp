@@ -3,25 +3,43 @@
 namespace App\Http\Controllers\Backend\Inventory;
 
 use App\Http\Controllers\Controller;
-use App\Models\ItemCollection;
+use App\Models\ProductCollection;
+use App\Models\Products;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
-class ItemCollectionController extends Controller
+class ProductCollectionController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        $collections = ItemCollection::with('parent')
-            ->orderBy('id', 'desc')
+        $collections = ProductCollection::orderBy('id', 'desc')
             ->get();
 
-        return Inertia::render('Backend/03-Inventory/ItemCollections', [
-            'collections' => $collections
+        return Inertia::render('Backend/03-Inventory/ProductCollections', [
+            'collections' => $collections,
+            'mode' => 'list'
         ]);
+    }
+
+    /**
+     * Get products for selection.
+     */
+    public function getProducts(Request $request)
+    {
+        $query = $request->input('query');
+        $products = Products::query()
+            ->when($query, function ($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%");
+            })
+            ->select('id', 'name', 'image', 'price')
+            ->limit(20)
+            ->get();
+            
+        return response()->json($products);
     }
 
     /**
@@ -29,12 +47,8 @@ class ItemCollectionController extends Controller
      */
     public function create()
     {
-        $collections = ItemCollection::where('status', 'published')
-            ->select('id', 'name')
-            ->get();
-
-        return Inertia::render('Backend/03-Inventory/ItemCollectionsCE', [
-            'collections' => $collections
+        return Inertia::render('Backend/03-Inventory/ProductCollections', [
+            'mode' => 'create'
         ]);
     }
 
@@ -46,9 +60,8 @@ class ItemCollectionController extends Controller
         $request->validate([
             'name' => 'required|string|max:191',
             'status' => 'required|in:published,draft,pending',
-            'slug' => 'nullable|string|max:191|unique:item_collections,slug',
+            'slug' => 'nullable|string|max:191|unique:product_collections,slug',
             'description' => 'nullable|string|max:400',
-            'parent_id' => 'nullable|exists:item_collections,id',
             'image' => 'nullable|string',
             'is_featured' => 'boolean',
         ]);
@@ -57,24 +70,27 @@ class ItemCollectionController extends Controller
         
         // Ensure unique slug if auto-generated
         if (!$request->slug) {
-            $count = ItemCollection::where('slug', $slug)->count();
+            $count = ProductCollection::where('slug', $slug)->count();
             if ($count > 0) {
                 $slug .= '-' . ($count + 1);
             }
         }
 
-        ItemCollection::create([
+        $collection = ProductCollection::create([
             'name' => $request->name,
             'slug' => $slug,
             'status' => $request->status,
             'description' => $request->description,
-            'parent_id' => $request->parent_id,
             'image' => $request->image,
             'is_featured' => $request->is_featured ?? false,
         ]);
 
-        return redirect()->route('admin.item-collections.index')
-            ->with('success', 'Item Collection created successfully.');
+        if ($request->has('products')) {
+            $collection->products()->sync($request->products);
+        }
+
+        return redirect()->route('admin.product-collections.index')
+            ->with('success', 'Product Collection created successfully.');
     }
 
     /**
@@ -82,17 +98,11 @@ class ItemCollectionController extends Controller
      */
     public function edit($id)
     {
-        $collection = ItemCollection::findOrFail($id);
-        
-        // Get all collections except the current one to prevent circular parent reference
-        $collections = ItemCollection::where('id', '!=', $id)
-            ->where('status', 'published')
-            ->select('id', 'name')
-            ->get();
+        $collection = ProductCollection::with('products:id,name,image')->findOrFail($id);
 
-        return Inertia::render('Backend/03-Inventory/ItemCollections', [
+        return Inertia::render('Backend/03-Inventory/ProductCollections', [
             'collection' => $collection,
-            'collections' => $collections
+            'mode' => 'edit'
         ]);
     }
 
@@ -101,28 +111,22 @@ class ItemCollectionController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $collection = ItemCollection::findOrFail($id);
+        $collection = ProductCollection::findOrFail($id);
 
         $request->validate([
             'name' => 'required|string|max:191',
             'status' => 'required|in:published,draft,pending',
-            'slug' => 'nullable|string|max:191|unique:item_collections,slug,' . $id,
+            'slug' => 'nullable|string|max:191|unique:product_collections,slug,' . $id,
             'description' => 'nullable|string|max:400',
-            'parent_id' => 'nullable|exists:item_collections,id',
             'image' => 'nullable|string',
             'is_featured' => 'boolean',
         ]);
-
-        // Prevent setting self as parent
-        if ($request->parent_id == $id) {
-            return back()->withErrors(['parent_id' => 'A collection cannot be its own parent.']);
-        }
 
         $slug = $request->slug ? Str::slug($request->slug) : Str::slug($request->name);
 
         // Ensure unique slug if auto-generated and changed
         if (!$request->slug && $slug !== $collection->slug) {
-            $count = ItemCollection::where('slug', $slug)->where('id', '!=', $id)->count();
+            $count = ProductCollection::where('slug', $slug)->where('id', '!=', $id)->count();
             if ($count > 0) {
                 $slug .= '-' . ($count + 1);
             }
@@ -133,13 +137,16 @@ class ItemCollectionController extends Controller
             'slug' => $slug,
             'status' => $request->status,
             'description' => $request->description,
-            'parent_id' => $request->parent_id,
             'image' => $request->image,
             'is_featured' => $request->is_featured ?? false,
         ]);
 
-        return redirect()->route('admin.item-collections.index')
-            ->with('success', 'Item Collection updated successfully.');
+        if ($request->has('products')) {
+            $collection->products()->sync($request->products);
+        }
+
+        return redirect()->route('admin.product-collections.index')
+            ->with('success', 'Product Collection updated successfully.');
     }
 
     /**
@@ -147,10 +154,10 @@ class ItemCollectionController extends Controller
      */
     public function destroy($id)
     {
-        $collection = ItemCollection::findOrFail($id);
+        $collection = ProductCollection::findOrFail($id);
         $collection->delete();
 
-        return redirect()->route('admin.item-collections.index')
-            ->with('success', 'Item Collection deleted successfully.');
+        return redirect()->route('admin.product-collections.index')
+            ->with('success', 'Product Collection deleted successfully.');
     }
 }
