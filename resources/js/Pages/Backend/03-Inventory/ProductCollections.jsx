@@ -238,7 +238,7 @@ const ProductCollectionsForm = ({ collection = null }) => {
                     let url;
                     try {
                         url = getLocalizedRoute('admin.product-collections.get-products');
-                    } catch (e) {
+                    } catch {
                         url = route('admin.product-collections.get-products');
                     }
                     

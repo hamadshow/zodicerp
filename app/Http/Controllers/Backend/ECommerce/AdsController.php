@@ -13,7 +13,7 @@ class AdsController extends Controller
     public function index(Request $request)
     {
         if (!$request->wantsJson()) {
-            return \Inertia\Inertia::render('Backend/E-Commerce/Ads/Ads');
+            return \Inertia\Inertia::render('Backend/E-Commerce/Ads');
         }
 
         $query = Ad::query();
@@ -67,6 +67,21 @@ class AdsController extends Controller
     public function show(Ad $ad)
     {
         return response()->json($ad);
+    }
+
+    public function create()
+    {
+        return \Inertia\Inertia::render('Backend/E-Commerce/Ads', [
+            'mode' => 'create'
+        ]);
+    }
+
+    public function edit(Ad $ad)
+    {
+        return \Inertia\Inertia::render('Backend/E-Commerce/Ads', [
+            'mode' => 'edit',
+            'adId' => $ad->id
+        ]);
     }
 
     public function store(Request $request)
