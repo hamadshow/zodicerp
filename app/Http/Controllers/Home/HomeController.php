@@ -10,6 +10,7 @@ use App\Models\Country;
 use App\Models\City;
 use App\Models\Client_Sales\CustomerAddress;
 use App\Models\Backend\Client_Sales\FlashSale;
+use App\Models\ProductCollection;
 use App\Services\CurrencyConverter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -173,12 +174,72 @@ class HomeController extends Controller
             ];
         }
 
+        // Product Collections Logic
+        $productCollections = ProductCollection::where('status', 'active')
+            ->get()
+            ->map(function ($collection) {
+                // Manually load products to ensure limit applies per collection
+                $products = $collection->products()
+                    ->with(['brand', 'children'])
+                    ->where('status', 'active')
+                    ->take(12)
+                    ->get();
+
+                return [
+                    'id' => $collection->id,
+                    'title' => $collection->name,
+                    'slug' => $collection->slug,
+                    'products' => $products->map(function ($product) {
+                        $imagePath = null;
+
+                        if ($product->image) {
+                            $imagePath = $product->image;
+                        } elseif (is_array($product->images) && count($product->images) > 0) {
+                            $imagePath = $product->images[0];
+                        }
+
+                        $price = $product->price;
+                        $minPrice = $product->price;
+                        $maxPrice = $product->price;
+
+                        if ($product->children->isNotEmpty()) {
+                            $prices = $product->children->pluck('price')->filter(function($val) {
+                                return is_numeric($val) && $val > 0;
+                            })->all();
+                            
+                            if (!empty($prices)) {
+                                $minPrice = min($prices);
+                                $maxPrice = max($prices);
+                            }
+                        }
+
+                        return [
+                            'id' => $product->id,
+                            'name' => $product->getTranslated('name_json') ?: $product->name,
+                            'price' => CurrencyConverter::convert($price),
+                            'sale_price' => $product->sale_price ? CurrencyConverter::convert($product->sale_price) : null,
+                            'product_type' => $product->product_type,
+                            'min_price' => CurrencyConverter::convert($minPrice),
+                            'max_price' => CurrencyConverter::convert($maxPrice),
+                            'originalPrice' => null,
+                            'moq' => $product->minimum_order_quantity ? $product->minimum_order_quantity . ' pcs' : '1 pc',
+                            'orders' => ($product->views ?? 0) . ' Views',
+                            'image' => $this->formatMediaUrl($imagePath, 'https://via.placeholder.com/300x300'),
+                            'badge' => null,
+                            'verified' => true,
+                            'supplier' => $product->brand ? $product->brand->name : 'ZodiMarket',
+                        ];
+                    }),
+                ];
+            });
+
         return Inertia::render('Home/Home', [
             'featuredProducts' => $featuredProducts,
             'categories' => $categories,
             'heroAds' => $heroAds,
             'sideAds' => $sideAds,
             'flashSale' => $flashSaleData,
+            'productCollections' => $productCollections,
         ]);
     }
 
@@ -414,6 +475,17 @@ class HomeController extends Controller
                         $q->whereIn('categories.id', $categoryIds);
                     });
                 }
+            }
+        }
+
+        // Filter by Collection
+        if ($request->has('collection')) {
+            $collectionSlug = $request->input('collection');
+            $collection = ProductCollection::where('slug', $collectionSlug)->first();
+            if ($collection) {
+                $query->whereHas('productCollections', function ($q) use ($collection) {
+                    $q->where('product_collections.id', $collection->id);
+                });
             }
         }
 

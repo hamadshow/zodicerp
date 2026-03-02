@@ -678,6 +678,7 @@ const Home = ({
   heroAds = [],
   sideAds = [],
   flashSale = null,
+  productCollections = [],
 }) => {
   const { t } = useTranslation();
   const [showAnnouncementBar] = useState(true);
@@ -898,47 +899,66 @@ const Home = ({
         )}
 
 
-        <ProductSlider
-          title={t('home.trending_products', 'Trending Products')}
-          products={productsData.slice(0, 6)}
-          onViewAll={() =>
-            showToast(t('home.coming_soon_trending', 'Trending products page is coming soon.'), 'info')
-          }
-          viewAllLabel={t('home.view_all', 'View All')}
-          viewAllAriaLabel={t('home.view_all_trending', 'View all trending products')}
-          onAddToCart={handleAddToCart}
-          onWishlistToggle={handleWishlistToggle}
-          isInWishlist={isInWishlist}
-          onQuickView={handleQuickView}
-        />
+        {productCollections && productCollections.length > 0 ? (
+          productCollections.map((collection) => (
+            <ProductSlider
+              key={collection.id}
+              title={collection.title}
+              products={collection.products}
+              onViewAll={() => router.get(getLocalizedRoute('products.index'), { collection: collection.slug })}
+              viewAllLabel={t('home.view_all', 'View All')}
+              viewAllAriaLabel={`${t('home.view_all', 'View All')} ${collection.title}`}
+              onAddToCart={handleAddToCart}
+              onWishlistToggle={handleWishlistToggle}
+              isInWishlist={isInWishlist}
+              onQuickView={handleQuickView}
+            />
+          ))
+        ) : (
+          <>
+            <ProductSlider
+              title={t('home.trending_products', 'Trending Products')}
+              products={productsData.slice(0, 6)}
+              onViewAll={() =>
+                showToast(t('home.coming_soon_trending', 'Trending products page is coming soon.'), 'info')
+              }
+              viewAllLabel={t('home.view_all', 'View All')}
+              viewAllAriaLabel={t('home.view_all_trending', 'View all trending products')}
+              onAddToCart={handleAddToCart}
+              onWishlistToggle={handleWishlistToggle}
+              isInWishlist={isInWishlist}
+              onQuickView={handleQuickView}
+            />
 
-        <ProductSlider
-          title={t('home.new_arrivals', 'New Arrivals')}
-          products={productsData.slice(0, 6)}
-          onViewAll={() =>
-            showToast(t('home.coming_soon_new_arrivals', 'New arrivals page is coming soon.'), 'info')
-          }
-          viewAllLabel={t('home.view_all', 'View All')}
-          viewAllAriaLabel={t('home.view_all_new_arrivals', 'View all new arrivals')}
-          onAddToCart={handleAddToCart}
-          onWishlistToggle={handleWishlistToggle}
-          isInWishlist={isInWishlist}
-          onQuickView={handleQuickView}
-        />
+            <ProductSlider
+              title={t('home.new_arrivals', 'New Arrivals')}
+              products={productsData.slice(0, 6)}
+              onViewAll={() =>
+                showToast(t('home.coming_soon_new_arrivals', 'New arrivals page is coming soon.'), 'info')
+              }
+              viewAllLabel={t('home.view_all', 'View All')}
+              viewAllAriaLabel={t('home.view_all_new_arrivals', 'View all new arrivals')}
+              onAddToCart={handleAddToCart}
+              onWishlistToggle={handleWishlistToggle}
+              isInWishlist={isInWishlist}
+              onQuickView={handleQuickView}
+            />
 
-        <ProductSlider
-          title={t('home.recommended_for_you', 'Recommended For You')}
-          products={productsData}
-          onViewAll={() =>
-            showToast(t('home.coming_soon_recommendations', 'Recommendations page is coming soon.'), 'info')
-          }
-          viewAllLabel={t('home.view_all', 'View All')}
-          viewAllAriaLabel={t('home.view_all_recommendations', 'View all recommendations')}
-          onAddToCart={handleAddToCart}
-          onWishlistToggle={handleWishlistToggle}
-          isInWishlist={isInWishlist}
-          onQuickView={handleQuickView}
-        />
+            <ProductSlider
+              title={t('home.recommended_for_you', 'Recommended For You')}
+              products={productsData}
+              onViewAll={() =>
+                showToast(t('home.coming_soon_recommendations', 'Recommendations page is coming soon.'), 'info')
+              }
+              viewAllLabel={t('home.view_all', 'View All')}
+              viewAllAriaLabel={t('home.view_all_recommendations', 'View all recommendations')}
+              onAddToCart={handleAddToCart}
+              onWishlistToggle={handleWishlistToggle}
+              isInWishlist={isInWishlist}
+              onQuickView={handleQuickView}
+            />
+          </>
+        )}
 
         <FeaturedProducts
           products={filteredFeaturedProducts}
