@@ -175,7 +175,7 @@ class HomeController extends Controller
         }
 
         // Product Collections Logic
-        $productCollections = ProductCollection::where('status', 'active')
+        $productCollections = ProductCollection::where('status', 'published')
             ->get()
             ->map(function ($collection) {
                 // Manually load products to ensure limit applies per collection
