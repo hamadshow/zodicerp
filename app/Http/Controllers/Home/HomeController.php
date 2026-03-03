@@ -175,7 +175,8 @@ class HomeController extends Controller
         }
 
         // Product Collections Logic
-        $productCollections = ProductCollection::where('status', 'published')
+        $productCollections = ProductCollection::with('translations')
+            ->where('status', 'published')
             ->get()
             ->map(function ($collection) {
                 // Manually load products to ensure limit applies per collection
@@ -187,7 +188,7 @@ class HomeController extends Controller
 
                 return [
                     'id' => $collection->id,
-                    'title' => $collection->name,
+                    'title' => $collection->getTranslatedName(),
                     'slug' => $collection->slug,
                     'products' => $products->map(function ($product) {
                         $imagePath = null;

@@ -16,7 +16,8 @@ class ProductCollectionController extends Controller
      */
     public function index()
     {
-        $collections = ProductCollection::orderBy('id', 'desc')
+        $collections = ProductCollection::with('translations')
+            ->orderBy('id', 'desc')
             ->get();
 
         return Inertia::render('Backend/03-Inventory/ProductCollections', [
@@ -64,6 +65,10 @@ class ProductCollectionController extends Controller
             'description' => 'nullable|string|max:400',
             'image' => 'nullable|string',
             'is_featured' => 'boolean',
+            'name_ar' => 'nullable|string|max:191',
+            'name_en' => 'nullable|string|max:191',
+            'description_ar' => 'nullable|string|max:400',
+            'description_en' => 'nullable|string|max:400',
         ]);
 
         $slug = $request->slug ? Str::slug($request->slug) : Str::slug($request->name);
@@ -85,6 +90,21 @@ class ProductCollectionController extends Controller
             'is_featured' => $request->is_featured ?? false,
         ]);
 
+        // Save Translations
+        $locales = ['ar', 'en'];
+        foreach ($locales as $locale) {
+            $nameField = "name_{$locale}";
+            $descField = "description_{$locale}";
+            
+            if ($request->filled($nameField)) {
+                $collection->translations()->create([
+                    'lang_code' => $locale,
+                    'name' => $request->$nameField,
+                    'description' => $request->$descField,
+                ]);
+            }
+        }
+
         if ($request->has('products')) {
             $collection->products()->sync($request->products);
         }
@@ -98,7 +118,7 @@ class ProductCollectionController extends Controller
      */
     public function edit($id)
     {
-        $collection = ProductCollection::with('products:id,name,image')->findOrFail($id);
+        $collection = ProductCollection::with(['products:id,name,image', 'translations'])->findOrFail($id);
 
         return Inertia::render('Backend/03-Inventory/ProductCollections', [
             'collection' => $collection,
@@ -120,6 +140,10 @@ class ProductCollectionController extends Controller
             'description' => 'nullable|string|max:400',
             'image' => 'nullable|string',
             'is_featured' => 'boolean',
+            'name_ar' => 'nullable|string|max:191',
+            'name_en' => 'nullable|string|max:191',
+            'description_ar' => 'nullable|string|max:400',
+            'description_en' => 'nullable|string|max:400',
         ]);
 
         $slug = $request->slug ? Str::slug($request->slug) : Str::slug($request->name);
@@ -140,6 +164,25 @@ class ProductCollectionController extends Controller
             'image' => $request->image,
             'is_featured' => $request->is_featured ?? false,
         ]);
+
+        // Update Translations
+        $locales = ['ar', 'en'];
+        foreach ($locales as $locale) {
+            $nameField = "name_{$locale}";
+            $descField = "description_{$locale}";
+            
+            if ($request->filled($nameField)) {
+                $collection->translations()->updateOrCreate(
+                    ['lang_code' => $locale],
+                    [
+                        'name' => $request->$nameField,
+                        'description' => $request->$descField,
+                    ]
+                );
+            } else {
+                $collection->translations()->where('lang_code', $locale)->delete();
+            }
+        }
 
         if ($request->has('products')) {
             $collection->products()->sync($request->products);

@@ -38,6 +38,7 @@ const ProductCollectionsList = ({ collections = [] }) => {
         const lowerTerm = searchTerm.toLowerCase();
         const filtered = collections.filter(c => 
             c.name.toLowerCase().includes(lowerTerm) ||
+            (c.translated_name && c.translated_name.toLowerCase().includes(lowerTerm)) ||
             (c.slug && c.slug.toLowerCase().includes(lowerTerm)) ||
             c.status.toLowerCase().includes(lowerTerm)
         );
@@ -157,7 +158,7 @@ const ProductCollectionsList = ({ collections = [] }) => {
                                                     <img src={collection.image} alt={collection.name} className="w-10 h-10 rounded mr-2 object-cover" />
                                                 )}
                                                 <div className="warehouse-details">
-                                                    <div className="warehouse-name">{collection.name}</div>
+                                                    <div className="warehouse-name">{collection.translated_name || collection.name}</div>
                                                     <div className="warehouse-description text-xs text-gray-500">{collection.slug}</div>
                                                 </div>
                                             </div>
@@ -210,6 +211,10 @@ const ProductCollectionsForm = ({ collection = null }) => {
         image: collection?.image || '',
         is_featured: collection?.is_featured ?? false,
         products: collection?.products?.map(p => p.id) || [],
+        name_ar: collection?.translations?.find(t => t.lang_code === 'ar')?.name || '',
+        name_en: collection?.translations?.find(t => t.lang_code === 'en')?.name || '',
+        description_ar: collection?.translations?.find(t => t.lang_code === 'ar')?.description || '',
+        description_en: collection?.translations?.find(t => t.lang_code === 'en')?.description || '',
     });
 
     // Products selection state
@@ -358,6 +363,60 @@ const ProductCollectionsForm = ({ collection = null }) => {
                                                 placeholder="Collection description..."
                                             />
                                             {errors.description && <div className="invalid-feedback text-error">{errors.description}</div>}
+                                        </div>
+
+                                        {/* Arabic Translation */}
+                                        <div className="form-group mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+                                            <h5 className="font-bold mb-3 text-sm text-gray-700">Arabic Translation (العربية)</h5>
+                                            <div className="form-group">
+                                                <label className="form-label">Name (Arabic)</label>
+                                                <input
+                                                    type="text"
+                                                    className={`form-control ${errors.name_ar ? 'is-invalid' : ''}`}
+                                                    value={data.name_ar}
+                                                    onChange={e => setData('name_ar', e.target.value)}
+                                                    placeholder="اسم المجموعة"
+                                                />
+                                                {errors.name_ar && <div className="invalid-feedback text-error">{errors.name_ar}</div>}
+                                            </div>
+                                            <div className="form-group mt-3">
+                                                <label className="form-label">Description (Arabic)</label>
+                                                <textarea
+                                                    className={`form-control ${errors.description_ar ? 'is-invalid' : ''}`}
+                                                    value={data.description_ar}
+                                                    onChange={e => setData('description_ar', e.target.value)}
+                                                    rows="2"
+                                                    placeholder="وصف المجموعة..."
+                                                />
+                                                {errors.description_ar && <div className="invalid-feedback text-error">{errors.description_ar}</div>}
+                                            </div>
+                                        </div>
+
+                                        {/* English Translation */}
+                                        <div className="form-group mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+                                            <h5 className="font-bold mb-3 text-sm text-gray-700">English Translation</h5>
+                                            <div className="form-group">
+                                                <label className="form-label">Name (English)</label>
+                                                <input
+                                                    type="text"
+                                                    className={`form-control ${errors.name_en ? 'is-invalid' : ''}`}
+                                                    value={data.name_en}
+                                                    onChange={e => setData('name_en', e.target.value)}
+                                                    placeholder="Collection Name"
+                                                />
+                                                {errors.name_en && <div className="invalid-feedback text-error">{errors.name_en}</div>}
+                                            </div>
+                                            <div className="form-group mt-3">
+                                                <label className="form-label">Description (English)</label>
+                                                <textarea
+                                                    className={`form-control ${errors.description_en ? 'is-invalid' : ''}`}
+                                                    value={data.description_en}
+                                                    onChange={e => setData('description_en', e.target.value)}
+                                                    rows="2"
+                                                    placeholder="Collection description..."
+                                                />
+                                                {errors.description_en && <div className="invalid-feedback text-error">{errors.description_en}</div>}
+                                            </div>
                                         </div>
 
                                         {/* Image URL */}
