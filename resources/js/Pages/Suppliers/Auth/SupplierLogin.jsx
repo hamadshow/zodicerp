@@ -5,6 +5,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import '../../../../css/suppliers/main.scss';
 
 export default function SupplierLogin({ status }) {
   const { localization } = usePage().props;

@@ -15,7 +15,7 @@ class SupplierAuthController extends Controller
 {
     public function showLoginForm()
     {
-        return Inertia::render('Auth/SupplierLogin');
+        return Inertia::render('Suppliers/Auth/SupplierLogin');
     }
 
     public function login(Request $request)
@@ -57,13 +57,20 @@ class SupplierAuthController extends Controller
         );
 
         $supplier = Supplier::create([
+            'supplier_code' => $request->supplier_code,
             'name_ar' => $request->name_ar,
             'name_en' => $request->name_en,
             'email' => $request->email,
             'password' => Hash::make($request->password),
-            'supplier_code' => $request->supplier_code,
             'supplier_group_id' => $group->id,
             'is_active' => true,
+            'is_vendor' => true, // Assuming new registrations are vendors
+            'verification_status' => 'pending', // Default status
+            'commission_rate' => 0.00,
+            'credit_limit' => 0.00,
+            'current_balance' => 0.00,
+            'available_credit' => 0.00,
+            'rating' => 0,
         ]);
 
         Auth::guard('supplier')->login($supplier);

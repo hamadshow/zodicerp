@@ -106,6 +106,7 @@ Route::group([
     Route::get('/', [HomeController::class, 'index'])->name('home');
     Route::get('/products', [HomeController::class, 'products'])->name('products.index');
     Route::get('/product/{identifier}', [HomeController::class, 'productDetails'])->name('product.details');
+    Route::get('/suppliers', [HomeController::class, 'suppliers'])->name('suppliers.index');
     
     // Shopping Cart (عربة التسوق)
     Route::get('/cart', [HomeController::class, 'cart'])->name('cart.index');

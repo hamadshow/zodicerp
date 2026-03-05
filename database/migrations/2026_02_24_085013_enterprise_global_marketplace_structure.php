@@ -22,32 +22,6 @@ return new class extends Migration
             });
         }
 
-        // 2. Vendor Wallet System
-        if (!Schema::hasTable('vendor_wallets')) {
-            Schema::create('vendor_wallets', function (Blueprint $table) {
-                $table->id();
-                $table->foreignId('vendor_id')->constrained('suppliers')->onDelete('cascade');
-                $table->decimal('balance', 15, 2)->default(0);
-                $table->decimal('pending_balance', 15, 2)->default(0);
-                $table->decimal('withdrawn_total', 15, 2)->default(0);
-                $table->string('currency')->default('USD');
-                $table->timestamps();
-            });
-        }
-
-        if (!Schema::hasTable('vendor_wallet_transactions')) {
-            Schema::create('vendor_wallet_transactions', function (Blueprint $table) {
-                $table->id();
-                $table->foreignId('wallet_id')->constrained('vendor_wallets')->onDelete('cascade');
-                $table->decimal('amount', 15, 2);
-                $table->string('type'); // credit, debit
-                $table->string('status'); // pending, completed, cancelled
-                $table->string('description')->nullable();
-                $table->json('metadata')->nullable();
-                $table->timestamps();
-            });
-        }
-
         // 3. Update existing tables for JSON translations
         Schema::table('products', function (Blueprint $table) {
             if (!Schema::hasColumn('products', 'name_json')) {
@@ -78,7 +52,11 @@ return new class extends Migration
 
         Schema::table('suppliers', function (Blueprint $table) {
             if (!Schema::hasColumn('suppliers', 'store_name_json')) {
-                $table->json('store_name_json')->after('name_ar')->nullable();
+                if (Schema::hasColumn('suppliers', 'name_ar')) {
+                    $table->json('store_name_json')->after('name_ar')->nullable();
+                } else {
+                    $table->json('store_name_json')->nullable();
+                }
             }
             if (!Schema::hasColumn('suppliers', 'store_description_json')) {
                 $table->json('store_description_json')->nullable();
@@ -94,20 +72,47 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('suppliers', function (Blueprint $table) {
-            $table->dropColumn(['store_name_json', 'store_description_json', 'commission_rate', 'verification_status']);
-        });
+        if (Schema::hasTable('suppliers')) {
+            Schema::table('suppliers', function (Blueprint $table) {
+                $columns = [];
+                foreach (['store_name_json', 'store_description_json', 'commission_rate', 'verification_status'] as $column) {
+                    if (Schema::hasColumn('suppliers', $column)) {
+                        $columns[] = $column;
+                    }
+                }
+                if (!empty($columns)) {
+                    $table->dropColumn($columns);
+                }
+            });
+        }
 
-        Schema::table('categories', function (Blueprint $table) {
-            $table->dropColumn(['name_json', 'slug_json']);
-        });
+        if (Schema::hasTable('categories')) {
+            Schema::table('categories', function (Blueprint $table) {
+                $columns = [];
+                foreach (['name_json', 'slug_json'] as $column) {
+                    if (Schema::hasColumn('categories', $column)) {
+                        $columns[] = $column;
+                    }
+                }
+                if (!empty($columns)) {
+                    $table->dropColumn($columns);
+                }
+            });
+        }
 
-        Schema::table('products', function (Blueprint $table) {
-            $table->dropColumn(['name_json', 'slug_json', 'description_json', 'meta_title_json', 'meta_description_json']);
-        });
-
-        Schema::dropIfExists('vendor_wallet_transactions');
-        Schema::dropIfExists('vendor_wallets');
+        if (Schema::hasTable('products')) {
+            Schema::table('products', function (Blueprint $table) {
+                $columns = [];
+                foreach (['name_json', 'slug_json', 'description_json', 'meta_title_json', 'meta_description_json'] as $column) {
+                    if (Schema::hasColumn('products', $column)) {
+                        $columns[] = $column;
+                    }
+                }
+                if (!empty($columns)) {
+                    $table->dropColumn($columns);
+                }
+            });
+        }
         Schema::dropIfExists('country_configs');
     }
 };

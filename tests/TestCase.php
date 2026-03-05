@@ -6,6 +6,16 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        \Illuminate\Support\Facades\URL::defaults([
+            'country' => 'sa',
+            'lang' => 'ar',
+        ]);
+    }
+
     /**
      * Creates the application.
      */

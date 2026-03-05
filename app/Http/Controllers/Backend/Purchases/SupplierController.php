@@ -47,6 +47,12 @@ class SupplierController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        $suppliers->setCollection(
+            $suppliers->getCollection()->transform(function ($supplier) {
+                return $supplier->makeHidden(['password', 'remember_token']);
+            })
+        );
+
         return Inertia::render('Backend/04-Purchases/Suppliers', [
             'suppliers' => $suppliers,
             'filters' => request()->all(['search', 'group_id']),
@@ -208,6 +214,7 @@ class SupplierController extends Controller
         DB::beginTransaction();
         try {
             $data = $request->validated();
+            unset($data['password_confirmation']);
             
             // Auto-generate supplier code
             $latest = Supplier::latest('id')->first();
@@ -282,6 +289,10 @@ class SupplierController extends Controller
         try {
             $supplier = Supplier::findOrFail($id);
             $data = $request->validated();
+            unset($data['password_confirmation']);
+            if (empty($data['password'] ?? null)) {
+                unset($data['password']);
+            }
 
             // Update Supplier
             $supplier->update($data);

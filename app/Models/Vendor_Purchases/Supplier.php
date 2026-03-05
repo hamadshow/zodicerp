@@ -61,6 +61,11 @@ class Supplier extends Authenticatable
         'created_by',
     ];
 
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
     protected $casts = [
         'store_name_json' => 'array',
         'store_description_json' => 'array',

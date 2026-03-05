@@ -27,6 +27,8 @@ class StoreSupplierRequest extends FormRequest
             'email' => 'nullable|email|max:255',
             'primary_phone' => 'nullable|string|max:20',
             'is_active' => 'boolean',
+            'password' => 'nullable|string|min:8',
+            'password_confirmation' => 'required_with:password|same:password|min:8',
 
             // Addresses
             'addresses' => 'nullable|array',

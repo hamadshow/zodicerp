@@ -835,4 +835,9 @@ class HomeController extends Controller
         
         return $transformed;
     }
+
+    public function suppliers()
+    {
+        return Inertia::render('Suppliers/Suppliers');
+    }
 }

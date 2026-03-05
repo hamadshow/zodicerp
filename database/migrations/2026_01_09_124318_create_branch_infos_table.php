@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             
             // Basic Information
-            $table->foreignId('company_id')->constrained('company_infos')->onDelete('cascade');
+            $table->foreignId('company_id')->constrained('company')->onDelete('cascade');
             $table->string('branch_code')->unique()->nullable();
             $table->string('branch_name');
             $table->string('english_name')->nullable();

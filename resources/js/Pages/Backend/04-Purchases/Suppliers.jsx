@@ -9,6 +9,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
     const [activeTab, setActiveTab] = useState('general');
     const [search, setSearch] = useState(filters?.search || '');
     const [accountOpen, setAccountOpen] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
     const accountDropdownRef = useRef(null);
 
     const handleSearch = (e) => {
@@ -22,10 +23,15 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
     const [invalidRows, setInvalidRows] = useState([]);
     const [importSummary, setImportSummary] = useState({});
     const [importLoading, setImportLoading] = useState(false);
+    const [importError, setImportError] = useState(null);
+    const [errorMessage, setErrorMessage] = useState(null);
     const fileInputRef = useRef(null);
 
     const { props } = usePage();
     const flash = (props && props.flash) ? props.flash : {};
+
+    // Helper to get nested errors
+    const getNestedError = (field, index, key) => errors[`${field}.${index}.${key}`];
 
     const { data, setData, post, put, delete: destroy, processing, errors, reset } = useForm({
         supplier_code: '',
@@ -34,6 +40,8 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         supplier_group_id: '',
         account_id: '',
         currency_id: '',
+        password: '',
+        password_confirmation: '',
         tax_number: '',
         commercial_register: '',
         tax_file_number: '',
@@ -83,6 +91,14 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    useEffect(() => {
+        if (mode === 'create' || mode === 'edit') {
+            setData('password', '');
+            setData('password_confirmation', '');
+            setShowPassword(false);
+        }
+    }, [mode]);
+
     const handleCreate = () => {
         reset();
         setMode('create');
@@ -92,6 +108,8 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
     const handleEdit = (supplier) => {
         // Transform supplier data to match form structure
         // Especially opening balance which might be a collection
+        const supplierWithoutPassword = { ...supplier };
+        delete supplierWithoutPassword.password;
         const ob = supplier.opening_balances && supplier.opening_balances.length > 0 
             ? supplier.opening_balances[0] 
             : {
@@ -105,7 +123,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
             };
 
         setData({
-            ...supplier,
+            ...supplierWithoutPassword,
             addresses: supplier.addresses || [],
             contacts: supplier.contacts || [],
             opening_balance: ob,
@@ -113,6 +131,8 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
             is_vendor: Boolean(supplier.is_vendor),
             is_manufacturer: Boolean(supplier.is_manufacturer),
             is_active: Boolean(supplier.is_active),
+            password: '',
+            password_confirmation: '',
         });
         setMode('edit');
         setActiveTab('general');
@@ -120,7 +140,9 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this supplier?')) {
-            destroy(route('admin.purchases.suppliers.destroy', { supplier: id }));
+            destroy(route('admin.purchases.suppliers.destroy', { supplier: id }), {
+                onError: () => setErrorMessage("Failed to delete supplier.")
+            });
         }
     };
 
@@ -128,22 +150,33 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         router.post(route('admin.purchases.suppliers.toggleFavorite', { supplier: supplier.id }), {}, {
             preserveScroll: true,
             preserveState: true,
+            onError: () => setErrorMessage("Failed to update favorite status.")
         });
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        setErrorMessage(null); // Clear previous errors
+        
+        const handleError = (errors) => {
+            setErrorMessage("Please correct the errors below.");
+            if (Object.keys(errors).some(k => k.startsWith('addresses'))) setActiveTab('addresses');
+            else if (Object.keys(errors).some(k => k.startsWith('contacts'))) setActiveTab('contacts');
+            else if (Object.keys(errors).some(k => k.startsWith('opening_balance'))) setActiveTab('opening_balance');
+            else setActiveTab('general');
+        };
+
         if (mode === 'create') {
             post(route('admin.purchases.suppliers.store'), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
-                onError: () => setActiveTab('general'),
+                onError: handleError,
             });
         } else {
             put(route('admin.purchases.suppliers.update', { supplier: data.id }), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
-                onError: () => setActiveTab('general'),
+                onError: handleError,
             });
         }
     };
@@ -178,6 +211,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
     const handleFileUpload = (file) => {
         if (!file) return;
         setImportLoading(true);
+        setImportError(null);
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
@@ -187,7 +221,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                 const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
                 processExcelData(jsonData);
             } catch (err) {
-                alert(err?.message || 'Error reading file');
+                setImportError(err?.message || 'Error reading file');
                 setImportLoading(false);
             }
         };
@@ -196,17 +230,18 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
     const handleFileDrop = (e) => {
         e.preventDefault();
+        setImportError(null);
         const file = e.dataTransfer.files[0];
         if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
             handleFileUpload(file);
         } else {
-            alert('Please upload a valid Excel file (.xlsx, .xls)');
+            setImportError('Please upload a valid Excel file (.xlsx, .xls)');
         }
     };
 
     const processExcelData = (rows) => {
         if (rows.length < 2) {
-            alert('File is empty or missing headers');
+            setImportError('File is empty or missing headers');
             setImportLoading(false);
             return;
         }
@@ -291,6 +326,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
     const submitImport = () => {
         if (excelRows.length === 0) return;
+        setImportError(null);
         const batch_id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
         router.post(route('admin.purchases.suppliers.bulkImport'), {
             rows: excelRows,
@@ -302,6 +338,10 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                 setInvalidRows([]);
                 setImportSummary({});
                 // Optional: Force reload or show success message via flash
+            },
+            onError: (errors) => {
+                setImportError('Failed to import. Please check the file format or server logs.');
+                console.error(errors);
             }
         });
     };
@@ -310,18 +350,20 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         <AdminLayout>
             <Head title="Suppliers Management" />
             
-            <div className="suppliers-module">
-                <div className="suppliers-module__header">
-                    <h1>Suppliers Management</h1>
+            <div className="suppliers-container">
+
+
+                <div className="page-header">
+                    <h1 className="header-title">Suppliers Management</h1>
                     {mode === 'list' && (
-                        <div className="header-actions">
-                            <form onSubmit={handleSearch} className="search-form" style={{ marginRight: '1rem' }}>
+                        <div className="suppliers-actions">
+                            <form onSubmit={handleSearch} className="search-form">
                                 <input
                                     type="text"
+                                    className="search-input"
                                     placeholder="Search suppliers..."
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0' }}
                                 />
                             </form>
                              <button className="btn-import" onClick={() => setShowImport(true)}>
@@ -344,10 +386,16 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                         {flash.error}
                     </div>
                 )}
+                {errorMessage && (
+                    <div className="alert alert--error">
+                        {errorMessage}
+                    </div>
+                )}
 
                 {mode === 'list' ? (
-                    <div className="suppliers-module__table-container">
-                        <table>
+                    <div className="suppliers-card">
+                        <div className="table-responsive">
+                            <table className="data-table">
                             <thead>
                                 <tr>
                                     <th>Code</th>
@@ -388,21 +436,26 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                             })()}
                                         </td>
                                         <td>
-                                            <span className={`status-badge ${supplier.is_active ? 'active' : 'inactive'}`}>
+                                            <span className={`supplier-status ${supplier.is_active ? 'status-active' : 'status-inactive'}`}>
                                                 {supplier.is_active ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
-                                        <td className="actions">
-                                            <button 
-                                                className="btn-icon"
+                                        <td>
+                                            <div className="action-buttons">
+                                                <button 
+                                                className={`btn-favorite ${supplier.favorite ? 'active' : ''}`}
                                                 onClick={() => handleToggleFavorite(supplier)}
                                                 title={supplier.favorite ? "Unfavorite" : "Favorite"}
-                                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: supplier.favorite ? '#FFD700' : '#ccc', marginRight: '5px' }}
                                             >
                                                 {supplier.favorite ? '★' : '☆'}
                                             </button>
-                                            <button className="edit" onClick={() => handleEdit(supplier)}>Edit</button>
-                                            <button className="delete" onClick={() => handleDelete(supplier.id)}>Delete</button>
+                                            <button className="btn-icon edit" onClick={() => handleEdit(supplier)} title="Edit">
+                                                <i className="fas fa-edit"></i>
+                                            </button>
+                                            <button className="btn-icon delete" onClick={() => handleDelete(supplier.id)} title="Delete">
+                                                <i className="fas fa-trash"></i>
+                                            </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -413,6 +466,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                 )}
                             </tbody>
                         </table>
+                    </div>
                         <Pagination
                             currentPage={suppliers.current_page}
                             totalPages={suppliers.last_page}
@@ -423,8 +477,8 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                         />
                     </div>
                 ) : (
-                    <form onSubmit={handleSubmit} className="suppliers-module__form-container">
-                        <div className="suppliers-module__tabs">
+                    <form onSubmit={handleSubmit} className="suppliers-card">
+                        <div className="tabs">
                             {['general', 'addresses', 'contacts', 'opening_balance'].map(tab => (
                                 <button
                                     key={tab}
@@ -438,58 +492,68 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                         </div>
 
                         {/* GENERAL TAB */}
-                        <div className={`suppliers-module__tab-content ${activeTab === 'general' ? 'active' : ''}`}>
-                            <div className="suppliers-module__grid">
-                                <div className="suppliers-module__group">
-                                    <label>Supplier Code <span className="required">*</span></label>
+                        <div className={`tab-content ${activeTab === 'general' ? 'active' : ''}`}>
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Supplier Code <span className="required">*</span></label>
                                     <input 
                                         type="text" 
+                                        className={`form-control ${errors.supplier_code ? 'is-invalid' : ''}`}
                                         value={data.supplier_code} 
                                         onChange={e => setData('supplier_code', e.target.value)}
-                                        className={errors.supplier_code ? 'error' : ''}
                                         disabled={mode === 'create'}
                                         placeholder={mode === 'create' ? "Auto-generated (e.g. SUP-10001)" : ""}
                                     />
-                                    {errors.supplier_code && <span className="error-msg">{errors.supplier_code}</span>}
+                                    {errors.supplier_code && <span className="invalid-feedback">{errors.supplier_code}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Name (AR)</label>
+                                <div className="form-group">
+                                    <label className="form-label">Name (AR)</label>
                                     <input 
                                         type="text" 
+                                        className={`form-control ${errors.name_ar ? 'is-invalid' : ''}`}
                                         value={data.name_ar} 
                                         onChange={e => setData('name_ar', e.target.value)}
                                     />
+                                    {errors.name_ar && <span className="invalid-feedback">{errors.name_ar}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Name (EN) <span className="required">*</span></label>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Name (EN) <span className="required">*</span></label>
                                     <input 
                                         type="text" 
+                                        className={`form-control ${errors.name_en ? 'is-invalid' : ''}`}
                                         value={data.name_en} 
                                         onChange={e => setData('name_en', e.target.value)}
-                                        className={errors.name_en ? 'error' : ''}
                                     />
-                                    {errors.name_en && <span className="error-msg">{errors.name_en}</span>}
+                                    {errors.name_en && <span className="invalid-feedback">{errors.name_en}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Group</label>
-                                    <select value={data.supplier_group_id} onChange={e => setData('supplier_group_id', e.target.value)}>
+                                <div className="form-group">
+                                    <label className="form-label">Group</label>
+                                    <select className={`form-control ${errors.supplier_group_id ? 'is-invalid' : ''}`} value={data.supplier_group_id} onChange={e => setData('supplier_group_id', e.target.value)}>
                                         <option value="">Select Group</option>
                                         {groups.map(g => <option key={g.id} value={g.id}>{g.name_en}</option>)}
                                     </select>
+                                    {errors.supplier_group_id && <span className="invalid-feedback">{errors.supplier_group_id}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Currency</label>
-                                    <select value={data.currency_id} onChange={e => setData('currency_id', e.target.value)}>
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Currency</label>
+                                    <select className={`form-control ${errors.currency_id ? 'is-invalid' : ''}`} value={data.currency_id} onChange={e => setData('currency_id', e.target.value)}>
                                         <option value="">Select Currency</option>
                                         {currencies.map(c => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
                                     </select>
+                                    {errors.currency_id && <span className="invalid-feedback">{errors.currency_id}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Account</label>
+                                <div className="form-group">
+                                    <label className="form-label">Account</label>
                                     <div className="select-dropdown" ref={accountDropdownRef}>
                                         <button
                                             type="button"
-                                            className={`select-dropdown__button ${!data.account_id ? 'is-placeholder' : ''}`}
+                                            className={`select-dropdown__button ${!data.account_id ? 'is-placeholder' : ''} ${errors.account_id ? 'is-invalid' : ''}`}
                                             onClick={() => setAccountOpen(prev => !prev)}
                                         >
                                             <span>{selectedAccount ? selectedAccount.Name_en : 'Select Account'}</span>
@@ -533,92 +597,176 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                             </div>
                                         )}
                                     </div>
+                                    {errors.account_id && <span className="invalid-feedback">{errors.account_id}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Tax Number</label>
-                                    <input type="text" value={data.tax_number} onChange={e => setData('tax_number', e.target.value)} />
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Tax Number</label>
+                                    <input className={`form-control ${errors.tax_number ? 'is-invalid' : ''}`} type="text" value={data.tax_number} onChange={e => setData('tax_number', e.target.value)} />
+                                    {errors.tax_number && <span className="invalid-feedback">{errors.tax_number}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Commercial Register</label>
-                                    <input type="text" value={data.commercial_register} onChange={e => setData('commercial_register', e.target.value)} />
+                                <div className="form-group">
+                                    <label className="form-label">Commercial Register</label>
+                                    <input className={`form-control ${errors.commercial_register ? 'is-invalid' : ''}`} type="text" value={data.commercial_register} onChange={e => setData('commercial_register', e.target.value)} />
+                                    {errors.commercial_register && <span className="invalid-feedback">{errors.commercial_register}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Credit Limit</label>
-                                    <input type="number" value={data.credit_limit} onChange={e => setData('credit_limit', e.target.value)} />
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Credit Limit</label>
+                                    <input className={`form-control ${errors.credit_limit ? 'is-invalid' : ''}`} type="number" value={data.credit_limit} onChange={e => setData('credit_limit', e.target.value)} />
+                                    {errors.credit_limit && <span className="invalid-feedback">{errors.credit_limit}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Primary Phone</label>
-                                    <input type="text" value={data.primary_phone} onChange={e => setData('primary_phone', e.target.value)} />
+                                <div className="form-group">
+                                    <label className="form-label">Primary Phone</label>
+                                    <input className={`form-control ${errors.primary_phone ? 'is-invalid' : ''}`} type="text" value={data.primary_phone} onChange={e => setData('primary_phone', e.target.value)} />
+                                    {errors.primary_phone && <span className="invalid-feedback">{errors.primary_phone}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Email</label>
-                                    <input type="email" value={data.email} onChange={e => setData('email', e.target.value)} />
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Email</label>
+                                    <input className={`form-control ${errors.email ? 'is-invalid' : ''}`} type="email" value={data.email} onChange={e => setData('email', e.target.value)} />
+                                    {errors.email && <span className="invalid-feedback">{errors.email}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Website</label>
-                                    <input type="text" value={data.website} onChange={e => setData('website', e.target.value)} />
+                                <div className="form-group">
+                                    <label className="form-label">Website</label>
+                                    <input className={`form-control ${errors.website ? 'is-invalid' : ''}`} type="text" value={data.website} onChange={e => setData('website', e.target.value)} />
+                                    {errors.website && <span className="invalid-feedback">{errors.website}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Is Active</label>
-                                    <input type="checkbox" checked={data.is_active} onChange={e => setData('is_active', e.target.checked)} />
+                            </div>
+
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Password</label>
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+                                        value={data.password}
+                                        onChange={e => setData('password', e.target.value)}
+                                        autoComplete="new-password"
+                                    />
+                                    {errors.password && <span className="invalid-feedback">{errors.password}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Is Vendor</label>
-                                    <input type="checkbox" checked={data.is_vendor} onChange={e => setData('is_vendor', e.target.checked)} />
+                                <div className="form-group">
+                                    <label className="form-label">Confirm Password</label>
+                                    <input
+                                        type={showPassword ? 'text' : 'password'}
+                                        className={`form-control ${errors.password_confirmation ? 'is-invalid' : ''}`}
+                                        value={data.password_confirmation}
+                                        onChange={e => setData('password_confirmation', e.target.value)}
+                                        autoComplete="new-password"
+                                    />
+                                    {errors.password_confirmation && <span className="invalid-feedback">{errors.password_confirmation}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Is Manufacturer</label>
-                                    <input type="checkbox" checked={data.is_manufacturer} onChange={e => setData('is_manufacturer', e.target.checked)} />
+                            </div>
+                            <div className="checkbox-row">
+                                <div className="checkbox-group">
+                                    <input
+                                        type="checkbox"
+                                        checked={showPassword}
+                                        onChange={e => setShowPassword(e.target.checked)}
+                                        id="show_password"
+                                    />
+                                    <label className="form-label" htmlFor="show_password">Show Password</label>
+                                </div>
+                            </div>
+
+                            <div className="checkbox-row">
+                                <div className="checkbox-group">
+                                    <input type="checkbox" checked={data.is_active} onChange={e => setData('is_active', e.target.checked)} id="is_active" />
+                                    <label className="form-label" htmlFor="is_active">Is Active</label>
+                                </div>
+                                <div className="checkbox-group">
+                                    <input type="checkbox" checked={data.is_vendor} onChange={e => setData('is_vendor', e.target.checked)} id="is_vendor" />
+                                    <label className="form-label" htmlFor="is_vendor">Is Vendor</label>
+                                </div>
+                                <div className="checkbox-group">
+                                    <input type="checkbox" checked={data.is_manufacturer} onChange={e => setData('is_manufacturer', e.target.checked)} id="is_manufacturer" />
+                                    <label className="form-label" htmlFor="is_manufacturer">Is Manufacturer</label>
                                 </div>
                             </div>
                         </div>
 
                         {/* ADDRESSES TAB */}
-                        <div className={`suppliers-module__tab-content ${activeTab === 'addresses' ? 'active' : ''}`}>
-                            <button type="button" className="add-more-btn" onClick={() => addNested('addresses', { address_type: '', address_name: '', street: '', city_id: '', country_id: '' })}>
-                                + Add Address
-                            </button>
-                            <div className="card-list">
+                        <div className={`tab-content ${activeTab === 'addresses' ? 'active' : ''}`}>
+                            <div className="form-group">
+                                <button type="button" className="btn-secondary" onClick={() => addNested('addresses', { address_type: '', address_name: '', street: '', city_id: '', country_id: '' })}>
+                                    + Add Address
+                                </button>
+                            </div>
+                            <div>
                                 {data.addresses.map((address, index) => (
-                                    <div key={index} className="card-item">
-                                        <div className="card-item__header">
-                                            <span>Address #{index + 1}</span>
+                                    <div key={index} className="nested-card">
+                                        <div className="nested-card-header">
+                                            <h4 className="nested-card-title">Address #{index + 1}</h4>
+                                            <button type="button" className="btn-danger btn-sm" onClick={() => removeNested('addresses', index)}>Remove</button>
                                         </div>
-                                        <div className="card-item__actions">
-                                            <button type="button" onClick={() => removeNested('addresses', index)}>Remove</button>
-                                        </div>
-                                        <div className="suppliers-module__grid">
-                                            <div className="suppliers-module__group">
-                                                <label>Type</label>
-                                                <select value={address.address_type} onChange={e => updateNested('addresses', index, 'address_type', e.target.value)}>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label className="form-label">Type</label>
+                                                <select 
+                                                    className={`form-control ${getNestedError('addresses', index, 'address_type') ? 'is-invalid' : ''}`} 
+                                                    value={address.address_type} 
+                                                    onChange={e => updateNested('addresses', index, 'address_type', e.target.value)}
+                                                >
                                                     <option value="">Select Type</option>
                                                     <option value="billing">Billing</option>
                                                     <option value="shipping">Shipping</option>
                                                 </select>
+                                                {getNestedError('addresses', index, 'address_type') && <span className="invalid-feedback">{getNestedError('addresses', index, 'address_type')}</span>}
                                             </div>
-                                            <div className="suppliers-module__group">
-                                                <label>Name</label>
-                                                <input type="text" value={address.address_name} onChange={e => updateNested('addresses', index, 'address_name', e.target.value)} />
+                                            <div className="form-group">
+                                                <label className="form-label">Name</label>
+                                                <input 
+                                                    className={`form-control ${getNestedError('addresses', index, 'address_name') ? 'is-invalid' : ''}`} 
+                                                    type="text" 
+                                                    value={address.address_name} 
+                                                    onChange={e => updateNested('addresses', index, 'address_name', e.target.value)} 
+                                                />
+                                                {getNestedError('addresses', index, 'address_name') && <span className="invalid-feedback">{getNestedError('addresses', index, 'address_name')}</span>}
                                             </div>
-                                            <div className="suppliers-module__group">
-                                                <label>Street</label>
-                                                <input type="text" value={address.street} onChange={e => updateNested('addresses', index, 'street', e.target.value)} />
+                                            <div className="form-group">
+                                                <label className="form-label">Street</label>
+                                                <input 
+                                                    className={`form-control ${getNestedError('addresses', index, 'street') ? 'is-invalid' : ''}`} 
+                                                    type="text" 
+                                                    value={address.street} 
+                                                    onChange={e => updateNested('addresses', index, 'street', e.target.value)} 
+                                                />
+                                                {getNestedError('addresses', index, 'street') && <span className="invalid-feedback">{getNestedError('addresses', index, 'street')}</span>}
                                             </div>
-                                            <div className="suppliers-module__group">
-                                                <label>Country</label>
-                                                <select value={address.country_id} onChange={e => updateNested('addresses', index, 'country_id', e.target.value)}>
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label className="form-label">Country</label>
+                                                <select 
+                                                    className={`form-control ${getNestedError('addresses', index, 'country_id') ? 'is-invalid' : ''}`} 
+                                                    value={address.country_id} 
+                                                    onChange={e => updateNested('addresses', index, 'country_id', e.target.value)}
+                                                >
                                                     <option value="">Select Country</option>
                                                     {countries.map(c => <option key={c.id} value={c.id}>{c.name_en}</option>)}
                                                 </select>
+                                                {getNestedError('addresses', index, 'country_id') && <span className="invalid-feedback">{getNestedError('addresses', index, 'country_id')}</span>}
                                             </div>
-                                            <div className="suppliers-module__group">
-                                                <label>City</label>
-                                                <select value={address.city_id} onChange={e => updateNested('addresses', index, 'city_id', e.target.value)}>
+                                            <div className="form-group">
+                                                <label className="form-label">City</label>
+                                                <select 
+                                                    className={`form-control ${getNestedError('addresses', index, 'city_id') ? 'is-invalid' : ''}`} 
+                                                    value={address.city_id} 
+                                                    onChange={e => updateNested('addresses', index, 'city_id', e.target.value)}
+                                                >
                                                     <option value="">Select City</option>
                                                     {cities.filter(c => !address.country_id || c.country_id == address.country_id).map(c => (
                                                         <option key={c.id} value={c.id}>{c.name_en}</option>
                                                     ))}
                                                 </select>
+                                                {getNestedError('addresses', index, 'city_id') && <span className="invalid-feedback">{getNestedError('addresses', index, 'city_id')}</span>}
                                             </div>
                                         </div>
                                     </div>
@@ -627,79 +775,139 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                         </div>
 
                         {/* CONTACTS TAB */}
-                        <div className={`suppliers-module__tab-content ${activeTab === 'contacts' ? 'active' : ''}`}>
-                            <button type="button" className="add-more-btn" onClick={() => addNested('contacts', { 
-                                name_ar: '', name_en: '', phone: '', mobile: '', whatsapp: '', email: '', 
-                                department: '', position_ar: '', position_en: '', 
-                                is_primary: false, receive_statements: false, receive_notifications: false, notes: '' 
-                            })}>
-                                + Add Contact
-                            </button>
-                            <div className="card-list">
+                        <div className={`tab-content ${activeTab === 'contacts' ? 'active' : ''}`}>
+                            <div className="form-group">
+                                <button type="button" className="btn-secondary" onClick={() => addNested('contacts', { 
+                                    name_ar: '', name_en: '', phone: '', mobile: '', whatsapp: '', email: '', 
+                                    department: '', position_ar: '', position_en: '', 
+                                    is_primary: false, receive_statements: false, receive_notifications: false, notes: '' 
+                                })}>
+                                    + Add Contact
+                                </button>
+                            </div>
+                            <div>
                                 {data.contacts.map((contact, index) => (
-                                    <div key={index} className="card-item">
-                                        <div className="card-item__header">
-                                            <span>Contact #{index + 1}</span>
+                                    <div key={index} className="nested-card">
+                                        <div className="nested-card-header">
+                                            <h4 className="nested-card-title">Contact #{index + 1}</h4>
+                                            <button type="button" className="btn-danger btn-sm" onClick={() => removeNested('contacts', index)}>Remove</button>
                                         </div>
-                                        <div className="card-item__actions">
-                                            <button type="button" onClick={() => removeNested('contacts', index)}>Remove</button>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label className="form-label">Name (AR) <span className="required">*</span></label>
+                                                <input 
+                                                    className={`form-control ${getNestedError('contacts', index, 'name_ar') ? 'is-invalid' : ''}`} 
+                                                    type="text" 
+                                                    value={contact.name_ar || ''} 
+                                                    onChange={e => updateNested('contacts', index, 'name_ar', e.target.value)} 
+                                                />
+                                                {getNestedError('contacts', index, 'name_ar') && <span className="invalid-feedback">{getNestedError('contacts', index, 'name_ar')}</span>}
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Name (EN)</label>
+                                                <input 
+                                                    className={`form-control ${getNestedError('contacts', index, 'name_en') ? 'is-invalid' : ''}`} 
+                                                    type="text" 
+                                                    value={contact.name_en || ''} 
+                                                    onChange={e => updateNested('contacts', index, 'name_en', e.target.value)} 
+                                                />
+                                                {getNestedError('contacts', index, 'name_en') && <span className="invalid-feedback">{getNestedError('contacts', index, 'name_en')}</span>}
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">Department</label>
+                                                <input 
+                                                    className={`form-control ${getNestedError('contacts', index, 'department') ? 'is-invalid' : ''}`} 
+                                                    type="text" 
+                                                    value={contact.department || ''} 
+                                                    onChange={e => updateNested('contacts', index, 'department', e.target.value)} 
+                                                />
+                                                {getNestedError('contacts', index, 'department') && <span className="invalid-feedback">{getNestedError('contacts', index, 'department')}</span>}
+                                            </div>
                                         </div>
-                                        <div className="suppliers-module__grid">
-                                            <div className="suppliers-module__group">
-                                                <label>Name (AR) <span className="required">*</span></label>
-                                                <input type="text" value={contact.name_ar || ''} onChange={e => updateNested('contacts', index, 'name_ar', e.target.value)} />
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label className="form-label">Position (AR)</label>
+                                                <input 
+                                                    className={`form-control ${getNestedError('contacts', index, 'position_ar') ? 'is-invalid' : ''}`} 
+                                                    type="text" 
+                                                    value={contact.position_ar || ''} 
+                                                    onChange={e => updateNested('contacts', index, 'position_ar', e.target.value)} 
+                                                />
+                                                {getNestedError('contacts', index, 'position_ar') && <span className="invalid-feedback">{getNestedError('contacts', index, 'position_ar')}</span>}
                                             </div>
-                                            <div className="suppliers-module__group">
-                                                <label>Name (EN)</label>
-                                                <input type="text" value={contact.name_en || ''} onChange={e => updateNested('contacts', index, 'name_en', e.target.value)} />
+                                            <div className="form-group">
+                                                <label className="form-label">Position (EN)</label>
+                                                <input 
+                                                    className={`form-control ${getNestedError('contacts', index, 'position_en') ? 'is-invalid' : ''}`} 
+                                                    type="text" 
+                                                    value={contact.position_en || ''} 
+                                                    onChange={e => updateNested('contacts', index, 'position_en', e.target.value)} 
+                                                />
+                                                {getNestedError('contacts', index, 'position_en') && <span className="invalid-feedback">{getNestedError('contacts', index, 'position_en')}</span>}
                                             </div>
-                                            <div className="suppliers-module__group">
-                                                <label>Department</label>
-                                                <input type="text" value={contact.department || ''} onChange={e => updateNested('contacts', index, 'department', e.target.value)} />
+                                            <div className="form-group">
+                                                <label className="form-label">Phone</label>
+                                                <input 
+                                                    className={`form-control ${getNestedError('contacts', index, 'phone') ? 'is-invalid' : ''}`} 
+                                                    type="text" 
+                                                    value={contact.phone || ''} 
+                                                    onChange={e => updateNested('contacts', index, 'phone', e.target.value)} 
+                                                />
+                                                {getNestedError('contacts', index, 'phone') && <span className="invalid-feedback">{getNestedError('contacts', index, 'phone')}</span>}
                                             </div>
-                                            <div className="suppliers-module__group">
-                                                <label>Position (AR)</label>
-                                                <input type="text" value={contact.position_ar || ''} onChange={e => updateNested('contacts', index, 'position_ar', e.target.value)} />
+                                        </div>
+                                        <div className="form-row">
+                                            <div className="form-group">
+                                                <label className="form-label">Mobile</label>
+                                                <input 
+                                                    className={`form-control ${getNestedError('contacts', index, 'mobile') ? 'is-invalid' : ''}`} 
+                                                    type="text" 
+                                                    value={contact.mobile || ''} 
+                                                    onChange={e => updateNested('contacts', index, 'mobile', e.target.value)} 
+                                                />
+                                                {getNestedError('contacts', index, 'mobile') && <span className="invalid-feedback">{getNestedError('contacts', index, 'mobile')}</span>}
                                             </div>
-                                            <div className="suppliers-module__group">
-                                                <label>Position (EN)</label>
-                                                <input type="text" value={contact.position_en || ''} onChange={e => updateNested('contacts', index, 'position_en', e.target.value)} />
+                                            <div className="form-group">
+                                                <label className="form-label">WhatsApp</label>
+                                                <input 
+                                                    className={`form-control ${getNestedError('contacts', index, 'whatsapp') ? 'is-invalid' : ''}`} 
+                                                    type="text" 
+                                                    value={contact.whatsapp || ''} 
+                                                    onChange={e => updateNested('contacts', index, 'whatsapp', e.target.value)} 
+                                                />
+                                                {getNestedError('contacts', index, 'whatsapp') && <span className="invalid-feedback">{getNestedError('contacts', index, 'whatsapp')}</span>}
                                             </div>
-                                            <div className="suppliers-module__group">
-                                                <label>Phone</label>
-                                                <input type="text" value={contact.phone || ''} onChange={e => updateNested('contacts', index, 'phone', e.target.value)} />
+                                            <div className="form-group">
+                                                <label className="form-label">Telegram</label>
+                                                <input 
+                                                    className={`form-control ${getNestedError('contacts', index, 'telegram') ? 'is-invalid' : ''}`} 
+                                                    type="text" 
+                                                    value={contact.telegram || ''} 
+                                                    onChange={e => updateNested('contacts', index, 'telegram', e.target.value)} 
+                                                />
+                                                {getNestedError('contacts', index, 'telegram') && <span className="invalid-feedback">{getNestedError('contacts', index, 'telegram')}</span>}
                                             </div>
-                                            <div className="suppliers-module__group">
-                                                <label>Mobile</label>
-                                                <input type="text" value={contact.mobile || ''} onChange={e => updateNested('contacts', index, 'mobile', e.target.value)} />
+                                        </div>
+                                        
+                                        {/* Booleans */}
+                                        <div className="checkbox-row">
+                                            <div className="checkbox-group">
+                                                <input type="checkbox" checked={Boolean(contact.is_primary)} onChange={e => updateNested('contacts', index, 'is_primary', e.target.checked)} id={`contact-primary-${index}`} />
+                                                <label htmlFor={`contact-primary-${index}`} className="form-label">Is Primary</label>
                                             </div>
-                                            <div className="suppliers-module__group">
-                                                <label>WhatsApp</label>
-                                                <input type="text" value={contact.whatsapp || ''} onChange={e => updateNested('contacts', index, 'whatsapp', e.target.value)} />
+                                            <div className="checkbox-group">
+                                                <input type="checkbox" checked={Boolean(contact.receive_statements)} onChange={e => updateNested('contacts', index, 'receive_statements', e.target.checked)} id={`contact-statements-${index}`} />
+                                                <label htmlFor={`contact-statements-${index}`} className="form-label">Receive Statements</label>
                                             </div>
-                                            <div className="suppliers-module__group">
-                                                <label>Telegram</label>
-                                                <input type="text" value={contact.telegram || ''} onChange={e => updateNested('contacts', index, 'telegram', e.target.value)} />
+                                            <div className="checkbox-group">
+                                                <input type="checkbox" checked={Boolean(contact.receive_notifications)} onChange={e => updateNested('contacts', index, 'receive_notifications', e.target.checked)} id={`contact-notifications-${index}`} />
+                                                <label htmlFor={`contact-notifications-${index}`} className="form-label">Receive Notifications</label>
                                             </div>
-                                            
-                                            {/* Booleans */}
-                                            <div className="suppliers-module__group">
-                                                <label>Is Primary</label>
-                                                <input type="checkbox" checked={Boolean(contact.is_primary)} onChange={e => updateNested('contacts', index, 'is_primary', e.target.checked)} />
-                                            </div>
-                                            <div className="suppliers-module__group">
-                                                <label>Receive Statements</label>
-                                                <input type="checkbox" checked={Boolean(contact.receive_statements)} onChange={e => updateNested('contacts', index, 'receive_statements', e.target.checked)} />
-                                            </div>
-                                            <div className="suppliers-module__group">
-                                                <label>Receive Notifications</label>
-                                                <input type="checkbox" checked={Boolean(contact.receive_notifications)} onChange={e => updateNested('contacts', index, 'receive_notifications', e.target.checked)} />
-                                            </div>
+                                        </div>
 
-                                            <div className="suppliers-module__group--full">
-                                                <label>Notes</label>
-                                                <textarea value={contact.notes || ''} onChange={e => updateNested('contacts', index, 'notes', e.target.value)} />
-                                            </div>
+                                        <div className="form-group-full">
+                                            <label className="form-label">Notes</label>
+                                            <textarea className="form-control form-textarea" value={contact.notes || ''} onChange={e => updateNested('contacts', index, 'notes', e.target.value)} />
                                         </div>
                                     </div>
                                 ))}
@@ -707,72 +915,88 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                         </div>
 
                         {/* OPENING BALANCE TAB */}
-                        <div className={`suppliers-module__tab-content ${activeTab === 'opening_balance' ? 'active' : ''}`}>
-                             <div className="suppliers-module__grid">
-                                <div className="suppliers-module__group">
-                                    <label>Financial Year</label>
+                        <div className={`tab-content ${activeTab === 'opening_balance' ? 'active' : ''}`}>
+                             <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Financial Year</label>
                                     <input 
+                                        className={`form-control ${errors['opening_balance.financial_year'] ? 'is-invalid' : ''}`}
                                         type="number" 
                                         value={data.opening_balance.financial_year} 
                                         onChange={e => setData('opening_balance', { ...data.opening_balance, financial_year: e.target.value })} 
                                     />
+                                    {errors['opening_balance.financial_year'] && <span className="invalid-feedback">{errors['opening_balance.financial_year']}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Opening Date</label>
+                                <div className="form-group">
+                                    <label className="form-label">Opening Date</label>
                                     <input 
+                                        className={`form-control ${errors['opening_balance.opening_date'] ? 'is-invalid' : ''}`}
                                         type="date" 
                                         value={data.opening_balance.opening_date} 
                                         onChange={e => setData('opening_balance', { ...data.opening_balance, opening_date: e.target.value })} 
                                     />
+                                    {errors['opening_balance.opening_date'] && <span className="invalid-feedback">{errors['opening_balance.opening_date']}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Currency</label>
+                                <div className="form-group">
+                                    <label className="form-label">Currency</label>
                                     <select 
+                                        className={`form-control ${errors['opening_balance.currency_id'] ? 'is-invalid' : ''}`}
                                         value={data.opening_balance.currency_id} 
                                         onChange={e => setData('opening_balance', { ...data.opening_balance, currency_id: e.target.value })}
                                     >
                                         <option value="">Select Currency</option>
                                         {currencies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
                                     </select>
+                                    {errors['opening_balance.currency_id'] && <span className="invalid-feedback">{errors['opening_balance.currency_id']}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Exchange Rate</label>
+                             </div>
+                             <div className="form-row">
+                                <div className="form-group">
+                                    <label className="form-label">Exchange Rate</label>
                                     <input 
+                                        className={`form-control ${errors['opening_balance.exchange_rate'] ? 'is-invalid' : ''}`}
                                         type="number" 
                                         step="0.0001"
                                         value={data.opening_balance.exchange_rate} 
                                         onChange={e => setData('opening_balance', { ...data.opening_balance, exchange_rate: e.target.value })} 
                                     />
+                                    {errors['opening_balance.exchange_rate'] && <span className="invalid-feedback">{errors['opening_balance.exchange_rate']}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Debit Amount</label>
+                                <div className="form-group">
+                                    <label className="form-label">Debit Amount</label>
                                     <input 
+                                        className={`form-control ${errors['opening_balance.debit_amount'] ? 'is-invalid' : ''}`}
                                         type="number" 
                                         step="0.01"
                                         value={data.opening_balance.debit_amount} 
                                         onChange={e => setData('opening_balance', { ...data.opening_balance, debit_amount: e.target.value })} 
                                     />
+                                    {errors['opening_balance.debit_amount'] && <span className="invalid-feedback">{errors['opening_balance.debit_amount']}</span>}
                                 </div>
-                                <div className="suppliers-module__group">
-                                    <label>Credit Amount</label>
+                                <div className="form-group">
+                                    <label className="form-label">Credit Amount</label>
                                     <input 
+                                        className={`form-control ${errors['opening_balance.credit_amount'] ? 'is-invalid' : ''}`}
                                         type="number" 
                                         step="0.01"
                                         value={data.opening_balance.credit_amount} 
                                         onChange={e => setData('opening_balance', { ...data.opening_balance, credit_amount: e.target.value })} 
                                     />
+                                    {errors['opening_balance.credit_amount'] && <span className="invalid-feedback">{errors['opening_balance.credit_amount']}</span>}
                                 </div>
-                                <div className="suppliers-module__group--full">
-                                    <label>Notes</label>
-                                    <textarea 
-                                        value={data.opening_balance.notes} 
-                                        onChange={e => setData('opening_balance', { ...data.opening_balance, notes: e.target.value })} 
-                                    />
-                                </div>
+                             </div>
+                             <div className="form-group-full">
+                                <label className="form-label">Notes</label>
+                                <textarea 
+                                    className={`form-control form-textarea ${errors['opening_balance.notes'] ? 'is-invalid' : ''}`}
+                                    value={data.opening_balance.notes} 
+                                    onChange={e => setData('opening_balance', { ...data.opening_balance, notes: e.target.value })} 
+                                />
+                                {errors['opening_balance.notes'] && <span className="invalid-feedback">{errors['opening_balance.notes']}</span>}
                              </div>
                         </div>
 
-                        <div className="suppliers-module__actions">
+                        <div className="form-actions">
                             <button type="button" className="btn-secondary" onClick={() => setMode('list')}>Cancel</button>
                             <button type="submit" className="btn-primary" disabled={processing}>
                                 {mode === 'create' ? 'Create Supplier' : 'Update Supplier'}
@@ -783,13 +1007,18 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
             </div>
             {/* IMPORT MODAL */}
             {showImport && (
-                <div className="import-modal-overlay">
-                    <div className="import-modal">
-                        <div className="import-modal__header">
-                            <h2>Import Suppliers from Excel</h2>
-                            <button className="close-btn" onClick={() => setShowImport(false)}>&times;</button>
+                <div className="modal-overlay active">
+                    <div className="modal">
+                        <div className="modal-header">
+                            <h3 className="modal-title">Import Suppliers from Excel</h3>
+                            <button className="modal-close" onClick={() => setShowImport(false)}>&times;</button>
                         </div>
-                        <div className="import-modal__content">
+                        <div className="modal-body">
+                            {importError && (
+                                <div className="alert alert--error">
+                                    {importError}
+                                </div>
+                            )}
                             {!importSummary.total ? (
                                 <>
                                     <div 
@@ -807,7 +1036,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                             onChange={e => handleFileUpload(e.target.files[0])}
                                         />
                                     </div>
-                                    <div style={{ textAlign: 'center' }}>
+                                    <div className="text-center">
                                         <button className="btn-secondary" onClick={downloadTemplate}>
                                             Download Template
                                         </button>
@@ -825,12 +1054,12 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
                                     {importLoading && (
                                         <div className="progress-bar">
-                                            <div className="progress-bar__fill" style={{ width: '100%' }}></div>
+                                            <div className="progress-bar__fill"></div>
                                         </div>
                                     )}
 
-                                    <div className="table-wrapper" style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                                        <table className="import-preview-table">
+                                    <div className="table-responsive import-preview">
+                                        <table className="data-table">
                                             <thead>
                                                 <tr>
                                                     <th>Code</th>
@@ -862,12 +1091,12 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                     <tr key={`val-${i}`}>
                                                         <td>{row.supplier_code}</td>
                                                         <td>{row.name_en}</td>
-                                                        <td>{row.telegram}</td>
+                                                        <td>{row.email}</td>
                                                         <td>{row.is_active ? 'Active' : 'Inactive'}</td>
                                                         <td>-</td>
                                                         <td>
-                                                            <button className="btn-danger" onClick={() => removeImportRow(i)}>
-                                                                &times;
+                                                            <button className="btn-icon delete" onClick={() => removeImportRow(i)} title="Remove">
+                                                                <i className="fas fa-times"></i>
                                                             </button>
                                                         </td>
                                                     </tr>
@@ -878,7 +1107,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                 </>
                             )}
                         </div>
-                        <div className="import-modal__footer">
+                        <div className="modal-actions">
                             <button className="btn-secondary" onClick={() => {
                                 setShowImport(false);
                                 setExcelRows([]);

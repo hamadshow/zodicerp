@@ -38,9 +38,9 @@ return new class extends Migration
             // we probably don't want to restore it exactly. 
             // But to be consistent with migration patterns:
             
-             $table->foreign('attribute_id')
+            $table->foreign('attribute_id')
                 ->references('id')
-                ->on('attributes')
+                ->on('item_attributes')
                 ->onDelete('cascade');
         });
     }

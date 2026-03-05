@@ -15,7 +15,7 @@ class ProductIsFeaturedTest extends TestCase
     {
         parent::setUp();
         // Create a user for authentication
-        $this->user = User::factory()->create();
+        $this->user = User::factory()->create(['role' => 'admin']);
     }
 
     public function test_variable_product_update_persists_is_featured()
@@ -51,7 +51,7 @@ class ProductIsFeaturedTest extends TestCase
 
         // 3. Send update request
         $response = $this->actingAs($this->user)
-                         ->postJson(route('admin.products.update', $product->id), $data);
+                         ->putJson(route('admin.products.update', ['product' => $product->id]), $data);
 
         // 4. Assert response status
         $response->assertStatus(200);
@@ -65,7 +65,7 @@ class ProductIsFeaturedTest extends TestCase
         // 6. Test unchecking
         $data['is_featured'] = 0;
         $response = $this->actingAs($this->user)
-                         ->postJson(route('admin.products.update', $product->id), $data);
+                         ->putJson(route('admin.products.update', ['product' => $product->id]), $data);
         
         $response->assertStatus(200);
         $this->assertDatabaseHas('products', [
@@ -111,7 +111,7 @@ class ProductIsFeaturedTest extends TestCase
 
         // 3. Send update request
         $response = $this->actingAs($this->user)
-                         ->postJson(route('admin.products.update', $product->id), $data);
+                         ->putJson(route('admin.products.update', ['product' => $product->id]), $data);
 
         // 4. Assert response status
         $response->assertStatus(200);

@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Link } from '@inertiajs/react';
 import Header from './Components/Header';
 import Footer from './Components/Footer';
-import '../../../css/suppliers/suppliers.scss';
+import '../../../css/suppliers/main.scss';
 
 export default function Suppliers() {
   useEffect(() => {

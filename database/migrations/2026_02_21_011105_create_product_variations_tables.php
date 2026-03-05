@@ -45,7 +45,7 @@ return new class extends Migration
                 ->onDelete('cascade');
             $table->foreign('attribute_id')
                 ->references('id')
-                ->on('attributes')
+                ->on('item_attributes')
                 ->onDelete('cascade');
         });
     }
