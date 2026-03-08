@@ -19,7 +19,7 @@ return new class extends Migration
             $table->id();
             $table->string('receipt_number', 50)->unique();
             
-            $table->foreignId('order_id')->constrained('purchase_orders');
+            $table->foreignId('order_id');
             $table->foreignId('invoice_id')->nullable()->constrained('purchase_invoices');
             
             // warehouse_id: 'warehouses' table exists.
@@ -54,6 +54,12 @@ return new class extends Migration
             $table->index('order_id', 'idx_goods_receipts_order');
             $table->index('status', 'idx_goods_receipts_status');
         });
+
+        if (Schema::hasTable('purchase_orders')) {
+            Schema::table('goods_receipts', function (Blueprint $table) {
+                $table->foreign('order_id')->references('id')->on('purchase_orders');
+            });
+        }
 
         // Add table comment
         try {

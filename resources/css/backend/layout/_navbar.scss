@@ -9,21 +9,50 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 24px;
+    padding: 0 20px;
     box-shadow: $shadow-sm;
     position: sticky;
     top: 0;
     z-index: $z-index-sticky;
     width: 100%;
     @include transition-standard;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 
     @include media-breakpoint-down('md') {
-        padding: 0 16px;
+        padding: 0 12px;
+    }
+}
+
+.header .mobile-menu-toggle {
+    background: transparent;
+    border: none;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    @include transition-standard(background-color);
+    cursor: pointer;
+    margin-right: 8px;
+
+    @include rtl {
+        margin-right: 0;
+        margin-left: 8px;
+    }
+
+    &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .material-icons-outlined {
+        font-size: 24px;
     }
 }
 
 /* Search Bar */
-.search-bar {
+.header .search-bar {
     display: flex;
     align-items: center;
     background-color: rgba(255, 255, 255, 0.1);
@@ -102,10 +131,10 @@
 }
 
 /* Header Actions (Right Side) */
-.header-actions {
+.header .header-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     margin-left: auto;
 
     @include rtl {
@@ -114,7 +143,7 @@
     }
 
     @include media-breakpoint-down('md') {
-        gap: 4px;
+        gap: 6px;
     }
 
     @include media-breakpoint-down('sm') {
@@ -125,16 +154,16 @@
 }
 
 /* Action Buttons */
-.action-btn {
+.header .action-btn {
     background: transparent;
     border: none;
     color: white;
     cursor: pointer;
     @include flex-center;
-    gap: 8px;
-    padding: 8px 12px;
+    gap: 6px;
+    padding: 6px 10px;
     border-radius: 6px;
-    height: 40px;
+    height: 36px;
     @include transition-standard(background-color);
     text-decoration: none;
     position: relative;
@@ -145,26 +174,26 @@
     }
 
     .material-icons-outlined {
-        font-size: 22px;
+        font-size: 20px;
     }
 
     .badge {
         position: absolute;
-        top: 4px;
-        right: 4px;
+        top: 2px;
+        right: 2px;
         background-color: $danger-color;
         color: white;
         font-size: 0.65rem;
-        padding: 2px 4px;
-        min-width: 16px;
-        height: 16px;
+        padding: 2px 3px;
+        min-width: 14px;
+        height: 14px;
         border-radius: 50%;
         @include flex-center;
         border: 2px solid $dark-color;
 
         @include rtl {
             right: auto;
-            left: 4px;
+            left: 2px;
         }
     }
 
@@ -176,11 +205,11 @@
 }
 
 /* User Profile Section */
-.user-profile {
+.header .user-profile {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 4px 6px 4px 4px;
+    gap: 10px;
+    padding: 4px 8px 4px 6px;
     border-radius: 30px;
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -189,7 +218,7 @@
     cursor: pointer;
 
     @include rtl {
-        padding: 4px 4px 4px 6px;
+        padding: 4px 6px 4px 8px;
         margin-left: 0;
         margin-right: 12px;
     }
@@ -199,9 +228,9 @@
     }
 }
 
-.avatar {
-    width: 34px;
-    height: 34px;
+.header .avatar {
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
     background-color: $info-color;
     @include flex-center;
@@ -210,24 +239,24 @@
     object-fit: cover;
 }
 
-.user-info {
+.header .user-info {
     display: flex;
     flex-direction: column;
     line-height: 1.2;
-    padding-right: 8px;
+    padding-right: 6px;
 
     @include rtl {
         padding-right: 0;
-        padding-left: 8px;
+        padding-left: 6px;
     }
 
     div:first-child {
         font-weight: 600;
-        font-size: 0.9rem;
+        font-size: 0.85rem;
     }
 
     div:last-child {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         color: rgba(255, 255, 255, 0.7);
     }
 
@@ -237,7 +266,7 @@
 }
 
 /* Logout Button */
-.logout-btn {
+.header .logout-btn {
     background: transparent;
     border: none;
     color: rgba(255, 255, 255, 0.6);

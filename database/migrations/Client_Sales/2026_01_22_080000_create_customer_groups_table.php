@@ -14,7 +14,7 @@ return new class extends Migration {
             $table->string('name_ar', 100)->nullable(false);
             $table->string('name_en', 100)->nullable();
             $table->unsignedInteger('parent_id')->nullable();
-            $table->integer('account_id')->nullable();
+            $table->unsignedInteger('account_id')->nullable();
             $table->unsignedInteger('price_list_id')->nullable();
             $table->decimal('credit_limit', 15, 2)->default(0);
             $table->integer('payment_terms')->default(30);

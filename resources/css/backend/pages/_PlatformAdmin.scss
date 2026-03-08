@@ -1,0 +1,118 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   Platform Admin & System Configuration
+   (Users, Roles, Backups, Logs, etc.)
+   ========================================================================== */
+
+/* 1. Common Platform Admin Layout */
+.platform-admin-page {
+    padding: $spacing-lg;
+    background-color: $light-color;
+    min-height: 100vh;
+
+    @include rtl {
+        direction: rtl;
+    }
+}
+
+.platform-admin-card {
+    background-color: $white;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+    margin-bottom: $spacing-lg;
+    border: 1px solid $border-color;
+    overflow: hidden;
+
+    &__header {
+        padding: $spacing-lg;
+        border-bottom: 1px solid $light-color;
+        background-color: rgba($light-color, 0.5);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        @include rtl {
+            flex-direction: row-reverse;
+        }
+    }
+
+    &__title {
+        font-size: 1.125rem;
+        font-weight: $font-weight-bold;
+        color: $dark-color;
+        margin: 0;
+    }
+
+    &__body {
+        padding: $spacing-xl;
+    }
+}
+
+/* 2. Platform Admin Grid & Items */
+.platform-admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: $spacing-lg;
+
+    @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.platform-admin-item {
+    display: flex;
+    align-items: flex-start;
+    gap: $spacing-md;
+    padding: $spacing-md;
+    border-radius: $radius-md;
+    text-decoration: none;
+    transition: $transition-base;
+    border: 1px solid transparent;
+    cursor: pointer;
+
+    @include rtl {
+        flex-direction: row-reverse;
+        text-align: right;
+    }
+
+    &:hover {
+        background-color: rgba($primary-color, 0.05);
+        border-color: rgba($primary-color, 0.1);
+        
+        .platform-admin-item__title {
+            color: $primary-color;
+        }
+    }
+
+    &__icon {
+        flex-shrink: 0;
+        width: 48px;
+        height: 48px;
+        @include flex-center;
+        background-color: $light-color;
+        border-radius: $radius-md;
+        color: $gray-color;
+        font-size: 1.5rem;
+    }
+
+    &__content {
+        flex: 1;
+    }
+
+    &__title {
+        font-size: 1rem;
+        font-weight: $font-weight-bold;
+        color: $dark-color;
+        margin-bottom: $spacing-xs;
+        transition: color $transition-speed ease;
+    }
+
+    &__description {
+        font-size: 0.875rem;
+        color: $text-muted;
+        line-height: 1.5;
+        margin: 0;
+    }
+}

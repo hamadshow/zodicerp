@@ -65,10 +65,10 @@ return new class extends Migration
             // Accounting Coding
             // Using accounts(AccID) based on project context (integer increments)
             // User requested references to chart_of_accounts(id), mapped to accounts(AccID)
-            $table->integer('tax_account_id'); 
-            $table->integer('expense_account_id')->nullable();
-            $table->integer('payable_account_id')->nullable();
-            $table->integer('receivable_account_id')->nullable();
+            $table->unsignedInteger('tax_account_id'); 
+            $table->unsignedInteger('expense_account_id')->nullable();
+            $table->unsignedInteger('payable_account_id')->nullable();
+            $table->unsignedInteger('receivable_account_id')->nullable();
             
             // Status
             $table->boolean('is_active')->default(true);

@@ -27,7 +27,6 @@ class Supplier extends Authenticatable
     protected $fillable = [
         'supplier_code',
         'name_ar',
-        'name_en',
         'store_name_json',
         'store_description_json',
         'commission_rate',

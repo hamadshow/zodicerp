@@ -23,7 +23,7 @@ return new class extends Migration
             $table->foreignId('supplier_id')->constrained('suppliers');
             
             // order_id REFERENCES purchase_orders(id)
-            $table->foreignId('order_id')->nullable()->constrained('purchase_orders');
+            $table->foreignId('order_id')->nullable();
             
             // currency_id REFERENCES currencies(id)
             $table->foreignId('currency_id')->constrained('currencies');
@@ -77,6 +77,12 @@ return new class extends Migration
             $table->index('supplier_id', 'idx_invoices_supplier');
             $table->index('due_date', 'idx_invoices_due_date');
         });
+
+        if (Schema::hasTable('purchase_orders')) {
+            Schema::table('purchase_invoices', function (Blueprint $table) {
+                $table->foreign('order_id')->references('id')->on('purchase_orders')->nullOnDelete();
+            });
+        }
 
         // Add table comment
         try {

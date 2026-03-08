@@ -20,12 +20,103 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 use App\Http\Requests\Purchases\StoreSupplierRequest;
 use App\Http\Requests\Purchases\UpdateSupplierRequest;
+use App\Models\Products;
+use App\Models\Client_Sales\SalesOrder;
+use App\Models\Client_Sales\SalesOrderDetail;
 
 class SupplierController extends Controller
 {
     public function dashboard()
     {
-        return Inertia::render('Suppliers/Dashboard');
+        $supplier = Auth::guard('supplier')->user();
+        
+        if (!$supplier) {
+            // This should ideally be handled by middleware, but for safety:
+             return redirect()->route('supplier.login');
+        }
+
+        // Stats
+        $totalProducts = Products::where('supplier_code', $supplier->supplier_code)->count();
+
+        // Get order details for this supplier's products
+        $supplierOrderDetailsQuery = SalesOrderDetail::whereHas('product', function($q) use ($supplier) {
+            $q->where('supplier_code', $supplier->supplier_code);
+        });
+
+        // Clone query for revenue calculation
+        $totalRevenue = (clone $supplierOrderDetailsQuery)->sum('line_total');
+        
+        // Get unique order IDs
+        $orderIds = (clone $supplierOrderDetailsQuery)->pluck('order_id')->unique();
+        $totalOrders = $orderIds->count();
+
+        // Pending and Completed Orders
+        $pendingOrders = SalesOrder::whereIn('id', $orderIds)->where('status', 'pending')->count();
+        $completedOrders = SalesOrder::whereIn('id', $orderIds)->where('status', 'completed')->count();
+
+        // Recent Orders
+        $recentOrders = SalesOrder::whereIn('id', $orderIds)
+            ->with(['details' => function($q) use ($supplier) {
+                $q->whereHas('product', function($sq) use ($supplier) {
+                    $sq->where('supplier_code', $supplier->supplier_code);
+                })->with('product');
+            }])
+            ->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get()
+            ->map(function($order) {
+                $supplierDetails = $order->details;
+                $supplierAmount = $supplierDetails->sum('line_total');
+                // Access name via translation or direct property depending on model
+                $firstProduct = $supplierDetails->first()?->product?->name ?? 'Product';
+                $moreCount = $supplierDetails->count() - 1;
+                $productName = $moreCount > 0 ? "$firstProduct + $moreCount more" : $firstProduct;
+
+                return [
+                    'id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'date' => $order->created_at->format('Y-m-d'),
+                    'status' => ucfirst($order->status),
+                    'amount' => number_format($supplierAmount, 2),
+                    'product_name' => $productName,
+                ];
+            });
+
+        return Inertia::render('Suppliers/Backend/Dashboard', [
+            'stats' => [
+                'total_products' => $totalProducts,
+                'total_orders' => $totalOrders,
+                'pending_orders' => $pendingOrders,
+                'completed_orders' => $completedOrders,
+                'total_revenue' => number_format($totalRevenue, 2),
+            ],
+            'recentOrders' => $recentOrders,
+        ]);
+    }
+
+    public function products()
+    {
+        return Inertia::render('Suppliers/Backend/Products');
+    }
+
+    public function orders()
+    {
+        return Inertia::render('Suppliers/Backend/Orders');
+    }
+
+    public function earnings()
+    {
+        return Inertia::render('Suppliers/Backend/Earnings');
+    }
+
+    public function reviews()
+    {
+        return Inertia::render('Suppliers/Backend/Reviews');
+    }
+
+    public function profile()
+    {
+        return Inertia::render('Suppliers/Backend/Profile');
     }
 
     public function index()
@@ -36,7 +127,6 @@ class SupplierController extends Controller
                 $query->where(function ($q) use ($search) {
                     $q->where('supplier_code', 'like', "%{$search}%")
                       ->orWhere('name_ar', 'like', "%{$search}%")
-                      ->orWhere('name_en', 'like', "%{$search}%")
                       ->orWhere('email', 'like', "%{$search}%")
                       ->orWhere('primary_phone', 'like', "%{$search}%")
                       ->orWhere('secondary_phone', 'like', "%{$search}%");
@@ -143,7 +233,6 @@ class SupplierController extends Controller
                 $data = [
                     'supplier_code' => $code,
                     'name_ar' => $row['name_ar'] ?? null,
-                    'name_en' => $row['name_en'] ?? null,
                     'supplier_group_id' => $defaultGroupId,
                     'primary_phone' => $row['primary_phone'] ?? null,
                     'telegram' => $telegram,
@@ -174,8 +263,8 @@ class SupplierController extends Controller
                     $errors[] = "Row " . ($index + 1) . ": Supplier Code is required.";
                     continue;
                 }
-                if (empty($data['name_en'])) {
-                    $errors[] = "Row " . ($index + 1) . ": Name (EN) is required.";
+                if (empty($data['name_ar'])) {
+                    $errors[] = "Row " . ($index + 1) . ": Name (AR) is required.";
                     continue;
                 }
 
@@ -218,12 +307,12 @@ class SupplierController extends Controller
             
             // Auto-generate supplier code
             $latest = Supplier::latest('id')->first();
-            if ($latest && preg_match('/^SUP-(\d+)$/', $latest->supplier_code, $matches)) {
+            if ($latest && preg_match('/^VEN-(\d+)$/', $latest->supplier_code, $matches)) {
                 $nextId = intval($matches[1]) + 1;
             } else {
                 $nextId = 10001;
             }
-            $data['supplier_code'] = 'SUP-' . $nextId;
+            $data['supplier_code'] = 'VEN-' . $nextId;
 
             $data['created_by'] = Auth::id();
             if (empty($data['password'])) {

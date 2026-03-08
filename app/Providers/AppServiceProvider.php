@@ -21,5 +21,14 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+        $this->loadMigrationsFrom([
+            database_path('migrations/Assets'),
+            database_path('migrations/Budget'),
+            database_path('migrations/Client_Sales'),
+            database_path('migrations/InvestingStack'),
+            database_path('migrations/Taxes'),
+            database_path('migrations/Tasks'),
+            database_path('migrations/Vendor_Purchases'),
+        ]);
     }
 }

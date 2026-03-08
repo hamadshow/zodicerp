@@ -28,10 +28,10 @@ return new class extends Migration
                 // Accounting and Organization Links
                 // Using conditional constraints for potential missing tables
                 if (Schema::hasTable('accounts')) {
-                    $table->integer('account_id')->nullable();
+                    $table->unsignedInteger('account_id')->nullable();
                     $table->foreign('account_id')->references('AccID')->on('accounts')->nullOnDelete();
                 } else {
-                    $table->integer('account_id')->nullable();
+                    $table->unsignedInteger('account_id')->nullable();
                 }
 
                 if (Schema::hasTable('departments')) {

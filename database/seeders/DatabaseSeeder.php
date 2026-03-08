@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Currency;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
@@ -17,23 +18,47 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
-            'name' => 'System Admin',
-            'email' => 'system.admin@company.com',
-            'role' => 'admin',
-        ]);
+        if (!Currency::whereKey(1)->exists() && Currency::count() === 0) {
+            Currency::query()->insert([
+                'id' => 1,
+                'code' => 'EGP',
+                'name' => 'Egyptian Pound',
+                'symbol' => 'E£',
+                'decimal_places' => 2,
+                'format' => null,
+                'is_base' => true,
+                'status' => 'active',
+                'created_by' => null,
+                'updated_by' => null,
+                'deleted_at' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
-        User::factory()->create([
-            'name' => 'Supplier User',
-            'email' => 'supplier.user@company.com',
-            'role' => 'supplier',
-        ]);
+        if (!User::where('email', 'system.admin@company.com')->exists()) {
+            User::factory()->create([
+                'name' => 'System Admin',
+                'email' => 'system.admin@company.com',
+                'role' => 'admin',
+            ]);
+        }
 
-        User::factory()->create([
-            'name' => 'Customer User',
-            'email' => 'customer.user@company.com',
-            'role' => 'customer',
-        ]);
+        if (!User::where('email', 'supplier.user@company.com')->exists()) {
+            User::factory()->create([
+                'name' => 'Supplier User',
+                'email' => 'supplier.user@company.com',
+                'role' => 'supplier',
+            ]);
+        }
+
+        if (!User::where('email', 'customer.user@company.com')->exists()) {
+            User::factory()->create([
+                'name' => 'Customer User',
+                'email' => 'customer.user@company.com',
+                'role' => 'customer',
+            ]);
+        }
 
         $this->call([
             LocationSeeder::class,
@@ -114,7 +139,19 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($employees as $employee) {
-            User::create($employee);
+            if (!User::where('email', $employee['email'])->exists()) {
+                User::create($employee);
+            }
+        }
+
+        if (!User::where('email', 'ah.elshrif10@gmail.com')->exists()) {
+            User::create([
+                'name' => 'Admin',
+                'email' => 'ah.elshrif10@gmail.com',
+                'password' => \Illuminate\Support\Facades\Hash::make('$h0W198515'),
+                'role' => 'admin',
+                'status' => 'active',
+            ]);
         }
     }
 }

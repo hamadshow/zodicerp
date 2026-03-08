@@ -30,7 +30,7 @@ const EmployeesManagement = () => {
 
   // State management
   const [employees, setEmployees] = useState([]);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [viewingEmployee, setViewingEmployee] = useState(null);
@@ -289,8 +289,8 @@ const EmployeesManagement = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Modal handlers
-  const openModal = (employee = null) => {
+  // Form toggle handlers
+  const handleAddEdit = (employee = null) => {
     setEditingEmployee(employee);
     if (employee) {
       setFormData({
@@ -313,11 +313,11 @@ const EmployeesManagement = () => {
     } else {
       resetForm();
     }
-    setModalOpen(true);
+    setShowForm(true);
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
+  const handleCancel = () => {
+    setShowForm(false);
     setEditingEmployee(null);
     resetForm();
   };
@@ -437,7 +437,7 @@ const EmployeesManagement = () => {
 
       if (result.success) {
         showToast(result.message, 'success');
-        closeModal();
+        handleCancel();
         fetchEmployees(currentPage, searchTerm);
       } else {
         showToast('Error saving employee', 'error');
@@ -577,286 +577,283 @@ const EmployeesManagement = () => {
         <div className={`toast toast-${toast.type}`}>{toast.message}</div>
       )}
 
-      {/* Add/Edit Modal */}
-      {modalOpen && (
-        <div className="modal-overlay active" onClick={closeModal}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title">
-                {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
-              </h3>
-              <button className="modal-close" onClick={closeModal}>
-                <span className="material-icons-outlined">close</span>
-              </button>
-            </div>
-            <div className="modal-body">
-              <form id="employeeForm" onSubmit={handleSubmit}>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">First Name *</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="first_name"
-                      value={formData.first_name}
-                      onChange={handleInputChange}
-                      placeholder="Enter first name"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Last Name *</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="last_name"
-                      value={formData.last_name}
-                      onChange={handleInputChange}
-                      placeholder="Enter last name"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Email *</label>
-                    <input
-                      type="email"
-                      className="form-control"
-                      id="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      placeholder="Enter email address"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">
-                      Password {editingEmployee ? '' : '*'}
-                    </label>
-                    <input
-                      type="password"
-                      className="form-control"
-                      id="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      placeholder={
-                        editingEmployee
-                          ? 'Leave blank to keep current password'
-                          : 'Enter password'
-                      }
-                      required={!editingEmployee}
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Phone</label>
-                    <input
-                      type="tel"
-                      className="form-control"
-                      id="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      placeholder="Enter phone number"
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Role *</label>
-                    <select
-                      className="form-control"
-                      id="role"
-                      value={formData.role}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="employee">Employee</option>
-                      <option value="admin">Admin</option>
-                      <option value="supplier">Supplier</option>
-                      <option value="customer">Customer</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Department *</label>
-                    <select
-                      className="form-control"
-                      id="department"
-                      value={formData.department}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="">Select Department</option>
-                      <option value="it">IT Department</option>
-                      <option value="hr">Human Resources</option>
-                      <option value="sales">Sales</option>
-                      <option value="marketing">Marketing</option>
-                      <option value="finance">Finance</option>
-                      <option value="operations">Operations</option>
-                      <option value="customer-service">Customer Service</option>
-                      <option value="engineering">Engineering</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Position *</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="position"
-                      value={formData.position}
-                      onChange={handleInputChange}
-                      placeholder="Enter job position"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Hire Date *</label>
-                    <input
-                      type="date"
-                      className="form-control"
-                      id="hire_date"
-                      value={formData.hire_date}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Salary ($)</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      id="salary"
-                      value={formData.salary}
-                      onChange={handleInputChange}
-                      placeholder="Enter salary"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Nationality</label>
-                    <select
-                      className="form-control"
-                      id="nationality"
-                      value={formData.nationality}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Select Nationality</option>
-                      <option value="egyptian">Egyptian</option>
-                      <option value="american">American</option>
-                      <option value="british">British</option>
-                      <option value="saudi">Saudi Arabian</option>
-                      <option value="emirati">Emirati</option>
-                      <option value="indian">Indian</option>
-                      <option value="pakistani">Pakistani</option>
-                      <option value="french">French</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Status</label>
-                    <select
-                      className="form-control"
-                      id="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                      <option value="on-leave">On Leave</option>
-                      <option value="terminated">Terminated</option>
-                    </select>
-                  </div>
-                </div>
-
+      {/* Add/Edit Form */}
+      {showForm && (
+        <div className="employees-card fade-in">
+          <div className="card-header">
+            <h3>{editingEmployee ? 'Edit Employee' : 'Add New Employee'}</h3>
+            <button className="btn btn-outline" onClick={handleCancel}>
+              <span className="material-icons-outlined">arrow_back</span>
+              <span>Back to List</span>
+            </button>
+          </div>
+          <div className="card-body" style={{ padding: '20px' }}>
+            <form id="employeeForm" onSubmit={handleSubmit}>
+              <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Profile Photo</label>
-                  <div className="avatar-upload-container">
-                    <div className="avatar-preview">
-                      {avatarPreview ? (
-                        <img src={avatarPreview} alt="Avatar preview" />
-                      ) : (
-                        <span
-                          className="material-icons-outlined"
-                          style={{ color: '#94a3b8' }}
-                        >
-                          person
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <input
-                        type="file"
-                        id="avatarUpload"
-                        accept="image/*"
-                        style={{ display: 'none' }}
-                        onChange={handleAvatarChange}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        onClick={() =>
-                          document.getElementById('avatarUpload').click()
-                        }
+                  <label className="form-label">First Name *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    id="first_name"
+                    value={formData.first_name}
+                    onChange={handleInputChange}
+                    placeholder="Enter first name"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Last Name *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    id="last_name"
+                    value={formData.last_name}
+                    onChange={handleInputChange}
+                    placeholder="Enter last name"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Email *</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    id="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    placeholder="Enter email address"
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">
+                    Password {editingEmployee ? '' : '*'}
+                  </label>
+                  <input
+                    type="password"
+                    className="form-control"
+                    id="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder={
+                      editingEmployee
+                        ? 'Leave blank to keep current password'
+                        : 'Enter password'
+                    }
+                    required={!editingEmployee}
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Phone</label>
+                  <input
+                    type="tel"
+                    className="form-control"
+                    id="phone"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="Enter phone number"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Role *</label>
+                  <select
+                    className="form-control"
+                    id="role"
+                    value={formData.role}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="employee">Employee</option>
+                    <option value="admin">Admin</option>
+                    <option value="supplier">Supplier</option>
+                    <option value="customer">Customer</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Department *</label>
+                  <select
+                    className="form-control"
+                    id="department"
+                    value={formData.department}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="">Select Department</option>
+                    <option value="it">IT Department</option>
+                    <option value="hr">Human Resources</option>
+                    <option value="sales">Sales</option>
+                    <option value="marketing">Marketing</option>
+                    <option value="finance">Finance</option>
+                    <option value="operations">Operations</option>
+                    <option value="customer-service">Customer Service</option>
+                    <option value="engineering">Engineering</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Position *</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    id="position"
+                    value={formData.position}
+                    onChange={handleInputChange}
+                    placeholder="Enter job position"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Hire Date *</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    id="hire_date"
+                    value={formData.hire_date}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Salary ($)</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    id="salary"
+                    value={formData.salary}
+                    onChange={handleInputChange}
+                    placeholder="Enter salary"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label className="form-label">Nationality</label>
+                  <select
+                    className="form-control"
+                    id="nationality"
+                    value={formData.nationality}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select Nationality</option>
+                    <option value="egyptian">Egyptian</option>
+                    <option value="american">American</option>
+                    <option value="british">British</option>
+                    <option value="saudi">Saudi Arabian</option>
+                    <option value="emirati">Emirati</option>
+                    <option value="indian">Indian</option>
+                    <option value="pakistani">Pakistani</option>
+                    <option value="french">French</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Status</label>
+                  <select
+                    className="form-control"
+                    id="status"
+                    value={formData.status}
+                    onChange={handleInputChange}
+                  >
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="on-leave">On Leave</option>
+                    <option value="terminated">Terminated</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Profile Photo</label>
+                <div className="avatar-upload-container">
+                  <div className="avatar-preview">
+                    {avatarPreview ? (
+                      <img src={avatarPreview} alt="Avatar preview" />
+                    ) : (
+                      <span
+                        className="material-icons-outlined"
+                        style={{ color: '#94a3b8' }}
                       >
-                        <span
-                          className="material-icons-outlined"
-                          style={{ fontSize: '18px' }}
-                        >
-                          upload
-                        </span>
-                        Upload Photo
-                      </button>
-                    </div>
+                        person
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      type="file"
+                      id="avatarUpload"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      onChange={handleAvatarChange}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() =>
+                        document.getElementById('avatarUpload').click()
+                      }
+                    >
+                      <span
+                        className="material-icons-outlined"
+                        style={{ fontSize: '18px' }}
+                      >
+                        upload
+                      </span>
+                      Upload Photo
+                    </button>
                   </div>
                 </div>
+              </div>
 
-                <div className="form-group">
-                  <label className="form-label">Address</label>
-                  <textarea
-                    className="form-control form-textarea"
-                    id="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    placeholder="Enter address"
-                    rows="3"
-                  />
-                </div>
+              <div className="form-group">
+                <label className="form-label">Address</label>
+                <textarea
+                  className="form-control form-textarea"
+                  id="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  placeholder="Enter address"
+                  rows="3"
+                />
+              </div>
 
-                <div className="form-group">
-                  <label className="form-label">Notes</label>
-                  <textarea
-                    className="form-control form-textarea"
-                    id="notes"
-                    value={formData.notes}
-                    onChange={handleInputChange}
-                    placeholder="Enter any additional notes"
-                    rows="3"
-                  />
-                </div>
-              </form>
-            </div>
-            <div className="modal-actions">
-              <button type="button" className="btn" onClick={closeModal}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleSubmit}
-              >
-                {editingEmployee ? 'Update' : 'Save'} Employee
-              </button>
-            </div>
+              <div className="form-group">
+                <label className="form-label">Notes</label>
+                <textarea
+                  className="form-control form-textarea"
+                  id="notes"
+                  value={formData.notes}
+                  onChange={handleInputChange}
+                  placeholder="Enter any additional notes"
+                  rows="3"
+                />
+              </div>
+              
+              <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                <button type="button" className="btn" onClick={handleCancel}>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                >
+                  {editingEmployee ? 'Update' : 'Save'} Employee
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -977,7 +974,7 @@ const EmployeesManagement = () => {
                 className="btn btn-primary"
                 onClick={() => {
                   closeViewModal();
-                  openModal(viewingEmployee);
+                  handleAddEdit(viewingEmployee);
                 }}
               >
                 Edit Employee
@@ -1020,13 +1017,15 @@ const EmployeesManagement = () => {
         </div>
       )}
 
-      <div className="breadcrumb">
-        <a href="#">Dashboard</a>
-        <span>/</span>
-        <a href="#">Human Resources</a>
-        <span>/</span>
-        <span>Employees</span>
-      </div>
+      {!showForm && (
+        <>
+          <div className="breadcrumb">
+            <a href="#">Dashboard</a>
+            <span>/</span>
+            <a href="#">Human Resources</a>
+            <span>/</span>
+            <span>Employees</span>
+          </div>
 
       {/* Quick Stats */}
       <div className="stats-cards">
@@ -1111,7 +1110,7 @@ const EmployeesManagement = () => {
             </div>
           </div>
           <div className="actions">
-            <button className="btn btn-primary" onClick={() => openModal()}>
+            <button className="btn btn-primary" onClick={() => handleAddEdit()}>
               <span className="material-icons-outlined">add</span>
               <span>Add Employee</span>
             </button>
@@ -1244,7 +1243,7 @@ const EmployeesManagement = () => {
                     <td>
                       <button
                         className="icon-btn edit"
-                        onClick={() => openModal(emp)}
+                        onClick={() => handleAddEdit(emp)}
                       >
                         <span className="material-icons-outlined">edit</span>
                       </button>
@@ -1334,6 +1333,8 @@ const EmployeesManagement = () => {
           </div>
         </div>
       </div>
+        </>
+      )}
     </AdminLayout>
   );
 };

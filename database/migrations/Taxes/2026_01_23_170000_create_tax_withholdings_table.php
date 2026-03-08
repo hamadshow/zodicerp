@@ -36,8 +36,8 @@ return new class extends Migration
             // Accounts
             // User requested FOREIGN KEY to chart_of_accounts(id). 
             // In this system, the main accounts table is 'accounts' with PK 'AccID'.
-            $table->integer('withholding_account_id');
-            $table->integer('payable_account_id');
+            $table->unsignedInteger('withholding_account_id');
+            $table->unsignedInteger('payable_account_id');
             
             // System
             $table->boolean('is_active')->default(true);

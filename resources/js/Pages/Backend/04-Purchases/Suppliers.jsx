@@ -36,7 +36,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
     const { data, setData, post, put, delete: destroy, processing, errors, reset } = useForm({
         supplier_code: '',
         name_ar: '',
-        name_en: '',
+        store_name_json: '',
         supplier_group_id: '',
         account_id: '',
         currency_id: '',
@@ -110,6 +110,16 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         // Especially opening balance which might be a collection
         const supplierWithoutPassword = { ...supplier };
         delete supplierWithoutPassword.password;
+        
+        let storeName = '';
+        if (supplier.store_name_json) {
+            if (typeof supplier.store_name_json === 'object') {
+                storeName = supplier.store_name_json.ar || supplier.store_name_json.en || Object.values(supplier.store_name_json)[0] || '';
+            } else {
+                storeName = supplier.store_name_json;
+            }
+        }
+
         const ob = supplier.opening_balances && supplier.opening_balances.length > 0 
             ? supplier.opening_balances[0] 
             : {
@@ -124,6 +134,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
         setData({
             ...supplierWithoutPassword,
+            store_name_json: storeName,
             addresses: supplier.addresses || [],
             contacts: supplier.contacts || [],
             opening_balance: ob,
@@ -200,8 +211,8 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
     // --- IMPORT SYSTEM LOGIC ---
     const downloadTemplate = () => {
-        const headers = ['supplier_code', 'name_ar', 'name_en', 'group_code', 'primary_phone', 'email', 'currency_code', 'account_code', 'is_active'];
-        const sample = ['SUP-10001', 'مورد 1', 'Supplier 1', 'GRP-001', '01000000001', 'supplier1@example.com', 'EGP', '2101', '1'];
+        const headers = ['supplier_code', 'name_ar', 'group_code', 'primary_phone', 'email', 'currency_code', 'account_code', 'is_active'];
+        const sample = ['SUP-10001', 'مورد 1', 'GRP-001', '01000000001', 'supplier1@example.com', 'EGP', '2101', '1'];
         const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Template");
@@ -255,7 +266,6 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         const map = {
             'supplier_code': headers.indexOf('supplier_code'),
             'name_ar': headers.indexOf('name_ar'),
-            'name_en': headers.indexOf('name_en'),
             'group_code': headers.indexOf('group_code'),
             'primary_phone': headers.indexOf('primary_phone'),
             'email': headers.indexOf('email'),
@@ -273,7 +283,6 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
             const item = {
                 supplier_code: getVal('supplier_code'),
                 name_ar: getVal('name_ar'),
-                name_en: getVal('name_en'),
                 group_code: getVal('group_code'),
                 primary_phone: getVal('primary_phone'),
                 email: getVal('email'),
@@ -284,7 +293,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
             };
 
             // Client-side Validation
-            if (!item.name_en) item._errors.push('Name (EN) is required');
+            if (!item.name_ar) item._errors.push('Name is required');
             // if (item.telegram && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.telegram)) item._errors.push('Invalid telegram format');
             
             // Validate Group Code (Optional: if provided, check if it exists in props.groups)
@@ -399,7 +408,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                             <thead>
                                 <tr>
                                     <th>Code</th>
-                                    <th>Name (EN)</th>
+                                    <th>Name</th>
                                     <th>Group</th>
                                     <th>Phone</th>
                                     <th>Email</th>
@@ -412,7 +421,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                 {suppliers.data.map((supplier) => (
                                     <tr key={supplier.id}>
                                         <td>{supplier.supplier_code}</td>
-                                        <td>{supplier.name_en}</td>
+                                        <td>{supplier.name_ar}</td>
                                         <td>{supplier.group?.name_en || '-'}</td>
                                         <td>{supplier.primary_phone}</td>
                                         <td>{supplier.email || '-'}</td>
@@ -494,20 +503,9 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                         {/* GENERAL TAB */}
                         <div className={`tab-content ${activeTab === 'general' ? 'active' : ''}`}>
                             <div className="form-row">
+                                {/* Supplier Code is auto-generated in backend */}
                                 <div className="form-group">
-                                    <label className="form-label">Supplier Code <span className="required">*</span></label>
-                                    <input 
-                                        type="text" 
-                                        className={`form-control ${errors.supplier_code ? 'is-invalid' : ''}`}
-                                        value={data.supplier_code} 
-                                        onChange={e => setData('supplier_code', e.target.value)}
-                                        disabled={mode === 'create'}
-                                        placeholder={mode === 'create' ? "Auto-generated (e.g. SUP-10001)" : ""}
-                                    />
-                                    {errors.supplier_code && <span className="invalid-feedback">{errors.supplier_code}</span>}
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Name (AR)</label>
+                                    <label className="form-label">Name</label>
                                     <input 
                                         type="text" 
                                         className={`form-control ${errors.name_ar ? 'is-invalid' : ''}`}
@@ -516,19 +514,19 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     />
                                     {errors.name_ar && <span className="invalid-feedback">{errors.name_ar}</span>}
                                 </div>
+                                <div className="form-group">
+                                    <label className="form-label">Store Name</label>
+                                    <input 
+                                        type="text" 
+                                        className={`form-control ${errors.store_name_json ? 'is-invalid' : ''}`}
+                                        value={data.store_name_json} 
+                                        onChange={e => setData('store_name_json', e.target.value)}
+                                    />
+                                    {errors.store_name_json && <span className="invalid-feedback">{errors.store_name_json}</span>}
+                                </div>
                             </div>
 
                             <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Name (EN) <span className="required">*</span></label>
-                                    <input 
-                                        type="text" 
-                                        className={`form-control ${errors.name_en ? 'is-invalid' : ''}`}
-                                        value={data.name_en} 
-                                        onChange={e => setData('name_en', e.target.value)}
-                                    />
-                                    {errors.name_en && <span className="invalid-feedback">{errors.name_en}</span>}
-                                </div>
                                 <div className="form-group">
                                     <label className="form-label">Group</label>
                                     <select className={`form-control ${errors.supplier_group_id ? 'is-invalid' : ''}`} value={data.supplier_group_id} onChange={e => setData('supplier_group_id', e.target.value)}>
@@ -621,7 +619,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     {errors.credit_limit && <span className="invalid-feedback">{errors.credit_limit}</span>}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Primary Phone</label>
+                                    <label className="form-label">Mobile</label>
                                     <input className={`form-control ${errors.primary_phone ? 'is-invalid' : ''}`} type="text" value={data.primary_phone} onChange={e => setData('primary_phone', e.target.value)} />
                                     {errors.primary_phone && <span className="invalid-feedback">{errors.primary_phone}</span>}
                                 </div>
@@ -1063,7 +1061,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                             <thead>
                                                 <tr>
                                                     <th>Code</th>
-                                                    <th>Name (EN)</th>
+                                                    <th>Name</th>
                                                     <th>Email</th>
                                                     <th>Status</th>
                                                     <th>Errors</th>
@@ -1075,7 +1073,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                 {invalidRows.map((row, i) => (
                                                     <tr key={`inv-${i}`} className="invalid-row">
                                                         <td>{row.supplier_code}</td>
-                                                        <td>{row.name_en}</td>
+                                                        <td>{row.name_ar}</td>
                                                         <td>{row.email}</td>
                                                         <td>-</td>
                                                         <td>
@@ -1090,7 +1088,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                 {excelRows.map((row, i) => (
                                                     <tr key={`val-${i}`}>
                                                         <td>{row.supplier_code}</td>
-                                                        <td>{row.name_en}</td>
+                                                        <td>{row.name_ar}</td>
                                                         <td>{row.email}</td>
                                                         <td>{row.is_active ? 'Active' : 'Inactive'}</td>
                                                         <td>-</td>

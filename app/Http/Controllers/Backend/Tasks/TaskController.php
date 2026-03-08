@@ -9,6 +9,7 @@ use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class TaskController extends Controller
 {
@@ -59,7 +60,13 @@ class TaskController extends Controller
         $perPage = $request->get('per_page', 10);
         $tasks = $query->paginate($perPage);
 
-        return response()->json($tasks);
+        if ($request->wantsJson()) {
+            return response()->json($tasks);
+        }
+
+        return Inertia::render('Backend/Tasks/TaskManager', [
+            'tasks' => $tasks,
+        ]);
     }
 
     public function store(StoreTaskRequest $request)

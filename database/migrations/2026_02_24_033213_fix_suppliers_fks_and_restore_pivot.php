@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Add foreign key to suppliers table for supplier_group_id
-        if (Schema::hasTable('suppliers') && Schema::hasTable('supplier_groups')) {
+        if (Schema::hasTable('suppliers') && Schema::hasTable('supplier_groups') && Schema::hasColumn('suppliers', 'supplier_group_id')) {
             Schema::table('suppliers', function (Blueprint $table) {
                 // Add the foreign key
                 $table->foreign('supplier_group_id', 'fk_suppliers_group_id')

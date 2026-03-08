@@ -219,6 +219,11 @@ Route::group([
 
        Route::middleware('auth:supplier')->group(function () {
            Route::get('dashboard', [SupplierController::class, 'dashboard'])->name('dashboard');
+           Route::get('products', [SupplierController::class, 'products'])->name('products');
+           Route::get('orders', [SupplierController::class, 'orders'])->name('orders');
+           Route::get('earnings', [SupplierController::class, 'earnings'])->name('earnings');
+           Route::get('reviews', [SupplierController::class, 'reviews'])->name('reviews');
+           Route::get('profile', [SupplierController::class, 'profile'])->name('profile');
            Route::post('logout', [SupplierAuthController::class, 'logout'])->name('logout');
        });
     });
@@ -436,7 +441,10 @@ Route::group([
              Route::get('whatsapp', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'WhatsApp Floating Button']); })->name('whatsapp.index');
         });
 
-        Route::get('platform-admin', function () { return Inertia::render('Backend/ComingSoon', ['title' => 'Platform Administration']); })->name('platform-admin.index');
+        Route::get('platform-admin', function () { return Inertia::render('Backend/Settings/PlatformAdmin'); })->name('platform-admin.index');
+        
+        // Roles and Permissions
+        Route::resource('roles', \App\Http\Controllers\Backend\Settings\RoleController::class)->except(['create', 'edit', 'show']);
     });
 
     // ------------------------------------------------------------------------

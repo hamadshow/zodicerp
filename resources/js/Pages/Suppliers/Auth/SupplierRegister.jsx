@@ -20,7 +20,8 @@ export default function SupplierRegister() {
   const { data, setData, post, processing, errors, reset } = useForm({
     supplier_code: '',
     name_ar: '',
-    name_en: '',
+    store_name_json: '',
+    primary_phone: '',
     email: '',
     password: '',
     password_confirmation: '',
@@ -45,22 +46,10 @@ export default function SupplierRegister() {
         </div>
 
         <form onSubmit={submit} className="auth-form">
-          <div className="form-group">
-            <InputLabel htmlFor="supplier_code" value="Supplier Code" className="form-label" />
-            <TextInput
-              id="supplier_code"
-              name="supplier_code"
-              value={data.supplier_code}
-              className="form-input"
-              isFocused={true}
-              onChange={(e) => setData('supplier_code', e.target.value)}
-              required
-            />
-            <InputError message={errors.supplier_code} className="error-message" />
-          </div>
+          {/* Supplier Code is auto-generated */}
 
           <div className="form-group">
-            <InputLabel htmlFor="name_ar" value="Name (Arabic)" className="form-label" />
+            <InputLabel htmlFor="name_ar" value="Name" className="form-label" />
             <TextInput
               id="name_ar"
               name="name_ar"
@@ -74,16 +63,33 @@ export default function SupplierRegister() {
           </div>
 
           <div className="form-group">
-            <InputLabel htmlFor="name_en" value="Name (English) - Optional" className="form-label" />
+            <InputLabel htmlFor="store_name_json" value="Store Name" className="form-label" />
             <TextInput
-              id="name_en"
-              name="name_en"
-              value={data.name_en}
+              id="store_name_json"
+              name="store_name_json"
+              value={data.store_name_json}
               className="form-input"
-              autoComplete="name"
-              onChange={(e) => setData('name_en', e.target.value)}
+              autoComplete="organization"
+              onChange={(e) => setData('store_name_json', e.target.value)}
             />
-            <InputError message={errors.name_en} className="error-message" />
+            <InputError message={errors.store_name_json} className="error-message" />
+          </div>
+
+          <div className="form-group">
+            <InputLabel htmlFor="primary_phone" value="Mobile" className="form-label" />
+            <TextInput
+              id="primary_phone"
+              name="primary_phone"
+              value={data.primary_phone}
+              className="form-input"
+              autoComplete="tel"
+              onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  setData('primary_phone', value);
+              }}
+              required
+            />
+            <InputError message={errors.primary_phone} className="error-message" />
           </div>
 
           <div className="form-group">

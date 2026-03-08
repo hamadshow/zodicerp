@@ -94,6 +94,8 @@
 @use 'pages/OtherTranslations';
 @use 'pages/Locales';
 @use 'pages/FlashSales';
+@use 'pages/PlatformAdmin';
+@use 'pages/RolesAndPermissions';
 
 // Global RTL Support
 [dir="rtl"] {

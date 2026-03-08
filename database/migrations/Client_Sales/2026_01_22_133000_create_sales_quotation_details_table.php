@@ -20,7 +20,7 @@ return new class extends Migration
             $table->decimal('unit_price', 15, 4);
             $table->decimal('discount_percentage', 5, 2)->default(0);
             $table->decimal('discount_amount', 15, 2)->default(0);
-            $table->foreignId('tax_id')->nullable()->constrained('tax_types');
+            $table->unsignedBigInteger('tax_id')->nullable();
             $table->decimal('tax_amount', 15, 2)->default(0);
             
             // Generated column

@@ -1,0 +1,231 @@
+// Dashboard Specific Styles
+
+.dashboard-overview {
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        border: 1px solid #f1f5f9;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+
+        &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            border-color: #e2e8f0;
+        }
+
+        .icon-wrapper {
+            width: 56px;
+            height: 56px;
+            border-radius: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            
+            // Material Icon sizing
+            .material-icons {
+                font-size: 28px;
+            }
+            
+            &.blue { background: #e0e7ff; color: #4338ca; }
+            &.green { background: #dcfce7; color: #15803d; }
+            &.orange { background: #ffedd5; color: #c2410c; }
+            &.red { background: #fee2e2; color: #b91c1c; }
+        }
+
+        .stat-content {
+            flex: 1;
+            min-width: 0; // Prevent flex item from overflowing
+            
+            .label {
+                color: #64748b;
+                font-size: 0.875rem;
+                font-weight: 500;
+                margin-bottom: 0.25rem;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            
+            .value {
+                color: #0f172a;
+                font-size: 1.75rem;
+                font-weight: 700;
+                line-height: 1.2;
+            }
+            
+            .trend {
+                font-size: 0.75rem;
+                font-weight: 500;
+                margin-top: 0.375rem;
+                display: flex;
+                align-items: center;
+                gap: 0.25rem;
+                
+                &.up { color: #10b981; }
+                &.down { color: #ef4444; }
+                
+                .material-icons {
+                    font-size: 14px;
+                }
+            }
+        }
+    }
+
+    .dashboard-charts {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+
+        @media (max-width: 1024px) {
+            grid-template-columns: 1fr;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            border: 1px solid #f1f5f9;
+            min-height: 400px;
+            
+            h3 {
+                color: #1e293b;
+                font-size: 1.125rem;
+                font-weight: 600;
+                margin-bottom: 1.5rem;
+            }
+        }
+    }
+
+    .recent-orders {
+        background: white;
+        border-radius: 0.75rem;
+        padding: 0; // Remove padding for cleaner table look
+        box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        border: 1px solid #f1f5f9;
+        overflow: hidden;
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem;
+            border-bottom: 1px solid #f1f5f9;
+
+            h3 {
+                font-size: 1.125rem;
+                font-weight: 600;
+                color: #1e293b;
+                margin: 0;
+            }
+
+            .view-all {
+                color: #4f46e5;
+                font-size: 0.875rem;
+                font-weight: 600;
+                text-decoration: none;
+                padding: 0.5rem 1rem;
+                border-radius: 0.375rem;
+                background-color: #e0e7ff;
+                transition: all 0.2s;
+                
+                &:hover {
+                    background-color: #c7d2fe;
+                }
+            }
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+
+            th {
+                text-align: left;
+                padding: 1rem 1.5rem;
+                color: #64748b;
+                font-size: 0.75rem;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                background-color: #f8fafc;
+                border-bottom: 1px solid #e2e8f0;
+            }
+
+            td {
+                padding: 1rem 1.5rem;
+                border-bottom: 1px solid #f1f5f9;
+                color: #334155;
+                font-size: 0.875rem;
+                vertical-align: middle;
+                
+                &:first-child {
+                    font-weight: 500;
+                    color: #1e293b;
+                }
+
+                .status-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 9999px;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    line-height: 1;
+
+                    &.pending { background: #ffedd5; color: #b45309; }
+                    &.completed { background: #dcfce7; color: #166534; }
+                    &.cancelled { background: #fee2e2; color: #991b1b; }
+                    &.processing { background: #e0e7ff; color: #3730a3; }
+                }
+            }
+            
+            tr:last-child td {
+                border-bottom: none;
+            }
+            
+            tbody tr:hover {
+                background-color: #f8fafc;
+            }
+        }
+    }
+}
+
+// RTL Support for Dashboard
+[dir="rtl"] {
+    .dashboard-overview {
+        .stat-card {
+            .icon-wrapper {
+                margin-right: 0;
+                // Margin handled by flex gap, but ensure no legacy margin
+            }
+        }
+
+        .recent-orders {
+            table {
+                th {
+                    text-align: right;
+                }
+            }
+        }
+    }
+}

@@ -1,5 +1,6 @@
 @use '../base/variables' as *;
 @use '../base/mixins' as *;
+@use 'sass:color';
 
 /* Customer Groups Professional Styles */
 
@@ -325,7 +326,7 @@
 
     &:hover {
       background-color: $light-color;
-      border-color: darken($border-color, 10%);
+      border-color: color.adjust($border-color, $lightness: -10%);
     }
   }
 
@@ -334,7 +335,7 @@
     color: $white;
 
     &:hover {
-      background-color: darken($danger-color, 10%);
+      background-color: color.adjust($danger-color, $lightness: -10%);
     }
   }
 }

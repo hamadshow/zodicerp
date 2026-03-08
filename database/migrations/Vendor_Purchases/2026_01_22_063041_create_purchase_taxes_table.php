@@ -31,7 +31,7 @@ return new class extends Migration
             // But user SQL says accounts(id).
             // Account model says primaryKey = 'AccID'.
             // So we must reference 'AccID'.
-            $table->integer('account_id')->nullable();
+            $table->unsignedInteger('account_id')->nullable();
             $table->foreign('account_id')->references('AccID')->on('accounts')->nullOnDelete();
             
             $table->boolean('is_active')->default(true);

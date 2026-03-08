@@ -20,22 +20,12 @@ const resolveMediaUrl = (value) => {
   return `/media-files/${relativePath}`;
 };
 
-const Header = ({ toggleSidebar, isRtl }) => {
+const Header = ({ isRtl }) => {
   const { auth } = usePage().props;
   const user = auth.user;
 
   return (
     <header className="header">
-      <button
-        className="mobile-menu-toggle"
-        id="mobileMenuToggle"
-        onClick={toggleSidebar}
-      >
-        <span className="material-icons-outlined">
-          {isRtl ? 'menu_open' : 'menu'}
-        </span>
-      </button>
-
       <div className="header-actions">
         <a href="/" className="action-btn" target="_blank" rel="noopener noreferrer">
           <span className="material-icons-outlined">public</span>

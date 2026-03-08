@@ -1,3 +1,3 @@
-@import 'Auth/Login';
-@import 'Auth/Register';
-@import 'suppliers';
+@use 'Auth/Login';
+@use 'Auth/Register';
+@use 'suppliers';

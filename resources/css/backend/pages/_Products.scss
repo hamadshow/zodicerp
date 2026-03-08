@@ -1,5 +1,6 @@
 @use '../base/variables' as *;
 @use '../base/mixins' as *;
+@use 'sass:color';
 
 /* Products Page Specific Styles */
 
@@ -69,7 +70,7 @@
     color: $white;
     border-color: $primary-color;
 
-    &:hover { background: darken($primary-color, 5%); border-color: darken($primary-color, 5%); }
+    &:hover { background: color.adjust($primary-color, $lightness: -5%); border-color: color.adjust($primary-color, $lightness: -5%); }
 }
 
 .btn-danger {
@@ -78,7 +79,7 @@
     color: $white;
     border-color: #ef4444;
 
-    &:hover { background: darken(#ef4444, 5%); border-color: darken(#ef4444, 5%); }
+    &:hover { background: color.adjust(#ef4444, $lightness: -5%); border-color: color.adjust(#ef4444, $lightness: -5%); }
 }
 
 .btn-outline {

@@ -18,10 +18,10 @@ return new class extends Migration
                 $table->foreignId('category_id')->constrained('budget_categories');
                 
                 if (Schema::hasTable('accounts')) {
-                    $table->integer('account_id');
+                    $table->unsignedInteger('account_id');
                     $table->foreign('account_id')->references('AccID')->on('accounts');
                 } else {
-                    $table->integer('account_id');
+                    $table->unsignedInteger('account_id');
                 }
 
                 // Allocation

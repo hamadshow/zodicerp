@@ -1,9 +1,10 @@
 @use 'sass:map';
+@use 'sass:list';
 @use 'variables' as *;
 
 // Responsive breakpoints
 $breakpoints: (
-    'xs': 0,
+    'xs': 0px,
     'sm': 576px,
     'md': 768px,
     'lg': 992px,
@@ -25,7 +26,7 @@ $breakpoints: (
 @mixin media-breakpoint-down($name) {
     $max: map.get($breakpoints, $name);
     @if $max and $max > 0 {
-        @media (max-width: $max - 0.02px) {
+        @media (max-width: #{$max - 0.02px}) {
             @content;
         }
     } @else {
@@ -49,13 +50,13 @@ $breakpoints: (
 
 // Transitions
 @mixin transition-standard($properties...) {
-    @if length($properties) == 0 {
+    @if list.length($properties) == 0 {
         $properties: all;
     }
     
     $transitions: ();
     @each $prop in $properties {
-        $transitions: append($transitions, $prop $transition-speed ease, comma);
+        $transitions: list.append($transitions, $prop $transition-speed ease, comma);
     }
     
     transition: $transitions;

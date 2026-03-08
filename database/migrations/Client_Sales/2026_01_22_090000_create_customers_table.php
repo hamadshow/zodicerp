@@ -17,7 +17,7 @@ return new class extends Migration {
             
             // Foreign keys definitions
             $table->unsignedInteger('customer_group_id');
-            $table->integer('account_id')->nullable(); // Signed integer to match accounts.AccID
+            $table->unsignedInteger('account_id')->nullable();
             $table->unsignedBigInteger('currency_id')->default(1);
             $table->unsignedInteger('price_list_id')->nullable();
             

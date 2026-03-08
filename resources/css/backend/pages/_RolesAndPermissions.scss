@@ -1,0 +1,525 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   Roles and Permissions Page Styles
+   ========================================================================== */
+
+.roles-page-container {
+    padding: $spacing-lg;
+    background-color: $light-color; // #f8f9fa or similar
+    min-height: 100vh;
+    font-family: $font-family-base;
+
+    @include rtl {
+        direction: rtl;
+    }
+}
+
+/* Breadcrumbs */
+.roles-breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: $spacing-xs;
+    margin-bottom: $spacing-lg;
+    font-size: 0.8rem;
+    color: $text-muted;
+    text-transform: uppercase;
+    font-weight: 600;
+
+    .breadcrumb-link {
+        color: $primary-color;
+        text-decoration: none;
+        &:hover { text-decoration: underline; }
+    }
+
+    .breadcrumb-separator {
+        color: $text-muted;
+    }
+
+    .breadcrumb-current {
+        color: $text-muted;
+    }
+}
+
+/* Content Card */
+.roles-content-card {
+    background-color: $white;
+    border-radius: $radius-md;
+    box-shadow: $shadow-sm;
+    border: 1px solid $border-color;
+    overflow: hidden;
+}
+
+/* Toolbar */
+.roles-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: $spacing-md;
+    border-bottom: 1px solid $border-color;
+    flex-wrap: wrap;
+    gap: $spacing-md;
+
+    &__left {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        flex-wrap: wrap;
+    }
+
+    &__right {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+    }
+}
+
+/* Buttons & Inputs */
+.btn-outline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background-color: $white;
+    border: 1px solid $border-color;
+    border-radius: $radius-sm;
+    color: $dark-color;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+        background-color: darken($white, 3%);
+        border-color: darken($border-color, 10%);
+    }
+
+    .material-icons-outlined {
+        font-size: 18px;
+    }
+}
+
+.btn-primary {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 16px;
+    background-color: #1976d2; // Blue color
+    border: 1px solid #1565c0;
+    border-radius: $radius-sm;
+    color: $white;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+        background-color: darken(#1976d2, 5%);
+    }
+
+    .material-icons-outlined {
+        font-size: 18px;
+    }
+}
+
+.text-btn {
+    background: none;
+    border: none;
+    color: #1976d2;
+    cursor: pointer;
+    font-size: 0.9rem;
+    &:hover { text-decoration: underline; }
+}
+
+.search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    .search-input {
+        padding: 6px 32px 6px 12px;
+        border: 1px solid $border-color;
+        border-radius: $radius-sm;
+        font-size: 0.9rem;
+        width: 200px;
+        outline: none;
+
+        &:focus {
+            border-color: $primary-color;
+        }
+        
+        @include rtl {
+            padding: 6px 12px 6px 32px;
+        }
+    }
+
+    .search-icon {
+        position: absolute;
+        right: 8px;
+        color: $text-muted;
+        font-size: 18px;
+        pointer-events: none;
+
+        @include rtl {
+            right: auto;
+            left: 8px;
+        }
+    }
+}
+
+/* Table */
+.roles-table-container {
+    overflow-x: auto;
+}
+
+.roles-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+
+    thead {
+        background-color: #f8f9fa;
+        
+        th {
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #6c757d;
+            border-bottom: 1px solid $border-color;
+            white-space: nowrap;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            
+            @include rtl {
+                text-align: right;
+            }
+        }
+
+        .th-sortable {
+            cursor: pointer;
+            &:hover { background-color: darken(#f8f9fa, 2%); }
+        }
+    }
+
+    tbody {
+        tr {
+            border-bottom: 1px solid $border-color;
+            &:hover { background-color: rgba($primary-color, 0.02); }
+            
+            &:last-child { border-bottom: none; }
+        }
+
+        td {
+            padding: 12px 16px;
+            color: $dark-color;
+            vertical-align: middle;
+        }
+    }
+}
+
+.custom-checkbox {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    border-radius: 3px;
+    border: 1px solid $border-color;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 8px;
+}
+
+.action-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    &.edit-btn {
+        background-color: transparent;
+        color: #1976d2;
+        border: 1px solid #e0e0e0;
+        &:hover { background-color: #e3f2fd; border-color: #1976d2; }
+    }
+    
+    &.delete-btn {
+        background-color: transparent;
+        color: #dc3545;
+        border: 1px solid #e0e0e0;
+        &:hover { background-color: #ffebee; border-color: #dc3545; }
+    }
+
+    .material-icons-outlined {
+        font-size: 18px;
+    }
+}
+
+/* Footer */
+.roles-footer {
+    padding: 12px 16px;
+    border-top: 1px solid $border-color;
+    background-color: $white;
+    color: $text-muted;
+    font-size: 0.9rem;
+}
+
+.roles-pagination-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    .globe-icon {
+        font-size: 18px;
+        color: $text-muted;
+    }
+
+    .badge-count {
+        background-color: #6c757d;
+        color: $white;
+        padding: 0 6px;
+        border-radius: 10px;
+        font-size: 0.75rem;
+        font-weight: bold;
+    }
+}
+
+/* ==========================================================================
+   Form & Permissions Grid Styles
+   ========================================================================== */
+
+.roles-form-container {
+    background-color: $white;
+    border-radius: $radius-md;
+    box-shadow: $shadow-sm;
+    padding: $spacing-lg;
+}
+
+.form-layout {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-lg;
+}
+
+.form-card {
+    margin-bottom: $spacing-lg;
+}
+
+.form-group {
+    margin-bottom: $spacing-md;
+
+    .form-label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: $dark-color;
+        
+        &.required::after {
+            content: '*';
+            color: #dc3545;
+            margin-left: 4px;
+        }
+    }
+
+    .form-input, .form-textarea {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid $border-color;
+        border-radius: $radius-sm;
+        font-size: 0.95rem;
+        
+        &:focus {
+            outline: none;
+            border-color: $primary-color;
+            box-shadow: 0 0 0 2px rgba($primary-color, 0.1);
+        }
+        
+        &.is-invalid {
+            border-color: #dc3545;
+        }
+    }
+
+    .invalid-feedback {
+        color: #dc3545;
+        font-size: 0.85rem;
+        margin-top: 4px;
+    }
+}
+
+.checkbox-group {
+    .switch-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        
+        .switch-text {
+            font-weight: 500;
+        }
+    }
+}
+
+/* Permissions Section */
+.permissions-card {
+    border: 1px solid $border-color;
+    border-radius: $radius-md;
+    overflow: hidden;
+}
+
+.permissions-header {
+    background-color: #f1f3f5;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid $border-color;
+
+    .permissions-title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0;
+        color: $dark-color;
+    }
+
+    .permissions-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 0.9rem;
+
+        .all-permissions-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        .separator {
+            color: $border-color;
+        }
+    }
+}
+
+.permissions-grid {
+    display: flex;
+    flex-direction: column;
+}
+
+.permission-group {
+    border-bottom: 1px solid $border-color;
+    
+    &:last-child {
+        border-bottom: none;
+    }
+
+    &.collapsed {
+        .group-resources { display: none; }
+    }
+}
+
+.group-header {
+    background-color: #fff;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    
+    .group-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .collapse-icon {
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        color: $text-muted;
+        display: flex;
+        align-items: center;
+    }
+
+    .group-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: $dark-color;
+    }
+}
+
+.group-resources {
+    padding: 0 16px 16px 40px; // Indent resources
+    background-color: #fff;
+    
+    @include rtl {
+        padding: 0 40px 16px 16px;
+    }
+}
+
+.resource-item {
+    margin-bottom: 12px;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    overflow: hidden;
+
+    &:last-child { margin-bottom: 0; }
+}
+
+.resource-header {
+    background-color: #e3f2fd; // Light blue background
+    padding: 8px 12px;
+    border-bottom: 1px solid #bbdefb;
+    
+    .resource-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        color: #0d47a1; // Dark blue text
+        
+        input[type="checkbox"] {
+            accent-color: #1976d2;
+        }
+    }
+}
+
+.resource-actions {
+    padding: 10px 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    background-color: #fff8e1; // Light yellow background
+    
+    .action-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        color: #f57f17; // Dark orange/yellow text
+        
+        input[type="checkbox"] {
+            accent-color: #fbc02d; // Yellow checkbox
+        }
+    }
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid $border-color;
+}

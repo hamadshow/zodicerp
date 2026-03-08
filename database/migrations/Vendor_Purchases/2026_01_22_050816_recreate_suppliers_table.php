@@ -12,6 +12,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('suppliers')) {
+            return;
+        }
+
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
 
         Schema::dropIfExists('product_supplier');
@@ -30,7 +34,7 @@ return new class extends Migration
             $table->foreignId('supplier_group_id');
             
             // account_id
-            $table->integer('account_id')->nullable();
+            $table->unsignedInteger('account_id')->nullable();
             
             $table->string('password', 255);
             

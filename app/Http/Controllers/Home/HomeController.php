@@ -838,6 +838,6 @@ class HomeController extends Controller
 
     public function suppliers()
     {
-        return Inertia::render('Suppliers/Suppliers');
+        return Inertia::render('Suppliers/Frontend/Suppliers');
     }
 }

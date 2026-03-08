@@ -55,7 +55,7 @@ return new class extends Migration
             
             // Inventory and Tax
             // Linking to accounts(AccID) which is integer
-            $table->integer('inventory_account_id')->nullable();
+            $table->unsignedInteger('inventory_account_id')->nullable();
             
             // Linking to purchase_taxes table as generic 'taxes' table does not exist
             $table->foreignId('tax_id')->nullable()->constrained('purchase_taxes')->nullOnDelete();

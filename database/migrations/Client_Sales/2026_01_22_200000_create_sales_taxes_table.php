@@ -17,7 +17,7 @@ return new class extends Migration {
             $table->enum('tax_type', ['vat', 'sales_tax', 'excise', 'withholding', 'other'])->default('vat');
             $table->enum('calculation_method', ['on_total', 'on_subtotal', 'exclusive', 'inclusive'])->default('on_subtotal');
             $table->boolean('is_collectable')->default(true);
-            $table->integer('account_id')->nullable(); // Signed integer to match accounts.AccID
+            $table->unsignedInteger('account_id')->nullable();
             $table->boolean('is_active')->default(true);
             $table->text('notes')->nullable();
             $table->integer('created_by')->nullable();

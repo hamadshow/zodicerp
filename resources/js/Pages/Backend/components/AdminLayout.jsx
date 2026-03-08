@@ -237,27 +237,10 @@ const AdminLayout = ({
     },
     {
       icon: 'account_tree',
-      label: 'Budgeting',
-      hasSubmenu: true,
-      submenuItems: [
-        { icon: 'show_chart', label: 'Budgets', href: getLocalizedRoute('admin.budgeting.budgets.index') },
-        { icon: 'insights', label: 'Budget Reports', href: getLocalizedRoute('admin.budgeting.reports.index') },
-      ],
+      label: 'Plugin',
+      href: getLocalizedRoute('admin.pages.plugins.index'),
     },
-    {
-      icon: 'monetization_on',
-      label: 'Budget',
-      hasSubmenu: true,
-      submenuItems: [
-        { icon: 'dashboard', label: 'Budget Dashboard', href: getLocalizedRoute('admin.budget.dashboard') },
-        { icon: 'category', label: 'Budget Categories', href: getLocalizedRoute('admin.budget.categories') },
-        { icon: 'list', label: 'Budget', href: getLocalizedRoute('admin.budget.index') },
-        { icon: 'trending_up', label: 'Budget Forecasts', href: getLocalizedRoute('admin.budget.forecasts') },
-        { icon: 'monitor_heart', label: 'Budget Monitoring', href: getLocalizedRoute('admin.budget.monitoring') },
-        { icon: 'swap_horiz', label: 'Budget Transfers', href: getLocalizedRoute('admin.budget.transfers') },
-        { icon: 'assignment_turned_in', label: 'Budget Commitments', href: getLocalizedRoute('admin.budget.commitments') },
-      ],
-    },
+
     {
       icon: 'insights',
       label: 'Investing Stack',

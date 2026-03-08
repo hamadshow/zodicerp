@@ -28,11 +28,11 @@ return new class extends Migration
             // Other migrations (sales_taxes, purchase_taxes) use integer (signed) to reference AccID.
             // We will follow that pattern to ensure compatibility.
             
-            $table->integer('account_purchase_id')->nullable();
-            $table->integer('account_depreciation_id')->nullable();
-            $table->integer('account_accumulated_depreciation_id')->nullable();
-            $table->integer('account_disposal_gain_id')->nullable();
-            $table->integer('account_disposal_loss_id')->nullable();
+            $table->unsignedInteger('account_purchase_id')->nullable();
+            $table->unsignedInteger('account_depreciation_id')->nullable();
+            $table->unsignedInteger('account_accumulated_depreciation_id')->nullable();
+            $table->unsignedInteger('account_disposal_gain_id')->nullable();
+            $table->unsignedInteger('account_disposal_loss_id')->nullable();
             
             $table->boolean('is_active')->default(true);
             $table->timestamps();

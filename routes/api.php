@@ -24,14 +24,14 @@ use App\Http\Controllers\Backend\Location\LocationController;
 */
 
 Route::middleware('web')->group(function () {
-    Route::apiResource('tasks', TaskController::class);
-    Route::apiResource('assignments', TaskAssignmentController::class);
-    Route::apiResource('attachments', TaskAttachmentController::class);
-    Route::apiResource('comments', TaskCommentController::class);
     Route::get('tasks/categories', [TaskCategoryController::class, 'index']);
     Route::get('tasks/priorities', [TaskPriorityController::class, 'index']);
     Route::get('tasks/statuses', [TaskStatusController::class, 'index']);
     Route::get('tasks/statistics', [TaskController::class, 'statistics']);
+    Route::apiResource('tasks', TaskController::class);
+    Route::apiResource('assignments', TaskAssignmentController::class);
+    Route::apiResource('attachments', TaskAttachmentController::class);
+    Route::apiResource('comments', TaskCommentController::class);
     
     // Employee Routes
      Route::get('employees', [EmployeeController::class, 'getEmployees']);

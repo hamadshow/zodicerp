@@ -17,7 +17,7 @@ class StoreSupplierRequest extends FormRequest
             // General
             'supplier_code' => 'nullable|string|max:50|unique:suppliers,supplier_code',
             'name_ar' => 'required|string|max:255',
-            'name_en' => 'required|string|max:255',
+            'store_name_json' => 'nullable|string|max:255',
             'supplier_group_id' => 'required|exists:supplier_groups,id',
             'account_id' => 'nullable|exists:accounts,AccID', // Assuming AccID based on memory
             'currency_id' => 'nullable|exists:currencies,id',
@@ -55,9 +55,15 @@ class StoreSupplierRequest extends FormRequest
             // Opening Balance
             'opening_balance' => 'nullable|array',
             'opening_balance.financial_year' => 'nullable|integer',
-            'opening_balance.financial_year' => 'nullable|integer',
             'opening_balance.debit_amount' => 'nullable|numeric',
             'opening_balance.credit_amount' => 'nullable|numeric',
+        ];
+    }
+
+    public function attributes()
+    {
+        return [
+            'name_ar' => 'Name',
         ];
     }
 }
