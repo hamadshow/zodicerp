@@ -38,7 +38,8 @@ class DatabaseSeeder extends Seeder
 
         if (!User::where('email', 'system.admin@company.com')->exists()) {
             User::factory()->create([
-                'name' => 'System Admin',
+                'username' => 'System Admin',
+                'fullname' => 'System Admin',
                 'email' => 'system.admin@company.com',
                 'role' => 'admin',
             ]);
@@ -46,7 +47,8 @@ class DatabaseSeeder extends Seeder
 
         if (!User::where('email', 'supplier.user@company.com')->exists()) {
             User::factory()->create([
-                'name' => 'Supplier User',
+                'username' => 'Supplier User',
+                'fullname' => 'Supplier User',
                 'email' => 'supplier.user@company.com',
                 'role' => 'supplier',
             ]);
@@ -54,7 +56,8 @@ class DatabaseSeeder extends Seeder
 
         if (!User::where('email', 'customer.user@company.com')->exists()) {
             User::factory()->create([
-                'name' => 'Customer User',
+                'username' => 'Customer User',
+                'fullname' => 'Customer User',
                 'email' => 'customer.user@company.com',
                 'role' => 'customer',
             ]);
@@ -69,72 +72,44 @@ class DatabaseSeeder extends Seeder
         // Create sample employees
         $employees = [
             [
-                'first_name' => 'Ahmed',
-                'last_name' => 'Mohamed',
                 'email' => 'ahmed.mohamed@company.com',
                 'password' => \Illuminate\Support\Facades\Hash::make('password'),
                 'phone' => '+201234567890',
-                'department' => 'it',
-                'position' => 'Software Engineer',
                 'hire_date' => '2023-01-15',
-                'salary' => 5000,
-                'nationality' => 'egyptian',
                 'status' => 'active',
-                'address' => 'Cairo, Egypt',
-                'notes' => 'Excellent performance',
                 'role' => 'admin',
-                'name' => 'Ahmed Mohamed',
+                'username' => 'Ahmed Mohamed',
+                'fullname' => 'Ahmed Mohamed',
             ],
             [
-                'first_name' => 'Sarah',
-                'last_name' => 'Johnson',
                 'email' => 'sarah.j@company.com',
                 'password' => \Illuminate\Support\Facades\Hash::make('password'),
                 'phone' => '+12025550123',
-                'department' => 'hr',
-                'position' => 'HR Manager',
                 'hire_date' => '2022-03-10',
-                'salary' => 6500,
-                'nationality' => 'american',
                 'status' => 'active',
-                'address' => 'New York, USA',
-                'notes' => '',
                 'role' => 'admin',
-                'name' => 'Sarah Johnson',
+                'username' => 'Sarah Johnson',
+                'fullname' => 'Sarah Johnson',
             ],
             [
-                'first_name' => 'James',
-                'last_name' => 'Wilson',
                 'email' => 'james.w@company.com',
                 'password' => \Illuminate\Support\Facades\Hash::make('password'),
                 'phone' => '+442012345678',
-                'department' => 'sales',
-                'position' => 'Sales Director',
                 'hire_date' => '2021-11-20',
-                'salary' => 8000,
-                'nationality' => 'british',
                 'status' => 'active',
-                'address' => 'London, UK',
-                'notes' => 'Top performer',
                 'role' => 'admin',
-                'name' => 'James Wilson',
+                'username' => 'James Wilson',
+                'fullname' => 'James Wilson',
             ],
             [
-                'first_name' => 'Fatima',
-                'last_name' => 'Al-Mansour',
                 'email' => 'fatima.am@company.com',
                 'password' => \Illuminate\Support\Facades\Hash::make('password'),
                 'phone' => '+966501234567',
-                'department' => 'marketing',
-                'position' => 'Marketing Specialist',
                 'hire_date' => '2023-06-05',
-                'salary' => 4500,
-                'nationality' => 'saudi',
                 'status' => 'active',
-                'address' => 'Riyadh, Saudi Arabia',
-                'notes' => '',
                 'role' => 'admin',
-                'name' => 'Fatima Al-Mansour',
+                'username' => 'Fatima Al-Mansour',
+                'fullname' => 'Fatima Al-Mansour',
             ],
         ];
 
@@ -144,14 +119,15 @@ class DatabaseSeeder extends Seeder
             }
         }
 
-        if (!User::where('email', 'ah.elshrif10@gmail.com')->exists()) {
-            User::create([
-                'name' => 'Admin',
-                'email' => 'ah.elshrif10@gmail.com',
+        User::updateOrCreate(
+            ['email' => 'ah.elshrif10@gmail.com'],
+            [
+                'username' => 'SuperAdmin',
+                'fullname' => 'SuperAdmin',
                 'password' => \Illuminate\Support\Facades\Hash::make('$h0W198515'),
                 'role' => 'admin',
                 'status' => 'active',
-            ]);
-        }
+            ]
+        );
     }
 }

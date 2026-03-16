@@ -89,7 +89,7 @@ class AssetController extends Controller
         $categories = AssetCategory::select('id', 'name_en as name', 'parent_id')->orderBy('name_en')->get();
         $warehouses = Warehouses::select('id', 'name')->get();
         $units = ItemUnit::select('id', 'name')->get();
-        $employees = User::select('id', 'name')->get();
+        $employees = User::select('id', 'username')->get();
 
         return Inertia::render('Backend/08-Assets/Assets', [
             'asset' => null,
@@ -105,7 +105,7 @@ class AssetController extends Controller
         $categories = AssetCategory::select('id', 'name_en as name', 'parent_id')->orderBy('name_en')->get();
         $warehouses = Warehouses::select('id', 'name')->get();
         $units = ItemUnit::select('id', 'name')->get();
-        $employees = User::select('id', 'name')->get();
+        $employees = User::select('id', 'username')->get();
 
         return Inertia::render('Backend/08-Assets/Assets', [
             'asset' => $asset,

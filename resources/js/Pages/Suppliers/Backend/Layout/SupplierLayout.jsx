@@ -3,7 +3,7 @@ import { usePage, Link } from '@inertiajs/react';
 import '../../../../../css/suppliers/Backend/main.scss';
 
 const SupplierLayout = ({ children, activeMenu: initialActiveMenu = 'Dashboard' }) => {
-    const { props, url } = usePage();
+    const { props } = usePage();
     const user = props?.auth?.supplier;
     const localization = props?.localization;
     const isRtl = localization?.is_rtl;
@@ -23,7 +23,7 @@ const SupplierLayout = ({ children, activeMenu: initialActiveMenu = 'Dashboard' 
                 lang: localization?.current_locale || 'ar',
                 ...params
             });
-        } catch (e) {
+        } catch {
             console.warn(`Route ${name} not found`);
             return '#';
         }

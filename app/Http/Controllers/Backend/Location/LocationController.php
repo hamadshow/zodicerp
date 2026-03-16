@@ -7,7 +7,6 @@ use App\Models\Area;
 use App\Models\City;
 use App\Models\Country;
 use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -63,16 +62,16 @@ class LocationController extends Controller
         return redirect()->back()->with('success', 'Country created successfully');
     }
 
-    public function updateCountry(UpdateCountryRequest $request, Country $country)
+    public function updateCountry(UpdateCountryRequest $request, Country $countryRecord)
     {
-        $country->update($request->validated());
+        $countryRecord->update($request->validated());
 
         return redirect()->back()->with('success', 'Country updated successfully');
     }
 
-    public function destroyCountry(Country $country)
+    public function destroyCountry(Country $countryRecord)
     {
-        $country->delete();
+        $countryRecord->delete();
         return redirect()->back()->with('success', 'Country deleted successfully');
     }
 
@@ -217,9 +216,6 @@ class LocationController extends Controller
                     $data = array_filter([
                         'name' => $name,
                         'code' => $code !== '' ? $code : null,
-                        'currency' => $countryData['currency'] ?? null,
-                        'timezone' => $countryData['timezone'] ?? null,
-                        'phone_code' => $countryData['phone_code'] ?? null,
                         'status' => $countryData['status'] ?? 'active',
                     ], fn($v) => !is_null($v) && $v !== '');
 

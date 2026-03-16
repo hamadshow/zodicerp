@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 @php
     $currentLocale = app()->getLocale();
-    $language = \App\Models\Language::where('lang_code', $currentLocale)->first();
-    $isRtl = $language ? $language->lang_is_rtl == 1 : ($currentLocale == 'ar');
+    $isRtl = false;
 @endphp
 <html lang="{{ str_replace('_', '-', $currentLocale) }}" dir="{{ $isRtl ? 'rtl' : 'ltr' }}">
     <head>
@@ -29,12 +28,6 @@
             </script>
         @endif
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-        <link href="https://fonts.googleapis.com/icon?family=Material+Icons|Material+Icons+Outlined" rel="stylesheet" />
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 
         <!-- Scripts -->
         @routes

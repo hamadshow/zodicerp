@@ -23,6 +23,19 @@ use App\Http\Requests\Purchases\UpdateSupplierRequest;
 use App\Models\Products;
 use App\Models\Client_Sales\SalesOrder;
 use App\Models\Client_Sales\SalesOrderDetail;
+use App\Models\Brands;
+use App\Models\Categories;
+use App\Models\ItemAttribute;
+use App\Http\Requests\Inventory\StoreProductsRequest;
+use App\Http\Requests\Inventory\UpdateProductsRequest;
+use App\Models\ProductVariation;
+use App\Models\ProductVariationItem;
+use Illuminate\Validation\ValidationException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Exception;
+use Throwable;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class SupplierController extends Controller
 {
@@ -94,9 +107,485 @@ class SupplierController extends Controller
         ]);
     }
 
-    public function products()
+    public function products(Request $request)
     {
-        return Inertia::render('Suppliers/Backend/Products');
+        $supplier = Auth::guard('supplier')->user();
+        
+        $query = Products::with(['parent', 'brand', 'categories'])
+            ->where('supplier_code', $supplier->supplier_code)
+            ->whereNull('parent_id');
+
+        // Search
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('product_code', 'like', "%{$search}%")
+                  ->orWhere('sku', 'like', "%{$search}%");
+            });
+        }
+
+        // Filters
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        }
+        if ($request->has('brand_id') && $request->brand_id) {
+            $query->where('brand_id', $request->brand_id);
+        }
+        if ($request->has('category_id') && $request->category_id) {
+            $query->whereHas('categories', function ($q) use ($request) {
+                $q->where('categories.id', $request->category_id);
+            });
+        }
+
+        $products = $query->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
+
+        $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
+        $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
+
+        return Inertia::render('Suppliers/Backend/Products', [
+            'products' => $products,
+            'filters' => $request->only(['search', 'status', 'brand_id', 'category_id']),
+            'brands' => $brands,
+            'categories' => $categories,
+        ]);
+    }
+
+    public function createProduct()
+    {
+        $supplier = Auth::guard('supplier')->user();
+        
+        $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
+        $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
+        $itemAttributes = ItemAttribute::with(['details' => function ($query) {
+            $query->select('id', 'attribute_set_id', 'title')->orderBy('order')->orderBy('title');
+        }])
+            ->select('id', 'title')
+            ->where('status', 'published')
+            ->orderBy('order')
+            ->orderBy('title')
+            ->get();
+
+        return Inertia::render('Suppliers/Backend/Products', [
+            'product' => null,
+            'brands' => $brands,
+            'categories' => $categories,
+            'itemAttributes' => $itemAttributes,
+        ]);
+    }
+
+    public function storeProduct(StoreProductsRequest $request)
+    {
+        $supplier = Auth::guard('supplier')->user();
+
+        try {
+            DB::beginTransaction();
+
+            // Auto-generate Product Code
+            $lastProductCode = Products::withTrashed()
+                ->where('product_code', 'like', 'PRD-%')
+                ->orderByRaw('CAST(SUBSTRING(product_code, 5) AS UNSIGNED) DESC')
+                ->value('product_code');
+            if ($lastProductCode) {
+                $lastNumber = (int) substr($lastProductCode, 4);
+                $nextNumber = $lastNumber + 1;
+            } else {
+                $nextNumber = 7001;
+            }
+            $productCode = 'PRD-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+
+            // Generate Slug
+            $slug = Str::slug($request->name);
+            $count = Products::where('slug', 'LIKE', "{$slug}%")->count();
+            if ($count > 0) {
+                $slug .= '-' . ($count + 1);
+            }
+
+            $data = $request->validated();
+            $data['is_featured'] = $request->boolean('is_featured');
+            $data['product_code'] = $productCode;
+            $data['slug'] = $slug;
+            $data['created_by_id'] = $supplier->id;
+            $data['created_by_type'] = get_class($supplier);
+            $data['supplier_code'] = $supplier->supplier_code;
+
+            // Handle Main Image
+            if ($request->hasFile('image')) {
+                $image = $request->file('image');
+                $data['image'] = $image->store('suppliers/' . $supplier->supplier_code . '/products', 'public');
+            }
+
+            // Handle Gallery
+            $galleryPaths = [];
+            foreach ((array) $request->input('gallery', []) as $path) {
+                if (is_string($path) && !empty($path)) {
+                    $galleryPaths[] = $path;
+                }
+            }
+            foreach ((array) $request->file('gallery', []) as $file) {
+                if ($file instanceof \Illuminate\Http\UploadedFile) {
+                    $galleryPaths[] = $file->store('suppliers/' . $supplier->supplier_code . '/products/gallery', 'public');
+                }
+            }
+            if (!empty($galleryPaths)) {
+                $data['images'] = array_values(array_unique($galleryPaths));
+            }
+
+            // Create Product
+            $product = Products::create($data);
+
+            // Attach Categories
+            if ($request->has('category_ids')) {
+                $product->categories()->attach($request->category_ids);
+            }
+
+            // Handle Variations
+            if ($request->product_type === 'variable') {
+                $this->handleVariations($product, $request);
+            }
+
+            DB::commit();
+
+            if ($request->wantsJson()) {
+                return response()->json(['message' => 'Product created successfully', 'product' => $product]);
+            }
+
+            $action = $request->input('save_action', 'save');
+            if ($action === 'save_and_exit') {
+                return redirect()->route('supplier.products')->with('success', 'Product created successfully.');
+            }
+            return redirect()->route('supplier.products.edit', $product->id)->with('success', 'Product created successfully.');
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Supplier Product Create Error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to create product: ' . $e->getMessage()])->withInput();
+        }
+    }
+
+    public function editProduct(Products $product)
+    {
+        $supplier = Auth::guard('supplier')->user();
+        
+        // Ensure ownership
+        if ($product->supplier_code !== $supplier->supplier_code) {
+            abort(403, 'Unauthorized access to this product.');
+        }
+
+        $product->load(['categories', 'variations.items', 'variations.product']);
+
+        $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
+        $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
+        $itemAttributes = ItemAttribute::with(['details' => function ($query) {
+            $query->select('id', 'attribute_set_id', 'title')->orderBy('order')->orderBy('title');
+        }])
+            ->select('id', 'title')
+            ->where('status', 'published')
+            ->orderBy('order')
+            ->orderBy('title')
+            ->get();
+
+        return Inertia::render('Suppliers/Backend/Products', [
+            'product' => $product,
+            'brands' => $brands,
+            'categories' => $categories,
+            'itemAttributes' => $itemAttributes,
+        ]);
+    }
+
+    public function updateProduct(UpdateProductsRequest $request, Products $product)
+    {
+        $supplier = Auth::guard('supplier')->user();
+        
+        if ($product->supplier_code !== $supplier->supplier_code) {
+            abort(403, 'Unauthorized');
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $data = $request->validated();
+            $data['is_featured'] = $request->boolean('is_featured');
+            
+            // Handle Main Image
+            if ($request->boolean('delete_image')) {
+                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                    Storage::disk('public')->delete($product->image);
+                }
+                $data['image'] = null;
+            }
+            if ($request->hasFile('image')) {
+                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                    Storage::disk('public')->delete($product->image);
+                }
+                $image = $request->file('image');
+                $data['image'] = $image->store('suppliers/' . $supplier->supplier_code . '/products', 'public');
+            }
+
+            // Handle Gallery
+            $currentImages = array_values(array_filter((array) $request->input('existing_images', []), function ($value) {
+                return is_string($value) && !empty($value);
+            }));
+            $newImages = [];
+            
+            foreach ((array) $request->file('gallery', []) as $file) {
+                if ($file instanceof \Illuminate\Http\UploadedFile) {
+                    $newImages[] = $file->store('suppliers/' . $supplier->supplier_code . '/products/gallery', 'public');
+                }
+            }
+
+            $finalImages = array_values(array_unique(array_merge($currentImages, $newImages)));
+            $data['images'] = $finalImages;
+
+            $previousImages = array_values(array_filter((array) ($product->images ?? []), function ($value) {
+                return is_string($value) && !empty($value);
+            }));
+            $deletedImages = array_diff($previousImages, $currentImages);
+            foreach ($deletedImages as $path) {
+                if (Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+            }
+
+            $product->update($data);
+
+            // Update Categories
+            if ($request->has('category_ids')) {
+                $product->categories()->sync($request->category_ids);
+            }
+
+            // Handle Variations
+            $this->handleVariations($product, $request);
+
+            DB::commit();
+
+            if ($request->wantsJson()) {
+                return response()->json(['message' => 'Product updated successfully', 'product' => $product]);
+            }
+
+            $action = $request->input('save_action', 'save');
+            if ($action === 'save_and_exit') {
+                return redirect()->route('supplier.products')->with('success', 'Product updated successfully.');
+            }
+            return back()->with('success', 'Product updated successfully.');
+
+        } catch (Exception $e) {
+            DB::rollBack();
+            Log::error('Supplier Product Update Error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to update product: ' . $e->getMessage()])->withInput();
+        }
+    }
+
+    public function destroyProduct(Products $product)
+    {
+        $supplier = Auth::guard('supplier')->user();
+
+        if ($product->supplier_code !== $supplier->supplier_code) {
+            abort(403, 'Unauthorized');
+        }
+
+        try {
+            if ($product->children()->count() > 0) {
+                return back()->withErrors(['error' => 'Cannot delete product with sub-products.']);
+            }
+
+            if ($product->image && Storage::disk('public')->exists($product->image)) {
+                Storage::disk('public')->delete($product->image);
+            }
+            foreach ((array) ($product->images ?? []) as $path) {
+                if (is_string($path) && !empty($path) && Storage::disk('public')->exists($path)) {
+                    Storage::disk('public')->delete($path);
+                }
+            }
+
+            $product->delete();
+
+            return redirect()->route('supplier.products')
+                ->with('success', 'Product deleted successfully.');
+        } catch (Exception $e) {
+            Log::error('Supplier Product Delete Error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Failed to delete product.']);
+        }
+    }
+
+    private function handleVariations(Products $product, Request $request)
+    {
+        $data = $request->all();
+        
+        // If switching to variable or updating variable product
+        if (($data['product_type'] ?? $product->product_type) === 'variable') {
+            $variations = $request->input('variations', []);
+            $variationFiles = $request->file('variations', []);
+
+            if (!is_array($variations) || count($variations) === 0) {
+                // If we are just updating non-variation fields of a variable product, we might not send variations if they are unchanged?
+                // But usually the form sends everything.
+                // Admin controller throws validation exception here.
+                throw ValidationException::withMessages([
+                    'variations' => ['Variations are required for variable products.']
+                ]);
+            }
+
+            $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
+            
+            // We delete all old variations and recreate them. 
+            // This is how Admin controller does it (simplistic but effective for consistency).
+            // Optimization: checking ID to update instead of delete/create would be better but complex.
+            $product->variations()->delete();
+            if (!empty($existingVariationProductIds)) {
+                \App\Models\Products::whereIn('id', $existingVariationProductIds)->forceDelete();
+            }
+
+            $total = 0;
+            $defaultMarked = false;
+            
+            $supplierCode = $product->supplier_code;
+            $variationPath = "suppliers/{$supplierCode}/products/variations";
+
+            foreach ($variations as $index => $var) {
+                $isDefault = (bool)($var['is_default'] ?? false);
+                if ($isDefault) {
+                    $defaultMarked = true;
+                }
+
+                $variationImages = [];
+
+                // 1. Handle uploaded files
+                if (isset($variationFiles[$index]['images']) && is_array($variationFiles[$index]['images'])) {
+                    foreach ($variationFiles[$index]['images'] as $file) {
+                        if ($file instanceof \Illuminate\Http\UploadedFile && $this->validateImageFile($file)) {
+                            $variationImages[] = $file->store($variationPath, 'public');
+                        }
+                    }
+                }
+
+                // 2. Handle strings (existing paths)
+                if (isset($var['images']) && is_array($var['images'])) {
+                    foreach ($var['images'] as $path) {
+                        if (is_string($path) && !empty($path)) {
+                            $variationImages[] = $path;
+                        }
+                    }
+                }
+
+                // 3. Fallback: single image
+                if (empty($variationImages)) {
+                    if (isset($variationFiles[$index]['image']) && $variationFiles[$index]['image'] instanceof \Illuminate\Http\UploadedFile) {
+                        if ($this->validateImageFile($variationFiles[$index]['image'])) {
+                            $variationImages[] = $variationFiles[$index]['image']->store($variationPath, 'public');
+                        }
+                    } elseif (isset($var['image']) && is_string($var['image']) && !empty($var['image'])) {
+                        $variationImages[] = $var['image'];
+                    }
+                }
+
+                // 4. Final Fallback: Parent image
+                if (empty($variationImages) && $product->image) {
+                    $variationImages[] = $product->image;
+                }
+
+                $variationImages = array_values(array_unique($variationImages));
+                $mainImage = !empty($variationImages) ? $variationImages[0] : null;
+
+                $childProductData = $product->toArray();
+                unset(
+                    $childProductData['id'],
+                    $childProductData['created_at'],
+                    $childProductData['updated_at'],
+                    $childProductData['deleted_at'],
+                    $childProductData['variations_count']
+                );
+
+                $childProductData['parent_id'] = $product->id;
+                $childProductData['product_type'] = 'simple';
+                $childProductData['is_variation'] = false;
+                $childProductData['barcode'] = $var['barcode'] ?? null;
+                $childProductData['product_code'] = $product->product_code . '-' . ($index + 1);
+                $childProductData['slug'] = $product->slug . '-' . ($index + 1);
+                $childProductData['sku'] = $var['sku'] ?? null;
+                $childProductData['price'] = (array_key_exists('price', $var) && $var['price'] !== null) ? $var['price'] : $product->price;
+                $childProductData['sale_price'] = (array_key_exists('sale_price', $var) && $var['sale_price'] !== null) ? $var['sale_price'] : null;
+                $childProductData['cost_per_item'] = (array_key_exists('cost_per_item', $var) && $var['cost_per_item'] !== null) ? $var['cost_per_item'] : null;
+                $childProductData['quantity'] = (array_key_exists('stock', $var) && $var['stock'] !== null) ? $var['stock'] : $product->quantity;
+                $childProductData['stock_status'] = $var['stock_status'] ?? 'in_stock';
+                $childProductData['weight'] = (array_key_exists('weight', $var) && $var['weight'] !== null) ? $var['weight'] : $product->weight;
+                $childProductData['length'] = (array_key_exists('length', $var) && $var['length'] !== null) ? $var['length'] : $product->length;
+                $childProductData['wide'] = (array_key_exists('wide', $var) && $var['wide'] !== null) ? $var['wide'] : $product->wide;
+                $childProductData['height'] = (array_key_exists('height', $var) && $var['height'] !== null) ? $var['height'] : $product->height;
+                $childProductData['image'] = $mainImage;
+                $childProductData['images'] = $variationImages;
+                $childProductData['supplier_code'] = $product->supplier_code;
+
+                $childProduct = \App\Models\Products::create($childProductData);
+
+                $variation = \App\Models\ProductVariation::create([
+                    'product_id' => $childProduct->id,
+                    'configurable_product_id' => $product->id,
+                    'is_default' => $isDefault,
+                ]);
+
+                $attributes = [];
+                if (isset($var['attributes']) && is_array($var['attributes'])) {
+                    $attributes = $var['attributes'];
+                } elseif (isset($var['attribute_values']) && is_array($var['attribute_values'])) {
+                    foreach ($var['attribute_values'] as $attrId => $value) {
+                        $attributes[] = [
+                            'attribute_id' => is_numeric($attrId) ? (int)$attrId : $attrId,
+                            'attribute_value' => $value,
+                        ];
+                    }
+                }
+
+                foreach ($attributes as $attr) {
+                    \App\Models\ProductVariationItem::create([
+                        'variation_id' => $variation->id,
+                        'attribute_id' => $attr['attribute_id'],
+                        'attribute_value' => $attr['attribute_value'],
+                    ]);
+                }
+
+                $total++;
+            }
+
+            if (!$defaultMarked) {
+                $first = $product->variations()->first();
+                if ($first) {
+                    $first->is_default = true;
+                    $first->save();
+                }
+            }
+
+            $product->update([
+                'is_variation' => true,
+                'variations_count' => $total,
+            ]);
+        } else {
+            // Not variable anymore, delete variations
+            $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
+            $product->variations()->delete();
+            if (!empty($existingVariationProductIds)) {
+                \App\Models\Products::whereIn('id', $existingVariationProductIds)->delete();
+            }
+            $product->update([
+                'is_variation' => false,
+                'variations_count' => 0,
+            ]);
+        }
+    }
+
+    private function validateImageFile($file): bool
+    {
+        if (!$file->isValid()) {
+            return false;
+        }
+        if ($file->getSize() > 5 * 1024 * 1024) {
+            return false;
+        }
+        $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+        if (!in_array(strtolower($file->getClientOriginalExtension()), $allowedExtensions)) {
+            return false;
+        }
+        return true;
     }
 
     public function orders()

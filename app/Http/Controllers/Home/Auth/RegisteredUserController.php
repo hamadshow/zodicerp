@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Home\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\Client_Sales\Customer;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -21,7 +20,7 @@ class RegisteredUserController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Home/Auth/Register');
+        return Inertia::render('Backend/Auth/Register');
     }
 
     /**
@@ -32,45 +31,36 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'first_name' => 'required|string|max:255',
-            'last_name' => 'required|string|max:255',
+            'fullname' => 'sometimes|required_without:name|string|max:255',
+            'name' => 'sometimes|required_without:fullname|string|max:255',
+            'username' => 'sometimes|string|max:255',
             'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
             'phone' => 'nullable|string|max:20',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
+        $fullname = trim((string) ($data['fullname'] ?? $data['name'] ?? $data['username'] ?? ''));
+        $username = trim((string) ($data['username'] ?? $fullname));
+
         $user = User::create([
-            'name' => $data['first_name'].' '.$data['last_name'],
+            'username' => $username,
+            'fullname' => $fullname,
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
+            'role' => 'customer',
+            'status' => 'active',
+            'phone' => $data['phone'] ?? null,
         ]);
 
         event(new Registered($user));
 
         Auth::login($user);
 
-        $customerData = [
-            'name_ar' => $data['first_name'].' '.$data['last_name'],
-            'name_en' => $data['first_name'].' '.$data['last_name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-            'mobile' => $data['phone'] ?? null,
-            'is_active' => true,
-            'customer_group_id' => 2,
-            'registration_date' => now(),
-            'created_by' => $user->id,
+        $params = [
+            'country' => $request->segment(1) ?? session('country_code', 'sa'),
+            'lang' => $request->segment(2) ?? session('locale', config('app.locale', 'en')),
         ];
 
-        $latest = Customer::latest('id')->first();
-        if ($latest && preg_match('/^CUS-(\d+)$/', $latest->customer_code, $matches)) {
-            $nextId = intval($matches[1]) + 1;
-        } else {
-            $nextId = 10001;
-        }
-        $customerData['customer_code'] = 'CUS-'.$nextId;
-
-        Customer::create($customerData);
-
-        return redirect(route('frontend', absolute: false));
+        return redirect()->route('company.register', $params);
     }
 }

@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class User extends Authenticatable
 {
@@ -19,22 +20,31 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'username',
         'email',
         'password',
         'role',
-        'first_name',
-        'last_name',
+        'fullname',
         'phone',
-        'department',
-        'position',
         'hire_date',
-        'salary',
-        'nationality',
         'status',
-        'address',
-        'notes',
         'avatar',
+        'company_id',
     ];
+
+    protected $appends = [
+        'name',
+    ];
+
+    public function getNameAttribute(): ?string
+    {
+        return $this->attributes['username'] ?? null;
+    }
+
+    public function setNameAttribute($value): void
+    {
+        $this->attributes['username'] = $value;
+    }
 
     /**
      * Get the validation rules for the role field.
@@ -66,6 +76,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'company_id' => 'integer',
         ];
     }
 
@@ -75,5 +86,10 @@ class User extends Authenticatable
     public function hasRole(string $role): bool
     {
         return $this->role === $role;
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class, 'company_id');
     }
 }

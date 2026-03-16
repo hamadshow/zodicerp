@@ -79,6 +79,7 @@
 @use 'pages/BranchInfo';
 @use 'pages/Attendance';
 @use 'pages/Employees';
+@use 'pages/Users';
 @use 'pages/Reward';
 @use 'pages/OverTime';
 @use 'pages/End-of-service';
@@ -96,6 +97,8 @@
 @use 'pages/FlashSales';
 @use 'pages/PlatformAdmin';
 @use 'pages/RolesAndPermissions';
+
+@use 'pages/Register';
 
 // Global RTL Support
 [dir="rtl"] {

@@ -28,61 +28,64 @@ class SetLocalization
         if (empty($supportedLocales)) {
             $supportedLocales = ['en', 'ar'];
         }
+
+        $appDefaultLocale = (string) config('app.locale', 'en');
+        if (!in_array($appDefaultLocale, $supportedLocales)) {
+            $appDefaultLocale = $supportedLocales[0] ?? 'en';
+        }
         
         // Handle Country
         $country = null;
         if ($countryCode && strlen($countryCode) === 2) {
-            $country = Country::with('currency')->where('code', strtoupper($countryCode))->where('status', 'active')->first();
+            $country = Country::where('code', strtoupper($countryCode))->where('status', 'active')->first();
         }
 
         if (!$country && !Session::has('country_code')) {
             // Auto-detect country based on IP if not specified in URL and not in session
             $detectedCountryCode = $this->detectCountryCode($request->ip());
             if ($detectedCountryCode) {
-                $country = Country::with('currency')->where('code', strtoupper($detectedCountryCode))->where('status', 'active')->first();
+                $country = Country::where('code', strtoupper($detectedCountryCode))->where('status', 'active')->first();
             }
         }
 
         if ($country) {
             Config::set('app.country', $country);
             Session::put('country_code', strtolower($country->code));
-            
-            // Set Currency based on country
-            $currencyCode = $country->currency->code ?? $country->currency ?? 'SAR';
-            Session::put('currency_code', strtoupper($currencyCode));
         } else {
             // Default country if not specified or invalid
-            $defaultCountry = Country::with('currency')->where('code', 'SA')->first() ?: Country::where('status', 'active')->first();
+            $defaultCountry = Country::where('code', 'SA')->first() ?: Country::where('status', 'active')->first();
             if ($defaultCountry) {
                 Config::set('app.country', $defaultCountry);
                 Session::put('country_code', strtolower($defaultCountry->code));
-                
-                // Set Currency for default country
-                $currencyCode = $defaultCountry->currency->code ?? $defaultCountry->currency ?? 'SAR';
-                Session::put('currency_code', strtoupper($currencyCode));
             }
         }
+        
+        $currencyCode = session('currency_code', 'SAR');
+        Session::put('currency_code', strtoupper($currencyCode));
 
         // Handle Language
         if (in_array($langCode, $supportedLocales)) {
             App::setLocale($langCode);
             Session::put('locale', $langCode);
-        } elseif (Session::has('locale')) {
+        } elseif (Session::has('locale') && in_array(Session::get('locale'), $supportedLocales)) {
             App::setLocale(Session::get('locale'));
         } else {
-            // Default language based on country or fallback
-            $locale = Config::get('app.country')->default_language ?? 'ar';
-            App::setLocale($locale);
+            App::setLocale($appDefaultLocale);
+            Session::put('locale', $appDefaultLocale);
         }
 
         // Set URL defaults for country and lang
         $currentCountry = session('country_code', 'sa');
-        $currentLocale = session('locale', 'ar');
+        $currentLocale = session('locale', $appDefaultLocale);
 
         URL::defaults([
             'country' => $currentCountry,
             'lang' => $currentLocale,
         ]);
+
+        $rootUrl = $request->getSchemeAndHttpHost();
+        URL::forceRootUrl($rootUrl);
+        Config::set('app.url', $rootUrl);
 
         $request->route()?->forgetParameter('country');
         $request->route()?->forgetParameter('lang');

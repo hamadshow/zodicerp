@@ -8,10 +8,7 @@ const Dashboard = () => {
     <AdminLayout activeMenu="Purchase Dashboard">
       <Head>
         <title>Purchase Dashboard</title>
-        <link
-            href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"
-            rel="stylesheet"
-        />
+
       </Head>
       
       <div className="dashboard-container">

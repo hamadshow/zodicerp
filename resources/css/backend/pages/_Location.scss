@@ -144,3 +144,65 @@
 .flag-default {
     background-color: $gray-color;
 }
+
+.location-editor {
+    background-color: $white;
+    border: 1px solid $border-color;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+    padding: $spacing-lg;
+    margin-top: $spacing-lg;
+}
+
+.location-editor-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: $spacing-md;
+    margin-bottom: $spacing-lg;
+}
+
+.location-editor-title {
+    margin: 0;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $text-primary;
+}
+
+.location-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: $spacing-sm;
+    margin-top: $spacing-lg;
+}
+
+.location-editor {
+    .form-label {
+        color: $text-secondary;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+        border-color: $border-color;
+    }
+
+    .form-input:focus,
+    .form-select:focus,
+    .form-textarea:focus {
+        border-color: $info-color;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+}
+
+.location-import-panel {
+    margin-top: $spacing-lg;
+}
+
+.location-import-card {
+    background-color: $white;
+    border: 1px solid $border-color;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+    overflow: hidden;
+}

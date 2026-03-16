@@ -6,6 +6,7 @@ use App\Models\Backend\Client_Sales\FlashSale;
 use App\Models\Products;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class FlashSalesTest extends TestCase
@@ -17,6 +18,10 @@ class FlashSalesTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->markTestSkipped('This test requires a MySQL database.');
+        }
         
         // Ensure we have at least one user to act as admin if auth is required
         // For now, assuming auth is bypassed or handled via existing session/user

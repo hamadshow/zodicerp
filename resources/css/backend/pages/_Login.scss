@@ -27,8 +27,8 @@
         right: 0;
         bottom: 0;
         background: rgba(30, 64, 175, 0.05);
-        backdrop-filter: blur(8px);
         z-index: 1;
+        pointer-events: none;
     }
 
     .auth-card {

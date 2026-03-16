@@ -23,12 +23,14 @@ class StoreCountryRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
+            'name_ar' => 'nullable|string|max:255',
+            'name_en' => 'nullable|string|max:255',
             'code' => 'nullable|string|max:10',
-            'currency' => 'nullable|string|max:10',
-            'timezone' => 'nullable|string|max:100',
-            'phone_code' => 'nullable|string|max:10',
-            'latitude' => 'nullable|numeric|between:-90,90',
-            'longitude' => 'nullable|numeric|between:-180,180',
+            'currency' => 'nullable|string|max:255',
+            'currency_id' => 'nullable|integer|exists:currencies,id',
+            'default_language' => 'nullable|string|max:5',
+            'timezone' => 'nullable|string|max:255',
+            'phone_code' => 'nullable|string|max:50',
             'status' => 'required|in:active,inactive',
         ];
     }

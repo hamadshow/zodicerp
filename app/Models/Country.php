@@ -11,6 +11,7 @@ class Country extends Model
     use HasFactory;
 
     protected $fillable = [
+        'company_id',
         'name',
         'name_ar',
         'name_en',
@@ -20,20 +21,13 @@ class Country extends Model
         'default_language',
         'timezone',
         'phone_code',
-        'latitude',
-        'longitude',
         'status',
     ];
 
     protected $casts = [
-        'latitude' => 'decimal:7',
-        'longitude' => 'decimal:7',
+        'company_id' => 'integer',
+        'currency_id' => 'integer',
     ];
-
-    public function currency(): \Illuminate\Database\Eloquent\Relations\BelongsTo
-    {
-        return $this->belongsTo(Currency::class);
-    }
 
     public function cities(): HasMany
     {

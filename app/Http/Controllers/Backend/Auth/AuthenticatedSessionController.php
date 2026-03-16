@@ -47,25 +47,16 @@ class AuthenticatedSessionController extends Controller
             ])->onlyInput('email');
         }
 
+        $request->session()->put('company_id', $user->company_id ?? null);
+
         $params = [
             'country' => session('country_code', 'sa'),
-            'lang' => session('locale', 'ar')
+            'lang' => session('locale', config('app.locale', 'en')),
         ];
 
-        $target = route('home', $params);
+        $target = route('dashboard', $params);
 
-        if ($user) {
-            $role = strtolower($user->role ?? '');
-            if ($role === 'admin') {
-                $target = route('admin.dashboard', $params);
-            } elseif ($role === 'supplier') {
-                $target = route('supplier.dashboard', $params);
-            } elseif ($role === 'customer') {
-                $target = route('customer.dashboard', $params);
-            }
-        }
-
-        return redirect()->intended($target);
+        return redirect()->to($target);
     }
 
     /**
@@ -73,16 +64,17 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        $params = [
+            'country' => $request->route('country') ?? session('country_code', 'sa'),
+            'lang' => $request->route('lang') ?? session('locale', config('app.locale', 'en')),
+        ];
+
         Auth::guard('web')->logout();
 
+        $request->session()->forget('company_id');
         $request->session()->invalidate();
 
         $request->session()->regenerateToken();
-
-        $params = [
-            'country' => session('country_code', 'sa'),
-            'lang' => session('locale', 'ar')
-        ];
 
         return redirect()->to(route('home', $params));
     }

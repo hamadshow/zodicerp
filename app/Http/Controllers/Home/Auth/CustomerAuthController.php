@@ -84,11 +84,16 @@ class CustomerAuthController extends Controller
 
     public function logout(Request $request)
     {
+        $params = [
+            'country' => $request->route('country') ?? session('country_code', 'sa'),
+            'lang' => $request->route('lang') ?? session('locale', config('app.locale', 'en')),
+        ];
+
         Auth::guard('customer')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('home');
+        return redirect()->route('home', $params);
     }
 }

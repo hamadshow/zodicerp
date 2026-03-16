@@ -21,10 +21,14 @@ class UpdateEmployeeRequest extends FormRequest
      */
     public function rules(): array
     {
+        $employee = $this->route('employee');
+        $employeeId = $employee instanceof \Illuminate\Database\Eloquent\Model ? $employee->id : $employee;
+
         return [
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $this->route('employee')->id,
+            'email' => 'required|string|email|max:255|unique:employees,email,' . $employeeId,
+            'password' => 'nullable|string|min:8',
             'role' => 'nullable|string|in:admin,supplier,customer,employee',
             'phone' => 'nullable|string|max:20',
             'department' => 'required|string|max:255',

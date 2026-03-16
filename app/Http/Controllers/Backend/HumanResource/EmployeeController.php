@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Backend\HumanResource;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -26,7 +26,7 @@ class EmployeeController extends Controller
 
     public function getEmployees(Request $request)
     {
-        $query = User::query();
+        $query = Employee::query();
 
         // Apply search filter
         if ($request->has('search') && $request->search) {
@@ -77,7 +77,7 @@ class EmployeeController extends Controller
         // Hash password
         $validated['password'] = Hash::make($validated['password']);
 
-        $employee = User::create($validated);
+        $employee = Employee::create($validated);
 
         return response()->json([
             'success' => true,
@@ -86,12 +86,12 @@ class EmployeeController extends Controller
         ]);
     }
 
-    public function show(User $employee)
+    public function show(Employee $employee)
     {
         return response()->json($employee);
     }
 
-    public function update(UpdateEmployeeRequest $request, User $employee)
+    public function update(UpdateEmployeeRequest $request, Employee $employee)
     {
         $validated = $request->validated();
 
@@ -108,6 +108,14 @@ class EmployeeController extends Controller
         // Update full name
         $validated['name'] = $validated['first_name'] . ' ' . $validated['last_name'];
 
+        if (array_key_exists('password', $validated)) {
+            if (!empty($validated['password'])) {
+                $validated['password'] = Hash::make($validated['password']);
+            } else {
+                unset($validated['password']);
+            }
+        }
+
         $employee->update($validated);
 
         return response()->json([
@@ -117,7 +125,7 @@ class EmployeeController extends Controller
         ]);
     }
 
-    public function destroy(User $employee)
+    public function destroy(Employee $employee)
     {
         // Delete avatar if exists
         if ($employee->avatar && Storage::disk('public')->exists($employee->avatar)) {
@@ -140,7 +148,7 @@ class EmployeeController extends Controller
             'status' => 'required|in:active,inactive,on-leave,terminated',
         ]);
 
-        User::whereIn('id', $validated['ids'])->update(['status' => $validated['status']]);
+        Employee::whereIn('id', $validated['ids'])->update(['status' => $validated['status']]);
 
         return response()->json([
             'success' => true,
@@ -156,14 +164,14 @@ class EmployeeController extends Controller
         ]);
 
         // Delete avatars for employees being deleted
-        $employees = User::whereIn('id', $validated['ids'])->get();
+        $employees = Employee::whereIn('id', $validated['ids'])->get();
         foreach ($employees as $employee) {
             if ($employee->avatar && Storage::disk('public')->exists($employee->avatar)) {
                 Storage::disk('public')->delete($employee->avatar);
             }
         }
 
-        User::whereIn('id', $validated['ids'])->delete();
+        Employee::whereIn('id', $validated['ids'])->delete();
 
         return response()->json([
             'success' => true,

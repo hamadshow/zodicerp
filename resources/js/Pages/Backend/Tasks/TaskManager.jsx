@@ -693,10 +693,7 @@ const TaskManager = () => {
     <>
       <Head>
         <title>Task Management System</title>
-        <link
-          href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"
-          rel="stylesheet"
-        />
+
       </Head>
 
       {/* Toast Notification */}

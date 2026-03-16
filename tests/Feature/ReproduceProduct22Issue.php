@@ -4,14 +4,18 @@ namespace Tests\Feature;
 
 use App\Models\Products;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\WithFaker;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class ReproduceProduct22Issue extends TestCase
 {
     public function test_reproduce_product_22_update()
     {
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->markTestSkipped('This test requires a MySQL database.');
+        }
+
         // 1. Authenticate as admin
         $user = User::first(); // Assuming there's a user
         if (!$user) {

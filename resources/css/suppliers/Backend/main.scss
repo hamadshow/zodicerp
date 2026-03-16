@@ -1,5 +1,6 @@
 // Main SCSS for Supplier Backend
-@import "Dashboard";
+@use "Dashboard";
+@use "Products";
 
 // Variables
 $primary-color: #4f46e5;

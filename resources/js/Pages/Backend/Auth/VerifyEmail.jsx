@@ -1,8 +1,15 @@
 import PrimaryButton from '@/Components/PrimaryButton';
 import GuestLayout from '@/Layouts/GuestLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { FinanzaFooter, FinanzaHeader } from '@/Pages/Home/Home';
 
 export default function VerifyEmail({ status }) {
+  const { auth, localization } = usePage().props;
+  const country = localization?.country_code || localization?.current_country || 'sa';
+  const lang = localization?.current_locale || 'ar';
+  const homeHref = `/${country}/${lang}`;
+  const logoutHref = `${homeHref}/logout`;
+  const customerFirstName = auth?.user?.first_name || auth?.user?.name || null;
   const { post, processing } = useForm({});
 
   const submit = (e) => {
@@ -12,38 +19,47 @@ export default function VerifyEmail({ status }) {
   };
 
   return (
-    <GuestLayout>
-      <Head title="Email Verification" />
+    <div id="top" className="finanza-landing">
+      <FinanzaHeader
+        variant="minimal"
+        homeHref={homeHref}
+        loginHref={`${homeHref}/login`}
+        registerHref={`${homeHref}/register`}
+        logoutHref={logoutHref}
+        customerFirstName={customerFirstName}
+      />
+      <main id="main-content">
+        <GuestLayout>
+          <Head title="Email Verification" />
 
-      <div className="mb-4 text-sm text-gray-600">
-        Thanks for signing up! Before getting started, could you verify your
-        email address by clicking on the link we just emailed to you? If you
-        didn't receive the email, we will gladly send you another.
-      </div>
+          <div className="mb-4 text-sm text-gray-600">
+            Thanks for signing up! Before getting started, could you verify your email address by clicking on the link we just emailed to you? If you didn't
+            receive the email, we will gladly send you another.
+          </div>
 
-      {status === 'verification-link-sent' && (
-        <div className="mb-4 text-sm font-medium text-green-600">
-          A new verification link has been sent to the email address you
-          provided during registration.
-        </div>
-      )}
+          {status === 'verification-link-sent' && (
+            <div className="mb-4 text-sm font-medium text-green-600">
+              A new verification link has been sent to the email address you provided during registration.
+            </div>
+          )}
 
-      <form onSubmit={submit}>
-        <div className="mt-4 flex items-center justify-between">
-          <PrimaryButton disabled={processing}>
-            Resend Verification Email
-          </PrimaryButton>
+          <form onSubmit={submit}>
+            <div className="mt-4 flex items-center justify-between">
+              <PrimaryButton disabled={processing}>Resend Verification Email</PrimaryButton>
 
-          <Link
-            href={route('logout')}
-            method="post"
-            as="button"
-            className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-          >
-            Log Out
-          </Link>
-        </div>
-      </form>
-    </GuestLayout>
+              <Link
+                href={route('logout')}
+                method="post"
+                as="button"
+                className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              >
+                Log Out
+              </Link>
+            </div>
+          </form>
+        </GuestLayout>
+      </main>
+      <FinanzaFooter />
+    </div>
   );
 }

@@ -9,6 +9,7 @@ use App\Models\Vendor_Purchases\SupplierGroup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -109,6 +110,10 @@ class SupplierAuthController extends Controller
             'rating' => 0,
         ]);
 
+        // Create Supplier Directory
+        Storage::disk('public')->makeDirectory('suppliers/' . $supplier->supplier_code . '/products');
+        Storage::disk('public')->makeDirectory('suppliers/' . $supplier->supplier_code . '/documents');
+
         Auth::guard('supplier')->login($supplier);
 
         return redirect()->route('supplier.dashboard');
@@ -116,11 +121,16 @@ class SupplierAuthController extends Controller
 
     public function logout(Request $request)
     {
+        $params = [
+            'country' => $request->route('country') ?? session('country_code', 'sa'),
+            'lang' => $request->route('lang') ?? session('locale', config('app.locale', 'en')),
+        ];
+
         Auth::guard('supplier')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('home');
+        return redirect()->route('home', $params);
     }
 }

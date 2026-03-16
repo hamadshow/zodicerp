@@ -1654,10 +1654,7 @@ const Reward = () => {
     <>
       <Head>
         <title>Rewards & Recognition Management</title>
-        <link
-          href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"
-          rel="stylesheet"
-        />
+
       </Head>
 
       {/* Toast Notification */}

@@ -9,6 +9,7 @@ use App\Models\Language;
 
 use App\Models\LanguageLine;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Cache;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -18,26 +19,40 @@ class HandleInertiaRequests extends Middleware
     protected function getTranslations()
     {
         $locale = App::getLocale();
-        $dbTranslations = LanguageLine::all()->mapWithKeys(function ($line) use ($locale) {
-            $key = $line->group . '.' . $line->key;
-            $text = $line->text[$locale] ?? ($line->text[config('app.fallback_locale')] ?? $line->key);
-            return [$key => $text];
-        })->toArray();
+        $fallbackLocale = config('app.fallback_locale');
 
-        $fileTranslations = [];
-        $files = ['home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar'];
-        
-        foreach ($files as $file) {
-            $path = lang_path("$locale/$file.php");
-            if (file_exists($path)) {
-                $translations = require $path;
-                foreach ($translations as $key => $value) {
-                    $fileTranslations["$file.$key"] = $value;
+        return Cache::remember("inertia.translations.{$locale}", 600, function () use ($locale, $fallbackLocale) {
+            $safeLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $locale);
+            $safeFallbackLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $fallbackLocale);
+
+            $dbTranslations = LanguageLine::query()
+                ->select(['group', 'key'])
+                ->selectRaw(
+                    "COALESCE(" .
+                        "JSON_UNQUOTE(JSON_EXTRACT(text, '$.\"{$safeLocale}\"'))," .
+                        "JSON_UNQUOTE(JSON_EXTRACT(text, '$.\"{$safeFallbackLocale}\"'))," .
+                        "`key`" .
+                    ") as value"
+                )
+                ->get()
+                ->mapWithKeys(fn ($line) => [($line->group . '.' . $line->key) => $line->value])
+                ->toArray();
+
+            $fileTranslations = [];
+            $files = ['home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar'];
+
+            foreach ($files as $file) {
+                $path = lang_path("$locale/$file.php");
+                if (file_exists($path)) {
+                    $translations = require $path;
+                    foreach ($translations as $key => $value) {
+                        $fileTranslations["$file.$key"] = $value;
+                    }
                 }
             }
-        }
 
-        return array_merge($fileTranslations, $dbTranslations);
+            return array_merge($fileTranslations, $dbTranslations);
+        });
     }
 
     /**
@@ -47,6 +62,8 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $skipTranslations = $request->path() === '' || $request->is('Home');
+
         $cart = $request->session()->get('cart', []);
         $cartVersion = (int) $request->session()->get('cart_version', 0);
         $cartCount = 0;
@@ -78,11 +95,15 @@ class HandleInertiaRequests extends Middleware
             'localization' => [
                 'current_country' => config('app.country'),
                 'current_locale' => app()->getLocale(),
-                'is_rtl' => Language::where('lang_code', app()->getLocale())->value('lang_is_rtl') == 1,
+                'is_rtl' => false,
                 'country_code' => session('country_code'),
                 'currency_code' => session('currency_code'),
-                'active_languages' => Language::orderBy('lang_order', 'asc')->get(),
-                'translations' => $this->getTranslations(),
+                'active_languages' => Cache::remember(
+                    'inertia.active_languages',
+                    600,
+                    fn () => Language::orderBy('lang_order', 'asc')->get()
+                ),
+                'translations' => $skipTranslations ? [] : $this->getTranslations(),
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

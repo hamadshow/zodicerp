@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Head, router, useForm, Link } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AdminLayout from '../components/AdminLayout';
 import { apiService } from '@/services/api';
@@ -343,87 +343,45 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
     return (
         <AdminLayout activeMenu="Branch Info">
             <Head title="Branch Information - ZodicERP" />
-            <div className="breadcrumb">
-                <Link href={route('admin.dashboard')}>Dashboard</Link>
-                <span>/</span>
-                <Link href="#">Essential Data</Link>
-                <span>/</span>
-                <span>Branches</span>
-            </div>
-
-            <div className="stats-cards">
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
-                        <span className="material-icons-outlined">account_tree</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.total}</div>
-                        <div className="stat-label">Total Branches</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
-                        <span className="material-icons-outlined">business</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.withCompany}</div>
-                        <div className="stat-label">With Company</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
-                        <span className="material-icons-outlined">public</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.withCountry}</div>
-                        <div className="stat-label">With Country</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--warning-color)' }}>
-                        <span className="material-icons-outlined">email</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.withEmail}</div>
-                        <div className="stat-label">With Email</div>
-                    </div>
-                </div>
-            </div>
-
-            {isFormOpen ? (
-                <div className="warehouses-card fade-in warehouses-form-page">
-                    <div className="modal">
-                        <div className="modal-header">
-                            <div className="modal-title">
-                                {isViewMode ? 'View Branch' : currentBranch ? 'Edit Branch' : 'Add New Branch'}
+            <div className="Essential-Data-Container">
+                {isFormOpen ? (
+                    <div className="tasks-card">
+                        <div className="card-header">
+                            <h1 className="text-2xl font-bold text-gray-800">
+                                {isViewMode
+                                    ? 'View Branch Information'
+                                    : currentBranch
+                                        ? 'Edit Branch Information'
+                                        : 'Add Branch Information'}
+                            </h1>
+                            <div className="tasks-actions">
+                                <button type="button" className="btn btn-outline" onClick={closeForm}>
+                                    <span className="material-icons-outlined">arrow_back</span>
+                                    <span>Back to List</span>
+                                </button>
                             </div>
-                            <button className="modal-close" onClick={closeForm}>
-                                <span className="material-icons-outlined">close</span>
-                            </button>
                         </div>
-                        <form onSubmit={handleSubmit}>
-                            <div className="modal-body">
-                                <div className="tabs">
-                                    {[
-                                        { id: 'basic', label: 'Basic Information' },
-                                        { id: 'government', label: 'Government Info' },
-                                        { id: 'contact', label: 'Contact Info' },
-                                        { id: 'financial', label: 'Financial Info' },
-                                    ].map((tab) => (
-                                        <button
-                                            type="button"
-                                            key={tab.id}
-                                            className={`tab ${activeTab === tab.id ? 'active' : ''}`}
-                                            onClick={() => setActiveTab(tab.id)}
-                                        >
-                                            {tab.label}
-                                        </button>
-                                    ))}
-                                </div>
 
-                                <div className={`tab-content ${activeTab === 'basic' ? 'active' : ''}`}>
-                                    <div className="section-header">Basic Details</div>
-                                    <div className="form-columns">
+                        <div className="tabs">
+                            {[
+                                { id: 'basic', label: 'Basic Information' },
+                                { id: 'government', label: 'Government Info' },
+                                { id: 'contact', label: 'Contact Info' },
+                                { id: 'financial', label: 'Financial Info' },
+                            ].map((tab) => (
+                                <div
+                                    key={tab.id}
+                                    className={`tab ${activeTab === tab.id ? 'active' : ''}`}
+                                    onClick={() => setActiveTab(tab.id)}
+                                >
+                                    {tab.label}
+                                </div>
+                            ))}
+                        </div>
+
+                        <form onSubmit={handleSubmit} noValidate>
+                            <div className={`tab-content ${activeTab === 'basic' ? 'active' : ''}`}>
+                                <div className="form-columns">
                                         <div className="form-column">
                                             <div className="form-row">
                                                 <label className="form-label" htmlFor="company_id">Company</label>
@@ -610,9 +568,8 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
                                     </div>
                                 </div>
 
-                                <div className={`tab-content ${activeTab === 'government' ? 'active' : ''}`}>
-                                    <div className="section-header">Government Information</div>
-                                    <div className="form-columns">
+                            <div className={`tab-content ${activeTab === 'government' ? 'active' : ''}`}>
+                                <div className="form-columns">
                                         <div className="form-column">
                                             <div className="form-row">
                                                 <label className="form-label" htmlFor="accountant_name">Accountant Name</label>
@@ -739,9 +696,8 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
                                     </div>
                                 </div>
 
-                                <div className={`tab-content ${activeTab === 'contact' ? 'active' : ''}`}>
-                                    <div className="section-header">Contact Information</div>
-                                    <div className="form-columns">
+                            <div className={`tab-content ${activeTab === 'contact' ? 'active' : ''}`}>
+                                <div className="form-columns">
                                         <div className="form-column">
                                             <div className="form-row">
                                                 <label className="form-label" htmlFor="email_address">Email Address</label>
@@ -839,9 +795,8 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
                                     </div>
                                 </div>
 
-                                <div className={`tab-content ${activeTab === 'financial' ? 'active' : ''}`}>
-                                    <div className="section-header">Financial Information</div>
-                                    <div className="form-columns">
+                            <div className={`tab-content ${activeTab === 'financial' ? 'active' : ''}`}>
+                                <div className="form-columns">
                                         <div className="form-column">
                                             <div className="form-row">
                                                 <label className="form-label" htmlFor="account_holder_name">Account Holder Name</label>
@@ -919,112 +874,173 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="modal-actions">
+                            <div className="form-actions">
                                 <button type="button" className="btn btn-outline" onClick={closeForm}>
                                     {isViewMode ? 'Close' : 'Cancel'}
                                 </button>
                                 {!isViewMode && (
-                                    <button type="submit" className="btn btn-primary">
+                                    <button type="submit" className="btn btn-primary" disabled={processing}>
                                         {processing ? 'Saving...' : currentBranch ? 'Update Branch' : 'Create Branch'}
                                     </button>
                                 )}
                             </div>
                         </form>
                     </div>
-                </div>
-            ) : (
-                <div className="warehouses-card fade-in">
-                    <div className="card-header">
-                        <div className="warehouses-actions">
-                            <select className="btn btn-outline" defaultValue="">
-                                <option disabled value="">Bulk Actions</option>
-                                <option value="delete">Delete Selected</option>
-                            </select>
-                            <button className="btn btn-outline">
-                                <span className="material-icons-outlined">play_arrow</span>
-                                <span>Apply</span>
-                            </button>
-                            <div className="search-bar light">
-                                <input
-                                    type="text"
-                                    placeholder="Search branches..."
-                                    value={searchTerm}
-                                    onChange={handleSearch}
-                                />
-                                <button>
-                                    <span className="material-icons-outlined">search</span>
-                                </button>
+                ) : (
+                    <>
+                        <div className="page-header">
+                            <h1 className="text-2xl font-bold text-gray-800">Branch Information</h1>
+                        </div>
+
+                        <div className="stats-cards">
+                            <div className="stat-card">
+                                <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
+                                    <span className="material-icons-outlined">account_tree</span>
+                                </div>
+                                <div className="stat-content">
+                                    <div className="stat-value">{stats.total}</div>
+                                    <div className="stat-label">Total Branches</div>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
+                                    <span className="material-icons-outlined">business</span>
+                                </div>
+                                <div className="stat-content">
+                                    <div className="stat-value">{stats.withCompany}</div>
+                                    <div className="stat-label">With Company</div>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
+                                    <span className="material-icons-outlined">public</span>
+                                </div>
+                                <div className="stat-content">
+                                    <div className="stat-value">{stats.withCountry}</div>
+                                    <div className="stat-label">With Country</div>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-icon" style={{ backgroundColor: 'var(--warning-color)' }}>
+                                    <span className="material-icons-outlined">email</span>
+                                </div>
+                                <div className="stat-content">
+                                    <div className="stat-value">{stats.withEmail}</div>
+                                    <div className="stat-label">With Email</div>
+                                </div>
                             </div>
                         </div>
-                        <div className="actions">
-                            <button className="btn btn-primary" onClick={openCreateForm}>
-                                <span className="material-icons-outlined">add</span>
-                                <span>Add Branch</span>
-                            </button>
-                            <button className="btn btn-outline" onClick={() => window.location.reload()}>
-                                <span className="material-icons-outlined">refresh</span>
-                                <span>Refresh</span>
-                            </button>
-                        </div>
-                    </div>
 
-                    <div className="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th style={{ width: '40px' }}><input type="checkbox" className="header-checkbox" /></th>
-                                    <th>CODE <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                    <th>BRANCH NAME <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                    <th>COMPANY <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                    <th>TYPE <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                    <th>COUNTRY <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                    <th>OPERATIONS</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredBranches.length > 0 ? (
-                                    filteredBranches.map((branch) => (
-                                        <tr key={branch.id}>
-                                            <td><input type="checkbox" className="warehouse-checkbox" /></td>
-                                            <td>{branch.branch_code || branch.id}</td>
-                                            <td>
-                                                <div className="warehouse-info">
-                                                    <div className="warehouse-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
-                                                        <span className="material-icons-outlined">account_tree</span>
-                                                    </div>
-                                                    <div className="warehouse-details">
-                                                        <div className="warehouse-name">{branch.branch_name}</div>
-                                                        <div className="warehouse-description text-xs text-gray-500">{branch.english_name || '-'}</div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>{branch.company?.company_name || '-'}</td>
-                                            <td>{branch.branch_type || '-'}</td>
-                                            <td>{branch.country_data?.name || branch.country || '-'}</td>
-                                            <td>
-                                                <button className="icon-btn edit" onClick={() => openEditForm(branch)}>
-                                                    <span className="material-icons-outlined">edit</span>
-                                                </button>
-                                                <button className="icon-btn delete" onClick={() => handleDelete(branch.id)}>
-                                                    <span className="material-icons-outlined">delete</span>
-                                                </button>
-                                                <button className="icon-btn" style={{ color: 'var(--info-color)' }} onClick={() => openViewForm(branch)}>
-                                                    <span className="material-icons-outlined">visibility</span>
-                                                </button>
-                                            </td>
+                        <div className="tasks-card">
+                            <div className="card-header">
+                                <div className="tasks-actions">
+                                    <div className="search-bar light">
+                                        <input
+                                            type="text"
+                                            placeholder="Search branches..."
+                                            value={searchTerm}
+                                            onChange={handleSearch}
+                                        />
+                                        <button type="button">
+                                            <span className="material-icons-outlined">search</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="tasks-actions">
+                                    <button type="button" className="btn btn-outline">
+                                        <span className="material-icons-outlined">upload</span>
+                                        <span>Import</span>
+                                    </button>
+                                    <button type="button" className="btn btn-outline">
+                                        <span className="material-icons-outlined">download</span>
+                                        <span>Export</span>
+                                    </button>
+                                    <button type="button" className="btn btn-primary" onClick={openCreateForm}>
+                                        <span className="material-icons-outlined">add</span>
+                                        <span>Add Branch</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="table-container">
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>BRANCH NAME</th>
+                                            <th>CODE</th>
+                                            <th>COMPANY</th>
+                                            <th>TYPE</th>
+                                            <th>COUNTRY</th>
+                                            <th>ACTIONS</th>
                                         </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="7" className="text-center py-4">No branch information found.</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
+                                    </thead>
+                                    <tbody>
+                                        {filteredBranches.length > 0 ? (
+                                            filteredBranches.map((branch) => (
+                                                <tr key={branch.id}>
+                                                    <td>#{branch.id}</td>
+                                                    <td>{branch.branch_name}</td>
+                                                    <td>{branch.branch_code || '-'}</td>
+                                                    <td>{branch.company?.company_name || '-'}</td>
+                                                    <td className="capitalize">{branch.branch_type || '-'}</td>
+                                                    <td className="uppercase">{branch.country_data?.name || branch.country || '-'}</td>
+                                                    <td>
+                                                        <button
+                                                            type="button"
+                                                            className="icon-btn edit"
+                                                            title="Edit"
+                                                            onClick={() => openEditForm(branch)}
+                                                        >
+                                                            <span className="material-icons-outlined">edit</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="icon-btn delete"
+                                                            title="Delete"
+                                                            onClick={() => handleDelete(branch.id)}
+                                                        >
+                                                            <span className="material-icons-outlined">delete</span>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="icon-btn view"
+                                                            title="View"
+                                                            onClick={() => openViewForm(branch)}
+                                                        >
+                                                            <span className="material-icons-outlined">visibility</span>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan={7} className="text-center text-gray-500 py-6">
+                                                    No branch information found.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div className="pagination">
+                                <div className="pagination-info">
+                                    <span>
+                                        Showing <strong>{filteredBranches.length}</strong> of{' '}
+                                        <strong>{branches.length}</strong> branches
+                                    </span>
+                                </div>
+                                <div className="pagination-controls">
+                                    <button className="page-btn active" disabled>
+                                        1
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
         </AdminLayout>
     );
 };

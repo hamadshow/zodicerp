@@ -49,7 +49,10 @@ return new class extends Migration
             $table->index('address_type', 'idx_supplier_addresses_type');
         });
 
-        DB::statement("ALTER TABLE supplier_addresses COMMENT = 'عناوين الموردين المتعددة'");
+        try {
+            DB::statement("ALTER TABLE supplier_addresses COMMENT = 'عناوين الموردين المتعددة'");
+        } catch (\Exception $e) {
+        }
     }
 
     /**

@@ -22,11 +22,6 @@ class LocationSeeder extends Seeder
             ['code' => 'EG'],
             [
                 'name' => 'Egypt',
-                'currency' => 'EGP',
-                'timezone' => 'Africa/Cairo',
-                'phone_code' => '+20',
-                'latitude' => 26.096306,
-                'longitude' => 30.128669,
                 'status' => 'active',
             ]
         );
@@ -35,11 +30,6 @@ class LocationSeeder extends Seeder
             ['code' => 'US'],
             [
                 'name' => 'United States',
-                'currency' => 'USD',
-                'timezone' => 'America/New_York',
-                'phone_code' => '+1',
-                'latitude' => 37.090240,
-                'longitude' => -95.712891,
                 'status' => 'active',
             ]
         );

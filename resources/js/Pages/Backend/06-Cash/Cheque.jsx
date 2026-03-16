@@ -70,10 +70,7 @@ const Cheque = ({ cheques, filters, stats }) => {
         <>
             <Head>
                 <title>Cheque Management</title>
-                <link
-                    href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"
-                    rel="stylesheet"
-                />
+
             </Head>
             <AdminLayout>
                 <div className="dashboard-container">

@@ -9,6 +9,37 @@
     margin-bottom: $spacing-lg;
 }
 
+.currency-editor-card {
+    padding: 0;
+
+    .card-header {
+        padding: $spacing-lg;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-md;
+        flex-wrap: wrap;
+        border-bottom: 1px solid $border-color;
+        margin-bottom: 0;
+    }
+}
+
+.currency-editor-title {
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $text-primary;
+}
+
+.currency-editor-actions {
+    display: flex;
+    gap: $spacing-sm;
+    flex-wrap: wrap;
+}
+
+.currency-editor-body {
+    padding: $spacing-lg;
+}
+
 .currencies-actions {
     @include flex-center;
     justify-content: flex-start;
@@ -98,87 +129,6 @@
         margin-left: 4px;
         margin-right: 0;
     }
-}
-
-/* Modal styles - Using global modal standards if available, else standardizing here */
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background-color: rgba($black, 0.5);
-    z-index: $z-index-modal-backdrop;
-    @include flex-center;
-    opacity: 0;
-    visibility: hidden;
-    @include transition-standard;
-
-    &.active {
-        opacity: 1;
-        visibility: visible;
-    }
-}
-
-.modal {
-    background-color: $white;
-    border-radius: $radius-lg;
-    padding: $spacing-lg;
-    width: 90%;
-    max-width: 500px;
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: $shadow-lg;
-    transform: translateY(-20px);
-    @include transition-standard;
-
-    .modal-overlay.active & {
-        transform: translateY(0);
-    }
-
-    @include media-breakpoint-down(sm) {
-        width: 95%;
-        padding: $spacing-md;
-    }
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: $spacing-lg;
-    padding-bottom: $spacing-md;
-    border-bottom: 1px solid $border-color;
-}
-
-.modal-title {
-    font-size: $font-size-lg;
-    font-weight: $font-weight-semibold;
-    color: $text-primary;
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: $text-muted;
-    padding: $spacing-xs;
-    border-radius: $radius-sm;
-    @include transition-standard;
-
-    &:hover {
-        background-color: $light-color;
-        color: $text-primary;
-    }
-}
-
-.modal-body {
-    margin-bottom: $spacing-lg;
-}
-
-.modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: $spacing-sm;
-    padding-top: $spacing-lg;
-    border-top: 1px solid $border-color;
 }
 
 /* Form Styles */

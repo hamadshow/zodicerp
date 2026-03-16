@@ -1,0 +1,301 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+.auth-page.registerPage {
+    min-height: 100vh;
+    background: #f4f7fb;
+    padding: 0;
+    margin: 0;
+    display: block;
+    align-items: initial;
+    justify-content: initial;
+}
+
+.registerShell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.auth-page.registerPage {
+    flex: 1 1 auto;
+}
+
+.registerPage-grid {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1.35fr 0.9fr;
+    align-items: stretch;
+    direction: ltr;
+    width: 100vw;
+}
+
+.registerPage-visual {
+    position: relative;
+    background-image: url('/storage/images/Reg-En.jpg');
+    background-repeat: no-repeat;
+    background-size: contain;
+    background-position: center;
+    background-color: #0b2a5d;
+    overflow: hidden;
+}
+
+.registerPage-panel {
+    position: relative;
+    background: $white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 56px 60px;
+}
+
+.auth-page.registerPage[dir="rtl"] {
+    .registerPage-panel {
+        direction: rtl;
+    }
+}
+
+.auth-page.registerPage[dir="ltr"] {
+    .registerPage-panel {
+        direction: ltr;
+    }
+}
+
+.registerPage-lang {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    @include rtl {
+        right: auto;
+        left: 22px;
+    }
+}
+
+.registerLangSelect {
+    border: 0;
+    background: transparent;
+    color: $text-muted;
+    font-weight: 600;
+    font-size: $font-size-sm;
+    cursor: pointer;
+    appearance: none;
+    padding-right: 18px;
+
+    @include rtl {
+        padding-right: 0;
+        padding-left: 18px;
+    }
+}
+
+.registerLangIcon {
+    font-size: 18px;
+    color: $text-muted;
+    margin-left: -18px;
+
+    @include rtl {
+        margin-left: 0;
+        margin-right: -18px;
+    }
+}
+
+.registerCard {
+    width: min(420px, 100%);
+}
+
+.registerCard-title {
+    font-weight: 700;
+    font-size: 28px;
+    color: $dark-color;
+    margin-bottom: 6px;
+}
+
+.registerCard-subtitle {
+    font-size: $font-size-sm;
+    color: $text-muted;
+    margin-bottom: 18px;
+}
+
+.registerForm {
+    display: grid;
+    gap: 12px;
+}
+
+.registerField {
+    display: grid;
+    gap: 6px;
+}
+
+.registerInput,
+.registerPhoneCode {
+    width: 100%;
+    height: 44px;
+    border: 1px solid rgba(15, 23, 42, 0.2);
+    border-radius: 4px;
+    padding: 0 14px;
+    font-size: 13px;
+    background: $white;
+    outline: none;
+    transition: border-color $transition-fast, box-shadow $transition-fast;
+
+    &:focus {
+        border-color: rgba(30, 64, 175, 0.55);
+        box-shadow: 0 0 0 4px rgba(30, 64, 175, 0.12);
+    }
+}
+
+.registerInput::placeholder {
+    color: rgba(71, 85, 105, 0.75);
+}
+
+.registerInput.is-invalid {
+    border-color: rgba(239, 68, 68, 0.55);
+    box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.12);
+}
+
+.registerField--phone {
+    grid-template-columns: 110px 1fr;
+    align-items: start;
+    gap: 10px;
+}
+
+.registerPhoneCode {
+    padding: 0 10px;
+    font-weight: 600;
+    color: $dark-color;
+    cursor: pointer;
+}
+
+.registerField--password {
+    position: relative;
+}
+
+.registerPasswordToggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 44px;
+    width: 44px;
+    border: 0;
+    background: transparent;
+    color: rgba(71, 85, 105, 0.8);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    @include rtl {
+        right: auto;
+        left: 0;
+    }
+}
+
+.registerPasswordToggle span {
+    font-size: 18px;
+}
+
+.registerError {
+    font-size: 12px;
+    color: $danger-color;
+    font-weight: 600;
+    padding-left: 2px;
+
+    @include rtl {
+        padding-left: 0;
+        padding-right: 2px;
+    }
+}
+
+.registerTerms {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12px;
+    color: $text-muted;
+    line-height: 1.35;
+    margin-top: 2px;
+}
+
+.registerTerms input {
+    margin-top: 2px;
+}
+
+.registerTermsLink {
+    color: $primary-color;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.registerTermsLink:hover {
+    text-decoration: underline;
+}
+
+.registerSubmit {
+    height: 44px;
+    border: 0;
+    border-radius: 4px;
+    background: #1d86ff;
+    color: $white;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter $transition-fast, transform $transition-fast;
+    margin-top: 6px;
+}
+
+.registerSubmit:hover {
+    filter: brightness(0.98);
+    transform: translateY(-1px);
+}
+
+.registerSubmit:active {
+    transform: translateY(1px);
+}
+
+.registerSubmit:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.registerBottom {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+    color: $text-muted;
+
+    @include rtl {
+        flex-direction: row-reverse;
+    }
+}
+
+.registerBottomLink {
+    color: $primary-color;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.registerBottomLink:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 1024px) {
+    .registerPage-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .registerPage-visual {
+        min-height: 260px;
+        background-size: cover;
+        background-position: center;
+    }
+
+    .registerPage-panel {
+        padding: 40px 20px;
+    }
+}

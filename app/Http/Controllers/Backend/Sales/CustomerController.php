@@ -59,7 +59,7 @@ class CustomerController extends Controller
                 });
         }
 
-        return Inertia::render('Home/User/Dashboard', [
+        return Inertia::render('Backend/dashboard', [
             'addresses' => $addresses,
             'orders' => $orders,
             'countries' => Country::where('status', 'active')->get(['id', 'name_en', 'name_ar', 'name']),

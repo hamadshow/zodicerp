@@ -671,7 +671,7 @@ class HomeController extends Controller
             });
         }
 
-        return Inertia::render('Home/User/Dashboard', [
+        return Inertia::render('Backend/dashboard', [
             'categories' => $categories,
             'addresses' => $addresses,
             'orders' => $orders,

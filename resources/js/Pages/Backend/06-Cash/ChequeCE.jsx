@@ -49,10 +49,7 @@ const ChequeCE = ({ cheque, accounts }) => {
                 <title>
                     {isEditing ? `Edit Cheque #${cheque.cheque_no}` : 'Create New Cheque'}
                 </title>
-                <link
-                    href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"
-                    rel="stylesheet"
-                />
+
             </Head>
             <AdminLayout>
                 <div className="cheque-ce-container">

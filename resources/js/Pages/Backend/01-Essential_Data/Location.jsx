@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import AdminLayout from '../components/AdminLayout';
@@ -11,6 +11,16 @@ const Location = ({
   cities: initialCities,
   areas: initialAreas,
 }) => {
+  const { props } = usePage();
+  const localization = props?.localization;
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params,
+    });
+  };
+
   // State for locations
   const [locations, setLocations] = useState({
     countries: [],
@@ -25,13 +35,11 @@ const Location = ({
   const [pageSize] = useState(10);
   const [currentListView, setCurrentListView] = useState('countries');
   const [activeTab, setActiveTab] = useState('tree');
-  const [showModal, setShowModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteItem, setDeleteItem] = useState(null);
+  const [viewMode, setViewMode] = useState('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLocations, setSelectedLocations] = useState([]);
   const [allSelected, setAllSelected] = useState(false);
-  const [mapType, setMapType] = useState('countries');
+  const [mapType, setMapType] = useState('cities');
 
   // Import/Export State
   const [showImportModal, setShowImportModal] = useState(false);
@@ -59,9 +67,7 @@ const Location = ({
     code: '',
     currency: '',
     timezone: '',
-    phoneCode: '',
-    latitude: '',
-    longitude: '',
+    phone_code: '',
     status: 'active',
     countryId: '',
     cityId: '',
@@ -152,9 +158,7 @@ const Location = ({
       code: '',
       currency: '',
       timezone: '',
-      phoneCode: '',
-      latitude: '',
-      longitude: '',
+      phone_code: '',
       status: 'active',
       countryId: '',
       cityId: '',
@@ -163,26 +167,47 @@ const Location = ({
 
   // Open modal for adding country
   const addCountry = () => {
+    setShowImportModal(false);
+    setViewMode('addForm');
     setCurrentMode('country');
     resetForm();
     setEditingId(null);
-    setShowModal(true);
+    setTimeout(() => {
+      document.getElementById('locationEditor')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 0);
   };
 
   // Open modal for adding city
   const addCity = () => {
+    setShowImportModal(false);
+    setViewMode('addForm');
     setCurrentMode('city');
     resetForm();
     setEditingId(null);
-    setShowModal(true);
+    setTimeout(() => {
+      document.getElementById('locationEditor')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 0);
   };
 
   // Open modal for adding area
   const addArea = () => {
+    setShowImportModal(false);
+    setViewMode('addForm');
     setCurrentMode('area');
     resetForm();
     setEditingId(null);
-    setShowModal(true);
+    setTimeout(() => {
+      document.getElementById('locationEditor')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 0);
   };
 
   // Handle save location
@@ -207,15 +232,13 @@ const Location = ({
       name: formData.name,
       code: formData.code,
       status: formData.status,
-      latitude: formData.latitude ? parseFloat(formData.latitude) : null,
-      longitude: formData.longitude ? parseFloat(formData.longitude) : null,
     };
 
     // Add type-specific fields
     if (currentMode === 'country') {
-      locationData.currency = formData.currency;
-      locationData.timezone = formData.timezone;
-      locationData.phone_code = formData.phoneCode;
+      locationData.currency = formData.currency || null;
+      locationData.timezone = formData.timezone || null;
+      locationData.phone_code = formData.phone_code || null;
     } else if (currentMode === 'city') {
       locationData.country_id = formData.countryId;
     } else if (currentMode === 'area') {
@@ -223,15 +246,28 @@ const Location = ({
       locationData.country_id = formData.countryId;
     }
 
-    const endpoint = editingId
-      ? `/admin/location/${currentMode === 'country' ? 'countries' : currentMode === 'city' ? 'cities' : 'areas'}/${editingId}`
-      : `/admin/location/${currentMode === 'country' ? 'countries' : currentMode === 'city' ? 'cities' : 'areas'}`;
+    let endpoint = '';
+    let method = editingId ? 'put' : 'post';
 
-    const method = editingId ? 'put' : 'post';
+    if (currentMode === 'country') {
+      endpoint = editingId
+        ? getLocalizedRoute('admin.location.countries.update', {
+            countryRecord: editingId,
+          })
+        : getLocalizedRoute('admin.location.countries.store');
+    } else if (currentMode === 'city') {
+      endpoint = editingId
+        ? getLocalizedRoute('admin.location.cities.update', { city: editingId })
+        : getLocalizedRoute('admin.location.cities.store');
+    } else if (currentMode === 'area') {
+      endpoint = editingId
+        ? getLocalizedRoute('admin.location.areas.update', { area: editingId })
+        : getLocalizedRoute('admin.location.areas.store');
+    }
 
     router[method](endpoint, locationData, {
       onSuccess: () => {
-        setShowModal(false);
+        setViewMode('dashboard');
         resetForm();
         setEditingId(null);
       },
@@ -256,6 +292,8 @@ const Location = ({
 
   // Edit location
   const editLocation = (id, type) => {
+    setShowImportModal(false);
+    setViewMode('addForm');
     const location = findLocation(id, type);
     if (!location) return;
 
@@ -267,53 +305,52 @@ const Location = ({
       code: location.code || '',
       currency: location.currency || '',
       timezone: location.timezone || '',
-      phoneCode: location.phone_code || '',
-      latitude: location.latitude || '',
-      longitude: location.longitude || '',
+      phone_code: location.phone_code || '',
       status: location.status || 'active',
       countryId: location.country_id || location.countryId || '',
       cityId: location.city_id || location.cityId || '',
     });
 
-    setShowModal(true);
+    setTimeout(() => {
+      document.getElementById('locationEditor')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 0);
   };
 
   // Delete location
   const deleteLocation = (id, type) => {
-    setDeleteItem({ id, type });
-    setShowDeleteModal(true);
-  };
+    const label = type === 'country' ? 'country' : type === 'city' ? 'city' : 'area';
+    if (!window.confirm(`Are you sure you want to delete this ${label}?`)) {
+      return;
+    }
 
-  // Confirm delete
-  const confirmDelete = () => {
-    if (!deleteItem) return;
-
-    const { id, type } = deleteItem;
-    const endpoint = `/admin/location/${type === 'country' ? 'countries' : type === 'city' ? 'cities' : 'areas'}/${id}`;
+    let endpoint = '';
+    if (type === 'country') {
+      endpoint = getLocalizedRoute('admin.location.countries.destroy', {
+        countryRecord: id,
+      });
+    } else if (type === 'city') {
+      endpoint = getLocalizedRoute('admin.location.cities.destroy', { city: id });
+    } else if (type === 'area') {
+      endpoint = getLocalizedRoute('admin.location.areas.destroy', { area: id });
+    }
 
     router.delete(endpoint, {
       onSuccess: () => {
-        setShowDeleteModal(false);
-        setDeleteItem(null);
+        showToast('Deleted successfully', 'success');
       },
       onError: (errors) => {
         console.error('Delete failed:', errors);
-        alert('Failed to delete location.');
-        setShowDeleteModal(false);
-        setDeleteItem(null);
+        showToast('Failed to delete location', 'error');
       },
     });
   };
 
-  // Cancel delete
-  const cancelDelete = () => {
-    setShowDeleteModal(false);
-    setDeleteItem(null);
-  };
-
   // Close modal
   const closeModal = () => {
-    setShowModal(false);
+    setViewMode('dashboard');
     resetForm();
     setEditingId(null);
   };
@@ -497,7 +534,7 @@ const Location = ({
   const submitImport = () => {
     setImportStep('processing');
     router.post(
-      '/admin/location/bulk-import',
+      getLocalizedRoute('admin.location.bulk-import'),
       { ...importData, options: importOptions },
       {
         onSuccess: (page) => {
@@ -519,10 +556,31 @@ const Location = ({
 
   const downloadTemplate = () => {
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ name: 'Egypt', code: 'EG', currency: 'EGP', phone_code: '20' }]), "Countries");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ name: 'Cairo', code: 'CAI', country_code: 'EG' }]), "Cities");
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ name: 'Nasr City', code: 'NC', city_name: 'Cairo', country_code: 'EG' }]), "Areas");
-    XLSX.writeFile(wb, "location_import_template.xlsx");
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([
+        {
+          name: 'Egypt',
+          code: 'EG',
+          currency: 'EGP',
+          timezone: 'Africa/Cairo',
+          phone_code: '20',
+          status: 'active',
+        },
+      ]),
+      'Countries'
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([{ name: 'Cairo', code: 'CAI', country_code: 'EG', status: 'active' }]),
+      'Cities'
+    );
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([{ name: 'Nasr City', code: 'NC', city_name: 'Cairo', country_code: 'EG', status: 'active' }]),
+      'Areas'
+    );
+    XLSX.writeFile(wb, 'location_import_template.xlsx');
   };
 
   // --- Render Components ---
@@ -837,7 +895,7 @@ const Location = ({
         return;
       }
       router.post(
-        '/admin/location/bulk-delete',
+        getLocalizedRoute('admin.location.bulk-delete'),
         {
           type: currentListView,
           ids: selectedLocations,
@@ -856,7 +914,7 @@ const Location = ({
     } else {
       const status = action === 'activate' ? 'active' : 'inactive';
       router.post(
-        '/admin/location/bulk-status',
+        getLocalizedRoute('admin.location.bulk-status'),
         {
           type: currentListView,
           ids: selectedLocations,
@@ -884,128 +942,130 @@ const Location = ({
 
       <Head title="Location Management" />
       <div className="breadcrumb">
-        <a href="/admin">Dashboard</a>
+        <a href={getLocalizedRoute('admin.dashboard')}>Dashboard</a>
         <span>/</span>
-        <a href="/admin/location">Location Management</a>
+        <a href={getLocalizedRoute('admin.location.index')}>Location Management</a>
       </div>
 
-      {/* Quick Stats */}
-      <div className="stats-cards">
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ backgroundColor: 'var(--primary-color)' }}
-          >
-            <span className="material-icons-outlined">public</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value" id="totalCountries">
-              {stats.totalCountries}
+      {viewMode === 'dashboard' && (
+        <>
+          {/* Quick Stats */}
+          <div className="stats-cards">
+            <div className="stat-card">
+              <div
+                className="stat-icon"
+                style={{ backgroundColor: 'var(--primary-color)' }}
+              >
+                <span className="material-icons-outlined">public</span>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value" id="totalCountries">
+                  {stats.totalCountries}
+                </div>
+                <div className="stat-label">Countries</div>
+              </div>
             </div>
-            <div className="stat-label">Countries</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ backgroundColor: 'var(--success-color)' }}
-          >
-            <span className="material-icons-outlined">location_city</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value" id="totalCities">
-              {stats.totalCities}
+            <div className="stat-card">
+              <div
+                className="stat-icon"
+                style={{ backgroundColor: 'var(--success-color)' }}
+              >
+                <span className="material-icons-outlined">location_city</span>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value" id="totalCities">
+                  {stats.totalCities}
+                </div>
+                <div className="stat-label">Cities</div>
+              </div>
             </div>
-            <div className="stat-label">Cities</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ backgroundColor: 'var(--info-color)' }}
-          >
-            <span className="material-icons-outlined">map</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value" id="totalAreas">
-              {stats.totalAreas}
+            <div className="stat-card">
+              <div
+                className="stat-icon"
+                style={{ backgroundColor: 'var(--info-color)' }}
+              >
+                <span className="material-icons-outlined">map</span>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value" id="totalAreas">
+                  {stats.totalAreas}
+                </div>
+                <div className="stat-label">Areas</div>
+              </div>
             </div>
-            <div className="stat-label">Areas</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ backgroundColor: 'var(--warning-color)' }}
-          >
-            <span className="material-icons-outlined">check_circle</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value" id="activeLocations">
-              {stats.activeLocations}
+            <div className="stat-card">
+              <div
+                className="stat-icon"
+                style={{ backgroundColor: 'var(--warning-color)' }}
+              >
+                <span className="material-icons-outlined">check_circle</span>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value" id="activeLocations">
+                  {stats.activeLocations}
+                </div>
+                <div className="stat-label">Active Locations</div>
+              </div>
             </div>
-            <div className="stat-label">Active Locations</div>
           </div>
-        </div>
-      </div>
 
-      {/* Action Buttons */}
-      <div className="action-buttons">
-        <button className="btn btn-primary" onClick={addCountry}>
-          <span className="material-icons-outlined">add</span>
-          Add Country
-        </button>
-        <button className="btn btn-secondary" onClick={addCity}>
-          <span className="material-icons-outlined">add</span>
-          Add City
-        </button>
-        <button className="btn btn-secondary" onClick={addArea}>
-          <span className="material-icons-outlined">add</span>
-          Add Area
-        </button>
-        <div className="spacer"></div>
-        <button className="btn btn-outline" onClick={openImportModal}>
-          <span className="material-icons-outlined">upload</span>
-          Import Excel
-        </button>
-        <button className="btn btn-outline" onClick={handleExport}>
-          <span className="material-icons-outlined">download</span>
-          Export Excel
-        </button>
-      </div>
-
-      {/* Main Content */}
-      <div className="card">
-        <div className="card-header">
-          <div className="tabs">
-            <button
-              className={`tab ${activeTab === 'tree' ? 'active' : ''}`}
-              onClick={() => switchTab('tree')}
-            >
-              <span className="material-icons-outlined">account_tree</span>
-              Tree View
+          {/* Action Buttons */}
+          <div className="action-buttons">
+            <button className="btn btn-primary" onClick={addCountry}>
+              <span className="material-icons-outlined">add</span>
+              Add Country
             </button>
-            <button
-              className={`tab ${activeTab === 'list' ? 'active' : ''}`}
-              onClick={() => switchTab('list')}
-            >
-              <span className="material-icons-outlined">list</span>
-              List View
+            <button className="btn btn-secondary" onClick={addCity}>
+              <span className="material-icons-outlined">add</span>
+              Add City
             </button>
-            <button
-              className={`tab ${activeTab === 'map' ? 'active' : ''}`}
-              onClick={() => switchTab('map')}
-            >
-              <span className="material-icons-outlined">public</span>
-              Map View
+            <button className="btn btn-secondary" onClick={addArea}>
+              <span className="material-icons-outlined">add</span>
+              Add Area
+            </button>
+            <div className="spacer"></div>
+            <button className="btn btn-outline" onClick={openImportModal}>
+              <span className="material-icons-outlined">upload</span>
+              Import Excel
+            </button>
+            <button className="btn btn-outline" onClick={handleExport}>
+              <span className="material-icons-outlined">download</span>
+              Export Excel
             </button>
           </div>
-        </div>
 
-        <div className="card-body">
-          {activeTab === 'tree' && renderTreeView()}
+          {/* Main Content */}
+          <div className="card">
+            <div className="card-header">
+              <div className="tabs">
+                <button
+                  className={`tab ${activeTab === 'tree' ? 'active' : ''}`}
+                  onClick={() => switchTab('tree')}
+                >
+                  <span className="material-icons-outlined">account_tree</span>
+                  Tree View
+                </button>
+                <button
+                  className={`tab ${activeTab === 'list' ? 'active' : ''}`}
+                  onClick={() => switchTab('list')}
+                >
+                  <span className="material-icons-outlined">list</span>
+                  List View
+                </button>
+                <button
+                  className={`tab ${activeTab === 'map' ? 'active' : ''}`}
+                  onClick={() => switchTab('map')}
+                >
+                  <span className="material-icons-outlined">public</span>
+                  Map View
+                </button>
+              </div>
+            </div>
 
-          {activeTab === 'list' && (
+            <div className="card-body">
+              {activeTab === 'tree' && renderTreeView()}
+
+              {activeTab === 'list' && (
             <div className="list-view">
               <div className="toolbar">
                 <div className="search-box">
@@ -1124,7 +1184,7 @@ const Location = ({
                 </div>
               </div>
             </div>
-          )}
+              )}
 
           {activeTab === 'map' && (
             <div className="map-view">
@@ -1133,7 +1193,6 @@ const Location = ({
                   value={mapType}
                   onChange={(e) => setMapType(e.target.value)}
                 >
-                  <option value="countries">Countries</option>
                   <option value="cities">Cities</option>
                 </select>
               </div>
@@ -1147,28 +1206,11 @@ const Location = ({
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                   />
-                  {mapType === 'countries' &&
-                    locations.countries.map(
-                      (country) =>
-                        country.latitude &&
-                        country.longitude && (
-                          <Marker
-                            key={country.id}
-                            position={[country.latitude, country.longitude]}
-                          >
-                            <Popup>
-                              <strong>{country.name}</strong>
-                              <br />
-                              Code: {country.code}
-                            </Popup>
-                          </Marker>
-                        )
-                    )}
                   {mapType === 'cities' &&
                     locations.cities.map(
                       (city) =>
                         city.latitude &&
-                        city.longitude && ( // Assuming city has lat/long if we added it to model
+                        city.longitude && (
                           <Marker
                             key={city.id}
                             position={[city.latitude, city.longitude]}
@@ -1185,199 +1227,197 @@ const Location = ({
               </div>
             </div>
           )}
-        </div>
-      </div>
-
-      {/* Create/Edit Modal */}
-      {showModal && (
-        <div className="modal-overlay active">
-          <div className="modal">
-            <div className="modal-header">
-              <h3>
-                {editingId ? 'Edit' : 'Add'}{' '}
-                {currentMode.charAt(0).toUpperCase() + currentMode.slice(1)}
-              </h3>
-              <button className="close-btn" onClick={closeModal}>
-                <span className="material-icons-outlined">close</span>
-              </button>
             </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label>Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="Enter name"
-                />
-              </div>
+          </div>
+        </>
+      )}
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Code</label>
+      {/* Create/Edit */}
+      {viewMode === 'addForm' && (
+        <div id="locationEditor" className="location-editor">
+          <div className="location-editor-header">
+            <h3 className="location-editor-title">
+              {editingId ? 'Edit' : 'Add'}{' '}
+              {currentMode.charAt(0).toUpperCase() + currentMode.slice(1)}
+            </h3>
+            <button className="btn btn-text" onClick={closeModal}>
+              <span className="material-icons-outlined">close</span>
+              Close
+            </button>
+          </div>
+
+          <div className="location-editor-body">
+            <div className="form-columns">
+              <div className="form-column">
+                <div className="form-row">
+                  <label className="form-label" htmlFor="name">
+                    Name
+                  </label>
                   <input
+                    id="name"
                     type="text"
-                    name="code"
-                    value={formData.code}
+                    name="name"
+                    className="form-input"
+                    value={formData.name}
                     onChange={handleInputChange}
-                    placeholder="e.g. EG, CAI"
+                    placeholder="Enter name"
                   />
                 </div>
-                <div className="form-group">
-                  <label>Status</label>
-                  <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
-                  >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
 
-              {currentMode === 'country' && (
-                <>
+                <div className="form-columns">
+                  <div className="form-column">
+                    <div className="form-row">
+                      <label className="form-label" htmlFor="code">
+                        Code
+                      </label>
+                      <input
+                        id="code"
+                        type="text"
+                        name="code"
+                        className="form-input"
+                        value={formData.code}
+                        onChange={handleInputChange}
+                        placeholder="e.g. EG, CAI"
+                      />
+                    </div>
+                  </div>
+                  <div className="form-column">
+                    <div className="form-row">
+                      <label className="form-label" htmlFor="status">
+                        Status
+                      </label>
+                      <select
+                        id="status"
+                        name="status"
+                        className="form-select"
+                        value={formData.status}
+                        onChange={handleInputChange}
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {(currentMode === 'city' || currentMode === 'area') && (
                   <div className="form-row">
-                    <div className="form-group">
-                      <label>Currency</label>
-                      <input
-                        type="text"
-                        name="currency"
-                        value={formData.currency}
-                        onChange={handleInputChange}
-                        placeholder="e.g. EGP"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Phone Code</label>
-                      <input
-                        type="text"
-                        name="phoneCode"
-                        value={formData.phoneCode}
-                        onChange={handleInputChange}
-                        placeholder="e.g. 20"
-                      />
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label>Timezone</label>
-                    <input
-                      type="text"
-                      name="timezone"
-                      value={formData.timezone}
+                    <label className="form-label" htmlFor="countryId">
+                      Country
+                    </label>
+                    <select
+                      id="countryId"
+                      name="countryId"
+                      className="form-select"
+                      value={formData.countryId}
                       onChange={handleInputChange}
-                      placeholder="e.g. Africa/Cairo"
-                    />
-                  </div>
-                </>
-              )}
-
-              {(currentMode === 'city' || currentMode === 'area') && (
-                <div className="form-group">
-                  <label>Country</label>
-                  <select
-                    name="countryId"
-                    value={formData.countryId}
-                    onChange={handleInputChange}
-                  >
-                    <option value="">Select Country</option>
-                    {locations.countries.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {currentMode === 'area' && (
-                <div className="form-group">
-                  <label>City</label>
-                  <select
-                    name="cityId"
-                    value={formData.cityId}
-                    onChange={handleInputChange}
-                    disabled={!formData.countryId}
-                  >
-                    <option value="">Select City</option>
-                    {locations.cities
-                      .filter(
-                        (c) => c.country_id === parseInt(formData.countryId)
-                      )
-                      .map((c) => (
+                    >
+                      <option value="">Select Country</option>
+                      {locations.countries.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
                         </option>
                       ))}
-                  </select>
-                </div>
-              )}
+                    </select>
+                  </div>
+                )}
 
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Latitude</label>
-                  <input
-                    type="text"
-                    name="latitude"
-                    value={formData.latitude}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Longitude</label>
-                  <input
-                    type="text"
-                    name="longitude"
-                    value={formData.longitude}
-                    onChange={handleInputChange}
-                  />
-                </div>
+                {currentMode === 'area' && (
+                  <div className="form-row">
+                    <label className="form-label" htmlFor="cityId">
+                      City
+                    </label>
+                    <select
+                      id="cityId"
+                      name="cityId"
+                      className="form-select"
+                      value={formData.cityId}
+                      onChange={handleInputChange}
+                      disabled={!formData.countryId}
+                    >
+                      <option value="">Select City</option>
+                      {locations.cities
+                        .filter(
+                          (c) => c.country_id === parseInt(formData.countryId)
+                        )
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className="form-column">
+                {currentMode === 'country' && (
+                  <>
+                    <div className="form-row">
+                      <label className="form-label" htmlFor="currency">
+                        Currency
+                      </label>
+                      <input
+                        id="currency"
+                        type="text"
+                        name="currency"
+                        className="form-input"
+                        value={formData.currency}
+                        onChange={handleInputChange}
+                        placeholder="e.g. EGP, USD"
+                      />
+                    </div>
+
+                    <div className="form-row">
+                      <label className="form-label" htmlFor="timezone">
+                        Timezone
+                      </label>
+                      <input
+                        id="timezone"
+                        type="text"
+                        name="timezone"
+                        className="form-input"
+                        value={formData.timezone}
+                        onChange={handleInputChange}
+                        placeholder="e.g. Africa/Cairo"
+                      />
+                    </div>
+
+                    <div className="form-row">
+                      <label className="form-label" htmlFor="phone_code">
+                        Phone Code
+                      </label>
+                      <input
+                        id="phone_code"
+                        type="text"
+                        name="phone_code"
+                        className="form-input"
+                        value={formData.phone_code}
+                        onChange={handleInputChange}
+                        placeholder="e.g. 20"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-text" onClick={closeModal}>
-                Cancel
-              </button>
-              <button className="btn btn-primary" onClick={saveLocation}>
-                Save
-              </button>
-            </div>
           </div>
-        </div>
-      )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="modal-overlay active">
-          <div className="modal modal-sm">
-            <div className="modal-header">
-              <h3>Confirm Delete</h3>
-              <button className="close-btn" onClick={cancelDelete}>
-                <span className="material-icons-outlined">close</span>
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>Are you sure you want to delete this location?</p>
-              <p className="text-danger">This action cannot be undone.</p>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-text" onClick={cancelDelete}>
-                Cancel
-              </button>
-              <button className="btn btn-danger" onClick={confirmDelete}>
-                Delete
-              </button>
-            </div>
+          <div className="location-editor-actions">
+            <button className="btn btn-text" onClick={closeModal}>
+              Cancel
+            </button>
+            <button className="btn btn-primary" onClick={saveLocation}>
+              Save
+            </button>
           </div>
         </div>
       )}
 
       {/* Import Modal */}
-      {showImportModal && (
-        <div className="modal-overlay active">
-          <div className="modal modal-lg">
+      {viewMode === 'dashboard' && showImportModal && (
+        <div className="location-import-panel">
+          <div className="location-import-card">
             <div className="modal-header">
               <h3>Import Locations</h3>
               <button className="close-btn" onClick={() => closeImportModal(false)}>

@@ -30,6 +30,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
 
         $middleware->web(append: [
             \App\Http\Middleware\SetLocalization::class,
+            \App\Http\Middleware\EnsureCompanyScope::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
@@ -39,6 +40,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
             'supplier' => \App\Http\Middleware\SupplierMiddleware::class,
             'customer' => \App\Http\Middleware\CustomerMiddleware::class,
+            'company.scope' => \App\Http\Middleware\EnsureCompanyScope::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

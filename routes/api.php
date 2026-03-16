@@ -11,6 +11,9 @@ use App\Http\Controllers\Backend\Tasks\TaskPriorityController;
 use App\Http\Controllers\Backend\Tasks\TaskStatusController;
 use App\Http\Controllers\Backend\HumanResource\EmployeeController;
 use App\Http\Controllers\Backend\Location\LocationController;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 /*
 |--------------------------------------------------------------------------
@@ -41,6 +44,159 @@ Route::middleware('web')->group(function () {
      Route::delete('employees/{employee}', [EmployeeController::class, 'destroy']);
      Route::post('employees/bulk-delete', [EmployeeController::class, 'bulkDelete']);
      Route::post('employees/bulk-update-status', [EmployeeController::class, 'bulkUpdateStatus']);
+
+    // Users Routes (separated from employees endpoints)
+    Route::get('users', function (Request $request) {
+        $query = User::query();
+
+        if ($request->filled('search')) {
+            $search = (string) $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('username', 'like', "%{$search}%")
+                    ->orWhere('fullname', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', (string) $request->input('status'));
+        }
+
+        $users = $query->orderBy('created_at', 'desc')->paginate((int) $request->input('per_page', 10));
+
+        return response()->json($users);
+    });
+
+    Route::post('users', function (Request $request) {
+        $validated = $request->validate([
+            'fullname' => ['required_without_all:username,name', 'string', 'max:255'],
+            'username' => ['required_without_all:fullname,name', 'string', 'max:255'],
+            'name' => ['nullable', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'password' => ['required', 'string', 'min:6'],
+            'phone' => ['nullable', 'string', 'max:255'],
+            'role' => ['nullable', 'string', 'max:50'],
+            'hire_date' => ['nullable', 'date'],
+            'status' => ['nullable', 'in:active,inactive,on-leave,terminated'],
+            'avatar' => ['nullable', 'image', 'max:5120'],
+        ]);
+
+        if ($request->hasFile('avatar')) {
+            $validated['avatar'] = $request->file('avatar')->store('avatars', 'public');
+        }
+
+        $fullname = trim((string) ($validated['fullname'] ?? $validated['username'] ?? $validated['name'] ?? ''));
+        $username = trim((string) ($validated['username'] ?? $validated['name'] ?? $fullname));
+
+        $validated['fullname'] = $fullname;
+        $validated['username'] = $username;
+        unset($validated['name']);
+        $validated['password'] = Hash::make($validated['password']);
+
+        $user = User::create($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User created successfully',
+            'user' => $user,
+        ]);
+    });
+
+    Route::get('users/{user}', function (User $user) {
+        return response()->json($user);
+    });
+
+    Route::put('users/{user}', function (Request $request, User $user) {
+        $validated = $request->validate([
+            'fullname' => ['required_without_all:username,name', 'string', 'max:255'],
+            'username' => ['required_without_all:fullname,name', 'string', 'max:255'],
+            'name' => ['nullable', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'password' => ['nullable', 'string', 'min:6'],
+            'phone' => ['nullable', 'string', 'max:255'],
+            'role' => ['nullable', 'string', 'max:50'],
+            'hire_date' => ['nullable', 'date'],
+            'status' => ['nullable', 'in:active,inactive,on-leave,terminated'],
+            'avatar' => ['nullable', 'image', 'max:5120'],
+        ]);
+
+        if ($request->hasFile('avatar')) {
+            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+            $validated['avatar'] = $request->file('avatar')->store('avatars', 'public');
+        }
+
+        $fullname = trim((string) ($validated['fullname'] ?? $validated['username'] ?? $validated['name'] ?? ''));
+        $username = trim((string) ($validated['username'] ?? $validated['name'] ?? $fullname));
+
+        $validated['fullname'] = $fullname;
+        $validated['username'] = $username;
+        unset($validated['name']);
+
+        if (!empty($validated['password'])) {
+            $validated['password'] = Hash::make($validated['password']);
+        } else {
+            unset($validated['password']);
+        }
+
+        $user->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User updated successfully',
+            'user' => $user,
+        ]);
+    });
+
+    Route::delete('users/{user}', function (User $user) {
+        if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+
+        $user->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User deleted successfully',
+        ]);
+    });
+
+    Route::post('users/bulk-update-status', function (Request $request) {
+        $validated = $request->validate([
+            'ids' => ['required', 'array'],
+            'ids.*' => ['integer'],
+            'status' => ['required', 'in:active,inactive,on-leave,terminated'],
+        ]);
+
+        User::whereIn('id', $validated['ids'])->update(['status' => $validated['status']]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User status updated successfully',
+        ]);
+    });
+
+    Route::post('users/bulk-delete', function (Request $request) {
+        $validated = $request->validate([
+            'ids' => ['required', 'array'],
+            'ids.*' => ['integer'],
+        ]);
+
+        $users = User::whereIn('id', $validated['ids'])->get();
+        foreach ($users as $user) {
+            if ($user->avatar && Storage::disk('public')->exists($user->avatar)) {
+                Storage::disk('public')->delete($user->avatar);
+            }
+        }
+
+        User::whereIn('id', $validated['ids'])->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Users deleted successfully',
+        ]);
+    });
     
     // Account Routes
     Route::get('accounts', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'index']);

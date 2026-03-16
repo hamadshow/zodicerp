@@ -7,7 +7,11 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['resources/js/ziggy.js'],
+    ignores: [
+      'resources/js/ziggy.js',
+      'resources/js/Pages/Home/js/**',
+      'resources/js/Pages/Home/lib/**',
+    ],
   },
   js.configs.recommended,
   {

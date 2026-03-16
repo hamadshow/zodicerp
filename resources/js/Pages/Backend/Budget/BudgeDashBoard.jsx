@@ -52,10 +52,7 @@ const BudgeDashBoard = ({
         <AdminLayout activeMenu="Budget Dashboard">
             <Head>
                 <title>Budget Monitoring Dashboard</title>
-                <link
-                    href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"
-                    rel="stylesheet"
-                />
+
             </Head>
 
             <div className="budget-dashboard-page">

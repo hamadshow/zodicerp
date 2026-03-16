@@ -28,7 +28,7 @@ class UpdateProductsRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'content' => ['nullable', 'string'],
-            'status' => ['required', 'in:active,inactive,draft,pending'],
+            'status' => ['required', 'in:published,draft,pending,active,inactive'],
             
             // Media
             'image' => ['nullable'], // Allow string (path) or file

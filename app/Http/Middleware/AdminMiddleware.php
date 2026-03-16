@@ -29,6 +29,10 @@ class AdminMiddleware
             ]);
         }
 
+        if (Auth::check() && $user instanceof \App\Models\User) {
+            return $next($request);
+        }
+
         $role = strtolower($user->role ?? '');
 
         if ($role !== 'admin') {
