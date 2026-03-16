@@ -3,6 +3,7 @@
 use App\Http\Controllers\Backend\AdminController;
 use App\Http\Controllers\Home\CartController;
 use App\Http\Controllers\Home\CheckoutController;
+use App\Http\Controllers\Home\CompanyRegisterController;
 use App\Http\Controllers\Home\HomeController;
 use App\Http\Controllers\Backend\Profile\ProfileController;
 use App\Http\Controllers\Backend\Auth\ConfirmablePasswordController;
@@ -54,6 +55,13 @@ use Inertia\Inertia;
 */
 
 // ========================================================================
+// 0. Development/Boost Logger (Fix for ERR_ABORTED)
+// ========================================================================
+Route::any('/_boost/browser-logs', function () {
+    return response()->json([], 200);
+});
+
+// ========================================================================
 // 1. Media Files (ملفات الوسائط - بدون توطين)
 // ========================================================================
 Route::get('/media-files/{path}', function (string $path) {
@@ -74,19 +82,22 @@ Route::get('/media-files/{path}', function (string $path) {
 })->where('path', '.*');
 
 // ========================================================================
-// 2. Root Redirect (إعادة توجيه الجذر للدولة واللغة الافتراضية)
+// 2. Root Home (Static Home page)
 // ========================================================================
 Route::get('/', function () {
-    $country = session('country_code', 'sa');
-    $lang = session('locale', 'ar');
-    return redirect("/$country/$lang");
+    return redirect("/" . session('country_code', 'sa') . "/" . session('locale', config('app.locale', 'en')));
+});
+
+Route::get('/Home', function () {
+    return redirect("/" . session('country_code', 'sa') . "/" . session('locale', config('app.locale', 'en')));
 });
 
 // Redirect helper routes
-Route::get('/Auth', fn() => redirect("/".session('country_code', 'sa')."/".session('locale', 'ar')."/Auth"));
-Route::get('/auth', fn() => redirect("/".session('country_code', 'sa')."/".session('locale', 'ar')."/Auth"));
-Route::get('/login', fn() => redirect("/".session('country_code', 'sa')."/".session('locale', 'ar')."/Auth"));
-Route::get('/admin', fn() => redirect("/".session('country_code', 'sa')."/".session('locale', 'ar')."/admin"));
+Route::get('/Auth', fn() => redirect("/" . session('country_code', 'sa') . "/" . session('locale', config('app.locale', 'en')) . "/Auth"));
+Route::get('/auth', fn() => redirect("/" . session('country_code', 'sa') . "/" . session('locale', config('app.locale', 'en')) . "/Auth"));
+Route::get('/login', fn() => redirect("/" . session('country_code', 'sa') . "/" . session('locale', config('app.locale', 'en')) . "/Auth"));
+Route::get('/register', fn() => redirect("/" . session('country_code', 'sa') . "/" . session('locale', config('app.locale', 'en')) . "/register"));
+Route::get('/admin', fn() => redirect("/" . session('country_code', 'sa') . "/" . session('locale', config('app.locale', 'en')) . "/admin"));
 
 // ========================================================================
 // 3. Main Enterprise Routing (التوجيه الرئيسي للمؤسسة)
@@ -94,7 +105,7 @@ Route::get('/admin', fn() => redirect("/".session('country_code', 'sa')."/".sess
 Route::group([
     'prefix' => '{country}/{lang}',
     'where' => [
-        'country' => '[a-zA-Z]{2}',
+        'country' => '[a-zA-Z]{2,3}',
         'lang' => '[a-z]{2}'
     ],
     'middleware' => ['web', \App\Http\Middleware\SetLocalization::class]
@@ -173,10 +184,23 @@ Route::group([
             ->name('logout');
     });
 
-    // 2. Global Login Override (تجاوز تسجيل الدخول العام)
-    // GET: يوجه لصفحة دخول العملاء
-    Route::get('login', [CustomerAuthController::class, 'showLoginForm'])->name('login');
-    // POST: يعالج تسجيل الدخول لجميع المستخدمين (أدمن، مورد، عميل)
+    Route::get('logout', function (\Illuminate\Http\Request $request) {
+        $params = [
+            'country' => $request->segment(1) ?? session('country_code', 'sa'),
+            'lang' => $request->segment(2) ?? session('locale', config('app.locale', 'en')),
+        ];
+
+        \Illuminate\Support\Facades\Auth::guard('web')->logout();
+        \Illuminate\Support\Facades\Auth::guard('customer')->logout();
+        \Illuminate\Support\Facades\Auth::guard('supplier')->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->route('home', $params);
+    });
+
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
     // Sign In/Up Shortcuts
@@ -185,10 +209,17 @@ Route::group([
 
     // 3. Profile Management (إدارة الملف الشخصي)
     Route::middleware('auth')->group(function () {
+        Route::get('company/register', [CompanyRegisterController::class, 'create'])->name('company.register');
+        Route::post('company/register', [CompanyRegisterController::class, 'store'])->name('company.register.store');
+
         Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
         Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
         Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     });
+
+    Route::middleware('auth')->get('dashboard', function () {
+        return Inertia::render('Backend/dashboard');
+    })->name('dashboard');
 
     // 4. Customer Auth (مصادقة العملاء)
     Route::prefix('customer')->name('customer.')->group(function () {
@@ -219,7 +250,15 @@ Route::group([
 
        Route::middleware('auth:supplier')->group(function () {
            Route::get('dashboard', [SupplierController::class, 'dashboard'])->name('dashboard');
+           
+           // Products CRUD
            Route::get('products', [SupplierController::class, 'products'])->name('products');
+           Route::get('products/create', [SupplierController::class, 'createProduct'])->name('products.create');
+           Route::post('products', [SupplierController::class, 'storeProduct'])->name('products.store');
+           Route::get('products/{product}/edit', [SupplierController::class, 'editProduct'])->name('products.edit');
+           Route::post('products/{product}', [SupplierController::class, 'updateProduct'])->name('products.update'); // Using POST for file uploads with method spoofing if needed, or PUT
+           Route::delete('products/{product}', [SupplierController::class, 'destroyProduct'])->name('products.destroy');
+
            Route::get('orders', [SupplierController::class, 'orders'])->name('orders');
            Route::get('earnings', [SupplierController::class, 'earnings'])->name('earnings');
            Route::get('reviews', [SupplierController::class, 'reviews'])->name('reviews');
@@ -395,9 +434,21 @@ Route::group([
         // 14. Locations (المواقع الجغرافية)
         Route::prefix('location')->name('location.')->group(function () {
             Route::get('/', [LocationController::class, 'index'])->name('index');
-            Route::post('/countries', [LocationController::class, 'storeCountry']);
-            Route::post('/cities', [LocationController::class, 'storeCity']);
-            Route::post('/areas', [LocationController::class, 'storeArea']);
+            Route::post('/countries', [LocationController::class, 'storeCountry'])->name('countries.store');
+            Route::put('/countries/{countryRecord}', [LocationController::class, 'updateCountry'])->name('countries.update');
+            Route::delete('/countries/{countryRecord}', [LocationController::class, 'destroyCountry'])->name('countries.destroy');
+
+            Route::post('/cities', [LocationController::class, 'storeCity'])->name('cities.store');
+            Route::put('/cities/{city}', [LocationController::class, 'updateCity'])->name('cities.update');
+            Route::delete('/cities/{city}', [LocationController::class, 'destroyCity'])->name('cities.destroy');
+
+            Route::post('/areas', [LocationController::class, 'storeArea'])->name('areas.store');
+            Route::put('/areas/{area}', [LocationController::class, 'updateArea'])->name('areas.update');
+            Route::delete('/areas/{area}', [LocationController::class, 'destroyArea'])->name('areas.destroy');
+
+            Route::post('/bulk-import', [LocationController::class, 'bulkImport'])->name('bulk-import');
+            Route::post('/bulk-delete', [LocationController::class, 'bulkDelete'])->name('bulk-delete');
+            Route::post('/bulk-status', [LocationController::class, 'bulkUpdateStatus'])->name('bulk-status');
         });
 
         // 15. Settings (الإعدادات)
@@ -442,6 +493,7 @@ Route::group([
         });
 
         Route::get('platform-admin', function () { return Inertia::render('Backend/Settings/PlatformAdmin'); })->name('platform-admin.index');
+        Route::get('users', function () { return Inertia::render('Backend/Settings/Users'); })->name('users.index');
         
         // Roles and Permissions
         Route::resource('roles', \App\Http\Controllers\Backend\Settings\RoleController::class)->except(['create', 'edit', 'show']);

@@ -539,7 +539,7 @@ const CompanyForm = ({ company }) => {
     );
 };
 
-const Company = ({ companies, company }) => {
+const Company = ({ companies, company, canCreateCompany }) => {
     if (company || route().current('admin.companies.create') || route().current('admin.companies.edit')) {
         return <CompanyForm company={company} />;
     }
@@ -675,13 +675,15 @@ const Company = ({ companies, company }) => {
                             </div>
                         </div>
                         <div className="tasks-actions">
-                            <Link
-                                href={route('admin.companies.create')}
-                                className="btn btn-primary no-underline"
-                            >
-                                <span className="material-icons-outlined">add_business</span>
-                                <span>Add Company</span>
-                            </Link>
+                            {canCreateCompany ? (
+                                <Link
+                                    href={route('admin.companies.create')}
+                                    className="btn btn-primary no-underline"
+                                >
+                                    <span className="material-icons-outlined">add_business</span>
+                                    <span>Add Company</span>
+                                </Link>
+                            ) : null}
                         </div>
                     </div>
 
