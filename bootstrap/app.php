@@ -16,6 +16,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->validateCsrfTokens(except: [
             '_boost/*',
+            'api/*',
         ]);
 
         $middleware->redirectTo(
