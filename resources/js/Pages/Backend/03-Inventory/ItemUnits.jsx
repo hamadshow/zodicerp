@@ -5,8 +5,7 @@ import IconPicker from '../../../Components/IconPicker';
 import MediaPickerModal from '../Media/MediaPickerModal';
 
 // --- Recursive Item Unit Tree Item ---
-const ItemUnitItem = ({ unit, level = 0, selectedId, onSelect, onDelete, onDrop, onDragStart }) => {
-    const [isExpanded, setIsExpanded] = useState(true);
+const ItemUnitItem = ({ unit, treeVersion, level = 0, selectedId, onSelect, onDelete, onDrop, onDragStart }) => {
     const [isDragOver, setIsDragOver] = useState(false);
 
     const handleDragOver = (e) => {
@@ -38,8 +37,6 @@ const ItemUnitItem = ({ unit, level = 0, selectedId, onSelect, onDelete, onDrop,
         <div className="category-node">
             <div 
                 className={`category-content ${isSelected ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''}`}
-                draggable
-                onDragStart={(e) => onDragStart(e, unit.id)}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
@@ -57,12 +54,11 @@ const ItemUnitItem = ({ unit, level = 0, selectedId, onSelect, onDelete, onDrop,
                     className="category-toggle" 
                     onClick={(e) => {
                         e.stopPropagation();
-                        setIsExpanded(!isExpanded);
                     }}
                     style={{ visibility: hasChildren ? 'visible' : 'hidden' }}
                 >
                     <span className="material-icons-outlined">
-                        {isExpanded ? 'expand_more' : 'chevron_right'}
+                        {hasChildren ? 'expand_more' : 'chevron_right'}
                     </span>
                 </div>
 
@@ -89,12 +85,13 @@ const ItemUnitItem = ({ unit, level = 0, selectedId, onSelect, onDelete, onDrop,
                 )}
             </div>
 
-            {hasChildren && isExpanded && (
+            {hasChildren && (
                 <div className="category-children">
                     {unit.children.map(child => (
                         <ItemUnitItem 
-                            key={child.id} 
+                            key={`${treeVersion}-${child.id}`} 
                             unit={child} 
+                            treeVersion={treeVersion}
                             level={level + 1}
                             selectedId={selectedId}
                             onSelect={onSelect}
@@ -112,6 +109,7 @@ const ItemUnitItem = ({ unit, level = 0, selectedId, onSelect, onDelete, onDrop,
 // --- Main Component ---
 const ItemUnits = ({ units = [], parents = [] }) => {
     const [unitTree, setUnitTree] = useState([]);
+    const [treeVersion, setTreeVersion] = useState(0);
     const [selectedUnit, setSelectedUnit] = useState(null); // null means "Create New" mode or nothing selected
     const [isCreating, setIsCreating] = useState(true); // explicit flag for Create Mode
 
@@ -143,6 +141,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
 
     useEffect(() => {
         setUnitTree(buildTree(units));
+        setTreeVersion((v) => v + 1);
     }, [units]);
 
     // Handle Selection
@@ -263,8 +262,9 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                     >
                         {unitTree.map(unit => (
                             <ItemUnitItem 
-                                key={unit.id} 
+                                key={`${treeVersion}-${unit.id}`} 
                                 unit={unit} 
+                                treeVersion={treeVersion}
                                 selectedId={selectedUnit?.id}
                                 onSelect={handleSelectUnit}
                                 onDelete={handleDelete}

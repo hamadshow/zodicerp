@@ -28,8 +28,7 @@ class PurchaseOrderController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('po_number', 'like', "%{$search}%")
                   ->orWhereHas('vendor', function ($q) use ($search) {
-                      $q->where('name_en', 'like', "%{$search}%")
-                        ->orWhere('name_ar', 'like', "%{$search}%");
+                      $q->where('name_ar', 'like', "%{$search}%");
                   });
             });
         }
@@ -42,15 +41,15 @@ class PurchaseOrderController extends Controller
 
         // Load shared data for filters/modals
         $vendors = Supplier::where('is_active', true)
-            ->select('id', 'name_en', 'name_ar', 'currency_id')
+            ->select('id', 'name_ar', 'currency_id')
             ->get();
         $currencies = Currency::where('status', 'active')
             ->select('id', 'name', 'code', 'symbol')
             ->get();
-        $products = Products::select('id', 'name as name_en', 'name as name_ar', 'sku', 'sale_price', 'cost_per_item as purchase_price')
+        $products = Products::select('id', 'name as name_ar', 'sku', 'sale_price', 'cost_per_item as purchase_price')
             ->get();
-        $units = ItemUnit::select('id', 'name as name_en', 'name as name_ar')->get();
-        $warehouses = Warehouses::select('id', 'name as name_en', 'name as name_ar')->get();
+        $units = ItemUnit::select('id', 'name as name_ar')->get();
+        $warehouses = Warehouses::select('id', 'name as name_ar')->get();
         
         // Mock data for terms (should be replaced with actual models later)
         $paymentTerms = [

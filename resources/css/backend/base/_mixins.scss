@@ -41,6 +41,17 @@ $breakpoints: (
     }
 }
 
+// LTR Support mixin
+@mixin ltr {
+    [dir="ltr"] & {
+        @content;
+    }
+    // Default fallback
+    html:not([dir="rtl"]) & {
+        @content;
+    }
+}
+
 // Flex center
 @mixin flex-center {
     display: flex;

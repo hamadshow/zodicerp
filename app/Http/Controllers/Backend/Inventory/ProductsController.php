@@ -9,13 +9,19 @@ use App\Models\Categories;
 use App\Models\ItemAttribute;
 use App\Http\Requests\Inventory\StoreProductsRequest;
 use App\Http\Requests\Inventory\UpdateProductsRequest;
+use App\Exports\ProductExport;
+use App\Imports\ProductPreviewImport;
+use App\Imports\ProductImport;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Exception;
@@ -24,6 +30,234 @@ use App\Models\Vendor_Purchases\Supplier;
 
 class ProductsController extends Controller
 {
+    public function export(Request $request)
+    {
+        set_time_limit(300); // 5 minutes
+        $companyId = $request->user()?->company_id;
+        if (!$companyId) {
+            abort(403, 'Company not set for this user.');
+        }
+        return Excel::download(new ProductExport($companyId), 'products.xlsx');
+    }
+
+    public function previewImport(Request $request)
+    {
+        set_time_limit(300); // 5 minutes
+
+        $companyId = $request->user()?->company_id;
+        if (!$companyId) {
+            return response()->json(['error' => 'Company not set for this user.'], 403);
+        }
+
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:10240', // 10MB
+        ]);
+
+        try {
+            $userId = $request->user()->id;
+            $file = $request->file('file');
+            $ext = strtolower($file->getClientOriginalExtension() ?: 'xlsx');
+            $path = $file->storeAs("tmp-imports/{$userId}", Str::uuid() . '.' . $ext);
+            $token = Crypt::encryptString($path);
+
+            [$payload, $status] = $this->buildImportPreviewPayload($companyId, $path, 50);
+
+            return response()->json([
+                ...$payload,
+                'token' => $token,
+            ], $status);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Error reading file: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function confirmImport(Request $request)
+    {
+        set_time_limit(300);
+
+        $companyId = $request->user()?->company_id;
+        if (!$companyId) {
+            return response()->json(['error' => 'Company not set for this user.'], 403);
+        }
+
+        $request->validate([
+            'token' => 'required|string',
+        ]);
+
+        try {
+            $path = Crypt::decryptString($request->input('token'));
+            $userId = $request->user()->id;
+            $prefix = "tmp-imports/{$userId}/";
+            if (!is_string($path) || !str_starts_with($path, $prefix)) {
+                return response()->json(['error' => 'Invalid import token.'], 403);
+            }
+            if (!Storage::exists($path)) {
+                return response()->json(['error' => 'Import file not found or expired.'], 404);
+            }
+
+            [$payload, $status] = $this->buildImportPreviewPayload($companyId, $path, 50);
+            if ($status !== 200) {
+                return response()->json($payload, $status);
+            }
+
+            if (count($payload['errors'] ?? []) > 0) {
+                return response()->json($payload, 422);
+            }
+
+            $fullPath = Storage::path($path);
+            Excel::import(new ProductImport($companyId), $fullPath);
+            Storage::delete($path);
+
+            return response()->json([
+                'message' => 'Products imported successfully',
+                'total' => $payload['total'] ?? 0,
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Error importing products: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function import(Request $request)
+    {
+        set_time_limit(300); // 5 minutes
+
+        $companyId = $request->user()?->company_id;
+        if (!$companyId) {
+            return back()->withErrors(['error' => 'Company not set for this user.']);
+        }
+
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:10240', // 10MB
+        ]);
+
+        try {
+            Excel::import(new ProductImport($companyId), $request->file('file'));
+            return back()->with('success', 'Products imported successfully');
+        } catch (Exception $e) {
+            return back()->withErrors(['error' => 'Error importing products: ' . $e->getMessage()]);
+        }
+    }
+
+    private function buildImportPreviewPayload(int $companyId, string $path, int $limit): array
+    {
+        $fullPath = Storage::path($path);
+        $sheets = Excel::toCollection(new ProductPreviewImport(), $fullPath);
+        $sheet = $sheets->first() ?? collect();
+        $rowsRaw = $sheet->toArray();
+
+        $rows = [];
+        $firstNonEmptyRawKeys = null;
+        foreach ($rowsRaw as $idx => $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $hasValue = false;
+            foreach ($row as $v) {
+                if ($v === 0 || $v === '0' || $v === false) {
+                    $hasValue = true;
+                    break;
+                }
+                if ($v !== null && $v !== '') {
+                    $hasValue = true;
+                    break;
+                }
+            }
+            if (!$hasValue) {
+                continue;
+            }
+            if ($firstNonEmptyRawKeys === null) {
+                $firstNonEmptyRawKeys = array_keys($row);
+            }
+            $rows[] = [
+                '__row' => $idx + 2,
+                ...$row,
+            ];
+        }
+
+        if (count($rows) === 0) {
+            return [[
+                'rows' => [],
+                'errors' => [],
+                'total' => 0,
+                'shown' => 0,
+            ], 200];
+        }
+
+        $hasHeaderRow = $firstNonEmptyRawKeys !== null
+            ? !array_reduce($firstNonEmptyRawKeys, fn ($carry, $k) => $carry && is_int($k), true)
+            : true;
+        if (!$hasHeaderRow) {
+            return [[
+                'rows' => [],
+                'errors' => [[
+                    'row' => 1,
+                    'messages' => ['file' => ['Invalid or missing header row.']],
+                ]],
+                'total' => 0,
+                'shown' => 0,
+            ], 422];
+        }
+
+        $requiredColumns = ['name'];
+        $missing = [];
+        foreach ($requiredColumns as $c) {
+            if (!array_key_exists($c, $rows[0])) {
+                $missing[] = $c;
+            }
+        }
+        if (count($missing) > 0) {
+            return [[
+                'rows' => [],
+                'errors' => [[
+                    'row' => 1,
+                    'messages' => ['file' => ['Missing columns: ' . implode(', ', $missing)]],
+                ]],
+                'total' => 0,
+                'shown' => 0,
+            ], 422];
+        }
+
+        $rules = [
+            'name' => ['required', 'string', 'max:255'],
+            'product_code' => ['nullable', 'string', 'max:255'],
+            'sku' => ['nullable', 'string', 'max:150'],
+            'barcode' => ['nullable', 'string', 'max:150'],
+            'price' => ['nullable', 'numeric', 'min:0'],
+            'sale_price' => ['nullable', 'numeric', 'min:0'],
+            'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'quantity' => ['nullable', 'integer', 'min:0'],
+            'status' => ['nullable', 'in:active,inactive,draft,published,pending'],
+            'brand' => ['nullable', 'string', 'max:255'],
+            'categories' => ['nullable', 'string'],
+            'unit' => ['nullable', 'string', 'max:50'],
+            'is_featured' => ['nullable'],
+            'is_default' => ['nullable'],
+            'order' => ['nullable', 'integer', 'min:0'],
+        ];
+
+        $errors = [];
+        foreach ($rows as $row) {
+            $rowNumber = (int)($row['__row'] ?? 0);
+            $validator = Validator::make($row, $rules);
+            if ($validator->fails()) {
+                $errors[] = [
+                    'row' => $rowNumber,
+                    'messages' => $validator->errors()->toArray(),
+                ];
+            }
+        }
+
+        $total = count($rows);
+        $shownRows = array_slice($rows, 0, $limit);
+
+        return [[
+            'rows' => $shownRows,
+            'errors' => $errors,
+            'total' => $total,
+            'shown' => count($shownRows),
+        ], 200];
+    }
+
     public function index(Request $request)
     {
         try {
@@ -113,7 +347,7 @@ class ProductsController extends Controller
             ->orderBy('order')
             ->orderBy('title')
             ->get();
-        $suppliers = Supplier::select('supplier_code', 'name_en')->where('is_active', true)->orderBy('name_en')->get();
+        $suppliers = Supplier::select('supplier_code', 'name_ar')->where('is_active', true)->orderBy('name_ar')->get();
 
         return Inertia::render('Backend/03-Inventory/Products', [
             'product' => null,
@@ -138,7 +372,7 @@ class ProductsController extends Controller
             ->orderBy('order')
             ->orderBy('title')
             ->get();
-        $suppliers = Supplier::select('supplier_code', 'name_en')->where('is_active', true)->orderBy('name_en')->get();
+        $suppliers = Supplier::select('supplier_code', 'name_ar')->where('is_active', true)->orderBy('name_ar')->get();
 
         return Inertia::render('Backend/03-Inventory/Products', [
             'product' => $product,

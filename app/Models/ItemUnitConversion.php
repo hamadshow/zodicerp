@@ -16,6 +16,7 @@ class ItemUnitConversion extends Model
         'to_unit_id',
         'conversion_factor',
         'is_active',
+        'company_id',
     ];
 
     protected $casts = [

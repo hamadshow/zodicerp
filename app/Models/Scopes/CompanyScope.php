@@ -39,6 +39,14 @@ class CompanyScope implements Scope
             return;
         }
 
+        if (in_array($table, ['item_units', 'item_unit_conversions'], true)) {
+            $builder->where(function (Builder $query) use ($table, $companyId): void {
+                $query->where($table . '.company_id', $companyId)
+                    ->orWhereNull($table . '.company_id');
+            });
+            return;
+        }
+
         $builder->where($table . '.company_id', $companyId);
     }
 

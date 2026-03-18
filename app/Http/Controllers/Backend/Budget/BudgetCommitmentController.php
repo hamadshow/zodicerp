@@ -143,10 +143,9 @@ class BudgetCommitmentController extends Controller
         if (class_exists(\App\Models\Vendor_Purchases\Supplier::class)) {
              $query = \App\Models\Vendor_Purchases\Supplier::query();
              if ($request->has('search')) {
-                 $query->where('name_en', 'like', '%' . $request->search . '%')
-                       ->orWhere('name_ar', 'like', '%' . $request->search . '%');
+                 $query->where('name_ar', 'like', '%' . $request->search . '%');
              }
-             return response()->json($query->limit(20)->get(['id', 'name_en', 'name_ar']));
+             return response()->json($query->limit(20)->get(['id', 'name_ar']));
         }
         return response()->json([]);
     }

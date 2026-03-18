@@ -28,6 +28,7 @@ class Categories extends Model
         'is_default',
         'author_id',
         'author_type',
+        'company_id',
     ];
 
     protected $casts = [
@@ -35,6 +36,8 @@ class Categories extends Model
         'is_default' => 'boolean',
         'name_json' => 'array',
         'slug_json' => 'array',
+        'parent_id' => 'integer',
+        'order' => 'integer',
     ];
 
     public function parent()

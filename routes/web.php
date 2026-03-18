@@ -359,7 +359,13 @@ Route::group([
         });
 
         // 7. Inventory (المخزون)
+        Route::get('products/export', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'export'])->name('products.export');
+        Route::post('products/import/preview', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'previewImport'])->name('products.import.preview');
+        Route::post('products/import/confirm', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'confirmImport'])->name('products.import.confirm');
+        Route::post('products/import', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'import'])->name('products.import');
         Route::resource('products', \App\Http\Controllers\Backend\Inventory\ProductsController::class);
+        Route::get('categories/export', [\App\Http\Controllers\Backend\Inventory\CategoriesController::class, 'export'])->name('categories.export');
+        Route::post('categories/import', [\App\Http\Controllers\Backend\Inventory\CategoriesController::class, 'import'])->name('categories.import');
         Route::resource('categories', \App\Http\Controllers\Backend\Inventory\CategoriesController::class);
         Route::resource('brands', \App\Http\Controllers\Backend\Inventory\BrandsController::class);
         Route::resource('warehouses', \App\Http\Controllers\Backend\Inventory\WarehousesController::class);

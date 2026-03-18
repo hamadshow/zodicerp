@@ -26,8 +26,8 @@ const resolveMediaUrl = (value) => {
 
 // --- Recursive Category Tree Item ---
 const CategoryItem = ({ category, level = 0, selectedId, onSelect, onDelete, onDrop, onDragStart }) => {
-    const [isExpanded, setIsExpanded] = useState(true);
     const [isDragOver, setIsDragOver] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(true); // Default to expanded
 
     const handleDragOver = (e) => {
         e.preventDefault();
@@ -54,47 +54,64 @@ const CategoryItem = ({ category, level = 0, selectedId, onSelect, onDelete, onD
     const hasChildren = category.children && category.children.length > 0;
     const isSelected = selectedId === category.id;
 
+    const isRtl = document.dir === 'rtl' || document.documentElement.dir === 'rtl' || document.body.dir === 'rtl';
+
     return (
-        <div className="category-node">
+        <div className="category-tree-node">
             <div 
-                className={`category-content ${isSelected ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''}`}
-                draggable
-                onDragStart={(e) => onDragStart(e, category.id)}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
+                className={`category-tree-item ${isSelected ? 'selected' : ''} ${isDragOver ? 'drag-over' : ''}`}
                 onClick={(e) => {
                     e.stopPropagation();
                     onSelect(category);
                 }}
-                style={{ paddingLeft: `${level * 20 + 12}px` }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
             >
-                <div className="category-handle" draggable onDragStart={(e) => onDragStart(e, category.id)}>
+                {/* Drag Handle */}
+                <div 
+                    className="drag-handle" 
+                    draggable 
+                    onDragStart={(e) => onDragStart(e, category.id)}
+                    onClick={(e) => e.stopPropagation()} // Prevent selection when trying to drag
+                >
                     <span className="material-icons-outlined">drag_indicator</span>
                 </div>
                 
+                {/* Toggle Icon */}
                 <div 
-                    className="category-toggle" 
+                    className={`toggle-icon ${hasChildren ? 'visible' : 'hidden'}`}
                     onClick={(e) => {
                         e.stopPropagation();
-                        setIsExpanded(!isExpanded);
+                        if (hasChildren) {
+                            setIsExpanded(!isExpanded);
+                        }
                     }}
-                    style={{ visibility: hasChildren ? 'visible' : 'hidden' }}
                 >
-                    <span className="material-icons-outlined">
-                        {isExpanded ? 'expand_more' : 'chevron_right'}
-                    </span>
+                    {hasChildren && (
+                        <span className="material-icons-outlined" style={{ 
+                            transform: isExpanded ? 'rotate(90deg)' : (isRtl ? 'rotate(180deg)' : 'rotate(0deg)'),
+                            transition: 'transform 0.2s ease'
+                        }}>
+                            chevron_right
+                        </span>
+                    )}
                 </div>
 
-                <div className="category-icon">
-                     <span className="material-icons-outlined">folder</span>
+                {/* Folder Icon */}
+                <div className="folder-icon">
+                     <span className="material-icons-outlined">
+                        {isExpanded && hasChildren ? 'folder_open' : 'folder'}
+                     </span>
                 </div>
 
+                {/* Info */}
                 <div className="category-info">
                     <span className="category-name">{category.name}</span>
-                    <span className="product-count">({category.products_count || 0})</span>
+                    <span className="category-count">({category.products_count || 0})</span>
                 </div>
 
+                {/* Delete Button */}
                 {isSelected && (
                     <button 
                         className="delete-btn" 
@@ -109,8 +126,9 @@ const CategoryItem = ({ category, level = 0, selectedId, onSelect, onDelete, onD
                 )}
             </div>
 
+            {/* Children Container */}
             {hasChildren && isExpanded && (
-                <div className="category-children">
+                <div className="category-children-container">
                     {category.children.map(child => (
                         <CategoryItem 
                             key={child.id} 
@@ -130,18 +148,21 @@ const CategoryItem = ({ category, level = 0, selectedId, onSelect, onDelete, onD
 };
 
 // --- Main Component ---
-const Categories = ({ categories = [], parents = [] }) => {
+const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = [] }) => {
     const [categoryTree, setCategoryTree] = useState([]);
+    const [treeVersion, setTreeVersion] = useState(0);
     const [selectedCategory, setSelectedCategory] = useState(null); // null means "Create New" mode or nothing selected
     const [isCreating, setIsCreating] = useState(true); // explicit flag for Create Mode
     const [showMediaPicker, setShowMediaPicker] = useState(false); // Media Picker Modal State
     const [duplicateOrderError, setDuplicateOrderError] = useState(null);
+    const [importing, setImporting] = useState(false);
+    const fileInputRef = useRef(null);
 
     // Form handling using Inertia's useForm
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         name: '',
         slug: '',
-        parent_id: '',
+        parent_id: 0,
         description: '',
         status: 'active',
         image: null,
@@ -153,48 +174,94 @@ const Categories = ({ categories = [], parents = [] }) => {
 
     // Helper to build tree
     const buildTree = React.useCallback((cats) => {
+        if (!cats || cats.length === 0) return [];
+        
+        // 1. Create a map of all categories
         const map = {};
         const roots = [];
+        
+        // Initialize map with normalized IDs and children array
         cats.forEach(cat => {
-            map[cat.id] = { ...cat, children: [] };
+            map[String(cat.id)] = { ...cat, children: [] };
         });
+        
+        // 2. Build the tree structure
         cats.forEach(cat => {
-            if (cat.parent_id && map[cat.parent_id]) {
-                map[cat.parent_id].children.push(map[cat.id]);
+            const currentItem = map[String(cat.id)];
+            
+            // Normalize parentId: null, undefined, "0", 0 -> "0"
+            let parentId = cat.parent_id;
+            if (parentId === null || parentId === undefined || parentId === 0 || parentId === "0" || parentId === "") {
+                parentId = "0";
             } else {
-                roots.push(map[cat.id]);
+                parentId = String(parentId);
+            }
+
+            // Check if parent exists in map (prevent orphans from disappearing)
+            if (parentId !== "0" && map[parentId]) {
+                // Check for circular reference (basic check: parent cannot be itself)
+                if (parentId !== String(currentItem.id)) {
+                     map[parentId].children.push(currentItem);
+                } else {
+                     // Self-referencing, treat as root
+                     roots.push(currentItem);
+                }
+            } else {
+                // If parentId is "0" OR parent doesn't exist (orphan), add to roots
+                roots.push(currentItem);
             }
         });
+        
+        // 3. Sort recursively
         const sortRecursive = (nodes) => {
-            nodes.sort((a, b) => a.order - b.order);
+            // Sort by order (asc), then by name (asc) as fallback
+            nodes.sort((a, b) => {
+                const orderA = Number(a.order) || 0;
+                const orderB = Number(b.order) || 0;
+                if (orderA !== orderB) return orderA - orderB;
+                
+                return (a.name || '').localeCompare(b.name || '');
+            });
+
             nodes.forEach(node => {
-                if (node.children.length > 0) sortRecursive(node.children);
+                if (node.children && node.children.length > 0) {
+                    sortRecursive(node.children);
+                }
             });
         };
+        
         sortRecursive(roots);
         return roots;
     }, []);
 
     useEffect(() => {
+        if (Array.isArray(categoryTreeFromServer) && categoryTreeFromServer.length > 0) {
+            setCategoryTree(categoryTreeFromServer);
+            setTreeVersion((v) => v + 1);
+            return;
+        }
+
         setCategoryTree(buildTree(categories));
-    }, [categories]);
+        setTreeVersion((v) => v + 1);
+    }, [categoryTreeFromServer, categories, buildTree]);
 
     // Handle Selection
     const handleSelectCategory = (category) => {
+        const fullCategory = categories.find(c => Number(c.id) === Number(category.id)) || category;
         setIsCreating(false);
-        setSelectedCategory(category);
+        setSelectedCategory(fullCategory);
         clearErrors();
         setData({
-            name: category.name || '',
-            slug: category.slug || '',
-            parent_id: category.parent_id || '',
-            description: category.description || '',
-            status: category.status || 'active',
-            image: category.image || null, // Load existing image
-            icon: category.icon || '',
-            is_featured: !!category.is_featured,
-            is_default: !!category.is_default,
-            order: category.order || 0,
+            name: fullCategory.name || '',
+            slug: fullCategory.slug || '',
+            parent_id: fullCategory.parent_id !== undefined && fullCategory.parent_id !== null ? Number(fullCategory.parent_id) : 0,
+            description: fullCategory.description || '',
+            status: fullCategory.status || 'active',
+            image: fullCategory.image || null,
+            icon: fullCategory.icon || '',
+            is_featured: !!fullCategory.is_featured,
+            is_default: !!fullCategory.is_default,
+            order: fullCategory.order || 0,
         });
     };
 
@@ -202,13 +269,11 @@ const Categories = ({ categories = [], parents = [] }) => {
     const handleCreateNew = () => {
         setIsCreating(true);
         setSelectedCategory(null);
-        clearErrors();
-        setDuplicateOrderError(null);
         reset();
         setData({
             name: '',
             slug: '',
-            parent_id: '',
+            parent_id: 0,
             description: '',
             status: 'active',
             image: null,
@@ -217,6 +282,8 @@ const Categories = ({ categories = [], parents = [] }) => {
             is_default: false,
             order: 0,
         });
+        clearErrors();
+        setDuplicateOrderError(null);
     };
 
     // Handle Media Selection
@@ -353,10 +420,78 @@ const Categories = ({ categories = [], parents = [] }) => {
         setData('description', newText);
     };
 
+    // Helper to get hierarchical options for the select dropdown
+    const renderParentOptions = (nodes, level = 0) => {
+        return nodes.reduce((acc, node) => {
+            // Skip the currently selected category and its descendants to avoid circular parenting
+            if (selectedCategory?.id === node.id) return acc;
+            
+            const prefix = level > 0 ? '\u00A0\u00A0'.repeat(level) + '↳ ' : '';
+            acc.push(
+                <option key={node.id} value={node.id}>
+                    {prefix}{node.name}
+                </option>
+            );
+            
+            if (node.children && node.children.length > 0) {
+                acc.push(...renderParentOptions(node.children, level + 1));
+            }
+            
+            return acc;
+        }, []);
+    };
+
+    const handleExport = () => {
+        window.location.href = route('admin.categories.export');
+    };
+
+    const handleImport = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        router.post(route('admin.categories.import'), formData, {
+            preserveScroll: true,
+            onStart: () => setImporting(true),
+            onFinish: () => {
+                setImporting(false);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            },
+            onSuccess: () => {
+                // Flash messages handle the success alert via the Layout or directly
+                alert('Import successful!');
+                // We could refresh the data or the tree here if needed
+                router.reload({ only: ['categories', 'categoryTree', 'parents'] });
+            },
+            onError: (err) => {
+                console.error('Import error:', err);
+                alert(err.error || 'Failed to import categories.');
+            }
+        });
+    };
+
     return (
         <AdminLayout activeMenu="Inventory">
             <Head title="Categories Management" />
             
+            <div className="categories-actions-header">
+                <button className="btn btn-outline" onClick={handleExport}>
+                    <span className="material-icons-outlined">download</span> Export
+                </button>
+                <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    style={{ display: 'none' }} 
+                    accept=".xlsx, .xls, .csv" 
+                    onChange={handleImport} 
+                />
+                <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+                    <span className="material-icons-outlined">upload</span> {importing ? 'Importing...' : 'Import'}
+                </button>
+            </div>
+
             <div className="categories-layout">
                 {/* LEFT COLUMN: Tree View */}
                 <div className="categories-tree-panel">
@@ -377,8 +512,9 @@ const Categories = ({ categories = [], parents = [] }) => {
                     >
                         {categoryTree.map(cat => (
                             <CategoryItem 
-                                key={cat.id} 
+                                key={`${treeVersion}-${cat.id}`} 
                                 category={cat} 
+                                treeVersion={treeVersion}
                                 selectedId={selectedCategory?.id}
                                 onSelect={handleSelectCategory}
                                 onDelete={handleDelete}
@@ -439,16 +575,12 @@ const Categories = ({ categories = [], parents = [] }) => {
                                 <div className="form-group">
                                     <label>Parent</label>
                                     <select 
-                                        className="form-control"
-                                        value={data.parent_id}
-                                        onChange={e => setData('parent_id', e.target.value)}
+                                        className={`form-control ${errors.parent_id ? 'is-invalid' : ''}`}
+                                        value={data.parent_id || 0}
+                                        onChange={e => setData('parent_id', Number(e.target.value))}
                                     >
-                                        <option value="">None (Top Level)</option>
-                                        {parents.map(parent => (
-                                            (selectedCategory?.id !== parent.id) && (
-                                                <option key={parent.id} value={parent.id}>{parent.name}</option>
-                                            )
-                                        ))}
+                                        <option value={0}>None (Top Level)</option>
+                                        {renderParentOptions(categoryTree)}
                                     </select>
                                 </div>
                                 <div className="form-group">

@@ -21,9 +21,9 @@ class UpdateCategoriesRequest extends FormRequest
             'slug' => 'nullable|string|max:255|unique:categories,slug,' . $categoryId,
             'parent_id' => [
                 'nullable',
-                'exists:categories,id',
+                'integer',
                 function ($attribute, $value, $fail) use ($categoryId) {
-                    if ($value == $categoryId) {
+                    if ($value != 0 && $value == $categoryId) {
                         $fail('A category cannot be its own parent.');
                     }
                 },

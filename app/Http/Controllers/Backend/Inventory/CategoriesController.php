@@ -6,16 +6,58 @@ use App\Http\Controllers\Controller;
 use App\Models\Categories;
 use App\Http\Requests\Inventory\StoreCategoriesRequest;
 use App\Http\Requests\Inventory\UpdateCategoriesRequest;
+use App\Exports\CategoryExport;
+use App\Imports\CategoryImport;
+use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Collection;
 
 class CategoriesController extends Controller
 {
+    public function export(Request $request)
+    {
+        $companyId = $request->user()?->company_id;
+        if (!$companyId) {
+            abort(403, 'Company not set for this user.');
+        }
+        return Excel::download(new CategoryExport($companyId), 'categories.xlsx');
+    }
+
+    public function import(Request $request)
+    {
+        set_time_limit(300); // Increase time limit to 5 minutes for imports
+
+        $companyId = $request->user()?->company_id;
+        if (!$companyId) {
+            return back()->withErrors(['error' => 'Company not set for this user.']);
+        }
+
+        $request->validate([
+            'file' => 'required|mimes:xlsx,xls,csv|max:5120',
+        ]);
+
+        try {
+            Excel::import(new CategoryImport($companyId), $request->file('file'));
+            return back()->with('success', 'Categories imported successfully');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Error importing categories: ' . $e->getMessage()]);
+        }
+    }
+
     public function index(Request $request)
     {
-        $query = Categories::with('parent')->withCount('products');
+        $companyId = $request->user()?->company_id;
+        if (!$companyId) {
+            abort(403, 'Company not set for this user.');
+        }
+
+        $query = Categories::query()
+            ->with('parent')
+            ->withCount('products')
+            ->where('company_id', $companyId);
 
         if ($request->has('search')) {
             $search = $request->search;
@@ -25,23 +67,93 @@ class CategoriesController extends Controller
             });
         }
 
-        // Get all categories for the list
         $categories = $query->orderBy('order')->orderBy('name')->get();
 
-        // Get potential parents (all categories)
-        $parents = Categories::select('id', 'name')->orderBy('name')->get();
+        // 1. Get all valid IDs for orphan check
+        $validIds = $categories->pluck('id')->flip();
+
+        // 2. Group by parent_id with normalization
+        $grouped = $categories->groupBy(function ($cat) use ($validIds) {
+            $parentId = $cat->parent_id;
+            
+            // Normalize: null, "0", 0 -> 0
+            if (is_null($parentId) || $parentId === 0 || $parentId === '0') {
+                return 0;
+            }
+
+            // Cast to int
+            $parentId = (int) $parentId;
+
+            // Handle orphans: if parent_id refers to a non-existent ID, treat as root (0)
+            if (!$validIds->has($parentId)) {
+                return 0;
+            }
+
+            return $parentId;
+        });
+
+        // 3. Build recursive tree with cycle detection
+        $categoryTree = $this->buildCategoryTree($grouped, 0);
+
+        $parents = Categories::query()
+            ->where('company_id', $companyId)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         if ($request->wantsJson()) {
             return response()->json([
                 'categories' => $categories,
+                'category_tree' => $categoryTree,
                 'parents' => $parents
             ]);
         }
 
         return Inertia::render('Backend/03-Inventory/Categories', [
             'categories' => $categories,
+            'categoryTree' => $categoryTree,
             'parents' => $parents,
         ]);
+    }
+
+    protected function normalizeParentId($parentId): int
+    {
+        return $parentId ? (int) $parentId : 0;
+    }
+
+    protected function buildCategoryTree(Collection $groupedByParent, int $parentId = 0, array $visited = []): array
+    {
+        // 1. Get children for this parent
+        $children = $groupedByParent->get($parentId, collect());
+
+        // 2. Sort children by order, then name (optional, if query wasn't enough)
+        $children = $children->sortBy([
+            ['order', 'asc'],
+            ['name', 'asc'],
+        ]);
+
+        return $children->map(function ($category) use ($groupedByParent, $visited) {
+            $id = (int) $category->id;
+
+            // 3. Prevent infinite recursion (cycle detection)
+            if (in_array($id, $visited)) {
+                return null; // Skip this branch to break cycle
+            }
+
+            // Add current ID to visited path
+            $newVisited = array_merge($visited, [$id]);
+
+            $data = $category->toArray();
+            $data['products_count'] = $category->products_count ?? 0;
+            
+            // 4. Recursively build children
+            $data['children'] = $this->buildCategoryTree($groupedByParent, $id, $newVisited);
+
+            return $data;
+        })
+        ->filter() // Remove nulls from cycles
+        ->values()
+        ->all();
     }
 
     public function store(StoreCategoriesRequest $request)
@@ -57,7 +169,7 @@ class CategoriesController extends Controller
                 'category_code' => $nextCode,
                 'name' => $request->name,
                 'slug' => $request->slug ?? \Illuminate\Support\Str::slug($request->name),
-                'parent_id' => $request->parent_id,
+                'parent_id' => $request->parent_id ?: 0,
                 'status' => $request->status,
                 'order' => $request->order ?? 0,
                 'description' => $request->description,
@@ -99,6 +211,7 @@ class CategoriesController extends Controller
     {
         try {
             $data = $request->validated();
+            $data['parent_id'] = $data['parent_id'] ?: 0;
             
             if (empty($data['slug'])) {
                 $data['slug'] = \Illuminate\Support\Str::slug($data['name']);

@@ -18,6 +18,7 @@ class ItemUnit extends Model
         'base_unit',
         'conversion_factor',
         'active',
+        'company_id',
         'created_by',
         'updated_by',
     ];
@@ -56,6 +57,11 @@ class ItemUnit extends Model
     public function conversionsTo()
     {
         return $this->hasMany(ItemUnitConversion::class, 'to_unit_id');
+    }
+
+    public function conversions()
+    {
+        return $this->conversionsFrom();
     }
 
     public function scopeActive($query)
