@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
@@ -34,7 +34,7 @@ const newRow = (defaultUnitId = '') => ({
   quantity: '',
 });
 
-const ViewSection = ({ transfers, onCreate, onDelete, localization }) => {
+const ViewSection = ({ transfers, onCreate, onDelete }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredTransfers = useMemo(() => {
@@ -304,7 +304,7 @@ const StockTransfers = () => {
 
   const defaultUnitId = units?.[0]?.id ? String(units[0].id) : '';
 
-  const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
+  const { data, setData, post, processing, errors, reset } = useForm({
     date: defaultDate || new Date().toISOString().slice(0, 10),
     from_warehouse_id: '',
     to_warehouse_id: '',
@@ -362,7 +362,6 @@ const StockTransfers = () => {
             transfers={transfers}
             onCreate={() => setMode('add')}
             onDelete={handleDelete}
-            localization={localization}
           />
         ) : (
           <FormSection
