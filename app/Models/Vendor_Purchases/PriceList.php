@@ -2,11 +2,11 @@
 
 namespace App\Models\Vendor_Purchases;
 
+use App\Models\Currency;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Currency;
-use App\Models\User;
 
 class PriceList extends Model
 {
@@ -25,7 +25,7 @@ class PriceList extends Model
         'rounding_factor',
         'is_active',
         'notes',
-        'created_by'
+        'created_by',
     ];
 
     protected $casts = [

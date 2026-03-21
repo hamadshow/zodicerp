@@ -2,16 +2,16 @@
 
 namespace App\Models\Accounting;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Models\Account;
-use App\Models\Accounting\JournalEntry;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class JournalEntryLine extends Model
 {
     use HasFactory;
 
     protected $table = 'journal_entry_lines';
+
     // protected $primaryKey = 'id'; // Default is id
     public $timestamps = true; // Enabled in migration
 

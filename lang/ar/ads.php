@@ -1,4 +1,5 @@
 <?php
+
 return [
     'main_ad' => 'الإعلان الرئيسي',
     'main_promo_banner' => 'بنر ترويجي رئيسي',

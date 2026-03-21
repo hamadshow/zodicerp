@@ -32,8 +32,8 @@ return new class extends Migration
             $table->text('rejection_reason')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
-            //$table->softDeletes(); // User didn't explicitly ask for soft deletes on details, but usually good to have if parent has it. SQL didn't have it. I'll stick to SQL unless "Enable soft deletes" applied to all. "Requirements: Enable soft deletes" seems global. I will add it to be safe and consistent.
-            
+            // $table->softDeletes(); // User didn't explicitly ask for soft deletes on details, but usually good to have if parent has it. SQL didn't have it. I'll stick to SQL unless "Enable soft deletes" applied to all. "Requirements: Enable soft deletes" seems global. I will add it to be safe and consistent.
+
             $table->index('receipt_id', 'idx_receipt_details_receipt');
             $table->index('product_id', 'idx_receipt_details_product');
             $table->index('batch_number', 'idx_receipt_details_batch');

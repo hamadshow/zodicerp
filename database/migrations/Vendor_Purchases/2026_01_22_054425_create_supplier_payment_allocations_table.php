@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -17,21 +17,21 @@ return new class extends Migration
             $table->collation = 'utf8mb4_unicode_ci';
 
             $table->id();
-            
+
             // payment_id REFERENCES supplier_payments(id) ON DELETE CASCADE
             $table->foreignId('payment_id')->constrained('supplier_payments')->onDelete('cascade');
-            
+
             // invoice_id REFERENCES purchase_invoices(id)
             $table->foreignId('invoice_id')->constrained('purchase_invoices');
-            
+
             $table->decimal('allocated_amount', 15, 2)->default(0);
-            
+
             // base_allocated_amount DECIMAL(15,2)
             $table->decimal('base_allocated_amount', 15, 2)->nullable();
-            
+
             $table->decimal('discount_given', 15, 2)->default(0);
             $table->text('notes')->nullable();
-            
+
             // No soft deletes requested for allocations, but generally good practice.
             // User did not explicitly ask for soft deletes on allocations table, but "Requirements: Enable soft deletes" might apply to both.
             // However, allocations are usually hard deleted if payment is deleted (CASCADE).
@@ -45,13 +45,13 @@ return new class extends Migration
             // But user requirement is broad. I will add it.
             // Actually, `ON DELETE CASCADE` suggests hard dependency.
             // I'll stick to user schema strictness but add timestamps.
-            
+
             $table->timestamps();
-            
+
             // Indexes
             $table->index('payment_id', 'idx_payment_allocations_payment');
             $table->index('invoice_id', 'idx_payment_allocations_invoice');
-            
+
             // UNIQUE KEY unique_payment_invoice (payment_id, invoice_id)
             $table->unique(['payment_id', 'invoice_id'], 'unique_payment_invoice');
         });

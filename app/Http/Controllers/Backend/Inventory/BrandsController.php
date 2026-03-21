@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Backend\Inventory;
 
 use App\Http\Controllers\Controller;
-use App\Models\Brands;
 use App\Http\Requests\Inventory\StoreBrandsRequest;
 use App\Http\Requests\Inventory\UpdateBrandsRequest;
+use App\Models\Brands;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class BrandsController extends Controller
 {
@@ -20,7 +20,7 @@ class BrandsController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('brand_code', 'like', "%{$search}%");
+                    ->orWhere('brand_code', 'like', "%{$search}%");
             });
         }
 
@@ -30,7 +30,7 @@ class BrandsController extends Controller
         if ($request->wantsJson()) {
             return response()->json([
                 'brands' => $brands,
-                'parents' => $parents
+                'parents' => $parents,
             ]);
         }
 
@@ -48,7 +48,7 @@ class BrandsController extends Controller
             // Auto-generate Brand Code
             $lastBrand = Brands::latest('id')->first();
             $nextId = $lastBrand ? ($lastBrand->id + 1) : 1;
-            $brandCode = 'BRD-' . str_pad($nextId + 3000, 4, '0', STR_PAD_LEFT);
+            $brandCode = 'BRD-'.str_pad($nextId + 3000, 4, '0', STR_PAD_LEFT);
 
             Brands::create([
                 'brand_code' => $brandCode,
@@ -64,7 +64,8 @@ class BrandsController extends Controller
                 ->with('success', 'Brand created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Failed to create brand: ' . $e->getMessage()]);
+
+            return back()->withErrors(['error' => 'Failed to create brand: '.$e->getMessage()]);
         }
     }
 
@@ -86,7 +87,8 @@ class BrandsController extends Controller
                 ->with('success', 'Brand updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Failed to update brand: ' . $e->getMessage()]);
+
+            return back()->withErrors(['error' => 'Failed to update brand: '.$e->getMessage()]);
         }
     }
 

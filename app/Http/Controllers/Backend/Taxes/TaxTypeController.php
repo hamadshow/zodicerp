@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Backend\Taxes;
 
 use App\Http\Controllers\Controller;
-use App\Models\Taxes\TaxType;
 use App\Models\Country;
+use App\Models\Taxes\TaxType;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -81,7 +81,7 @@ class TaxTypeController extends Controller
     public function update(Request $request, TaxType $taxType)
     {
         $validated = $request->validate([
-            'code' => 'required|string|unique:tax_types,code,' . $taxType->id,
+            'code' => 'required|string|unique:tax_types,code,'.$taxType->id,
             'name_ar' => 'required|string',
             'name_en' => 'required|string',
             'tax_category' => 'required|in:sales,purchase,income,withholding,excise,customs,property,other',

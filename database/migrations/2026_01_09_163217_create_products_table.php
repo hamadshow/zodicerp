@@ -19,7 +19,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->longText('content')->nullable();
             $table->enum('status', ['active', 'inactive', 'draft', 'pending'])->default('draft');
-            
+
             // Media
             $table->json('images')->nullable(); // Gallery
             $table->string('image')->nullable(); // Main image
@@ -28,17 +28,17 @@ return new class extends Migration
             // Identification
             $table->string('sku')->unique()->nullable();
             $table->string('barcode')->unique()->nullable();
-            
+
             // Organization
             $table->foreignId('parent_id')->nullable()->constrained('products')->nullOnDelete();
             $table->foreignId('brand_id')->nullable()->constrained('brands')->nullOnDelete();
             $table->foreignId('category_id')->nullable()->constrained('categories')->nullOnDelete();
             $table->foreignId('store_id')->nullable(); // Assuming store/branch table
             $table->integer('order')->default(0);
-            
+
             // Stats
             $table->integer('views')->default(0);
-            
+
             // Inventory
             $table->integer('quantity')->default(0);
             $table->string('stock_status')->default('in_stock'); // in_stock, out_of_stock, on_backorder
@@ -62,7 +62,7 @@ return new class extends Migration
             $table->boolean('is_featured')->default(false);
             $table->boolean('is_variation')->default(false);
             $table->integer('variations_count')->default(0);
-            
+
             // Shipping
             $table->decimal('length', 8, 2)->nullable();
             $table->decimal('wide', 8, 2)->nullable();
@@ -76,7 +76,7 @@ return new class extends Migration
             // SEO
             $table->string('meta_title')->nullable();
             $table->text('meta_description')->nullable();
- 
+
             // Digital / Advanced
             $table->boolean('generate_license_code')->default(false);
             $table->string('license_code_type')->nullable();

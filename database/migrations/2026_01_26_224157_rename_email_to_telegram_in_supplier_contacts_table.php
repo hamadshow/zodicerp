@@ -13,7 +13,7 @@ return new class extends Migration
     {
         if (Schema::hasTable('supplier_contacts')) {
             Schema::table('supplier_contacts', function (Blueprint $table) {
-                if (Schema::hasColumn('supplier_contacts', 'email') && !Schema::hasColumn('supplier_contacts', 'telegram')) {
+                if (Schema::hasColumn('supplier_contacts', 'email') && ! Schema::hasColumn('supplier_contacts', 'telegram')) {
                     $table->renameColumn('email', 'telegram');
                 }
             });

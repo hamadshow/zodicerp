@@ -2,11 +2,11 @@
 
 namespace App\Models\Client_Sales;
 
+use App\Models\City;
+use App\Models\Country;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Country;
-use App\Models\City;
 
 class CustomerAddress extends Model
 {
@@ -31,7 +31,7 @@ class CustomerAddress extends Model
         'is_default_shipping',
         'latitude',
         'longitude',
-        'notes'
+        'notes',
     ];
 
     protected $casts = [

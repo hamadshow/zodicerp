@@ -12,12 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         if (Schema::hasTable('brokers')) {
-            // Drop it first if we want to recreate it exactly as requested, 
-            // or we could just return. Given the user context "CREATE TABLE", 
+            // Drop it first if we want to recreate it exactly as requested,
+            // or we could just return. Given the user context "CREATE TABLE",
             // dropping and recreating is usually safer for development flow.
             // However, typically we just create. I'll stick to create, but check if exists.
             // If it exists, I'll assume we need to drop it to match the new schema request.
-             Schema::dropIfExists('brokers');
+            Schema::dropIfExists('brokers');
         }
 
         Schema::create('brokers', function (Blueprint $table) {

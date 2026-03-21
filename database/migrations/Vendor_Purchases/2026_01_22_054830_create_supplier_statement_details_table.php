@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -17,28 +17,28 @@ return new class extends Migration
             $table->collation = 'utf8mb4_unicode_ci';
 
             $table->id();
-            
+
             // statement_id REFERENCES supplier_statements(id) ON DELETE CASCADE
             $table->foreignId('statement_id')->constrained('supplier_statements')->onDelete('cascade');
-            
+
             $table->date('transaction_date');
-            
+
             $table->enum('document_type', ['invoice', 'payment', 'credit_note', 'debit_note', 'adjustment']);
-            
+
             $table->unsignedBigInteger('document_id');
             $table->string('document_number', 50)->nullable();
             $table->text('description')->nullable();
-            
+
             $table->decimal('debit_amount', 15, 2)->default(0);
             $table->decimal('credit_amount', 15, 2)->default(0);
             $table->decimal('balance', 15, 2)->nullable();
-            
+
             // Indexes
             $table->index('statement_id', 'idx_statement_details_statement');
             $table->index(['document_type', 'document_id'], 'idx_statement_details_document');
-            
+
             $table->timestamps();
-            
+
             // Enable soft deletes as requested by "Requirements: Enable soft deletes" generally.
             // Also consistent with parent having soft deletes.
             $table->softDeletes();

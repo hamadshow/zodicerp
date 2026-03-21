@@ -16,17 +16,17 @@ return new class extends Migration
             $table->foreignId('asset_id')->constrained('assets')->cascadeOnDelete();
             $table->date('inspection_date');
             $table->string('inspector_name', 200)->nullable();
-            
+
             $table->enum('condition_before', ['excellent', 'good', 'fair', 'poor', 'critical'])->nullable();
             $table->enum('condition_after', ['excellent', 'good', 'fair', 'poor', 'critical'])->nullable();
-            
+
             $table->text('findings')->nullable();
             $table->text('recommendations')->nullable();
             $table->date('next_inspection_date')->nullable();
-            
+
             $table->boolean('is_maintenance_required')->default(false);
             $table->foreignId('maintenance_id')->nullable()->constrained('asset_maintenance')->nullOnDelete();
-            
+
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
         });

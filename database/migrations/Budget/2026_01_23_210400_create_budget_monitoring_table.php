@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('budget_monitoring')) {
+        if (! Schema::hasTable('budget_monitoring')) {
             Schema::create('budget_monitoring', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('budget_id')->constrained('budgets')->onDelete('cascade');
@@ -52,7 +52,7 @@ return new class extends Migration
                     $table->unsignedBigInteger('monitored_by')->nullable();
                     $table->unsignedBigInteger('acknowledged_by')->nullable();
                 }
-                
+
                 $table->date('acknowledged_date')->nullable();
 
                 $table->timestamps();
@@ -61,7 +61,7 @@ return new class extends Migration
                 $table->unique(['budget_item_id', 'monitoring_date', 'period_type'], 'unique_monitoring');
                 $table->index('monitoring_date', 'idx_monitoring_date');
                 $table->index('variance_status', 'idx_variance_status');
-                
+
                 $table->charset = 'utf8mb4';
                 $table->collation = 'utf8mb4_unicode_ci';
             });

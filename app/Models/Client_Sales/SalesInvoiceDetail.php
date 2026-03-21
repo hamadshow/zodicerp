@@ -2,13 +2,13 @@
 
 namespace App\Models\Client_Sales;
 
+use App\Models\ItemUnit;
+use App\Models\Products;
+use App\Models\Vendor_Purchases\TaxType;
+use App\Models\Warehouses;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Products;
-use App\Models\Warehouses;
-use App\Models\ItemUnit;
-use App\Models\Vendor_Purchases\TaxType;
 
 class SalesInvoiceDetail extends Model
 {

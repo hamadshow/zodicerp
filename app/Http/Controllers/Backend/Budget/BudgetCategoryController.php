@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Backend\Budget;
 
 use App\Http\Controllers\Controller;
-use App\Models\Budget\BudgetCategory;
 use App\Models\Account;
 use App\Models\Assets\Department;
+use App\Models\Budget\BudgetCategory;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 
 class BudgetCategoryController extends Controller
 {
@@ -20,7 +20,7 @@ class BudgetCategoryController extends Controller
         $categories = BudgetCategory::with(['parent', 'account', 'department'])
             ->orderBy('id', 'desc')
             ->get();
-        
+
         // Fetch accounts and departments for dropdowns
         $accounts = Account::select('AccID', 'AccName')->get();
         $departments = Department::select('id', 'name_en', 'name_ar')->get();
@@ -52,7 +52,7 @@ class BudgetCategoryController extends Controller
 
         // Auto-generate code if not provided
         if (empty($validated['code'])) {
-            $validated['code'] = 'BC-' . strtoupper(Str::random(6));
+            $validated['code'] = 'BC-'.strtoupper(Str::random(6));
         }
 
         BudgetCategory::create($validated);
@@ -71,7 +71,7 @@ class BudgetCategoryController extends Controller
             'name_ar' => 'required|string|max:255',
             'name_en' => 'nullable|string|max:255',
             'parent_id' => 'nullable|exists:budget_categories,id',
-            'code' => 'nullable|string|unique:budget_categories,code,' . $id,
+            'code' => 'nullable|string|unique:budget_categories,code,'.$id,
             'category_type' => 'nullable|string',
             'account_id' => 'nullable|exists:accounts,AccID',
             'department_id' => 'nullable|exists:departments,id',

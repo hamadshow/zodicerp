@@ -26,7 +26,7 @@ return new class extends Migration
             $table->string('currency', 10)->nullable();
             $table->string('logo', 191)->nullable();
             $table->enum('status', ['active', 'inactive'])->default('active');
-            
+
             $table->timestamps();
             $table->softDeletes();
         });

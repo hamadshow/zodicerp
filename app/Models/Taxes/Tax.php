@@ -2,11 +2,11 @@
 
 namespace App\Models\Taxes;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use App\Models\Country;
+use App\Models\Account;
 use App\Models\City;
-use App\Models\Account; // Assuming Account model exists in App\Models or App\Models\Accounting
+use App\Models\Country;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model; // Assuming Account model exists in App\Models or App\Models\Accounting
 
 class Tax extends Model
 {
@@ -82,7 +82,7 @@ class Tax extends Model
     // Note: Account model might be in a different namespace, adjusting if needed.
     // Based on previous files, Account seems to be in App\Models or App\Models\Accounting
     // I'll assume App\Models\Account based on imports above, but let's check.
-    
+
     public function taxAccount()
     {
         return $this->belongsTo(\App\Models\Account::class, 'tax_account_id', 'AccID');

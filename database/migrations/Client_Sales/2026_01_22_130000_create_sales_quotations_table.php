@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -15,7 +15,7 @@ return new class extends Migration
         Schema::create('sales_quotations', function (Blueprint $table) {
             $table->id();
             $table->string('quotation_number', 50)->unique();
-            
+
             // Foreign Keys
             $table->unsignedInteger('customer_id');
             $table->foreign('customer_id')->references('id')->on('customers');
@@ -25,24 +25,24 @@ return new class extends Migration
             $table->date('quotation_date');
             $table->date('expiry_date')->nullable();
             $table->integer('valid_days')->nullable();
-            
+
             $table->unsignedInteger('price_list_id')->nullable();
             $table->foreign('price_list_id')->references('id')->on('price_lists');
 
             $table->foreignId('warehouse_id')->nullable()->constrained('warehouses');
-            
+
             $table->decimal('subtotal', 15, 2)->default(0);
             $table->decimal('discount_percentage', 5, 2)->default(0);
             $table->decimal('discount_amount', 15, 2)->default(0);
             $table->decimal('tax_amount', 15, 2)->default(0);
             $table->decimal('shipping_cost', 15, 2)->default(0);
             $table->decimal('total_amount', 15, 2)->default(0);
-            
+
             // Generated column
             $table->decimal('base_total', 15, 2)->storedAs('total_amount * exchange_rate');
 
             $table->enum('status', ['draft', 'sent', 'under_review', 'accepted', 'rejected', 'expired', 'converted'])->default('draft');
-            
+
             $table->unsignedInteger('sales_agent_id')->nullable();
             $table->foreign('sales_agent_id')->references('id')->on('sales_agents');
 
@@ -65,7 +65,7 @@ return new class extends Migration
             $table->index('customer_id', 'idx_sales_quotations_customer');
             $table->index('sales_agent_id', 'idx_sales_quotations_agent');
         });
-        
+
         DB::statement("ALTER TABLE sales_quotations COMMENT = 'عروض أسعار المبيعات للعملاء'");
     }
 

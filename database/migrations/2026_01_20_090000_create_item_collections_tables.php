@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('image', 191)->nullable();
             $table->string('status', 60)->default('published');
             $table->unsignedTinyInteger('is_featured')->default(0);
-            
+
             // Parent ID for hierarchy (relationships: parent, children)
             $table->unsignedBigInteger('parent_id')->nullable();
 
@@ -33,9 +33,9 @@ return new class extends Migration
             // Indexes and Foreign Keys
             $table->index('parent_id');
             $table->foreign('parent_id')
-                  ->references('id')
-                  ->on('item_collections')
-                  ->onDelete('set null');
+                ->references('id')
+                ->on('item_collections')
+                ->onDelete('set null');
         });
 
         // Table: item_collection_product (Pivot table for Many-to-Many relationship)
@@ -51,15 +51,15 @@ return new class extends Migration
 
             // Foreign Keys
             $table->foreign('item_collection_id')
-                  ->references('id')
-                  ->on('item_collections')
-                  ->onDelete('cascade');
+                ->references('id')
+                ->on('item_collections')
+                ->onDelete('cascade');
 
             // Assuming 'products' is the table name for Products model
             $table->foreign('product_id')
-                  ->references('id')
-                  ->on('products')
-                  ->onDelete('cascade');
+                ->references('id')
+                ->on('products')
+                ->onDelete('cascade');
 
             // Unique constraint to prevent duplicates
             $table->unique(['item_collection_id', 'product_id']);

@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Sectors
-        if (!Schema::hasTable('sectors')) {
+        if (! Schema::hasTable('sectors')) {
             Schema::create('sectors', function (Blueprint $table) {
                 $table->id();
                 $table->string('name_ar');
@@ -22,7 +22,7 @@ return new class extends Migration
         }
 
         // 2. Industries
-        if (!Schema::hasTable('industries')) {
+        if (! Schema::hasTable('industries')) {
             Schema::create('industries', function (Blueprint $table) {
                 $table->id();
                 $table->string('name_ar');
@@ -33,7 +33,7 @@ return new class extends Migration
         }
 
         // 3. Sub-industries
-        if (!Schema::hasTable('sub_industries')) {
+        if (! Schema::hasTable('sub_industries')) {
             Schema::create('sub_industries', function (Blueprint $table) {
                 $table->id();
                 $table->string('name_ar');
@@ -44,7 +44,7 @@ return new class extends Migration
         }
 
         // 4. States
-        if (!Schema::hasTable('states')) {
+        if (! Schema::hasTable('states')) {
             Schema::create('states', function (Blueprint $table) {
                 $table->id();
                 $table->string('name_ar');
@@ -60,7 +60,7 @@ return new class extends Migration
         }
 
         // 5. Exchanges (Stock Exchanges)
-        if (!Schema::hasTable('exchanges')) {
+        if (! Schema::hasTable('exchanges')) {
             Schema::create('exchanges', function (Blueprint $table) {
                 $table->id();
                 $table->string('name_ar');
@@ -72,7 +72,7 @@ return new class extends Migration
         }
 
         // 6. Credit Ratings
-        if (!Schema::hasTable('credit_ratings')) {
+        if (! Schema::hasTable('credit_ratings')) {
             Schema::create('credit_ratings', function (Blueprint $table) {
                 $table->id();
                 $table->string('agency_name');
@@ -84,7 +84,7 @@ return new class extends Migration
         }
 
         // 7. Payment Terms
-        if (!Schema::hasTable('payment_terms')) {
+        if (! Schema::hasTable('payment_terms')) {
             Schema::create('payment_terms', function (Blueprint $table) {
                 $table->id();
                 $table->string('name_ar');

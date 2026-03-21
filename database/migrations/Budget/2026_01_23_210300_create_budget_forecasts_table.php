@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('budget_forecasts')) {
+        if (! Schema::hasTable('budget_forecasts')) {
             Schema::create('budget_forecasts', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('budget_id')->constrained('budgets')->onDelete('cascade');
@@ -37,7 +37,7 @@ return new class extends Migration
 
                 // Approval
                 $table->decimal('approved_amount', 20, 4)->nullable();
-                
+
                 if (Schema::hasTable('users')) {
                     $table->foreignId('approved_by')->nullable()->constrained('users')->nullOnDelete();
                     $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
@@ -58,7 +58,7 @@ return new class extends Migration
 
                 $table->index('status', 'idx_forecast_status');
                 $table->index('forecast_date', 'idx_forecast_date');
-                
+
                 $table->charset = 'utf8mb4';
                 $table->collation = 'utf8mb4_unicode_ci';
             });

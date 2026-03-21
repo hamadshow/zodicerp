@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -17,7 +17,7 @@ return new class extends Migration
         $categories = DB::table('categories')->orderBy('order')->orderBy('id')->get();
         $order = 1;
         foreach ($categories as $category) {
-             DB::table('categories')
+            DB::table('categories')
                 ->where('id', $category->id)
                 ->update(['order' => $order++]);
         }

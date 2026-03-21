@@ -19,6 +19,8 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): Response
     {
+        request()->session()->forget('company_id');
+
         return Inertia::render('Backend/Auth/Login', [
             'canResetPassword' => Route::has('password.request'),
             'status' => session('status'),
@@ -30,6 +32,8 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
+        $request->session()->forget('company_id');
+
         $request->authenticate();
 
         $request->session()->regenerate();
@@ -37,7 +41,7 @@ class AuthenticatedSessionController extends Controller
         $user = $request->user();
 
         // Check if user is active after authentication
-        if (!$user || $user->status !== 'active') {
+        if (! $user || $user->status !== 'active') {
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();

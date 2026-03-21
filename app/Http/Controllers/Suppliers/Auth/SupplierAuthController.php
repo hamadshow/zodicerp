@@ -17,11 +17,15 @@ class SupplierAuthController extends Controller
 {
     public function showLoginForm()
     {
+        request()->session()->forget('company_id');
+
         return Inertia::render('Suppliers/Auth/SupplierLogin');
     }
 
     public function login(Request $request)
     {
+        $request->session()->forget('company_id');
+
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
@@ -59,7 +63,7 @@ class SupplierAuthController extends Controller
         } else {
             $nextId = 10001;
         }
-        $supplierCode = 'VEN-' . $nextId;
+        $supplierCode = 'VEN-'.$nextId;
 
         $group = SupplierGroup::firstOrCreate(
             ['code' => 'GRP-DEFAULT'],
@@ -67,13 +71,13 @@ class SupplierAuthController extends Controller
         );
 
         $currencyId = Currency::whereKey(1)->value('id');
-        if (!$currencyId) {
+        if (! $currencyId) {
             $currencyId = Currency::where('is_base', true)->value('id')
                 ?: Currency::where('status', 'active')->value('id')
                 ?: Currency::value('id');
         }
 
-        if (!$currencyId) {
+        if (! $currencyId) {
             $currencyId = Currency::query()->insertGetId([
                 'id' => 1,
                 'code' => 'EGP',
@@ -111,8 +115,8 @@ class SupplierAuthController extends Controller
         ]);
 
         // Create Supplier Directory
-        Storage::disk('public')->makeDirectory('suppliers/' . $supplier->supplier_code . '/products');
-        Storage::disk('public')->makeDirectory('suppliers/' . $supplier->supplier_code . '/documents');
+        Storage::disk('public')->makeDirectory('suppliers/'.$supplier->supplier_code.'/products');
+        Storage::disk('public')->makeDirectory('suppliers/'.$supplier->supplier_code.'/documents');
 
         Auth::guard('supplier')->login($supplier);
 

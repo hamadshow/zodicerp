@@ -8,7 +8,5 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 class ProductPreviewImport implements ToCollection, WithHeadingRow
 {
-    public function collection(Collection $collection)
-    {
-    }
+    public function collection(Collection $collection) {}
 }

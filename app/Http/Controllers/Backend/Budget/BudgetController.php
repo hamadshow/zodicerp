@@ -3,32 +3,32 @@
 namespace App\Http\Controllers\Backend\Budget;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
-use App\Models\Budget\Budget;
+use App\Models\Account;
 use App\Models\Assets\Department;
 use App\Models\Branch;
-use App\Models\Currency;
+use App\Models\Budget\Budget;
 use App\Models\Budget\BudgetCategory;
-use App\Models\Account;
+use App\Models\Currency;
 use App\Models\Taxes\TaxType;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class BudgetController extends Controller
 {
     public function index()
     {
         $budgets = Budget::with(['department', 'items'])->orderBy('created_at', 'desc')->paginate(10);
-        
+
         $departments = Department::all();
         $branches = Branch::all();
         $currencies = Currency::all();
         $categories = BudgetCategory::all();
         $accounts = Account::all();
         $taxes = TaxType::all();
-        
+
         // Pass empty arrays for missing models for now
-        $projects = []; 
+        $projects = [];
         $costCenters = [];
 
         return Inertia::render('Backend/Budget/Budget', [
@@ -64,7 +64,7 @@ class BudgetController extends Controller
 
         DB::transaction(function () use ($request) {
             $budget = Budget::create($request->except('items'));
-            
+
             if ($request->has('items') && is_array($request->items)) {
                 foreach ($request->items as $item) {
                     $budget->items()->create($item);
@@ -80,7 +80,7 @@ class BudgetController extends Controller
         $budget = Budget::findOrFail($id);
 
         $request->validate([
-            'budget_number' => 'required|string|unique:budgets,budget_number,' . $budget->id,
+            'budget_number' => 'required|string|unique:budgets,budget_number,'.$budget->id,
             'budget_name_ar' => 'required|string',
             'budget_name_en' => 'required|string',
             'fiscal_year' => 'required|integer',
@@ -97,11 +97,11 @@ class BudgetController extends Controller
 
         DB::transaction(function () use ($request, $budget) {
             $budget->update($request->except('items'));
-            
+
             if ($request->has('items') && is_array($request->items)) {
                 // Delete existing items
                 $budget->items()->delete();
-                
+
                 // Re-create items
                 foreach ($request->items as $item) {
                     $budget->items()->create($item);
@@ -116,6 +116,7 @@ class BudgetController extends Controller
     {
         $budget = Budget::findOrFail($id);
         $budget->delete();
+
         return redirect()->route('admin.budget.index')->with('success', 'Budget deleted successfully.');
     }
 }

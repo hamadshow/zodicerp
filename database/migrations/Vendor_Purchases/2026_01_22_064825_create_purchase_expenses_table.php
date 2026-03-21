@@ -26,16 +26,16 @@ return new class extends Migration
             $table->decimal('amount', 15, 2)->default(0);
             $table->foreignId('currency_id')->constrained('currencies');
             $table->decimal('exchange_rate', 15, 6)->default(1.000000);
-            
+
             // Generated column: base_amount = amount * exchange_rate
             $table->decimal('base_amount', 15, 2)->storedAs('amount * exchange_rate');
-            
+
             $table->foreignId('tax_id')->nullable()->constrained('purchase_taxes');
             $table->decimal('tax_amount', 15, 2)->default(0);
-            
+
             // Generated column: total_amount = amount + tax_amount
             $table->decimal('total_amount', 15, 2)->storedAs('amount + tax_amount');
-            
+
             $table->enum('allocation_status', ['not_allocated', 'partially_allocated', 'fully_allocated'])->default('not_allocated');
             $table->decimal('allocated_amount', 15, 2)->default(0);
             $table->boolean('is_posted')->default(false);

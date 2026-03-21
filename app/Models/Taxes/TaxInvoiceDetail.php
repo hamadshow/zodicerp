@@ -94,9 +94,9 @@ class TaxInvoiceDetail extends Model
     {
         return $this->belongsTo(TaxExemption::class, 'tax_exemption_id');
     }
-    
+
     // Note: Unit relationship is dynamic based on schema presence, usually not strictly defined in model unless we are sure.
     // If we want to add it, we might need to know which model 'units' or 'item_units' maps to.
-    // For now, we skip defining 'unit()' unless we know the model class. 
+    // For now, we skip defining 'unit()' unless we know the model class.
     // Usually 'item_units' maps to 'ItemUnit' model.
 }

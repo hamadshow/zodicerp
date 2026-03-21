@@ -1,18 +1,18 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Http\Request;
-use App\Http\Controllers\Backend\Tasks\TaskController;
+use App\Http\Controllers\Backend\HumanResource\EmployeeController;
+use App\Http\Controllers\Backend\Location\LocationController;
 use App\Http\Controllers\Backend\Tasks\TaskAssignmentController;
 use App\Http\Controllers\Backend\Tasks\TaskAttachmentController;
 use App\Http\Controllers\Backend\Tasks\TaskCategoryController;
 use App\Http\Controllers\Backend\Tasks\TaskCommentController;
+use App\Http\Controllers\Backend\Tasks\TaskController;
 use App\Http\Controllers\Backend\Tasks\TaskPriorityController;
 use App\Http\Controllers\Backend\Tasks\TaskStatusController;
-use App\Http\Controllers\Backend\HumanResource\EmployeeController;
-use App\Http\Controllers\Backend\Location\LocationController;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 
 /*
@@ -35,15 +35,15 @@ Route::middleware('web')->group(function () {
     Route::apiResource('assignments', TaskAssignmentController::class);
     Route::apiResource('attachments', TaskAttachmentController::class);
     Route::apiResource('comments', TaskCommentController::class);
-    
+
     // Employee Routes
-     Route::get('employees', [EmployeeController::class, 'getEmployees']);
-     Route::post('employees', [EmployeeController::class, 'store']);
-     Route::get('employees/{employee}', [EmployeeController::class, 'show']);
-     Route::put('employees/{employee}', [EmployeeController::class, 'update']);
-     Route::delete('employees/{employee}', [EmployeeController::class, 'destroy']);
-     Route::post('employees/bulk-delete', [EmployeeController::class, 'bulkDelete']);
-     Route::post('employees/bulk-update-status', [EmployeeController::class, 'bulkUpdateStatus']);
+    Route::get('employees', [EmployeeController::class, 'getEmployees']);
+    Route::post('employees', [EmployeeController::class, 'store']);
+    Route::get('employees/{employee}', [EmployeeController::class, 'show']);
+    Route::put('employees/{employee}', [EmployeeController::class, 'update']);
+    Route::delete('employees/{employee}', [EmployeeController::class, 'destroy']);
+    Route::post('employees/bulk-delete', [EmployeeController::class, 'bulkDelete']);
+    Route::post('employees/bulk-update-status', [EmployeeController::class, 'bulkUpdateStatus']);
 
     // Users Routes (separated from employees endpoints)
     Route::get('users', function (Request $request) {
@@ -111,7 +111,7 @@ Route::middleware('web')->group(function () {
             'fullname' => ['required_without_all:username,name', 'string', 'max:255'],
             'username' => ['required_without_all:fullname,name', 'string', 'max:255'],
             'name' => ['nullable', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email,'.$user->id],
             'password' => ['nullable', 'string', 'min:6'],
             'phone' => ['nullable', 'string', 'max:255'],
             'role' => ['nullable', 'string', 'max:50'],
@@ -134,7 +134,7 @@ Route::middleware('web')->group(function () {
         $validated['username'] = $username;
         unset($validated['name']);
 
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
@@ -197,7 +197,7 @@ Route::middleware('web')->group(function () {
             'message' => 'Users deleted successfully',
         ]);
     });
-    
+
     // Account Routes
     Route::get('accounts', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'index']);
     Route::get('accounts/tree', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'tree']);
@@ -274,57 +274,57 @@ Route::get('/vacations', function () {
         [
             'id' => 1,
             'employeeId' => 1,
-            'employeeName' => "Ahmed Mohamed",
-            'department' => "IT Department",
-            'leaveType' => "annual",
-            'startDate' => "2024-12-15",
-            'endDate' => "2024-12-22",
+            'employeeName' => 'Ahmed Mohamed',
+            'department' => 'IT Department',
+            'leaveType' => 'annual',
+            'startDate' => '2024-12-15',
+            'endDate' => '2024-12-22',
             'totalDays' => 8,
-            'status' => "approved",
-            'approvedBy' => "HR Manager",
-            'reason' => "Family vacation",
-            'notes' => "Will be available on emergency phone",
-            'emergencyContact' => "Wife: +20123456789",
-            'handoverTo' => "Sarah Johnson",
-            'submittedDate' => "2024-12-01",
+            'status' => 'approved',
+            'approvedBy' => 'HR Manager',
+            'reason' => 'Family vacation',
+            'notes' => 'Will be available on emergency phone',
+            'emergencyContact' => 'Wife: +20123456789',
+            'handoverTo' => 'Sarah Johnson',
+            'submittedDate' => '2024-12-01',
             'attachment' => null,
         ],
         [
             'id' => 2,
             'employeeId' => 2,
-            'employeeName' => "Sarah Johnson",
-            'department' => "Human Resources",
-            'leaveType' => "maternity",
-            'startDate' => "2024-12-10",
-            'endDate' => "2025-03-10",
+            'employeeName' => 'Sarah Johnson',
+            'department' => 'Human Resources',
+            'leaveType' => 'maternity',
+            'startDate' => '2024-12-10',
+            'endDate' => '2025-03-10',
             'totalDays' => 90,
-            'status' => "approved",
-            'approvedBy' => "HR Manager",
-            'reason' => "Maternity leave",
-            'notes' => "Extended leave as per company policy",
-            'emergencyContact' => "Husband: +20987654321",
-            'handoverTo' => "James Wilson",
-            'submittedDate' => "2024-11-15",
+            'status' => 'approved',
+            'approvedBy' => 'HR Manager',
+            'reason' => 'Maternity leave',
+            'notes' => 'Extended leave as per company policy',
+            'emergencyContact' => 'Husband: +20987654321',
+            'handoverTo' => 'James Wilson',
+            'submittedDate' => '2024-11-15',
             'attachment' => null,
         ],
         [
             'id' => 3,
             'employeeId' => 3,
-            'employeeName' => "James Wilson",
-            'department' => "Sales",
-            'leaveType' => "sick",
-            'startDate' => "2024-12-20",
-            'endDate' => "2024-12-27",
+            'employeeName' => 'James Wilson',
+            'department' => 'Sales',
+            'leaveType' => 'sick',
+            'startDate' => '2024-12-20',
+            'endDate' => '2024-12-27',
             'totalDays' => 8,
-            'status' => "pending",
-            'approvedBy' => "",
-            'reason' => "Medical appointment",
+            'status' => 'pending',
+            'approvedBy' => '',
+            'reason' => 'Medical appointment',
             'notes' => "Doctor's appointment scheduled",
-            'emergencyContact' => "Spouse: +20555555555",
-            'handoverTo' => "Fatima Al-Mansour",
-            'submittedDate' => "2024-12-15",
+            'emergencyContact' => 'Spouse: +20555555555',
+            'handoverTo' => 'Fatima Al-Mansour',
+            'submittedDate' => '2024-12-15',
             'attachment' => null,
-        ]
+        ],
     ]);
 });
 
@@ -345,6 +345,7 @@ Route::prefix('pages')->group(function () {
         $page = (int) ($request->get('page', 1));
         $startIndex = max(0, ($page - 1) * $perPage);
         $slice = array_slice($items, $startIndex, $perPage);
+
         return response()->json([
             'data' => $slice,
             'total' => $total,
@@ -372,7 +373,7 @@ Route::get('/rewards', function () {
             'awardedBy' => 'CTO',
             'points' => 100,
             'notes' => 'Quarterly performance bonus',
-            'createdAt' => '2024-01-15'
+            'createdAt' => '2024-01-15',
         ],
         [
             'id' => 2,
@@ -389,7 +390,7 @@ Route::get('/rewards', function () {
             'awardedBy' => 'CEO',
             'points' => 150,
             'notes' => '',
-            'createdAt' => '2024-01-10'
+            'createdAt' => '2024-01-10',
         ],
         [
             'id' => 3,
@@ -406,7 +407,7 @@ Route::get('/rewards', function () {
             'awardedBy' => 'Sales VP',
             'points' => 200,
             'notes' => 'Annual sales bonus',
-            'createdAt' => '2024-01-05'
-        ]
+            'createdAt' => '2024-01-05',
+        ],
     ]);
 });

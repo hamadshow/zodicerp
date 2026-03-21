@@ -13,10 +13,12 @@ class CustomerAddressController extends Controller
     private function getCustomer()
     {
         $user = Auth::guard('customer')->user() ?: Auth::user();
-        if (!$user) return null;
-        
-        return $user instanceof \App\Models\Client_Sales\Customer 
-            ? $user 
+        if (! $user) {
+            return null;
+        }
+
+        return $user instanceof \App\Models\Client_Sales\Customer
+            ? $user
             : \App\Models\Client_Sales\Customer::where('email', $user->email)->first();
     }
 
@@ -41,7 +43,7 @@ class CustomerAddressController extends Controller
         ]);
 
         $customer = $this->getCustomer();
-        if (!$customer) {
+        if (! $customer) {
             return Redirect::back()->withErrors(['error' => 'Customer profile not found.']);
         }
 
@@ -65,7 +67,7 @@ class CustomerAddressController extends Controller
     public function update(Request $request, CustomerAddress $address)
     {
         $customer = $this->getCustomer();
-        if (!$customer || $address->customer_id !== $customer->id) {
+        if (! $customer || $address->customer_id !== $customer->id) {
             abort(403);
         }
 
@@ -106,7 +108,7 @@ class CustomerAddressController extends Controller
     {
         $customer = $this->getCustomer();
 
-        if (!$customer || $address->customer_id !== $customer->id) {
+        if (! $customer || $address->customer_id !== $customer->id) {
             abort(403);
         }
 

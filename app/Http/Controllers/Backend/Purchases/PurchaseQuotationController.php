@@ -3,20 +3,16 @@
 namespace App\Http\Controllers\Backend\Purchases;
 
 use App\Http\Controllers\Controller;
-use App\Models\Vendor_Purchases\PurchaseQuotation;
-use App\Models\Vendor_Purchases\PurchaseQuotationItem;
-use App\Models\Vendor_Purchases\PurchaseOrder;
-use App\Models\Vendor_Purchases\PurchaseOrderItem;
-use App\Models\Vendor_Purchases\Supplier;
 use App\Models\Currency;
-use App\Models\Warehouses;
 use App\Models\ItemUnit;
 use App\Models\Products;
-use App\Models\User;
+use App\Models\Vendor_Purchases\PurchaseQuotation;
+use App\Models\Vendor_Purchases\Supplier;
+use App\Models\Warehouses;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class PurchaseQuotationController extends Controller
 {
@@ -30,10 +26,9 @@ class PurchaseQuotationController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('quotation_number', 'like', "%{$search}%")
-                  ->orWhereHas('vendor', function ($q) use ($search) {
-                      $q->where('name_en', 'like', "%{$search}%")
-                        ->orWhere('name_ar', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('vendor', function ($q) use ($search) {
+                        $q->where('name_ar', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -45,7 +40,7 @@ class PurchaseQuotationController extends Controller
 
         // Load shared data for filters/modals
         $vendors = Supplier::where('is_active', true)
-            ->select('id', 'name_en', 'name_ar', 'currency_id')
+            ->select('id', 'name_ar', 'currency_id')
             ->get();
         $currencies = Currency::where('status', 'active')
             ->select('id', 'name', 'code', 'symbol')
@@ -54,7 +49,7 @@ class PurchaseQuotationController extends Controller
             ->get();
         $units = ItemUnit::select('id', 'name as name_en', 'name as name_ar')->get();
         $warehouses = Warehouses::select('id', 'name as name_en', 'name as name_ar')->get();
-        
+
         // Mock data for terms (should be replaced with actual models later)
         $paymentTerms = [
             ['id' => 1, 'name' => 'Net 30'],
@@ -62,7 +57,7 @@ class PurchaseQuotationController extends Controller
             ['id' => 3, 'name' => 'Cash on Delivery'],
             ['id' => 4, 'name' => 'Advance Payment'],
         ];
-        
+
         $deliveryTerms = [
             ['id' => 1, 'name' => 'EXW - Ex Works'],
             ['id' => 2, 'name' => 'FOB - Free on Board'],
@@ -103,7 +98,7 @@ class PurchaseQuotationController extends Controller
         DB::beginTransaction();
         try {
             // Auto-generate number if not provided
-            $number = 'PQ-' . date('Ymd') . '-' . rand(1000, 9999);
+            $number = 'PQ-'.date('Ymd').'-'.rand(1000, 9999);
 
             $quotation = PurchaseQuotation::create([
                 'quotation_number' => $number,
@@ -119,7 +114,7 @@ class PurchaseQuotationController extends Controller
                 'department_id' => 1, // Default
                 'prepared_by' => Auth::id(),
                 'created_by' => Auth::id(),
-                
+
                 // Financials (can be calculated)
                 'subtotal' => $request->subtotal ?? 0,
                 'tax_amount' => $request->tax_amount ?? 0,
@@ -145,18 +140,20 @@ class PurchaseQuotationController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Purchase Quotation created successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error creating quotation: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error creating quotation: '.$e->getMessage());
         }
     }
 
     public function update(Request $request, $id)
     {
         $quotation = PurchaseQuotation::findOrFail($id);
-        
+
         $validated = $request->validate([
             'quotation_date' => 'required|date',
             'vendor_id' => 'required|exists:suppliers,id',
@@ -203,11 +200,13 @@ class PurchaseQuotationController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Purchase Quotation updated successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error updating quotation: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error updating quotation: '.$e->getMessage());
         }
     }
 
@@ -216,9 +215,10 @@ class PurchaseQuotationController extends Controller
         try {
             $quotation = PurchaseQuotation::findOrFail($id);
             $quotation->delete(); // Soft delete
+
             return redirect()->back()->with('success', 'Purchase Quotation deleted successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error deleting quotation: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error deleting quotation: '.$e->getMessage());
         }
     }
 }

@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Backend\Budget;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use App\Models\Budget\BudgetForecast;
 use App\Models\Budget\Budget;
+use App\Models\Budget\BudgetForecast;
 use App\Models\Budget\BudgetItem;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class BudgetForecastController extends Controller
 {
@@ -37,8 +37,8 @@ class BudgetForecastController extends Controller
             ->map(function ($item) {
                 return [
                     'id' => $item->id,
-                    'name' => ($item->account ? $item->account->AccName : 'No Account') . ' - ' . ($item->category ? $item->category->name_en : 'No Category'),
-                    'amount' => $item->annual_amount
+                    'name' => ($item->account ? $item->account->AccName : 'No Account').' - '.($item->category ? $item->category->name_en : 'No Category'),
+                    'amount' => $item->annual_amount,
                 ];
             });
 
@@ -60,14 +60,14 @@ class BudgetForecastController extends Controller
         ]);
 
         // Auto generate forecast number
-        $validated['forecast_number'] = 'FC-' . date('Ymd') . '-' . rand(1000, 9999);
+        $validated['forecast_number'] = 'FC-'.date('Ymd').'-'.rand(1000, 9999);
         $validated['status'] = 'draft';
         $validated['created_by'] = Auth::id();
-        
+
         // Calculate differences
         $validated['difference_amount'] = $validated['revised_amount'] - $validated['original_amount'];
-        $validated['difference_percent'] = $validated['original_amount'] != 0 
-            ? ($validated['difference_amount'] / $validated['original_amount']) * 100 
+        $validated['difference_percent'] = $validated['original_amount'] != 0
+            ? ($validated['difference_amount'] / $validated['original_amount']) * 100
             : 0;
 
         BudgetForecast::create($validated);
@@ -78,7 +78,7 @@ class BudgetForecastController extends Controller
     public function update(Request $request, $id)
     {
         $forecast = BudgetForecast::findOrFail($id);
-        
+
         if ($forecast->status !== 'draft' && $forecast->status !== 'rejected') {
             return redirect()->back()->with('error', 'Only draft or rejected forecasts can be edited.');
         }
@@ -97,8 +97,8 @@ class BudgetForecastController extends Controller
 
         // Calculate differences
         $validated['difference_amount'] = $validated['revised_amount'] - $validated['original_amount'];
-        $validated['difference_percent'] = $validated['original_amount'] != 0 
-            ? ($validated['difference_amount'] / $validated['original_amount']) * 100 
+        $validated['difference_percent'] = $validated['original_amount'] != 0
+            ? ($validated['difference_amount'] / $validated['original_amount']) * 100
             : 0;
 
         $forecast->update($validated);
@@ -109,55 +109,55 @@ class BudgetForecastController extends Controller
     public function submitForApproval($id)
     {
         $forecast = BudgetForecast::findOrFail($id);
-        
+
         if ($forecast->status !== 'draft') {
             return redirect()->back()->with('error', 'Only draft forecasts can be submitted.');
         }
 
         $forecast->update(['status' => 'pending_approval']);
-        
+
         return redirect()->back()->with('success', 'Forecast submitted for approval.');
     }
 
     public function approve(Request $request, $id)
     {
         $forecast = BudgetForecast::findOrFail($id);
-        
+
         if ($forecast->status !== 'pending_approval') {
             return redirect()->back()->with('error', 'Forecast is not pending approval.');
         }
 
         $request->validate([
-            'approved_amount' => 'required|numeric|lte:revised_amount'
+            'approved_amount' => 'required|numeric|lte:revised_amount',
         ]);
 
         $forecast->update([
             'status' => 'approved',
             'approved_by' => Auth::id(),
             'approved_date' => now(),
-            'approved_amount' => $request->approved_amount
+            'approved_amount' => $request->approved_amount,
         ]);
-        
+
         return redirect()->back()->with('success', 'Forecast approved successfully.');
     }
 
     public function reject($id)
     {
         $forecast = BudgetForecast::findOrFail($id);
-        
+
         if ($forecast->status !== 'pending_approval') {
             return redirect()->back()->with('error', 'Forecast is not pending approval.');
         }
 
         $forecast->update(['status' => 'rejected']);
-        
+
         return redirect()->back()->with('success', 'Forecast rejected.');
     }
 
     public function implement($id)
     {
         $forecast = BudgetForecast::findOrFail($id);
-        
+
         if ($forecast->status !== 'approved') {
             return redirect()->back()->with('error', 'Only approved forecasts can be implemented.');
         }
@@ -189,10 +189,10 @@ class BudgetForecastController extends Controller
             $forecast->update([
                 'status' => 'implemented',
                 'implemented_by' => Auth::id(),
-                'implemented_date' => now()
+                'implemented_date' => now(),
             ]);
         });
-        
+
         return redirect()->back()->with('success', 'Forecast implemented successfully and budget updated.');
     }
 }

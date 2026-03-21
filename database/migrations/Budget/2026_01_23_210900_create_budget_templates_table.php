@@ -17,30 +17,30 @@ return new class extends Migration
             $table->string('template_name_ar', 200);
             $table->string('template_name_en', 200)->nullable();
             $table->text('description')->nullable();
-            
+
             // Classification
             $table->enum('template_type', ['department', 'project', 'product', 'service', 'general']);
             $table->string('industry_type', 100)->nullable();
-            
+
             // Structure
             $table->json('category_structure')->nullable();
             $table->json('default_percentages')->nullable();
             $table->json('calculation_rules')->nullable();
-            
+
             // Attachments
             $table->string('documentation_path', 500)->nullable();
             $table->string('sample_file_path', 500)->nullable();
-            
+
             // System
             $table->boolean('is_active')->default(true);
             $table->boolean('is_system_template')->default(false);
-            
+
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();
-            
+
             $table->timestamps();
             $table->softDeletes();
-            
+
             // Indexes
             $table->index('template_type', 'idx_template_type');
         });

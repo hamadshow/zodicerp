@@ -2,10 +2,10 @@
 
 namespace App\Models\Client_Sales;
 
-use Illuminate\Database\Eloquent\Model;
-use App\Models\Currency;
 use App\Models\BankAccount;
+use App\Models\Currency;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 
 class CustomerPayment extends Model
 {
@@ -38,7 +38,7 @@ class CustomerPayment extends Model
         'reconciled_by',
         'customer_notes',
         'internal_notes',
-        'created_by'
+        'created_by',
     ];
 
     protected $casts = [
@@ -55,7 +55,7 @@ class CustomerPayment extends Model
         'updated_at' => 'datetime',
         'created_by' => 'integer',
         'posted_by' => 'integer',
-        'reconciled_by' => 'integer'
+        'reconciled_by' => 'integer',
     ];
 
     public function customer()

@@ -11,13 +11,13 @@ trait BelongsToCompany
 {
     public static function bootBelongsToCompany(): void
     {
-        static::addGlobalScope(new CompanyScope());
+        static::addGlobalScope(new CompanyScope);
 
         static::creating(function ($model) {
             $user = Auth::user();
             $companyId = $user?->company_id;
 
-            if (!$companyId) {
+            if (! $companyId) {
                 return;
             }
 

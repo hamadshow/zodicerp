@@ -2,10 +2,10 @@
 
 namespace App\Models\Vendor_Purchases;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\User;
 
 class PurchaseDiscount extends Model
 {
@@ -43,7 +43,7 @@ class PurchaseDiscount extends Model
     public function suppliers()
     {
         return $this->belongsToMany(Supplier::class, 'purchase_discount_suppliers', 'discount_id', 'supplier_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 
     public function creator()

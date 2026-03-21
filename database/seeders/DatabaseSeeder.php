@@ -18,7 +18,7 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        if (!Currency::whereKey(1)->exists() && Currency::count() === 0) {
+        if (! Currency::whereKey(1)->exists() && Currency::count() === 0) {
             Currency::query()->insert([
                 'id' => 1,
                 'code' => 'EGP',
@@ -36,7 +36,7 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        if (!User::where('email', 'system.admin@company.com')->exists()) {
+        if (! User::where('email', 'system.admin@company.com')->exists()) {
             User::factory()->create([
                 'username' => 'System Admin',
                 'fullname' => 'System Admin',
@@ -45,7 +45,7 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        if (!User::where('email', 'supplier.user@company.com')->exists()) {
+        if (! User::where('email', 'supplier.user@company.com')->exists()) {
             User::factory()->create([
                 'username' => 'Supplier User',
                 'fullname' => 'Supplier User',
@@ -54,7 +54,7 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        if (!User::where('email', 'customer.user@company.com')->exists()) {
+        if (! User::where('email', 'customer.user@company.com')->exists()) {
             User::factory()->create([
                 'username' => 'Customer User',
                 'fullname' => 'Customer User',
@@ -114,7 +114,7 @@ class DatabaseSeeder extends Seeder
         ];
 
         foreach ($employees as $employee) {
-            if (!User::where('email', $employee['email'])->exists()) {
+            if (! User::where('email', $employee['email'])->exists()) {
                 User::create($employee);
             }
         }

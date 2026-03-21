@@ -12,10 +12,8 @@ class CurrencyConverter
     /**
      * Convert an amount from one currency to another.
      *
-     * @param float|null $amount
-     * @param string|null $fromCode If null, uses the base currency.
-     * @param string|null $toCode If null, uses the current session currency.
-     * @return float
+     * @param  string|null  $fromCode  If null, uses the base currency.
+     * @param  string|null  $toCode  If null, uses the current session currency.
      */
     public static function convert(?float $amount, ?string $fromCode = null, ?string $toCode = null): float
     {
@@ -35,18 +33,14 @@ class CurrencyConverter
 
     /**
      * Format the amount with the current currency symbol.
-     *
-     * @param float $amount
-     * @param string|null $currencyCode
-     * @return string
      */
     public static function format(float $amount, ?string $currencyCode = null): string
     {
         $currencyCode = $currencyCode ?: self::getCurrentCurrencyCode();
         $currency = self::getCurrency($currencyCode);
 
-        if (!$currency) {
-            return number_format($amount, 2) . ' ' . $currencyCode;
+        if (! $currency) {
+            return number_format($amount, 2).' '.$currencyCode;
         }
 
         $formatted = number_format($amount, $currency->decimal_places);
@@ -57,8 +51,6 @@ class CurrencyConverter
 
     /**
      * Get the current active currency code from session or default.
-     *
-     * @return string
      */
     public static function getCurrentCurrencyCode(): string
     {
@@ -67,8 +59,6 @@ class CurrencyConverter
 
     /**
      * Get the base currency code (usually SAR or USD).
-     *
-     * @return string
      */
     public static function getBaseCurrencyCode(): string
     {
@@ -79,10 +69,6 @@ class CurrencyConverter
 
     /**
      * Get exchange rate between two currencies.
-     *
-     * @param string $from
-     * @param string $to
-     * @return float
      */
     public static function getExchangeRate(string $from, string $to): float
     {
@@ -92,7 +78,7 @@ class CurrencyConverter
             $fromCurrency = self::getCurrency($from);
             $toCurrency = self::getCurrency($to);
 
-            if (!$fromCurrency || !$toCurrency) {
+            if (! $fromCurrency || ! $toCurrency) {
                 return 1.0;
             }
 
@@ -121,6 +107,7 @@ class CurrencyConverter
             if ($from !== $baseCode && $to !== $baseCode) {
                 $fromToBase = self::getExchangeRate($from, $baseCode);
                 $baseToTarget = self::getExchangeRate($baseCode, $to);
+
                 return $fromToBase * $baseToTarget;
             }
 
@@ -130,9 +117,6 @@ class CurrencyConverter
 
     /**
      * Get currency model by code.
-     *
-     * @param string $code
-     * @return Currency|null
      */
     protected static function getCurrency(string $code): ?Currency
     {

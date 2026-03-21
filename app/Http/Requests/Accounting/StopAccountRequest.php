@@ -16,4 +16,3 @@ class StopAccountRequest extends FormRequest
         return [];
     }
 }
-

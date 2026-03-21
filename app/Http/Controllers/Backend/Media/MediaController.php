@@ -5,11 +5,11 @@ namespace App\Http\Controllers\Backend\Media;
 use App\Http\Controllers\Controller;
 use App\Models\MediaFile;
 use App\Models\MediaFolder;
+use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
-use Exception;
 
 class MediaController extends Controller
 {
@@ -21,7 +21,7 @@ class MediaController extends Controller
         $sortBy = $request->input('sort_by', 'name');
         $sortOrder = $request->input('sort_order', 'asc');
         $type = $tab ?: $request->input('type', 'all');
-        
+
         $queryFolders = MediaFolder::query();
         $queryFiles = MediaFile::query();
 
@@ -46,16 +46,16 @@ class MediaController extends Controller
             } elseif ($type === 'videos') {
                 $queryFiles->where('file_type', 'like', 'video/%');
             } elseif ($type === 'documents') {
-                $queryFiles->where(function($q) {
+                $queryFiles->where(function ($q) {
                     $q->where('file_type', 'not like', 'image/%')
-                      ->where('file_type', 'not like', 'video/%');
+                        ->where('file_type', 'not like', 'video/%');
                 });
             }
         }
 
         // Validate sort columns to prevent SQL injection or errors
         $allowedSorts = ['name', 'created_at', 'size', 'file_type'];
-        if (!in_array($sortBy, $allowedSorts)) {
+        if (! in_array($sortBy, $allowedSorts)) {
             $sortBy = 'name';
         }
 
@@ -91,7 +91,8 @@ class MediaController extends Controller
             $rawPath = parse_url($file->file_path, PHP_URL_PATH) ?: $file->file_path;
             $relativePath = ltrim(str_replace('/storage/', '', $rawPath), '/');
             $file->path = $relativePath;
-            $file->file_url = '/media-files/' . $relativePath;
+            $file->file_url = '/media-files/'.$relativePath;
+
             return $file;
         });
 
@@ -103,11 +104,11 @@ class MediaController extends Controller
             'filters' => $filters,
             'storageUsage' => [
                 'used' => $totalUsed,
-                'total' => $totalSpace
-            ]
+                'total' => $totalSpace,
+            ],
         ];
 
-        if ($request->wantsJson() && !$request->header('X-Inertia')) {
+        if ($request->wantsJson() && ! $request->header('X-Inertia')) {
             return response()->json($data);
         }
 
@@ -164,19 +165,20 @@ class MediaController extends Controller
             try {
                 $originalName = $file->getClientOriginalName();
                 $extension = strtolower($file->getClientOriginalExtension());
-                if (!in_array($extension, $allowed)) {
+                if (! in_array($extension, $allowed)) {
                     $skipped++;
+
                     continue;
                 }
 
                 $baseName = pathinfo($originalName, PATHINFO_FILENAME);
                 $targetName = $originalName;
-                $targetPath = 'images/products/' . $targetName;
+                $targetPath = 'images/products/'.$targetName;
 
                 if (Storage::disk('public')->exists($targetPath)) {
-                    $unique = $baseName . '-' . Str::random(6) . '-' . time() . '.' . $extension;
+                    $unique = $baseName.'-'.Str::random(6).'-'.time().'.'.$extension;
                     $targetName = $unique;
-                    $targetPath = 'images/products/' . $targetName;
+                    $targetPath = 'images/products/'.$targetName;
                 }
 
                 Storage::disk('public')->putFileAs('images/products', $file, $targetName);
@@ -203,7 +205,7 @@ class MediaController extends Controller
         }
 
         $timestamp = now()->format('YmdHis');
-        $mappingPath = 'imports/product-image-mapping-' . $timestamp . '.json';
+        $mappingPath = 'imports/product-image-mapping-'.$timestamp.'.json';
         Storage::disk('public')->put($mappingPath, json_encode($mapping, JSON_UNESCAPED_UNICODE));
 
         return response()->json([
@@ -237,7 +239,7 @@ class MediaController extends Controller
 
         return redirect()->back()->with('success', 'Folder created successfully');
     }
-    
+
     public function destroy(Request $request)
     {
         $request->validate([
@@ -273,12 +275,12 @@ class MediaController extends Controller
 
         if ($request->type === 'folder') {
             $folder = MediaFolder::findOrFail($request->id);
-            
+
             // Check uniqueness in the same parent
             $exists = MediaFolder::where('parent_id', $folder->parent_id)
-                        ->where('name', $request->name)
-                        ->where('id', '!=', $folder->id)
-                        ->exists();
+                ->where('name', $request->name)
+                ->where('id', '!=', $folder->id)
+                ->exists();
 
             if ($exists) {
                 return redirect()->back()->withErrors(['name' => 'A folder with this name already exists in this location.']);
@@ -300,27 +302,27 @@ class MediaController extends Controller
             'items' => 'required|array',
             'destination_folder_id' => 'nullable|exists:media_folders,id',
         ]);
-        
+
         $destId = $request->destination_folder_id;
 
         foreach ($request->items as $item) {
-             if ($item['type'] === 'folder') {
-                 $folder = MediaFolder::find($item['id']);
-                 // Prevent moving folder into itself or its children and ensure not moving to same parent
-                 if ($folder && $folder->id !== $destId && $folder->parent_id !== $destId) {
-                     // Check circular dependency (if moving into a child of itself)
-                     if (!$destId || !$this->isDescendant($folder->id, $destId)) {
+            if ($item['type'] === 'folder') {
+                $folder = MediaFolder::find($item['id']);
+                // Prevent moving folder into itself or its children and ensure not moving to same parent
+                if ($folder && $folder->id !== $destId && $folder->parent_id !== $destId) {
+                    // Check circular dependency (if moving into a child of itself)
+                    if (! $destId || ! $this->isDescendant($folder->id, $destId)) {
                         $folder->update(['parent_id' => $destId]);
-                     }
-                 }
-             } else {
-                 $file = MediaFile::find($item['id']);
-                 if ($file) {
-                     $file->update(['folder_id' => $destId]);
-                 }
-             }
+                    }
+                }
+            } else {
+                $file = MediaFile::find($item['id']);
+                if ($file) {
+                    $file->update(['folder_id' => $destId]);
+                }
+            }
         }
-        
+
         return redirect()->back()->with('success', 'Items moved successfully');
     }
 
@@ -344,15 +346,21 @@ class MediaController extends Controller
         $file->delete();
     }
 
-    private function isDescendant($folderId, $targetId) {
+    private function isDescendant($folderId, $targetId)
+    {
         // Checks if targetId is a descendant of folderId
-        if (!$targetId) return false;
-        
+        if (! $targetId) {
+            return false;
+        }
+
         $target = MediaFolder::find($targetId);
         while ($target && $target->parent_id) {
-            if ($target->parent_id == $folderId) return true;
+            if ($target->parent_id == $folderId) {
+                return true;
+            }
             $target = $target->parent;
         }
+
         return false;
     }
 }

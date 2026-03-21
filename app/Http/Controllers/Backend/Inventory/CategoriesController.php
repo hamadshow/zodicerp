@@ -2,27 +2,28 @@
 
 namespace App\Http\Controllers\Backend\Inventory;
 
+use App\Exports\CategoryExport;
 use App\Http\Controllers\Controller;
-use App\Models\Categories;
 use App\Http\Requests\Inventory\StoreCategoriesRequest;
 use App\Http\Requests\Inventory\UpdateCategoriesRequest;
-use App\Exports\CategoryExport;
 use App\Imports\CategoryImport;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Models\Categories;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Collection;
+use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CategoriesController extends Controller
 {
     public function export(Request $request)
     {
         $companyId = $request->user()?->company_id;
-        if (!$companyId) {
+        if (! $companyId) {
             abort(403, 'Company not set for this user.');
         }
+
         return Excel::download(new CategoryExport($companyId), 'categories.xlsx');
     }
 
@@ -31,7 +32,7 @@ class CategoriesController extends Controller
         set_time_limit(300); // Increase time limit to 5 minutes for imports
 
         $companyId = $request->user()?->company_id;
-        if (!$companyId) {
+        if (! $companyId) {
             return back()->withErrors(['error' => 'Company not set for this user.']);
         }
 
@@ -41,16 +42,17 @@ class CategoriesController extends Controller
 
         try {
             Excel::import(new CategoryImport($companyId), $request->file('file'));
+
             return back()->with('success', 'Categories imported successfully');
         } catch (\Exception $e) {
-            return back()->withErrors(['error' => 'Error importing categories: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => 'Error importing categories: '.$e->getMessage()]);
         }
     }
 
     public function index(Request $request)
     {
         $companyId = $request->user()?->company_id;
-        if (!$companyId) {
+        if (! $companyId) {
             abort(403, 'Company not set for this user.');
         }
 
@@ -63,7 +65,7 @@ class CategoriesController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('category_code', 'like', "%{$search}%");
+                    ->orWhere('category_code', 'like', "%{$search}%");
             });
         }
 
@@ -75,7 +77,7 @@ class CategoriesController extends Controller
         // 2. Group by parent_id with normalization
         $grouped = $categories->groupBy(function ($cat) use ($validIds) {
             $parentId = $cat->parent_id;
-            
+
             // Normalize: null, "0", 0 -> 0
             if (is_null($parentId) || $parentId === 0 || $parentId === '0') {
                 return 0;
@@ -85,7 +87,7 @@ class CategoriesController extends Controller
             $parentId = (int) $parentId;
 
             // Handle orphans: if parent_id refers to a non-existent ID, treat as root (0)
-            if (!$validIds->has($parentId)) {
+            if (! $validIds->has($parentId)) {
                 return 0;
             }
 
@@ -105,7 +107,7 @@ class CategoriesController extends Controller
             return response()->json([
                 'categories' => $categories,
                 'category_tree' => $categoryTree,
-                'parents' => $parents
+                'parents' => $parents,
             ]);
         }
 
@@ -145,15 +147,15 @@ class CategoriesController extends Controller
 
             $data = $category->toArray();
             $data['products_count'] = $category->products_count ?? 0;
-            
+
             // 4. Recursively build children
             $data['children'] = $this->buildCategoryTree($groupedByParent, $id, $newVisited);
 
             return $data;
         })
-        ->filter() // Remove nulls from cycles
-        ->values()
-        ->all();
+            ->filter() // Remove nulls from cycles
+            ->values()
+            ->all();
     }
 
     public function store(StoreCategoriesRequest $request)
@@ -164,7 +166,7 @@ class CategoriesController extends Controller
             // Auto-generate Category Code (e.g., 1001, 1002)
             $lastCategory = Categories::withTrashed()->orderBy('id', 'desc')->first();
             $nextCode = $lastCategory ? (intval($lastCategory->category_code) + 1) : 1001;
-            
+
             $data = [
                 'category_code' => $nextCode,
                 'name' => $request->name,
@@ -201,9 +203,10 @@ class CategoriesController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             if ($request->wantsJson()) {
-                return response()->json(['message' => 'Error creating category: ' . $e->getMessage()], 500);
+                return response()->json(['message' => 'Error creating category: '.$e->getMessage()], 500);
             }
-            return back()->withErrors(['error' => 'Error creating category: ' . $e->getMessage()]);
+
+            return back()->withErrors(['error' => 'Error creating category: '.$e->getMessage()]);
         }
     }
 
@@ -212,14 +215,14 @@ class CategoriesController extends Controller
         try {
             $data = $request->validated();
             $data['parent_id'] = $data['parent_id'] ?: 0;
-            
+
             if (empty($data['slug'])) {
                 $data['slug'] = \Illuminate\Support\Str::slug($data['name']);
             }
 
             if ($request->hasFile('image')) {
                 // Delete old image if exists and is a local upload (not media library)
-                if ($category->image && !str_starts_with($category->image, 'media/')) {
+                if ($category->image && ! str_starts_with($category->image, 'media/')) {
                     Storage::disk('public')->delete($category->image);
                 }
                 $path = $request->file('image')->store('categories', 'public');
@@ -228,14 +231,14 @@ class CategoriesController extends Controller
                 // Handle string path or null (clearing image)
                 // Only update if the key is present in request (to avoid accidental clearing if not sent)
                 if ($request->has('image')) {
-                     $newImage = $request->input('image');
-                     
-                     // If image is changing (or being removed) and old one was local, delete old
-                     if ($category->image && $category->image !== $newImage && !str_starts_with($category->image, 'media/')) {
-                         Storage::disk('public')->delete($category->image);
-                     }
-                     
-                     $data['image'] = $newImage;
+                    $newImage = $request->input('image');
+
+                    // If image is changing (or being removed) and old one was local, delete old
+                    if ($category->image && $category->image !== $newImage && ! str_starts_with($category->image, 'media/')) {
+                        Storage::disk('public')->delete($category->image);
+                    }
+
+                    $data['image'] = $newImage;
                 }
             }
 
@@ -249,9 +252,10 @@ class CategoriesController extends Controller
 
         } catch (\Exception $e) {
             if ($request->wantsJson()) {
-                return response()->json(['message' => 'Error updating category: ' . $e->getMessage()], 500);
+                return response()->json(['message' => 'Error updating category: '.$e->getMessage()], 500);
             }
-            return back()->withErrors(['error' => 'Error updating category: ' . $e->getMessage()]);
+
+            return back()->withErrors(['error' => 'Error updating category: '.$e->getMessage()]);
         }
     }
 
@@ -262,13 +266,14 @@ class CategoriesController extends Controller
                 if (request()->wantsJson()) {
                     return response()->json(['message' => 'Cannot delete category with sub-categories.'], 422);
                 }
+
                 return back()->withErrors(['error' => 'Cannot delete category with sub-categories.']);
             }
 
             $category->delete();
 
             // Delete image if it was a local upload
-            if ($category->image && !str_starts_with($category->image, 'media/')) {
+            if ($category->image && ! str_starts_with($category->image, 'media/')) {
                 Storage::disk('public')->delete($category->image);
             }
 
@@ -280,9 +285,10 @@ class CategoriesController extends Controller
 
         } catch (\Exception $e) {
             if (request()->wantsJson()) {
-                return response()->json(['message' => 'Error deleting category: ' . $e->getMessage()], 500);
+                return response()->json(['message' => 'Error deleting category: '.$e->getMessage()], 500);
             }
-            return back()->withErrors(['error' => 'Error deleting category: ' . $e->getMessage()]);
+
+            return back()->withErrors(['error' => 'Error deleting category: '.$e->getMessage()]);
         }
     }
 }

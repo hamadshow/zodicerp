@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Backend\HumanResource;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\HumanResource\StoreEmployeeRequest;
+use App\Http\Requests\HumanResource\UpdateEmployeeRequest;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Http\Requests\HumanResource\StoreEmployeeRequest;
-use App\Http\Requests\HumanResource\UpdateEmployeeRequest;
 
 class EmployeeController extends Controller
 {
@@ -33,11 +33,11 @@ class EmployeeController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('position', 'like', "%{$search}%")
-                  ->orWhere('department', 'like', "%{$search}%");
+                    ->orWhere('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('position', 'like', "%{$search}%")
+                    ->orWhere('department', 'like', "%{$search}%");
             });
         }
 
@@ -67,10 +67,10 @@ class EmployeeController extends Controller
         }
 
         // Create full name
-        $validated['name'] = $validated['first_name'] . ' ' . $validated['last_name'];
+        $validated['name'] = $validated['first_name'].' '.$validated['last_name'];
 
         // Set default role for employees if not provided
-        if (!isset($validated['role'])) {
+        if (! isset($validated['role'])) {
             $validated['role'] = 'employee';
         }
 
@@ -82,7 +82,7 @@ class EmployeeController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Employee created successfully',
-            'employee' => $employee
+            'employee' => $employee,
         ]);
     }
 
@@ -106,10 +106,10 @@ class EmployeeController extends Controller
         }
 
         // Update full name
-        $validated['name'] = $validated['first_name'] . ' ' . $validated['last_name'];
+        $validated['name'] = $validated['first_name'].' '.$validated['last_name'];
 
         if (array_key_exists('password', $validated)) {
-            if (!empty($validated['password'])) {
+            if (! empty($validated['password'])) {
                 $validated['password'] = Hash::make($validated['password']);
             } else {
                 unset($validated['password']);
@@ -121,7 +121,7 @@ class EmployeeController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Employee updated successfully',
-            'employee' => $employee
+            'employee' => $employee,
         ]);
     }
 
@@ -136,7 +136,7 @@ class EmployeeController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Employee deleted successfully'
+            'message' => 'Employee deleted successfully',
         ]);
     }
 
@@ -152,7 +152,7 @@ class EmployeeController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Employee status updated successfully'
+            'message' => 'Employee status updated successfully',
         ]);
     }
 
@@ -175,7 +175,7 @@ class EmployeeController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Employees deleted successfully'
+            'message' => 'Employees deleted successfully',
         ]);
     }
 }

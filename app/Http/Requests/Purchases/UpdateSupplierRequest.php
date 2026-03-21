@@ -21,7 +21,7 @@ class UpdateSupplierRequest extends FormRequest
 
         return [
             // General
-            'supplier_code' => 'required|string|max:50|unique:suppliers,supplier_code,' . $id,
+            'supplier_code' => 'required|string|max:50|unique:suppliers,supplier_code,'.$id,
             'name_ar' => 'required|string|max:255',
             'store_name_json' => 'nullable|string|max:255',
             'supplier_group_id' => 'required|exists:supplier_groups,id',

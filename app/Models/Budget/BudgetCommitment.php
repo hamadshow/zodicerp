@@ -4,8 +4,8 @@ namespace App\Models\Budget;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class BudgetCommitment extends Model
 {
@@ -57,8 +57,9 @@ class BudgetCommitment extends Model
     {
         // Adjust model path if using Supplier instead of Vendor
         if (class_exists(\App\Models\Vendor_Purchases\Supplier::class)) {
-             return $this->belongsTo(\App\Models\Vendor_Purchases\Supplier::class, 'vendor_id');
+            return $this->belongsTo(\App\Models\Vendor_Purchases\Supplier::class, 'vendor_id');
         }
+
         return $this->belongsTo(\App\Models\Vendor_Purchases\Supplier::class, 'vendor_id');
     }
 

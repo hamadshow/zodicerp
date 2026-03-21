@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Backend\Essential_Data_Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Currency;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class CurrencyController extends Controller
 {
@@ -16,8 +16,9 @@ class CurrencyController extends Controller
     public function index()
     {
         $currencies = Currency::latest()->get();
+
         return Inertia::render('Backend/01-Essential_Data/Currencies', [
-            'currencies' => $currencies
+            'currencies' => $currencies,
         ]);
     }
 
@@ -37,7 +38,7 @@ class CurrencyController extends Controller
         ]);
 
         DB::transaction(function () use ($validated) {
-            if (!empty($validated['is_base']) && $validated['is_base']) {
+            if (! empty($validated['is_base']) && $validated['is_base']) {
                 // Unset other base currencies
                 Currency::where('is_base', true)->update(['is_base' => false]);
             }
@@ -55,7 +56,7 @@ class CurrencyController extends Controller
     public function update(Request $request, Currency $currency)
     {
         $validated = $request->validate([
-            'code' => 'required|string|max:3|unique:currencies,code,' . $currency->id,
+            'code' => 'required|string|max:3|unique:currencies,code,'.$currency->id,
             'name' => 'required|string|max:255',
             'symbol' => 'required|string|max:10',
             'decimal_places' => 'required|integer|min:0|max:8',
@@ -65,11 +66,11 @@ class CurrencyController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $currency) {
-            if (!empty($validated['is_base']) && $validated['is_base']) {
+            if (! empty($validated['is_base']) && $validated['is_base']) {
                 // Unset other base currencies
                 Currency::where('id', '!=', $currency->id)
-                        ->where('is_base', true)
-                        ->update(['is_base' => false]);
+                    ->where('is_base', true)
+                    ->update(['is_base' => false]);
             }
 
             $validated['updated_by'] = auth()->id();

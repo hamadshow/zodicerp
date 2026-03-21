@@ -62,4 +62,3 @@ class Account extends Model
         return $this->hasMany(self::class, 'AccParent', 'AccCode');
     }
 }
-

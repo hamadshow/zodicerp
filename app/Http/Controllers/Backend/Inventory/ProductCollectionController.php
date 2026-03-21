@@ -22,7 +22,7 @@ class ProductCollectionController extends Controller
 
         return Inertia::render('Backend/03-Inventory/ProductCollections', [
             'collections' => $collections,
-            'mode' => 'list'
+            'mode' => 'list',
         ]);
     }
 
@@ -39,7 +39,7 @@ class ProductCollectionController extends Controller
             ->select('id', 'name', 'image', 'price')
             ->limit(20)
             ->get();
-            
+
         return response()->json($products);
     }
 
@@ -49,7 +49,7 @@ class ProductCollectionController extends Controller
     public function create()
     {
         return Inertia::render('Backend/03-Inventory/ProductCollections', [
-            'mode' => 'create'
+            'mode' => 'create',
         ]);
     }
 
@@ -72,12 +72,12 @@ class ProductCollectionController extends Controller
         ]);
 
         $slug = $request->slug ? Str::slug($request->slug) : Str::slug($request->name);
-        
+
         // Ensure unique slug if auto-generated
-        if (!$request->slug) {
+        if (! $request->slug) {
             $count = ProductCollection::where('slug', $slug)->count();
             if ($count > 0) {
-                $slug .= '-' . ($count + 1);
+                $slug .= '-'.($count + 1);
             }
         }
 
@@ -95,7 +95,7 @@ class ProductCollectionController extends Controller
         foreach ($locales as $locale) {
             $nameField = "name_{$locale}";
             $descField = "description_{$locale}";
-            
+
             if ($request->filled($nameField)) {
                 $collection->translations()->create([
                     'lang_code' => $locale,
@@ -122,7 +122,7 @@ class ProductCollectionController extends Controller
 
         return Inertia::render('Backend/03-Inventory/ProductCollections', [
             'collection' => $collection,
-            'mode' => 'edit'
+            'mode' => 'edit',
         ]);
     }
 
@@ -136,7 +136,7 @@ class ProductCollectionController extends Controller
         $request->validate([
             'name' => 'required|string|max:191',
             'status' => 'required|in:published,draft,pending',
-            'slug' => 'nullable|string|max:191|unique:product_collections,slug,' . $id,
+            'slug' => 'nullable|string|max:191|unique:product_collections,slug,'.$id,
             'description' => 'nullable|string|max:400',
             'image' => 'nullable|string',
             'is_featured' => 'boolean',
@@ -149,10 +149,10 @@ class ProductCollectionController extends Controller
         $slug = $request->slug ? Str::slug($request->slug) : Str::slug($request->name);
 
         // Ensure unique slug if auto-generated and changed
-        if (!$request->slug && $slug !== $collection->slug) {
+        if (! $request->slug && $slug !== $collection->slug) {
             $count = ProductCollection::where('slug', $slug)->where('id', '!=', $id)->count();
             if ($count > 0) {
-                $slug .= '-' . ($count + 1);
+                $slug .= '-'.($count + 1);
             }
         }
 
@@ -170,7 +170,7 @@ class ProductCollectionController extends Controller
         foreach ($locales as $locale) {
             $nameField = "name_{$locale}";
             $descField = "description_{$locale}";
-            
+
             if ($request->filled($nameField)) {
                 $collection->translations()->updateOrCreate(
                     ['lang_code' => $locale],

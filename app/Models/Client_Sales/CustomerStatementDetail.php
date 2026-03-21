@@ -17,14 +17,14 @@ class CustomerStatementDetail extends Model
         'description',
         'debit_amount',
         'credit_amount',
-        'balance'
+        'balance',
     ];
 
     protected $casts = [
         'transaction_date' => 'date',
         'debit_amount' => 'decimal:2',
         'credit_amount' => 'decimal:2',
-        'balance' => 'decimal:2'
+        'balance' => 'decimal:2',
     ];
 
     public function statement()

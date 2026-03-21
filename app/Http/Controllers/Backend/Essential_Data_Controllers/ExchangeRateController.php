@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Backend\Essential_Data_Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\ExchangeRate;
 use App\Models\Currency;
+use App\Models\ExchangeRate;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Http;
+use Inertia\Inertia;
 
 class ExchangeRateController extends Controller
 {
@@ -19,12 +19,12 @@ class ExchangeRateController extends Controller
         $exchangeRates = ExchangeRate::with(['fromCurrency', 'toCurrency'])
             ->orderBy('rate_date', 'desc')
             ->get();
-            
+
         $currencies = Currency::where('status', 'active')->get();
 
         return Inertia::render('Backend/01-Essential_Data/Exchange_rates', [
             'exchangeRates' => $exchangeRates,
-            'currencies' => $currencies
+            'currencies' => $currencies,
         ]);
     }
 
@@ -101,19 +101,20 @@ class ExchangeRateController extends Controller
     public function fetchRates(Request $request)
     {
         $baseCurrency = Currency::where('is_base', true)->first();
-        
-        if (!$baseCurrency) {
+
+        if (! $baseCurrency) {
             // Fallback: Try to find USD or first active currency if no base is set
-            $baseCurrency = Currency::where('code', 'USD')->first() 
+            $baseCurrency = Currency::where('code', 'USD')->first()
                          ?? Currency::where('status', 'active')->first();
-                         
-            if (!$baseCurrency) {
+
+            if (! $baseCurrency) {
                 return redirect()->back()->withErrors(['message' => 'No base currency found. Please create currencies first.']);
             }
         }
 
         $normalize = function (?string $code): string {
             $code = strtoupper((string) $code);
+
             return match ($code) {
                 'EGY' => 'EGP',
                 'USA', 'US', 'USD$', '$' => 'USD',
@@ -127,12 +128,12 @@ class ExchangeRateController extends Controller
             $response = Http::timeout(20)->acceptJson()->get('https://api.exchangerate.host/latest', [
                 'base' => $baseCode,
             ]);
-            
+
             if ($response->successful()) {
                 $data = $response->json();
                 $rates = (is_array($data) && is_array($data['rates'] ?? null)) ? $data['rates'] : [];
                 $date = now()->format('Y-m-d');
-                
+
                 $activeCurrencies = Currency::where('status', 'active')
                     ->where('id', '!=', $baseCurrency->id)
                     ->get();
@@ -143,17 +144,17 @@ class ExchangeRateController extends Controller
                     $apiCode = $normalize($currency->code);
                     if (isset($rates[$apiCode])) {
                         $rateValue = (float) $rates[$apiCode];
-                        
+
                         // Check if rate already exists for today
                         $existing = ExchangeRate::where('rate_date', $date)
                             ->where('from_currency_id', $baseCurrency->id)
                             ->where('to_currency_id', $currency->id)
                             ->first();
-                            
+
                         if ($existing) {
                             $existing->update([
                                 'rate' => $rateValue,
-                                'source' => 'API: exchangerate.host'
+                                'source' => 'API: exchangerate.host',
                             ]);
                         } else {
                             ExchangeRate::create([
@@ -161,7 +162,7 @@ class ExchangeRateController extends Controller
                                 'from_currency_id' => $baseCurrency->id,
                                 'to_currency_id' => $currency->id,
                                 'rate' => $rateValue,
-                                'source' => 'API: exchangerate.host'
+                                'source' => 'API: exchangerate.host',
                             ]);
                         }
                         $count++;
@@ -192,7 +193,7 @@ class ExchangeRateController extends Controller
                             if ($existing) {
                                 $existing->update([
                                     'rate' => $rateValue,
-                                    'source' => 'API: exchangerate.host'
+                                    'source' => 'API: exchangerate.host',
                                 ]);
                             } else {
                                 ExchangeRate::create([
@@ -200,14 +201,16 @@ class ExchangeRateController extends Controller
                                     'from_currency_id' => $baseCurrency->id,
                                     'to_currency_id' => $currency->id,
                                     'rate' => $rateValue,
-                                    'source' => 'API: exchangerate.host'
+                                    'source' => 'API: exchangerate.host',
                                 ]);
                             }
                             $count++;
                         }
                     }
+
                     return redirect()->back()->with('success', "Successfully fetched and updated {$count} exchange rates (Base: {$baseCurrency->code}).");
                 }
+
                 return redirect()->back()->withErrors(['message' => 'Failed to fetch rates from external API.']);
             }
         } catch (\Throwable $e) {
@@ -234,7 +237,7 @@ class ExchangeRateController extends Controller
                             if ($existing) {
                                 $existing->update([
                                     'rate' => $rateValue,
-                                    'source' => 'API: exchangerate.host'
+                                    'source' => 'API: exchangerate.host',
                                 ]);
                             } else {
                                 ExchangeRate::create([
@@ -242,16 +245,18 @@ class ExchangeRateController extends Controller
                                     'from_currency_id' => $baseCurrency->id,
                                     'to_currency_id' => $currency->id,
                                     'rate' => $rateValue,
-                                    'source' => 'API: exchangerate.host'
+                                    'source' => 'API: exchangerate.host',
                                 ]);
                             }
                             $count++;
                         }
                     }
+
                     return redirect()->back()->with('success', "Successfully fetched and updated {$count} exchange rates (Base: {$baseCurrency->code}).");
                 }
             } catch (\Throwable $t) {
             }
+
             return redirect()->back()->withErrors(['message' => 'Error fetching rates.']);
         }
     }

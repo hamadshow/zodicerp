@@ -3,17 +3,16 @@
 namespace App\Http\Controllers\Backend\Purchases;
 
 use App\Http\Controllers\Controller;
-use App\Models\Vendor_Purchases\PurchaseOrder;
-use App\Models\Vendor_Purchases\PurchaseOrderItem;
-use App\Models\Vendor_Purchases\Supplier;
 use App\Models\Currency;
-use App\Models\Warehouses;
 use App\Models\ItemUnit;
 use App\Models\Products;
+use App\Models\Vendor_Purchases\PurchaseOrder;
+use App\Models\Vendor_Purchases\Supplier;
+use App\Models\Warehouses;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class PurchaseOrderController extends Controller
 {
@@ -27,9 +26,9 @@ class PurchaseOrderController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('po_number', 'like', "%{$search}%")
-                  ->orWhereHas('vendor', function ($q) use ($search) {
-                      $q->where('name_ar', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('vendor', function ($q) use ($search) {
+                        $q->where('name_ar', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -50,7 +49,7 @@ class PurchaseOrderController extends Controller
             ->get();
         $units = ItemUnit::select('id', 'name as name_ar')->get();
         $warehouses = Warehouses::select('id', 'name as name_ar')->get();
-        
+
         // Mock data for terms (should be replaced with actual models later)
         $paymentTerms = [
             ['id' => 1, 'name' => 'Net 30'],
@@ -58,7 +57,7 @@ class PurchaseOrderController extends Controller
             ['id' => 3, 'name' => 'Cash on Delivery'],
             ['id' => 4, 'name' => 'Advance Payment'],
         ];
-        
+
         $deliveryTerms = [
             ['id' => 1, 'name' => 'EXW - Ex Works'],
             ['id' => 2, 'name' => 'FOB - Free on Board'],
@@ -99,7 +98,7 @@ class PurchaseOrderController extends Controller
         DB::beginTransaction();
         try {
             // Auto-generate number if not provided
-            $number = 'PO-' . date('Ymd') . '-' . rand(1000, 9999);
+            $number = 'PO-'.date('Ymd').'-'.rand(1000, 9999);
 
             $order = PurchaseOrder::create([
                 'po_number' => $number,
@@ -112,14 +111,14 @@ class PurchaseOrderController extends Controller
                 'priority' => $request->priority ?? 'medium',
                 'notes' => $request->notes,
                 'created_by' => Auth::id(),
-                
+
                 // Financials
                 'subtotal' => $request->subtotal ?? 0,
                 'tax_amount' => $request->tax_amount ?? 0,
                 'discount_amount' => $request->discount_amount ?? 0,
                 'shipping_charges' => $request->shipping_charges ?? 0,
                 'grand_total' => $request->grand_total ?? 0,
-                
+
                 // Terms
                 'payment_terms_id' => $request->payment_terms_id,
                 'delivery_terms_id' => $request->delivery_terms_id,
@@ -146,18 +145,20 @@ class PurchaseOrderController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Purchase Order created successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error creating order: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error creating order: '.$e->getMessage());
         }
     }
 
     public function update(Request $request, $id)
     {
         $order = PurchaseOrder::findOrFail($id);
-        
+
         $validated = $request->validate([
             'po_date' => 'required|date',
             'expected_delivery_date' => 'nullable|date|after_or_equal:po_date',
@@ -217,11 +218,13 @@ class PurchaseOrderController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Purchase Order updated successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error updating order: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error updating order: '.$e->getMessage());
         }
     }
 
@@ -230,9 +233,10 @@ class PurchaseOrderController extends Controller
         try {
             $order = PurchaseOrder::findOrFail($id);
             $order->delete(); // Soft delete
+
             return redirect()->back()->with('success', 'Purchase Order deleted successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error deleting order: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error deleting order: '.$e->getMessage());
         }
     }
 }

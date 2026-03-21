@@ -1,4 +1,5 @@
 <?php
+
 return [
     'help_center' => 'مركز المساعدة',
     'logout' => 'تسجيل الخروج',

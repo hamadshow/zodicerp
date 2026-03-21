@@ -2,11 +2,11 @@
 
 namespace App\Services\Budget;
 
-use App\Models\Budget\BudgetTransfer;
 use App\Models\Budget\BudgetItem;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
+use App\Models\Budget\BudgetTransfer;
 use Exception;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class BudgetTransferService
 {
@@ -16,10 +16,10 @@ class BudgetTransferService
     public function createTransfer(array $data)
     {
         return DB::transaction(function () use ($data) {
-            $data['transfer_number'] = 'TRF-' . time(); // Simple generation, can be improved
+            $data['transfer_number'] = 'TRF-'.time(); // Simple generation, can be improved
             $data['status'] = 'draft';
             $data['requested_by'] = Auth::id();
-            
+
             return BudgetTransfer::create($data);
         });
     }
@@ -30,7 +30,7 @@ class BudgetTransferService
     public function updateTransfer(BudgetTransfer $transfer, array $data)
     {
         if ($transfer->status !== 'draft' && $transfer->status !== 'rejected') {
-            throw new Exception("Only draft or rejected transfers can be updated.");
+            throw new Exception('Only draft or rejected transfers can be updated.');
         }
 
         return $transfer->update($data);
@@ -42,12 +42,13 @@ class BudgetTransferService
     public function submitForApproval(BudgetTransfer $transfer)
     {
         if ($transfer->status !== 'draft' && $transfer->status !== 'rejected') {
-            throw new Exception("Invalid status for submission.");
+            throw new Exception('Invalid status for submission.');
         }
 
         $this->validateBalance($transfer);
 
         $transfer->update(['status' => 'pending_approval']);
+
         return $transfer;
     }
 
@@ -57,7 +58,7 @@ class BudgetTransferService
     public function approveTransfer(BudgetTransfer $transfer)
     {
         if ($transfer->status !== 'pending_approval') {
-            throw new Exception("Transfer is not pending approval.");
+            throw new Exception('Transfer is not pending approval.');
         }
 
         $transfer->update([
@@ -75,10 +76,11 @@ class BudgetTransferService
     public function rejectTransfer(BudgetTransfer $transfer)
     {
         if ($transfer->status !== 'pending_approval') {
-            throw new Exception("Transfer is not pending approval.");
+            throw new Exception('Transfer is not pending approval.');
         }
 
         $transfer->update(['status' => 'rejected']);
+
         return $transfer;
     }
 
@@ -88,7 +90,7 @@ class BudgetTransferService
     public function completeTransfer(BudgetTransfer $transfer)
     {
         if ($transfer->status !== 'approved') {
-            throw new Exception("Transfer must be approved before completion.");
+            throw new Exception('Transfer must be approved before completion.');
         }
 
         return DB::transaction(function () use ($transfer) {
@@ -100,7 +102,7 @@ class BudgetTransferService
 
             // Deduct from source
             $fromItem->annual_amount -= $transfer->from_amount;
-            // Also adjust monthly if needed? For now, we just adjust annual. 
+            // Also adjust monthly if needed? For now, we just adjust annual.
             // Ideally we should ask user which month, but for annual budget it's fine.
             $fromItem->save();
 
@@ -125,7 +127,7 @@ class BudgetTransferService
     public function deleteTransfer(BudgetTransfer $transfer)
     {
         if ($transfer->status !== 'draft' && $transfer->status !== 'rejected') {
-            throw new Exception("Only draft or rejected transfers can be deleted.");
+            throw new Exception('Only draft or rejected transfers can be deleted.');
         }
 
         return $transfer->delete();
@@ -138,15 +140,15 @@ class BudgetTransferService
     {
         $fromItem = BudgetItem::findOrFail($transfer->from_budget_item_id);
 
-        // Calculate available balance (Annual Amount - Actuals - Commitments usually, 
+        // Calculate available balance (Annual Amount - Actuals - Commitments usually,
         // but here we just check if we have enough Budget Amount to move)
         // If the user wants to move "Budget", we check `annual_amount`.
         // If we move "Available Funds", we should check `annual_amount - annual_actual`.
         // Prompt says "Available budget balance" and "from_budget_item must have sufficient balance".
-        // I'll check `annual_amount` vs `from_amount` as a baseline, 
+        // I'll check `annual_amount` vs `from_amount` as a baseline,
         // but robust systems check `remaining_balance`.
         // Let's assume `annual_amount` is the limit for now, or `annual_amount - annual_actual`.
-        
+
         $available = $fromItem->annual_amount - $fromItem->annual_actual;
 
         if ($transfer->from_amount > $available) {

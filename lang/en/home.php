@@ -1,4 +1,5 @@
 <?php
+
 return [
     'view_all_categories' => 'View All',
     'all_categories' => 'All Categories',

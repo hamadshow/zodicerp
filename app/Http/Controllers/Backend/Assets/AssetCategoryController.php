@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Backend\Assets;
 
 use App\Http\Controllers\Controller;
-use App\Models\Assets\AssetCategory;
 use App\Models\Account;
+use App\Models\Assets\AssetCategory;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class AssetCategoryController extends Controller
 {
@@ -32,7 +32,7 @@ class AssetCategoryController extends Controller
             return response()->json([
                 'categories' => $categories,
                 'parents' => $parents,
-                'accounts' => $accounts
+                'accounts' => $accounts,
             ]);
         }
 
@@ -67,7 +67,7 @@ class AssetCategoryController extends Controller
             // Auto-generate Code
             $lastCategory = AssetCategory::withTrashed()->orderBy('id', 'desc')->first();
             $nextCode = $lastCategory ? (intval($lastCategory->code) + 1) : 1001;
-            
+
             $validated['code'] = $nextCode;
 
             AssetCategory::create($validated);
@@ -78,7 +78,8 @@ class AssetCategoryController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Error creating category: ' . $e->getMessage()]);
+
+            return back()->withErrors(['error' => 'Error creating category: '.$e->getMessage()]);
         }
     }
 
@@ -118,14 +119,15 @@ class AssetCategoryController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Error updating category: ' . $e->getMessage()]);
+
+            return back()->withErrors(['error' => 'Error updating category: '.$e->getMessage()]);
         }
     }
 
     public function destroy($id)
     {
         $category = AssetCategory::findOrFail($id);
-        
+
         // Check for children
         if ($category->children()->count() > 0) {
             return back()->withErrors(['error' => 'Cannot delete category with sub-categories.']);

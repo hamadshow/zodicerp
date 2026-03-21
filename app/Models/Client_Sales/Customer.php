@@ -2,21 +2,21 @@
 
 namespace App\Models\Client_Sales;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Notifications\Notifiable;
 use App\Models\Account;
+use App\Models\City;
+use App\Models\Country;
 use App\Models\Currency;
 use App\Models\Vendor_Purchases\PriceList;
-use App\Models\Warehouses;
 use App\Models\Vendor_Purchases\SalesAgent;
-use App\Models\Country;
-use App\Models\City;
+use App\Models\Warehouses;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 
 class Customer extends Authenticatable
 {
-    use HasFactory, SoftDeletes, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'customer_code', 'name_ar', 'name_en', 'customer_group_id', 'account_id',
@@ -26,7 +26,7 @@ class Customer extends Authenticatable
         'country_id', 'city_id', 'primary_phone', 'secondary_phone', 'mobile',
         'fax', 'email', 'website', 'customer_type', 'customer_class',
         'is_active', 'rating', 'registration_date', 'last_sale_date', 'notes',
-        'created_by', 'password'
+        'created_by', 'password',
     ];
 
     protected $hidden = [

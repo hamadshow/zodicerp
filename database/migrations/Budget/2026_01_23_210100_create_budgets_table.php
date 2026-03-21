@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('budgets')) {
+        if (! Schema::hasTable('budgets')) {
             Schema::create('budgets', function (Blueprint $table) {
                 $table->id();
                 $table->string('budget_number', 50)->unique();
@@ -27,7 +27,7 @@ return new class extends Migration
 
                 // Organizational Scope
                 $table->enum('scope_type', ['company', 'department', 'project', 'cost_center', 'branch']);
-                
+
                 if (Schema::hasTable('departments')) {
                     $table->foreignId('department_id')->nullable()->constrained('departments')->nullOnDelete();
                 } else {

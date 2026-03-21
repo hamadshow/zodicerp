@@ -17,21 +17,21 @@ return new class extends Migration
             $table->string('name_ar', 200);
             $table->string('name_en', 200);
             $table->text('description')->nullable();
-            
+
             // Scope
             if (Schema::hasTable('countries')) {
                 $table->foreignId('country_id')->nullable()->constrained('countries')->nullOnDelete();
             } else {
                 $table->unsignedBigInteger('country_id')->nullable();
             }
-            
+
             $table->enum('apply_to', ['sales', 'purchases', 'both', 'specific'])->default('both');
-            
+
             // Characteristics
             $table->boolean('is_compound')->default(false);
             $table->integer('calculation_order')->default(1);
             $table->boolean('is_active')->default(true);
-            
+
             // System
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();

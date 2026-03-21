@@ -3,6 +3,14 @@
 namespace App\Http\Controllers\Backend\Location;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Location\BulkDeleteRequest;
+use App\Http\Requests\Location\BulkUpdateStatusRequest;
+use App\Http\Requests\Location\StoreAreaRequest;
+use App\Http\Requests\Location\StoreCityRequest;
+use App\Http\Requests\Location\StoreCountryRequest;
+use App\Http\Requests\Location\UpdateAreaRequest;
+use App\Http\Requests\Location\UpdateCityRequest;
+use App\Http\Requests\Location\UpdateCountryRequest;
 use App\Models\Area;
 use App\Models\City;
 use App\Models\Country;
@@ -10,14 +18,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
-use App\Http\Requests\Location\StoreCountryRequest;
-use App\Http\Requests\Location\UpdateCountryRequest;
-use App\Http\Requests\Location\StoreCityRequest;
-use App\Http\Requests\Location\UpdateCityRequest;
-use App\Http\Requests\Location\StoreAreaRequest;
-use App\Http\Requests\Location\UpdateAreaRequest;
-use App\Http\Requests\Location\BulkUpdateStatusRequest;
-use App\Http\Requests\Location\BulkDeleteRequest;
 
 class LocationController extends Controller
 {
@@ -39,18 +39,20 @@ class LocationController extends Controller
     public function getCities(Request $request)
     {
         $countryId = $request->query('country_id');
-        if (!$countryId) {
+        if (! $countryId) {
             return response()->json([]);
         }
+
         return response()->json(City::where('country_id', $countryId)->where('status', 'active')->get());
     }
 
     public function getAreas(Request $request)
     {
         $cityId = $request->query('city_id');
-        if (!$cityId) {
+        if (! $cityId) {
             return response()->json([]);
         }
+
         return response()->json(Area::where('city_id', $cityId)->where('status', 'active')->get());
     }
 
@@ -72,6 +74,7 @@ class LocationController extends Controller
     public function destroyCountry(Country $countryRecord)
     {
         $countryRecord->delete();
+
         return redirect()->back()->with('success', 'Country deleted successfully');
     }
 
@@ -93,6 +96,7 @@ class LocationController extends Controller
     public function destroyCity(City $city)
     {
         $city->delete();
+
         return redirect()->back()->with('success', 'City deleted successfully');
     }
 
@@ -114,6 +118,7 @@ class LocationController extends Controller
     public function destroyArea(Area $area)
     {
         $area->delete();
+
         return redirect()->back()->with('success', 'Area deleted successfully');
     }
 
@@ -122,7 +127,7 @@ class LocationController extends Controller
     {
         $validated = $request->validated();
 
-        $model = match($validated['type']) {
+        $model = match ($validated['type']) {
             'countries' => Country::class,
             'cities' => City::class,
             'areas' => Area::class,
@@ -137,7 +142,7 @@ class LocationController extends Controller
     {
         $validated = $request->validated();
 
-        $model = match($validated['type']) {
+        $model = match ($validated['type']) {
             'countries' => Country::class,
             'cities' => City::class,
             'areas' => Area::class,
@@ -172,7 +177,7 @@ class LocationController extends Controller
             'countries' => ['added' => 0, 'updated' => 0, 'skipped' => 0, 'failed' => 0],
             'cities' => ['added' => 0, 'updated' => 0, 'skipped' => 0, 'failed' => 0],
             'areas' => ['added' => 0, 'updated' => 0, 'skipped' => 0, 'failed' => 0],
-            'errors' => []
+            'errors' => [],
         ];
 
         $chunkSize = 500;
@@ -188,19 +193,21 @@ class LocationController extends Controller
                     $rowNumber = $countryIndex + 1;
                     $countryIndex++;
 
-                    $name = trim((string)($countryData['name'] ?? ''));
-                    $code = trim((string)($countryData['code'] ?? ''));
-                    $key = $code !== '' ? 'code:' . mb_strtolower($code) : 'name:' . mb_strtolower($name);
+                    $name = trim((string) ($countryData['name'] ?? ''));
+                    $code = trim((string) ($countryData['code'] ?? ''));
+                    $key = $code !== '' ? 'code:'.mb_strtolower($code) : 'name:'.mb_strtolower($name);
 
                     if ($name === '') {
                         $stats['countries']['failed']++;
                         $stats['errors'][] = "Country Row {$rowNumber}: Name is required.";
+
                         continue;
                     }
 
                     if ($key !== '' && isset($countryKeys[$key])) {
                         $stats['countries']['skipped']++;
                         $stats['errors'][] = "Country Row {$rowNumber}: Duplicate in file.";
+
                         continue;
                     }
                     $countryKeys[$key] = true;
@@ -209,7 +216,7 @@ class LocationController extends Controller
                     if ($code !== '') {
                         $country = Country::where('code', $code)->first();
                     }
-                    if (!$country) {
+                    if (! $country) {
                         $country = Country::where('name', $name)->first();
                     }
 
@@ -217,7 +224,7 @@ class LocationController extends Controller
                         'name' => $name,
                         'code' => $code !== '' ? $code : null,
                         'status' => $countryData['status'] ?? 'active',
-                    ], fn($v) => !is_null($v) && $v !== '');
+                    ], fn ($v) => ! is_null($v) && $v !== '');
 
                     if ($country) {
                         if ($updateExisting) {
@@ -239,26 +246,27 @@ class LocationController extends Controller
                     $rowNumber = $cityIndex + 1;
                     $cityIndex++;
 
-                    $name = trim((string)($cityData['name'] ?? ''));
-                    $code = trim((string)($cityData['code'] ?? ''));
+                    $name = trim((string) ($cityData['name'] ?? ''));
+                    $code = trim((string) ($cityData['code'] ?? ''));
 
                     if ($name === '') {
                         $stats['cities']['failed']++;
                         $stats['errors'][] = "City Row {$rowNumber}: Name is required.";
+
                         continue;
                     }
 
                     $countryId = $cityData['country_id'] ?? null;
-                    if (!$countryId) {
+                    if (! $countryId) {
                         $country = null;
-                        if (!empty($cityData['country_code'])) {
+                        if (! empty($cityData['country_code'])) {
                             $country = Country::where('code', $cityData['country_code'])->first();
-                        } elseif (!empty($cityData['country_name'])) {
+                        } elseif (! empty($cityData['country_name'])) {
                             $country = Country::where('name', $cityData['country_name'])->first();
                         }
 
-                        if (!$country && $createMissingCountries) {
-                            $countryName = trim((string)($cityData['country_name'] ?? $cityData['country_code'] ?? ''));
+                        if (! $country && $createMissingCountries) {
+                            $countryName = trim((string) ($cityData['country_name'] ?? $cityData['country_code'] ?? ''));
                             if ($countryName !== '') {
                                 $country = Country::create([
                                     'name' => $countryName,
@@ -273,16 +281,18 @@ class LocationController extends Controller
                         }
                     }
 
-                    if (!$countryId) {
+                    if (! $countryId) {
                         $stats['cities']['skipped']++;
                         $stats['errors'][] = "City Row {$rowNumber} ({$name}): Country not found.";
+
                         continue;
                     }
 
-                    $key = ($code !== '' ? 'code:' . mb_strtolower($code) : 'name:' . mb_strtolower($name)) . '|country:' . $countryId;
+                    $key = ($code !== '' ? 'code:'.mb_strtolower($code) : 'name:'.mb_strtolower($name)).'|country:'.$countryId;
                     if (isset($cityKeys[$key])) {
                         $stats['cities']['skipped']++;
                         $stats['errors'][] = "City Row {$rowNumber} ({$name}): Duplicate in file.";
+
                         continue;
                     }
                     $cityKeys[$key] = true;
@@ -291,7 +301,7 @@ class LocationController extends Controller
                     if ($code !== '') {
                         $city = City::where('code', $code)->where('country_id', $countryId)->first();
                     }
-                    if (!$city) {
+                    if (! $city) {
                         $city = City::where('name', $name)->where('country_id', $countryId)->first();
                     }
 
@@ -300,7 +310,7 @@ class LocationController extends Controller
                         'country_id' => $countryId,
                         'code' => $code !== '' ? $code : null,
                         'status' => $cityData['status'] ?? 'active',
-                    ], fn($v) => !is_null($v) && $v !== '');
+                    ], fn ($v) => ! is_null($v) && $v !== '');
 
                     if ($city) {
                         if ($updateExisting) {
@@ -322,12 +332,13 @@ class LocationController extends Controller
                     $rowNumber = $areaIndex + 1;
                     $areaIndex++;
 
-                    $name = trim((string)($areaData['name'] ?? ''));
-                    $code = trim((string)($areaData['code'] ?? ''));
+                    $name = trim((string) ($areaData['name'] ?? ''));
+                    $code = trim((string) ($areaData['code'] ?? ''));
 
                     if ($name === '') {
                         $stats['areas']['failed']++;
                         $stats['errors'][] = "Area Row {$rowNumber}: Name is required.";
+
                         continue;
                     }
 
@@ -336,14 +347,14 @@ class LocationController extends Controller
 
                     if ($cityId) {
                         $city = City::find($cityId);
-                    } elseif (!empty($areaData['city_name'])) {
+                    } elseif (! empty($areaData['city_name'])) {
                         $cityQuery = City::query()->where('name', $areaData['city_name']);
-                        if (!empty($areaData['country_code'])) {
+                        if (! empty($areaData['country_code'])) {
                             $country = Country::where('code', $areaData['country_code'])->first();
                             if ($country) {
                                 $cityQuery->where('country_id', $country->id);
                             }
-                        } elseif (!empty($areaData['country_name'])) {
+                        } elseif (! empty($areaData['country_name'])) {
                             $country = Country::where('name', $areaData['country_name'])->first();
                             if ($country) {
                                 $cityQuery->where('country_id', $country->id);
@@ -352,18 +363,22 @@ class LocationController extends Controller
                         $city = $cityQuery->first();
                     }
 
-                    if (!$city && $createMissingCities && !empty($areaData['city_name'])) {
+                    if (! $city && $createMissingCities && ! empty($areaData['city_name'])) {
                         $countryId = null;
-                        if (!empty($areaData['country_code'])) {
+                        if (! empty($areaData['country_code'])) {
                             $country = Country::where('code', $areaData['country_code'])->first();
-                            if ($country) $countryId = $country->id;
-                        } elseif (!empty($areaData['country_name'])) {
+                            if ($country) {
+                                $countryId = $country->id;
+                            }
+                        } elseif (! empty($areaData['country_name'])) {
                             $country = Country::where('name', $areaData['country_name'])->first();
-                            if ($country) $countryId = $country->id;
+                            if ($country) {
+                                $countryId = $country->id;
+                            }
                         }
 
-                        if (!$countryId && $createMissingCountries) {
-                            $countryName = trim((string)($areaData['country_name'] ?? $areaData['country_code'] ?? ''));
+                        if (! $countryId && $createMissingCountries) {
+                            $countryName = trim((string) ($areaData['country_name'] ?? $areaData['country_code'] ?? ''));
                             if ($countryName !== '') {
                                 $country = Country::create([
                                     'name' => $countryName,
@@ -383,17 +398,19 @@ class LocationController extends Controller
                         }
                     }
 
-                    if (!$city) {
+                    if (! $city) {
                         $stats['areas']['skipped']++;
                         $stats['errors'][] = "Area Row {$rowNumber} ({$name}): City not found.";
+
                         continue;
                     }
 
                     $cityId = $city->id;
-                    $key = ($code !== '' ? 'code:' . mb_strtolower($code) : 'name:' . mb_strtolower($name)) . '|city:' . $cityId;
+                    $key = ($code !== '' ? 'code:'.mb_strtolower($code) : 'name:'.mb_strtolower($name)).'|city:'.$cityId;
                     if (isset($areaKeys[$key])) {
                         $stats['areas']['skipped']++;
                         $stats['errors'][] = "Area Row {$rowNumber} ({$name}): Duplicate in file.";
+
                         continue;
                     }
                     $areaKeys[$key] = true;
@@ -402,7 +419,7 @@ class LocationController extends Controller
                     if ($code !== '') {
                         $area = Area::where('code', $code)->where('city_id', $cityId)->first();
                     }
-                    if (!$area) {
+                    if (! $area) {
                         $area = Area::where('name', $name)->where('city_id', $cityId)->first();
                     }
 
@@ -412,7 +429,7 @@ class LocationController extends Controller
                         'country_id' => $city->country_id,
                         'code' => $code !== '' ? $code : null,
                         'status' => $areaData['status'] ?? 'active',
-                    ], fn($v) => !is_null($v) && $v !== '');
+                    ], fn ($v) => ! is_null($v) && $v !== '');
 
                     if ($area) {
                         if ($updateExisting) {
@@ -431,12 +448,13 @@ class LocationController extends Controller
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->withErrors(['error' => 'Import failed: ' . $e->getMessage()]);
+
+            return redirect()->back()->withErrors(['error' => 'Import failed: '.$e->getMessage()]);
         }
 
         return redirect()->back()->with([
             'success' => 'Import completed successfully',
-            'importStats' => $stats
+            'importStats' => $stats,
         ]);
     }
 }

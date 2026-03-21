@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Home;
 
 use App\Http\Controllers\Controller;
 use App\Models\Ad;
-use App\Models\Products;
+use App\Models\Backend\Client_Sales\FlashSale;
 use App\Models\Categories;
-use App\Models\Country;
 use App\Models\City;
 use App\Models\Client_Sales\CustomerAddress;
-use App\Models\Backend\Client_Sales\FlashSale;
+use App\Models\Country;
 use App\Models\ProductCollection;
+use App\Models\Products;
 use App\Services\CurrencyConverter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -43,11 +43,11 @@ class HomeController extends Controller
                 $maxPrice = $product->price;
 
                 if ($product->children->isNotEmpty()) {
-                    $prices = $product->children->pluck('price')->filter(function($val) {
+                    $prices = $product->children->pluck('price')->filter(function ($val) {
                         return is_numeric($val) && $val > 0;
                     })->all();
-                    
-                    if (!empty($prices)) {
+
+                    if (! empty($prices)) {
                         $minPrice = min($prices);
                         $maxPrice = max($prices);
                     }
@@ -62,8 +62,8 @@ class HomeController extends Controller
                     'min_price' => CurrencyConverter::convert($minPrice),
                     'max_price' => CurrencyConverter::convert($maxPrice),
                     'originalPrice' => null,
-                    'moq' => $product->minimum_order_quantity ? $product->minimum_order_quantity . ' pcs' : '1 pc',
-                    'orders' => ($product->views ?? 0) . ' Views',
+                    'moq' => $product->minimum_order_quantity ? $product->minimum_order_quantity.' pcs' : '1 pc',
+                    'orders' => ($product->views ?? 0).' Views',
                     'image' => $this->formatMediaUrl($imagePath, 'https://via.placeholder.com/300x300'),
                     'badge' => 'Featured',
                     'verified' => true,
@@ -89,9 +89,9 @@ class HomeController extends Controller
                 return [
                     'id' => $ad->id,
                     'name' => $ad->name,
-                    'image' => $ad->image ? (str_starts_with($ad->image, 'http') ? $ad->image : asset('storage/' . $ad->image)) : null,
-                    'tablet_image' => $ad->tablet_image ? (str_starts_with($ad->tablet_image, 'http') ? $ad->tablet_image : asset('storage/' . $ad->tablet_image)) : null,
-                    'mobile_image' => $ad->mobile_image ? (str_starts_with($ad->mobile_image, 'http') ? $ad->mobile_image : asset('storage/' . $ad->mobile_image)) : null,
+                    'image' => $ad->image ? (str_starts_with($ad->image, 'http') ? $ad->image : asset('storage/'.$ad->image)) : null,
+                    'tablet_image' => $ad->tablet_image ? (str_starts_with($ad->tablet_image, 'http') ? $ad->tablet_image : asset('storage/'.$ad->tablet_image)) : null,
+                    'mobile_image' => $ad->mobile_image ? (str_starts_with($ad->mobile_image, 'http') ? $ad->mobile_image : asset('storage/'.$ad->mobile_image)) : null,
                     'url' => $ad->url,
                     'open_in_new_tab' => $ad->open_in_new_tab,
                 ];
@@ -116,7 +116,7 @@ class HomeController extends Controller
                 return [
                     'id' => $ad->id,
                     'name' => $ad->name,
-                    'image' => $ad->image ? (str_starts_with($ad->image, 'http') ? $ad->image : asset('storage/' . $ad->image)) : null,
+                    'image' => $ad->image ? (str_starts_with($ad->image, 'http') ? $ad->image : asset('storage/'.$ad->image)) : null,
                     'url' => $ad->url,
                     'open_in_new_tab' => $ad->open_in_new_tab,
                 ];
@@ -139,7 +139,9 @@ class HomeController extends Controller
                 'end_date' => $flashSale->end_date,
                 'products' => $flashSale->items->map(function ($item) {
                     $product = $item->product;
-                    if (!$product) return null;
+                    if (! $product) {
+                        return null;
+                    }
 
                     $imagePath = null;
                     if ($product->image) {
@@ -163,10 +165,10 @@ class HomeController extends Controller
                         'product_type' => $product->product_type,
                         'price' => CurrencyConverter::convert($price),
                         'originalPrice' => CurrencyConverter::convert($originalPrice),
-                        'moq' => $product->minimum_order_quantity ? $product->minimum_order_quantity . ' pcs' : '1 pc',
-                        'orders' => ($product->views ?? 0) . ' Views',
+                        'moq' => $product->minimum_order_quantity ? $product->minimum_order_quantity.' pcs' : '1 pc',
+                        'orders' => ($product->views ?? 0).' Views',
                         'image' => $this->formatMediaUrl($imagePath, 'https://via.placeholder.com/300x300'),
-                        'badge' => '-' . $discount . '%',
+                        'badge' => '-'.$discount.'%',
                         'verified' => true,
                         'supplier' => $product->brand ? $product->brand->name : 'ZodiMarket',
                     ];
@@ -204,11 +206,11 @@ class HomeController extends Controller
                         $maxPrice = $product->price;
 
                         if ($product->children->isNotEmpty()) {
-                            $prices = $product->children->pluck('price')->filter(function($val) {
+                            $prices = $product->children->pluck('price')->filter(function ($val) {
                                 return is_numeric($val) && $val > 0;
                             })->all();
-                            
-                            if (!empty($prices)) {
+
+                            if (! empty($prices)) {
                                 $minPrice = min($prices);
                                 $maxPrice = max($prices);
                             }
@@ -223,8 +225,8 @@ class HomeController extends Controller
                             'min_price' => CurrencyConverter::convert($minPrice),
                             'max_price' => CurrencyConverter::convert($maxPrice),
                             'originalPrice' => null,
-                            'moq' => $product->minimum_order_quantity ? $product->minimum_order_quantity . ' pcs' : '1 pc',
-                            'orders' => ($product->views ?? 0) . ' Views',
+                            'moq' => $product->minimum_order_quantity ? $product->minimum_order_quantity.' pcs' : '1 pc',
+                            'orders' => ($product->views ?? 0).' Views',
                             'image' => $this->formatMediaUrl($imagePath, 'https://via.placeholder.com/300x300'),
                             'badge' => null,
                             'verified' => true,
@@ -253,10 +255,10 @@ class HomeController extends Controller
             ? $productQuery->find($identifier)
             : $productQuery->where('slug', $identifier)->first();
 
-        if (!$product) {
+        if (! $product) {
             return Inertia::render('Home/Shop/ProductDetails', [
                 'product' => null,
-                'categories' => $categories
+                'categories' => $categories,
             ]);
         }
 
@@ -272,10 +274,10 @@ class HomeController extends Controller
         if ($product->images) {
             foreach ($product->images as $img) {
                 $url = $this->formatMediaUrl($img);
-                if (!in_array($url, $images)) {
+                if (! in_array($url, $images)) {
                     $images[] = $url;
                 }
-                if (!in_array($url, $parentImages)) {
+                if (! in_array($url, $parentImages)) {
                     $parentImages[] = $url;
                 }
             }
@@ -287,14 +289,14 @@ class HomeController extends Controller
                 if ($variationProduct) {
                     if ($variationProduct->image) {
                         $img = $this->formatMediaUrl($variationProduct->image);
-                        if (!in_array($img, $images)) {
+                        if (! in_array($img, $images)) {
                             $images[] = $img;
                         }
                     }
                     if ($variationProduct->images && is_array($variationProduct->images)) {
                         foreach ($variationProduct->images as $vImg) {
                             $img = $this->formatMediaUrl($vImg);
-                            if (!in_array($img, $images)) {
+                            if (! in_array($img, $images)) {
                                 $images[] = $img;
                             }
                         }
@@ -330,7 +332,7 @@ class HomeController extends Controller
 
             foreach ($product->variations as $variation) {
                 $variationProduct = $variation->product;
-                if (!$variationProduct) {
+                if (! $variationProduct) {
                     continue;
                 }
                 $variantColorName = null;
@@ -338,14 +340,16 @@ class HomeController extends Controller
 
                 foreach ($variation->items as $item) {
                     $detail = $details->get($item->attribute_value);
-                    if (!$detail) continue;
+                    if (! $detail) {
+                        continue;
+                    }
 
                     $attribute = $item->attribute; // ItemAttribute model
 
-                    if ($attribute && (strtolower($attribute->title) === 'color' || strtolower($attribute->title) === 'colors' || $attribute->title === 'اللون' || $attribute->title === 'الألوان' || !empty($detail->color))) {
+                    if ($attribute && (strtolower($attribute->title) === 'color' || strtolower($attribute->title) === 'colors' || $attribute->title === 'اللون' || $attribute->title === 'الألوان' || ! empty($detail->color))) {
                         $colorsMap[$detail->id] = [
                             'name' => $detail->title,
-                            'hex' => $detail->color ?? $detail->title // Use color hex or name
+                            'hex' => $detail->color ?? $detail->title, // Use color hex or name
                         ];
                         $variantColorName = $detail->title;
                     } elseif ($attribute && (strtolower($attribute->title) === 'size' || strtolower($attribute->title) === 'sizes' || $attribute->title === 'المقاس' || $attribute->title === 'الحجم')) {
@@ -357,7 +361,7 @@ class HomeController extends Controller
                 // Construct Variant Key (Color-Size)
                 // Note: The frontend expects specific key format.
                 if ($variantColorName && $variantSizeName) {
-                    $key = $variantColorName . '-' . $variantSizeName;
+                    $key = $variantColorName.'-'.$variantSizeName;
                 } elseif ($variantColorName) {
                     $key = $variantColorName;
                 } elseif ($variantSizeName) {
@@ -373,7 +377,7 @@ class HomeController extends Controller
                 if ($variationProduct->images && is_array($variationProduct->images)) {
                     foreach ($variationProduct->images as $vImg) {
                         $img = $this->formatMediaUrl($vImg);
-                        if (!in_array($img, $variantImages)) {
+                        if (! in_array($img, $variantImages)) {
                             $variantImages[] = $img;
                         }
                     }
@@ -386,7 +390,7 @@ class HomeController extends Controller
                     'stock' => $variationProduct->quantity ?? 0,
                     'sku' => $variationProduct->sku,
                     'image' => $variationProduct->image ? $this->formatMediaUrl($variationProduct->image) : null,
-                    'images' => $variantImages
+                    'images' => $variantImages,
                 ];
             }
 
@@ -398,17 +402,17 @@ class HomeController extends Controller
         $maxPrice = $product->price;
 
         if ($product->product_type === 'variable') {
-             // Collect prices from children, fallback to parent price if child price is missing
-             $prices = $product->children->map(function($child) use ($product) {
-                 return $child->price ?? $product->price;
-             })->filter(function($value) {
-                 return is_numeric($value) && $value > 0;
-             })->toArray();
+            // Collect prices from children, fallback to parent price if child price is missing
+            $prices = $product->children->map(function ($child) use ($product) {
+                return $child->price ?? $product->price;
+            })->filter(function ($value) {
+                return is_numeric($value) && $value > 0;
+            })->toArray();
 
-             if (!empty($prices)) {
-                 $minPrice = min($prices);
-                 $maxPrice = max($prices);
-             }
+            if (! empty($prices)) {
+                $minPrice = min($prices);
+                $maxPrice = max($prices);
+            }
         }
 
         $formattedProduct = [
@@ -434,27 +438,28 @@ class HomeController extends Controller
             'colors' => $colors,
             'sizes' => $sizes,
             'variants' => $variants,
-            'product_type' => $product->product_type
+            'product_type' => $product->product_type,
         ];
 
         return Inertia::render('Home/Shop/ProductDetails', [
             'product' => $formattedProduct,
-            'categories' => $categories
+            'categories' => $categories,
         ]);
     }
 
     public function products(Request $request)
     {
         $categories = $this->getTopCategories();
-        
-        $level2Categories = $categories->pluck('children')->flatten()->map(function($cat) {
+
+        $level2Categories = $categories->pluck('children')->flatten()->map(function ($cat) {
             $name = $cat instanceof \App\Models\Categories ? ($cat->getTranslated('name_json') ?: $cat->name) : ($cat['name'] ?? '');
+
             return [
                 'id' => $cat instanceof \App\Models\Categories ? $cat->id : ($cat['id'] ?? null),
                 'name' => $name,
                 'slug' => $cat instanceof \App\Models\Categories ? $cat->slug : ($cat['slug'] ?? ''),
-                'image' => $this->formatMediaUrl($cat instanceof \App\Models\Categories ? $cat->image : ($cat['image'] ?? null), 'https://via.placeholder.com/60?text=' . (isset($name[0]) ? $name[0] : 'C')),
-                'parent_id' => $cat instanceof \App\Models\Categories ? $cat->parent_id : ($cat['parent_id'] ?? null)
+                'image' => $this->formatMediaUrl($cat instanceof \App\Models\Categories ? $cat->image : ($cat['image'] ?? null), 'https://via.placeholder.com/60?text='.(isset($name[0]) ? $name[0] : 'C')),
+                'parent_id' => $cat instanceof \App\Models\Categories ? $cat->parent_id : ($cat['parent_id'] ?? null),
             ];
         });
 
@@ -464,14 +469,14 @@ class HomeController extends Controller
         if ($request->has('category')) {
             $categoryValue = $request->input('category');
             $categorySlugs = array_filter(array_map('trim', explode(',', (string) $categoryValue)));
-            if (!empty($categorySlugs)) {
+            if (! empty($categorySlugs)) {
                 $categoriesList = Categories::whereIn('slug', $categorySlugs)->get();
                 $categoryIds = [];
                 foreach ($categoriesList as $category) {
                     $categoryIds = array_merge($categoryIds, $this->getAllCategoryIds($category));
                 }
                 $categoryIds = array_values(array_unique($categoryIds));
-                if (!empty($categoryIds)) {
+                if (! empty($categoryIds)) {
                     $query->whereHas('categories', function ($q) use ($categoryIds) {
                         $q->whereIn('categories.id', $categoryIds);
                     });
@@ -504,19 +509,19 @@ class HomeController extends Controller
             $brandIds = \App\Models\Brands::whereIn('brand_code', $brandSlugs)->pluck('id'); // Assuming slug is brand_code or similar, let's check Brand model
             // Actually, let's assume brand ID or name for now, better ID.
             // Or just filter by brand_id directly if passed
-             if (!empty($brandSlugs)) {
-                 $query->whereHas('brand', function($q) use ($brandSlugs) {
-                     $q->whereIn('slug', $brandSlugs)->orWhereIn('id', $brandSlugs); // Flexible
-                 });
-             }
+            if (! empty($brandSlugs)) {
+                $query->whereHas('brand', function ($q) use ($brandSlugs) {
+                    $q->whereIn('slug', $brandSlugs)->orWhereIn('id', $brandSlugs); // Flexible
+                });
+            }
         }
-        
+
         // Filter by Search
         if ($request->has('q')) {
             $search = $request->input('q');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('name_json', 'like', "%{$search}%");
+                    ->orWhere('name_json', 'like', "%{$search}%");
             });
         }
 
@@ -536,11 +541,11 @@ class HomeController extends Controller
             $maxPrice = $product->price;
 
             if ($product->children->isNotEmpty()) {
-                $prices = $product->children->pluck('price')->filter(function($val) {
+                $prices = $product->children->pluck('price')->filter(function ($val) {
                     return is_numeric($val) && $val > 0;
                 })->all();
-                
-                if (!empty($prices)) {
+
+                if (! empty($prices)) {
                     $minPrice = min($prices);
                     $maxPrice = max($prices);
                 }
@@ -565,29 +570,29 @@ class HomeController extends Controller
             ];
         });
 
-        $brands = \App\Models\Brands::where('status', 'active')->withCount('products')->get()->map(function($brand) {
+        $brands = \App\Models\Brands::where('status', 'active')->withCount('products')->get()->map(function ($brand) {
             return [
                 'id' => $brand->id,
                 'name' => $brand->name,
                 'slug' => $brand->slug ?? $brand->id, // Fallback if no slug
-                'products_count' => $brand->products_count
+                'products_count' => $brand->products_count,
             ];
         });
 
-        $attributes = \App\Models\ItemAttribute::with('details')->where('status', 'published')->get()->map(function($attr) {
+        $attributes = \App\Models\ItemAttribute::with('details')->where('status', 'published')->get()->map(function ($attr) {
             return [
                 'id' => $attr->id,
                 'name' => $attr->title,
                 'slug' => $attr->slug,
                 'type' => $attr->display_layout, // visual, text, etc.
-                'options' => $attr->details->map(function($detail) {
+                'options' => $attr->details->map(function ($detail) {
                     return [
                         'id' => $detail->id,
                         'name' => $detail->title,
                         'value' => $detail->color ?? $detail->title,
-                        'slug' => $detail->slug
+                        'slug' => $detail->slug,
                     ];
-                })
+                }),
             ];
         });
 
@@ -597,7 +602,7 @@ class HomeController extends Controller
             'level2Categories' => $level2Categories,
             'brands' => $brands,
             'attributes' => $attributes,
-            'filters' => $request->all()
+            'filters' => $request->all(),
         ]);
     }
 
@@ -607,12 +612,13 @@ class HomeController extends Controller
         foreach ($category->children as $child) {
             $ids = array_merge($ids, $this->getAllCategoryIds($child));
         }
+
         return $ids;
     }
 
     protected function formatMediaUrl(?string $path, ?string $fallback = null): string
     {
-        if (!$path) {
+        if (! $path) {
             return $fallback ?? '';
         }
 
@@ -623,21 +629,21 @@ class HomeController extends Controller
         $normalized = ltrim($path, '/');
         $normalized = preg_replace('#^(files|storage|media-files)/#', '', $normalized);
 
-        return '/media-files/' . $normalized;
+        return '/media-files/'.$normalized;
     }
 
     public function dashboard()
     {
         $categories = $this->getTopCategories();
         $user = Auth::guard('customer')->user() ?: Auth::user();
-        
-        // Find the customer record. If the logged in user is not a Customer model, 
+
+        // Find the customer record. If the logged in user is not a Customer model,
         // try to find a customer with the same email or phone.
-        $customer = $user instanceof \App\Models\Client_Sales\Customer 
-            ? $user 
+        $customer = $user instanceof \App\Models\Client_Sales\Customer
+            ? $user
             : \App\Models\Client_Sales\Customer::where('email', $user->email)->first();
 
-        if (!$customer && $user) {
+        if (! $customer && $user) {
             $phone = $user->phone ?? $user->mobile;
             if ($phone) {
                 $customer = \App\Models\Client_Sales\Customer::where('mobile', $phone)
@@ -695,8 +701,8 @@ class HomeController extends Controller
         $defaultAddress = null;
 
         if ($user) {
-            $customer = $user instanceof \App\Models\Client_Sales\Customer 
-                ? $user 
+            $customer = $user instanceof \App\Models\Client_Sales\Customer
+                ? $user
                 : \App\Models\Client_Sales\Customer::where('email', $user->email)->first();
 
             if ($customer) {
@@ -704,9 +710,9 @@ class HomeController extends Controller
                     ->where('is_default', true)
                     ->with(['country', 'city'])
                     ->first();
-                
+
                 // If no explicit default, just get the latest one
-                if (!$defaultAddress) {
+                if (! $defaultAddress) {
                     $defaultAddress = CustomerAddress::where('customer_id', $customer->id)
                         ->with(['country', 'city'])
                         ->latest()
@@ -724,7 +730,7 @@ class HomeController extends Controller
     protected function buildCartData(Request $request): array
     {
         $cart = $request->session()->get('cart', []);
-        if (!is_array($cart)) {
+        if (! is_array($cart)) {
             $cart = [];
         }
 
@@ -746,7 +752,7 @@ class HomeController extends Controller
         $subTotal = 0.0;
 
         $formatImage = function ($img) {
-            if (!$img) {
+            if (! $img) {
                 return null;
             }
 
@@ -757,13 +763,13 @@ class HomeController extends Controller
             $normalized = ltrim($img, '/');
             $normalized = preg_replace('#^(files|storage|media-files)/#', '', $normalized);
 
-            return '/media-files/' . $normalized;
+            return '/media-files/'.$normalized;
         };
 
         foreach ($cart as $itemKey => $cartItem) {
             $productId = (int) ($cartItem['product_id'] ?? 0);
             $product = $products->get($productId);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -777,7 +783,7 @@ class HomeController extends Controller
             $subTotal += $lineTotal;
 
             $image = $product->image;
-            if (!$image && $product->parent) {
+            if (! $image && $product->parent) {
                 $image = $product->parent->image;
             }
 
@@ -826,13 +832,13 @@ class HomeController extends Controller
     {
         $transformed = $category->toArray();
         $transformed['name'] = $category->getTranslated('name_json') ?: $category->name;
-        
+
         if ($category->relationLoaded('children')) {
             $transformed['children'] = $category->children->map(function ($child) {
                 return $this->transformCategory($child);
             });
         }
-        
+
         return $transformed;
     }
 

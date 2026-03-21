@@ -16,24 +16,24 @@ return new class extends Migration
             Schema::table('suppliers', function (Blueprint $table) {
                 // Add the foreign key
                 $table->foreign('supplier_group_id', 'fk_suppliers_group_id')
-                      ->references('id')
-                      ->on('supplier_groups')
-                      ->onDelete('restrict');
+                    ->references('id')
+                    ->on('supplier_groups')
+                    ->onDelete('restrict');
             });
         }
 
         // 2. Restore product_supplier table if it doesn't exist
-        if (!Schema::hasTable('product_supplier')) {
+        if (! Schema::hasTable('product_supplier')) {
             Schema::create('product_supplier', function (Blueprint $table) {
                 $table->id();
 
                 $table->foreignId('product_id')->constrained('products')->onDelete('cascade');
                 $table->foreignId('supplier_id')->constrained('suppliers')->onDelete('cascade');
-                
+
                 $table->decimal('cost_price', 10, 2)->nullable();
                 $table->string('supplier_sku')->nullable();
                 $table->timestamps();
-                
+
                 // Add unique constraint to prevent duplicates
                 $table->unique(['product_id', 'supplier_id']);
             });

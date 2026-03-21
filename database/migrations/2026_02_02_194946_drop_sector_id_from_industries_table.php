@@ -33,7 +33,7 @@ return new class extends Migration
     {
         if (Schema::hasTable('industries')) {
             Schema::table('industries', function (Blueprint $table) {
-                if (!Schema::hasColumn('industries', 'sector_id')) {
+                if (! Schema::hasColumn('industries', 'sector_id')) {
                     if (Schema::hasTable('sectors')) {
                         $table->foreignId('sector_id')->nullable()->constrained('sectors');
                     } else {

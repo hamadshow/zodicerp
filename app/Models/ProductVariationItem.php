@@ -28,4 +28,3 @@ class ProductVariationItem extends Model
         return $this->belongsTo(ItemAttribute::class, 'attribute_id');
     }
 }
-

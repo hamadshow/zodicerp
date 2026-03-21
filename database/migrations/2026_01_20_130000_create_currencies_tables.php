@@ -39,7 +39,7 @@ return new class extends Migration
             $table->timestamp('created_at')->nullable();
 
             $table->unique(['from_currency_id', 'to_currency_id', 'rate_date'], 'exchange_rates_unique');
-            
+
             $table->charset = 'utf8mb4';
             $table->collation = 'utf8mb4_unicode_ci';
         });

@@ -2,16 +2,16 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
+use App\Models\Brands;
+use App\Models\Categories;
+use App\Models\ItemAttribute;
+use App\Models\ItemAttributeDetail;
 use App\Models\Products;
 use App\Models\ProductVariation;
 use App\Models\ProductVariationItem;
-use App\Models\ItemAttribute;
-use App\Models\ItemAttributeDetail;
-use App\Models\Categories;
-use App\Models\Brands;
-use Illuminate\Support\Str;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class ProductTestSeeder extends Seeder
 {
@@ -28,7 +28,7 @@ class ProductTestSeeder extends Seeder
                     'is_searchable' => true,
                     'is_comparable' => true,
                     'is_use_in_product_listing' => true,
-                    'order' => 0
+                    'order' => 0,
                 ]
             );
 
@@ -50,7 +50,7 @@ class ProductTestSeeder extends Seeder
                     'is_searchable' => true,
                     'is_comparable' => true,
                     'is_use_in_product_listing' => true,
-                    'order' => 1
+                    'order' => 1,
                 ]
             );
 
@@ -67,10 +67,10 @@ class ProductTestSeeder extends Seeder
             $category = Categories::firstOrCreate(
                 ['slug' => 'test-category'],
                 [
-                    'name' => 'Test Category', 
-                    'status' => 'active', 
+                    'name' => 'Test Category',
+                    'status' => 'active',
                     'order' => 999,
-                    'category_code' => 'TEST-CAT-001'
+                    'category_code' => 'TEST-CAT-001',
                 ]
             );
 
@@ -137,7 +137,7 @@ class ProductTestSeeder extends Seeder
                     'attributes' => [
                         ['id' => $colorAttr->id, 'value' => $colorDetails['Red']->id],
                         ['id' => $sizeAttr->id, 'value' => $sizeDetails['Small']->id],
-                    ]
+                    ],
                 ],
                 [
                     'sku' => 'TEST-VAR-RED-M',
@@ -148,7 +148,7 @@ class ProductTestSeeder extends Seeder
                     'attributes' => [
                         ['id' => $colorAttr->id, 'value' => $colorDetails['Red']->id],
                         ['id' => $sizeAttr->id, 'value' => $sizeDetails['Medium']->id],
-                    ]
+                    ],
                 ],
                 [
                     'sku' => 'TEST-VAR-BLUE-S',
@@ -159,7 +159,7 @@ class ProductTestSeeder extends Seeder
                     'attributes' => [
                         ['id' => $colorAttr->id, 'value' => $colorDetails['Blue']->id],
                         ['id' => $sizeAttr->id, 'value' => $sizeDetails['Small']->id],
-                    ]
+                    ],
                 ],
             ];
 
@@ -167,7 +167,7 @@ class ProductTestSeeder extends Seeder
                 $childProduct = Products::create([
                     'product_code' => $vData['sku'],
                     'name' => $variableProduct->name,
-                    'slug' => $variableProduct->slug . '-' . strtolower(str_replace(' ', '-', $vData['sku'])),
+                    'slug' => $variableProduct->slug.'-'.strtolower(str_replace(' ', '-', $vData['sku'])),
                     'description' => $variableProduct->description,
                     'content' => $variableProduct->content,
                     'status' => $variableProduct->status,
@@ -235,7 +235,7 @@ class ProductTestSeeder extends Seeder
             }
 
             $variableProduct->update(['variations_count' => count($variationsData)]);
-            $this->command->info("Variable Product Created: {$variableProduct->name} (ID: {$variableProduct->id}) with " . count($variationsData) . " variations.");
+            $this->command->info("Variable Product Created: {$variableProduct->name} (ID: {$variableProduct->id}) with ".count($variationsData).' variations.');
         });
     }
 }

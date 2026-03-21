@@ -23,11 +23,11 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('countries', function (Blueprint $table) {
-            if (!Schema::hasColumn('countries', 'latitude')) {
+            if (! Schema::hasColumn('countries', 'latitude')) {
                 $table->decimal('latitude', 10, 7)->nullable();
             }
 
-            if (!Schema::hasColumn('countries', 'longitude')) {
+            if (! Schema::hasColumn('countries', 'longitude')) {
                 $table->decimal('longitude', 10, 7)->nullable();
             }
         });

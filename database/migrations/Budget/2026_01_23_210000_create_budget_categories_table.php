@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('budget_categories')) {
+        if (! Schema::hasTable('budget_categories')) {
             Schema::create('budget_categories', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('parent_id')->nullable()->constrained('budget_categories')->nullOnDelete();
@@ -51,14 +51,14 @@ return new class extends Migration
                 $table->timestamps();
 
                 $table->index('category_type');
-                // Laravel doesn't support prefix indexing in fluent syntax easily for all drivers, 
-                // but we can add a raw index or just index the column. 
+                // Laravel doesn't support prefix indexing in fluent syntax easily for all drivers,
+                // but we can add a raw index or just index the column.
                 // User asked for path(255). We'll try raw statement if needed, or just index 'path'.
                 $table->index('path');
             });
-            
+
             // Adding prefix index if supported (MySQL specific)
-            
+
         }
     }
 

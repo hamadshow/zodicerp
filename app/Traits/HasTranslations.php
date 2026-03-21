@@ -7,8 +7,6 @@ trait HasTranslations
     /**
      * Get translated field.
      *
-     * @param string $field
-     * @param string|null $locale
      * @return mixed
      */
     public function getTranslated(string $field, ?string $locale = null)
@@ -20,7 +18,7 @@ trait HasTranslations
             $translations = json_decode($translations, true);
         }
 
-        if (!is_array($translations)) {
+        if (! is_array($translations)) {
             return $translations;
         }
 
@@ -30,9 +28,7 @@ trait HasTranslations
     /**
      * Set translated field.
      *
-     * @param string $field
-     * @param string $locale
-     * @param mixed $value
+     * @param  mixed  $value
      * @return $this
      */
     public function setTranslation(string $field, string $locale, $value)

@@ -4,6 +4,7 @@
     </IfModule>
 
     RewriteEngine On
+RewriteRule ^build/(.*)$ public/build/$1 [L]
 RewriteRule ^storage/(.*)$ public/storage/$1 [L]
 
     # Handle Authorization Header

@@ -3,19 +3,17 @@
 namespace App\Http\Controllers\Backend\Client_Sales;
 
 use App\Http\Controllers\Controller;
-use App\Models\Client_Sales\SalesOrder;
-use App\Models\Client_Sales\SalesOrderDetail;
 use App\Models\Client_Sales\Customer;
 use App\Models\Client_Sales\CustomerAddress;
+use App\Models\Client_Sales\SalesOrder;
 use App\Models\Currency;
-use App\Models\Warehouses;
 use App\Models\ItemUnit;
 use App\Models\Products;
-use App\Models\User;
+use App\Models\Warehouses;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class SalesOrderController extends Controller
 {
@@ -29,10 +27,10 @@ class SalesOrderController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('order_number', 'like', "%{$search}%")
-                  ->orWhereHas('customer', function ($q) use ($search) {
-                      $q->where('name_en', 'like', "%{$search}%")
-                        ->orWhere('name_ar', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('customer', function ($q) use ($search) {
+                        $q->where('name_en', 'like', "%{$search}%")
+                            ->orWhere('name_ar', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -53,7 +51,7 @@ class SalesOrderController extends Controller
             ->get();
         $units = ItemUnit::select('id', 'name as name_en', 'name as name_ar')->get();
         $warehouses = Warehouses::select('id', 'name as name_en', 'name as name_ar')->get();
-        
+
         // Fetch addresses for all customers (can be optimized to fetch on demand)
         $customerAddresses = CustomerAddress::select('id', 'customer_id', 'address_name', 'city_id', 'is_default')
             ->with('city')
@@ -91,7 +89,7 @@ class SalesOrderController extends Controller
         DB::beginTransaction();
         try {
             // Auto-generate number if not provided
-            $number = 'SO-' . date('Ymd') . '-' . rand(1000, 9999);
+            $number = 'SO-'.date('Ymd').'-'.rand(1000, 9999);
 
             $order = SalesOrder::create([
                 'order_number' => $number,
@@ -107,7 +105,7 @@ class SalesOrderController extends Controller
                 'customer_notes' => $request->customer_notes,
                 'internal_notes' => $request->internal_notes,
                 'created_by' => Auth::id(),
-                
+
                 // Financials
                 'subtotal' => $request->subtotal ?? 0,
                 'tax_amount' => $request->tax_amount ?? 0,
@@ -130,18 +128,20 @@ class SalesOrderController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Sales Order created successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error creating order: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error creating order: '.$e->getMessage());
         }
     }
 
     public function update(Request $request, $id)
     {
         $order = SalesOrder::findOrFail($id);
-        
+
         $validated = $request->validate([
             'order_date' => 'required|date',
             'customer_id' => 'required|exists:customers,id',
@@ -187,11 +187,13 @@ class SalesOrderController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Sales Order updated successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error updating order: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error updating order: '.$e->getMessage());
         }
     }
 
@@ -200,9 +202,10 @@ class SalesOrderController extends Controller
         try {
             $order = SalesOrder::findOrFail($id);
             $order->delete(); // Soft delete
+
             return redirect()->back()->with('success', 'Sales Order deleted successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error deleting order: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error deleting order: '.$e->getMessage());
         }
     }
 }

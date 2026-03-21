@@ -3,7 +3,6 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -13,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         // Drop if exists to ensure fresh schema matching user request
-        Schema::dropIfExists('companies');
+        Schema::dropIfExists('companies_shares');
 
-        Schema::create('companies', function (Blueprint $table) {
+        Schema::create('companies_shares', function (Blueprint $table) {
             $table->id();
 
             // Identifiers
@@ -107,7 +106,7 @@ return new class extends Migration
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->date('verified_at')->nullable();
             $table->unsignedBigInteger('verified_by')->nullable();
-            
+
             $table->timestamps();
 
             // Additional Indexes from user SQL
@@ -121,6 +120,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('companies');
+        Schema::dropIfExists('companies_shares');
     }
 };

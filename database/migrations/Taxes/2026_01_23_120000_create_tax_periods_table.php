@@ -14,39 +14,39 @@ return new class extends Migration
         Schema::create('tax_periods', function (Blueprint $table) {
             $table->id();
             $table->string('period_code', 50)->unique();
-            
+
             // Scope
             if (Schema::hasTable('countries')) {
                 $table->foreignId('country_id')->constrained('countries');
             } else {
                 $table->unsignedBigInteger('country_id');
             }
-            
+
             $table->foreignId('tax_type_id')->constrained('tax_types');
-            
+
             // Period
             $table->enum('period_type', ['monthly', 'quarterly', 'semi_annual', 'annual', 'custom']);
             $table->integer('period_year');
             $table->integer('period_number')->nullable();
             $table->string('period_name_ar', 100);
             $table->string('period_name_en', 100)->nullable();
-            
+
             // Dates
             $table->date('start_date');
             $table->date('end_date');
             $table->date('due_date');
             $table->date('filing_deadline');
-            
+
             // Status
             $table->enum('status', ['open', 'closed', 'locked', 'extended'])->default('open');
             $table->boolean('is_extended')->default(false);
             $table->integer('extension_days')->default(0);
-            
+
             // System
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('closed_by')->nullable();
             $table->date('closed_date')->nullable();
-            
+
             $table->timestamps();
 
             // Constraints and Indexes

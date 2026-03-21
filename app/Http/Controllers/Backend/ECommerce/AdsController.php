@@ -12,7 +12,7 @@ class AdsController extends Controller
 {
     public function index(Request $request)
     {
-        if (!$request->wantsJson()) {
+        if (! $request->wantsJson()) {
             return \Inertia\Inertia::render('Backend/E-Commerce/Ads');
         }
 
@@ -21,10 +21,10 @@ class AdsController extends Controller
         if ($request->filled('search')) {
             $search = $request->string('search')->toString();
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('key', 'like', '%' . $search . '%')
-                    ->orWhere('location', 'like', '%' . $search . '%')
-                    ->orWhere('url', 'like', '%' . $search . '%');
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('key', 'like', '%'.$search.'%')
+                    ->orWhere('location', 'like', '%'.$search.'%')
+                    ->orWhere('url', 'like', '%'.$search.'%');
             });
         }
 
@@ -48,7 +48,7 @@ class AdsController extends Controller
         $direction = $request->get('direction', 'asc') === 'desc' ? 'desc' : 'asc';
 
         $allowedSorts = ['name', 'order', 'status', 'clicked', 'expired_at', 'created_at'];
-        if (!in_array($sort, $allowedSorts, true)) {
+        if (! in_array($sort, $allowedSorts, true)) {
             $sort = 'order';
         }
 
@@ -72,7 +72,7 @@ class AdsController extends Controller
     public function create()
     {
         return \Inertia\Inertia::render('Backend/E-Commerce/Ads', [
-            'mode' => 'create'
+            'mode' => 'create',
         ]);
     }
 
@@ -80,7 +80,7 @@ class AdsController extends Controller
     {
         return \Inertia\Inertia::render('Backend/E-Commerce/Ads', [
             'mode' => 'edit',
-            'adId' => $ad->id
+            'adId' => $ad->id,
         ]);
     }
 
@@ -145,7 +145,7 @@ class AdsController extends Controller
             'name' => ['required', 'string', 'max:191'],
             'expired_at' => ['nullable', 'date'],
             'location' => ['nullable', 'string', 'max:120'],
-            'key' => ['required', 'string', 'max:120', 'unique:ads,key,' . $ad->id],
+            'key' => ['required', 'string', 'max:120', 'unique:ads,key,'.$ad->id],
             'url' => ['nullable', 'url', 'max:191'],
             'order' => ['nullable', 'integer', 'min:0'],
             'status' => ['nullable', 'string', 'max:60'],
@@ -278,7 +278,7 @@ class AdsController extends Controller
         if ($request->hasFile($field)) {
             $file = $request->file($field);
 
-            if (!$file->isValid()) {
+            if (! $file->isValid()) {
                 return $existingPath;
             }
 
@@ -289,14 +289,14 @@ class AdsController extends Controller
             $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
             $extension = strtolower($file->getClientOriginalExtension());
 
-            if (!in_array($extension, $allowedExtensions, true)) {
+            if (! in_array($extension, $allowedExtensions, true)) {
                 return $existingPath;
             }
 
-            return $file->store('ads/' . $field, 'public');
+            return $file->store('ads/'.$field, 'public');
         }
 
-        $pathField = $field . '_path';
+        $pathField = $field.'_path';
 
         if ($request->filled($pathField)) {
             $path = $request->string($pathField)->toString();
@@ -311,7 +311,7 @@ class AdsController extends Controller
 
     private function deleteStoredFile(?string $path): void
     {
-        if (!$path) {
+        if (! $path) {
             return;
         }
 

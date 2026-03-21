@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Backend\Cash;
 
 use App\Http\Controllers\Controller;
+use App\Models\CashAccount;
 use App\Models\Cheque;
 use App\Models\ChequeTransaction;
-use App\Models\CashAccount;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class ChequeController extends Controller
 {
@@ -21,9 +21,9 @@ class ChequeController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('cheque_no', 'like', "%{$search}%")
-                  ->orWhere('bank_name', 'like', "%{$search}%")
-                  ->orWhere('owner_name', 'like', "%{$search}%")
-                  ->orWhere('reference_no', 'like', "%{$search}%");
+                    ->orWhere('bank_name', 'like', "%{$search}%")
+                    ->orWhere('owner_name', 'like', "%{$search}%")
+                    ->orWhere('reference_no', 'like', "%{$search}%");
             });
         }
 
@@ -63,6 +63,7 @@ class ChequeController extends Controller
     public function create()
     {
         $accounts = CashAccount::select('id', 'name', 'account_code')->get();
+
         return Inertia::render('Backend/06-Cash/ChequeCE', [
             'accounts' => $accounts,
         ]);
@@ -95,7 +96,7 @@ class ChequeController extends Controller
                 'action_date' => now(),
                 'account_id' => $validated['account_id'],
                 'amount' => $validated['amount'],
-                'notes' => 'Cheque created initially with status: ' . $validated['status'],
+                'notes' => 'Cheque created initially with status: '.$validated['status'],
                 'created_by' => Auth::id(),
             ]);
         });
@@ -107,7 +108,7 @@ class ChequeController extends Controller
     {
         $accounts = CashAccount::select('id', 'name', 'account_code')->get();
         $cheque->load('transactions.creator', 'transactions.account');
-        
+
         return Inertia::render('Backend/06-Cash/ChequeCE', [
             'cheque' => $cheque,
             'accounts' => $accounts,
@@ -117,7 +118,7 @@ class ChequeController extends Controller
     public function update(Request $request, Cheque $cheque)
     {
         $validated = $request->validate([
-            'cheque_no' => 'required|string|max:50|unique:cheques,cheque_no,' . $cheque->id,
+            'cheque_no' => 'required|string|max:50|unique:cheques,cheque_no,'.$cheque->id,
             'bank_name' => 'required|string|max:100',
             'account_id' => 'nullable|exists:cash_accounts,id',
             'owner_name' => 'required|string|max:100',
@@ -147,8 +148,8 @@ class ChequeController extends Controller
                     'created_by' => Auth::id(),
                 ]);
             } else {
-                 // Log generic update
-                 ChequeTransaction::create([
+                // Log generic update
+                ChequeTransaction::create([
                     'cheque_id' => $cheque->id,
                     'action' => 'updated',
                     'action_date' => now(),
@@ -166,6 +167,7 @@ class ChequeController extends Controller
     public function destroy(Cheque $cheque)
     {
         $cheque->delete();
+
         return redirect()->route('admin.cheques.index')->with('success', 'Cheque deleted successfully.');
     }
 }

@@ -26,7 +26,7 @@ return new class extends Migration
             $table->string('status', 60)->default('published');
             $table->unsignedTinyInteger('order')->default(0);
             $table->unsignedTinyInteger('use_image_from_product_variation')->default(0);
-            
+
             $table->timestamps();
             $table->softDeletes();
         });
@@ -46,16 +46,16 @@ return new class extends Migration
             $table->string('image', 191)->nullable();
             $table->unsignedTinyInteger('is_default')->default(0);
             $table->unsignedTinyInteger('order')->default(0);
-            
+
             $table->timestamps();
             $table->softDeletes(); // Enabled as per general requirement
 
             // Indexes and Constraints
             $table->index('attribute_set_id', 'attribute_set_id_index');
             $table->foreign('attribute_set_id')
-                  ->references('id')
-                  ->on('item_attributes')
-                  ->onDelete('cascade');
+                ->references('id')
+                ->on('item_attributes')
+                ->onDelete('cascade');
         });
     }
 

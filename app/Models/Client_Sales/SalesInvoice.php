@@ -2,15 +2,15 @@
 
 namespace App\Models\Client_Sales;
 
+use App\Models\Currency;
+use App\Models\User;
+use App\Models\Vendor_Purchases\PriceList;
+use App\Models\Vendor_Purchases\SalesAgent;
+use App\Models\Vendor_Purchases\SalesQuotation;
+use App\Models\Warehouses;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Vendor_Purchases\SalesQuotation;
-use App\Models\Currency;
-use App\Models\Vendor_Purchases\PriceList;
-use App\Models\Warehouses;
-use App\Models\Vendor_Purchases\SalesAgent;
-use App\Models\User;
 
 class SalesInvoice extends Model
 {

@@ -27,7 +27,7 @@ export default function Login({ status, canResetPassword }) {
   const submit = (e) => {
     e.preventDefault();
 
-    post(getLocalizedRoute('login'), {
+    post(getLocalizedRoute('login.store'), {
       onFinish: () => reset('password'),
     });
   };

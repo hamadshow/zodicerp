@@ -11,15 +11,15 @@ class EnsureUserHasRole
     public function handle(Request $request, Closure $next, string $role): Response
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login', [
                 'country' => session('country_code', 'sa'),
-                'lang' => session('locale', 'ar')
+                'lang' => session('locale', 'ar'),
             ]);
         }
 
         if (method_exists($user, 'hasRole')) {
-            if (!$user->hasRole($role)) {
+            if (! $user->hasRole($role)) {
                 abort(403);
             }
         } else {
@@ -32,4 +32,3 @@ class EnsureUserHasRole
         return $next($request);
     }
 }
-

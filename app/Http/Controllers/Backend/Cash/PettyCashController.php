@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Backend\Cash;
 
 use App\Http\Controllers\Controller;
-use App\Models\CashAccount;
 use App\Models\Bank;
+use App\Models\CashAccount;
 use App\Models\Currency;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class PettyCashController extends Controller
 {
@@ -20,7 +20,7 @@ class PettyCashController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('account_code', 'like', "%{$search}%");
+                    ->orWhere('account_code', 'like', "%{$search}%");
             });
         }
 
@@ -32,7 +32,7 @@ class PettyCashController extends Controller
 
         // Get Banks for dropdown
         $banks = Bank::where('status', 'active')->select('id', 'name')->get();
-        
+
         $currencies = Currency::where('status', 'active')->select('id', 'code', 'name')->get();
 
         return Inertia::render('Backend/06-Cash/PettyCash', [
@@ -67,7 +67,7 @@ class PettyCashController extends Controller
     public function update(Request $request, CashAccount $petty_cash)
     {
         $validated = $request->validate([
-            'account_code' => 'required|string|unique:cash_accounts,account_code,' . $petty_cash->id,
+            'account_code' => 'required|string|unique:cash_accounts,account_code,'.$petty_cash->id,
             'name' => 'required|string|max:255',
             'type' => 'nullable|string|max:50',
             'bank_id' => 'nullable|exists:banks,id',
@@ -88,6 +88,7 @@ class PettyCashController extends Controller
     public function destroy(CashAccount $petty_cash)
     {
         $petty_cash->delete();
+
         return redirect()->back()->with('success', 'Cash account deleted successfully.');
     }
 }

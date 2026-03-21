@@ -27,7 +27,7 @@ class CustomerContact extends Model
         'receive_marketing',
         'notes',
         'birthday',
-        'anniversary'
+        'anniversary',
     ];
 
     protected $casts = [

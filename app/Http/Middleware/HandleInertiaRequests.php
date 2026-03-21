@@ -2,14 +2,12 @@
 
 namespace App\Http\Middleware;
 
-use Illuminate\Http\Request;
-use Inertia\Middleware;
-
 use App\Models\Language;
-
 use App\Models\LanguageLine;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cache;
+use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -28,14 +26,14 @@ class HandleInertiaRequests extends Middleware
             $dbTranslations = LanguageLine::query()
                 ->select(['group', 'key'])
                 ->selectRaw(
-                    "COALESCE(" .
-                        "JSON_UNQUOTE(JSON_EXTRACT(text, '$.\"{$safeLocale}\"'))," .
-                        "JSON_UNQUOTE(JSON_EXTRACT(text, '$.\"{$safeFallbackLocale}\"'))," .
-                        "`key`" .
-                    ") as value"
+                    'COALESCE('.
+                        "JSON_UNQUOTE(JSON_EXTRACT(text, '$.\"{$safeLocale}\"')),".
+                        "JSON_UNQUOTE(JSON_EXTRACT(text, '$.\"{$safeFallbackLocale}\"')),".
+                        '`key`'.
+                    ') as value'
                 )
                 ->get()
-                ->mapWithKeys(fn ($line) => [($line->group . '.' . $line->key) => $line->value])
+                ->mapWithKeys(fn ($line) => [($line->group.'.'.$line->key) => $line->value])
                 ->toArray();
 
             $fileTranslations = [];
@@ -74,7 +72,7 @@ class HandleInertiaRequests extends Middleware
                 }
             }
         }
-        
+
         $user = $request->user();
         $customer = $request->user('customer');
         $supplier = $request->user('supplier');

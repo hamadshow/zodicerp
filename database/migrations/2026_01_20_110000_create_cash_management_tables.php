@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // Cash Accounts
-        if (!Schema::hasTable('cash_accounts')) {
+        if (! Schema::hasTable('cash_accounts')) {
             Schema::create('cash_accounts', function (Blueprint $table) {
                 $table->id();
                 $table->string('account_code', 50)->unique();
@@ -35,7 +35,7 @@ return new class extends Migration
         }
 
         // Cash Payments
-        if (!Schema::hasTable('cash_payments')) {
+        if (! Schema::hasTable('cash_payments')) {
             Schema::create('cash_payments', function (Blueprint $table) {
                 $table->id();
                 $table->string('voucher_no', 50)->unique();
@@ -57,7 +57,7 @@ return new class extends Migration
         }
 
         // Cash Receipts
-        if (!Schema::hasTable('cash_receipts')) {
+        if (! Schema::hasTable('cash_receipts')) {
             Schema::create('cash_receipts', function (Blueprint $table) {
                 $table->id();
                 $table->string('voucher_no', 50)->unique();
@@ -79,7 +79,7 @@ return new class extends Migration
         }
 
         // Transfers
-        if (!Schema::hasTable('transfers')) {
+        if (! Schema::hasTable('transfers')) {
             Schema::create('transfers', function (Blueprint $table) {
                 $table->id();
                 $table->string('transfer_no', 50)->unique();

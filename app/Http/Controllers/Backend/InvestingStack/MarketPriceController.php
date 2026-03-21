@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Backend\InvestingStack;
 
 use App\Http\Controllers\Controller;
-use App\Models\InvestingStack\MarketPrice;
 use App\Models\InvestingStack\ListedCompany;
+use App\Models\InvestingStack\MarketPrice;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -16,11 +16,11 @@ class MarketPriceController extends Controller
 
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->whereHas('instrument', function($q) use ($search) {
+            $query->whereHas('instrument', function ($q) use ($search) {
                 $q->where('company_name', 'like', "%{$search}%")
-                  ->orWhere('company_code', 'like', "%{$search}%")
-                  ->orWhere('legal_name_ar', 'like', "%{$search}%")
-                  ->orWhere('legal_name_en', 'like', "%{$search}%");
+                    ->orWhere('company_code', 'like', "%{$search}%")
+                    ->orWhere('legal_name_ar', 'like', "%{$search}%")
+                    ->orWhere('legal_name_en', 'like', "%{$search}%");
             });
         }
 
@@ -102,6 +102,7 @@ class MarketPriceController extends Controller
     public function destroy(MarketPrice $marketPrice)
     {
         $marketPrice->delete();
+
         return redirect()->back()->with('success', 'Market Price deleted successfully.');
     }
 }

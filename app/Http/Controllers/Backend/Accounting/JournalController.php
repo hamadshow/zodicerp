@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 class JournalController extends Controller
 {
     protected string $journalCodePrefix = 'QID-';
+
     protected int $journalCodeStart = 10001;
 
     public function nextCode()
@@ -27,7 +28,7 @@ class JournalController extends Controller
 
         $nextNumber = $this->nextNumericPart($lastCode ?? '', $start);
 
-        return response()->json(['next_code' => $prefix . $nextNumber]);
+        return response()->json(['next_code' => $prefix.$nextNumber]);
     }
 
     public function index(Request $request)
@@ -37,10 +38,10 @@ class JournalController extends Controller
         if ($request->filled('search')) {
             $search = $request->string('search')->toString();
             $query->where(function ($q) use ($search) {
-                $q->where('entry_code', 'like', '%' . $search . '%')
-                    ->orWhere('entry_type', 'like', '%' . $search . '%')
-                    ->orWhere('reference', 'like', '%' . $search . '%')
-                    ->orWhere('description', 'like', '%' . $search . '%');
+                $q->where('entry_code', 'like', '%'.$search.'%')
+                    ->orWhere('entry_type', 'like', '%'.$search.'%')
+                    ->orWhere('reference', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%');
             });
         }
 
@@ -59,7 +60,7 @@ class JournalController extends Controller
 
         return DB::transaction(function () use ($data, $lines) {
             $code = $this->generateNextEntryCode();
-            
+
             $total = 0;
             foreach ($lines as $line) {
                 $total += (float) ($line['debit'] ?? 0);
@@ -99,7 +100,7 @@ class JournalController extends Controller
     public function show(string $entryCode)
     {
         $header = JournalEntry::where('entry_code', $entryCode)->first();
-        if (!$header) {
+        if (! $header) {
             return response()->json(['message' => 'Journal entry not found.'], 404);
         }
 
@@ -136,12 +137,12 @@ class JournalController extends Controller
 
         $accountsQuery = DB::table('accounts');
 
-        if (!empty($numericIds)) {
+        if (! empty($numericIds)) {
             $accountsQuery->whereIn('AccID', $numericIds);
         }
 
-        if (!empty($codeValues)) {
-            if (!empty($numericIds)) {
+        if (! empty($codeValues)) {
+            if (! empty($numericIds)) {
                 $accountsQuery->orWhereIn('AccCode', $codeValues);
             } else {
                 $accountsQuery->whereIn('AccCode', $codeValues);
@@ -170,7 +171,7 @@ class JournalController extends Controller
                         $mappedAccID = $accountsById[$key]->AccID;
                     }
                 }
-                
+
                 // If not found as ID, try to match as AccCode
                 if ($mappedAccID === null) {
                     $key = (string) $value;
@@ -212,7 +213,7 @@ class JournalController extends Controller
         if (abs($totalDebit - $totalCredit) > 0.01) {
             abort(
                 response()->json([
-                    'message' => 'Journal entry is not balanced. Total Debit: ' . $totalDebit . ', Total Credit: ' . $totalCredit,
+                    'message' => 'Journal entry is not balanced. Total Debit: '.$totalDebit.', Total Credit: '.$totalCredit,
                 ], 422)
             );
         }
@@ -222,7 +223,7 @@ class JournalController extends Controller
     {
         $accountIds = [];
         foreach ($lines as $line) {
-            if (!array_key_exists('account_id', $line)) {
+            if (! array_key_exists('account_id', $line)) {
                 continue;
             }
             $accountIds[] = (int) $line['account_id'];
@@ -243,7 +244,7 @@ class JournalController extends Controller
         }
 
         foreach ($accountIds as $id) {
-            if (!array_key_exists($id, $byId)) {
+            if (! array_key_exists($id, $byId)) {
                 abort(
                     response()->json([
                         'message' => 'One or more accounts used in journal lines no longer exist.',
@@ -268,6 +269,7 @@ class JournalController extends Controller
         if (preg_match('/(\d+)$/', $lastCode, $matches)) {
             return (string) ((int) $matches[1] + 1);
         }
+
         return (string) $start;
     }
 
@@ -284,13 +286,13 @@ class JournalController extends Controller
 
         $nextNumber = $this->nextNumericPart($lastCode ?? '', $start);
 
-        return $prefix . $nextNumber;
+        return $prefix.$nextNumber;
     }
 
     public function update(UpdateJournalRequest $request, string $entryCode)
     {
         $header = JournalEntry::where('entry_code', $entryCode)->first();
-        if (!$header) {
+        if (! $header) {
             return response()->json(['message' => 'Journal entry not found.'], 404);
         }
 
@@ -344,7 +346,7 @@ class JournalController extends Controller
     public function destroy(string $entryCode)
     {
         $header = JournalEntry::where('entry_code', $entryCode)->first();
-        if (!$header) {
+        if (! $header) {
             return response()->json(['message' => 'Journal entry not found.'], 404);
         }
 
@@ -381,7 +383,7 @@ class JournalController extends Controller
             ->where('AccID', $accountId)
             ->first(['AccID', 'AccCode', 'AccName', 'AccDmType']);
 
-        if (!$account) {
+        if (! $account) {
             return response()->json(['message' => 'Account not found.'], 404);
         }
 

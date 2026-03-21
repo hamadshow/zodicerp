@@ -11,6 +11,7 @@ class TaxAuditLog extends Model
     use HasFactory;
 
     protected $table = 'tax_audit_log';
+
     public $timestamps = false;
 
     protected $fillable = [

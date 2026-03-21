@@ -1,4 +1,5 @@
 <?php
+
 return [
     'view_all_categories' => 'عرض كل الفئات',
     'all_categories' => 'كل الفئات',

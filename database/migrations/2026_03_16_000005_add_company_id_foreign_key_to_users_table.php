@@ -9,11 +9,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasTable('users')) {
+        if (! Schema::hasTable('users')) {
             return;
         }
 
-        if (!Schema::hasColumn('users', 'company_id')) {
+        if (! Schema::hasColumn('users', 'company_id')) {
             Schema::table('users', function (Blueprint $table) {
                 $table->unsignedBigInteger('company_id')->nullable()->index();
             });
@@ -24,7 +24,7 @@ return new class extends Migration
             $companyTable = 'company';
         }
 
-        if (!$companyTable) {
+        if (! $companyTable) {
             return;
         }
 
@@ -54,11 +54,11 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (!Schema::hasTable('users')) {
+        if (! Schema::hasTable('users')) {
             return;
         }
 
-        if (!Schema::hasColumn('users', 'company_id')) {
+        if (! Schema::hasColumn('users', 'company_id')) {
             return;
         }
 

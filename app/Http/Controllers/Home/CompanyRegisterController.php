@@ -21,7 +21,7 @@ class CompanyRegisterController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $userId = $request->user()?->id;
-        if (!$userId) {
+        if (! $userId) {
             abort(403, 'Unauthorized');
         }
 
@@ -73,7 +73,7 @@ class CompanyRegisterController extends Controller
 
         DB::transaction(function () use ($validated, $userId, &$createdCompanyId) {
             $lastCompany = Company::lockForUpdate()->orderBy('id', 'desc')->first();
-            $nextCode = (!$lastCompany || !$lastCompany->company_code) ? 10001 : (intval($lastCompany->company_code) + 1);
+            $nextCode = (! $lastCompany || ! $lastCompany->company_code) ? 10001 : (intval($lastCompany->company_code) + 1);
 
             $company = Company::create([
                 ...$validated,

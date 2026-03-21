@@ -22,9 +22,9 @@ return new class extends Migration
                 } catch (\Exception $e) {
                     // Foreign key might not exist or have different name, ignore
                 }
-                
+
                 try {
-                     $table->dropIndex('idx_sector_industry');
+                    $table->dropIndex('idx_sector_industry');
                 } catch (\Exception $e) {
                 }
 

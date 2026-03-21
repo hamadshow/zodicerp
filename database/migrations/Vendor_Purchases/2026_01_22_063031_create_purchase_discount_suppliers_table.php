@@ -16,14 +16,14 @@ return new class extends Migration
             $table->collation = 'utf8mb4_unicode_ci';
 
             $table->id();
-            
+
             $table->foreignId('discount_id')->constrained('purchase_discounts')->onDelete('cascade');
             // Using supplier_id as per previous discussions if it's not 'id' but the table definition used 'id'
             // The previous 'suppliers' table has 'id' as PK (from recent task).
             // But verify if we should use 'supplier_id' column name in FK referencing 'id'.
             // The user SQL says: supplier_id INT NOT NULL, FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
             $table->foreignId('supplier_id')->constrained('suppliers')->onDelete('cascade');
-            
+
             $table->unique(['discount_id', 'supplier_id'], 'unique_discount_supplier');
         });
     }

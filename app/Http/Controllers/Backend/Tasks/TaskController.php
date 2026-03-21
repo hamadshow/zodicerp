@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Backend\Tasks;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tasks\Task;
-use App\Models\Tasks\TaskStatus;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
+use App\Models\Tasks\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -23,34 +22,34 @@ class TaskController extends Controller
         $query = Task::with(['category', 'priority', 'status', 'creator', 'assignments.user']);
 
         // Search functionality
-        if ($request->has('search') && !empty($request->search)) {
+        if ($request->has('search') && ! empty($request->search)) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhereHas('category', function ($subQ) use ($search) {
-                      $subQ->where('name', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('creator', function ($subQ) use ($search) {
-                      $subQ->where('name', 'like', "%{$search}%");
-                  });
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhereHas('category', function ($subQ) use ($search) {
+                        $subQ->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('creator', function ($subQ) use ($search) {
+                        $subQ->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
         // Filters
-        if ($request->has('status_id') && !empty($request->status_id)) {
+        if ($request->has('status_id') && ! empty($request->status_id)) {
             $query->where('status_id', $request->status_id);
         }
 
-        if ($request->has('priority_id') && !empty($request->priority_id)) {
+        if ($request->has('priority_id') && ! empty($request->priority_id)) {
             $query->where('priority_id', $request->priority_id);
         }
 
-        if ($request->has('category_id') && !empty($request->category_id)) {
+        if ($request->has('category_id') && ! empty($request->category_id)) {
             $query->where('category_id', $request->category_id);
         }
 
-        if ($request->has('assignee_id') && !empty($request->assignee_id)) {
+        if ($request->has('assignee_id') && ! empty($request->assignee_id)) {
             $query->whereHas('assignments', function ($q) use ($request) {
                 $q->where('user_id', $request->assignee_id);
             });

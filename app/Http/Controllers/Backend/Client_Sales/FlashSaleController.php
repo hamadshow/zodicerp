@@ -7,26 +7,28 @@ use App\Models\Backend\Client_Sales\FlashSale;
 use App\Models\Backend\Client_Sales\FlashSaleItem;
 use App\Models\Products;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class FlashSaleController extends Controller
 {
     public function index()
     {
         $flashSales = FlashSale::latest()->paginate(10);
+
         return Inertia::render('Backend/E-Commerce/FlashSales', [
             'flashSales' => $flashSales,
-            'view' => 'list'
+            'view' => 'list',
         ]);
     }
 
     public function create()
     {
         $flashSales = FlashSale::latest()->paginate(10);
+
         return Inertia::render('Backend/E-Commerce/FlashSales', [
             'flashSales' => $flashSales,
-            'view' => 'create'
+            'view' => 'create',
         ]);
     }
 
@@ -68,7 +70,7 @@ class FlashSaleController extends Controller
     {
         $flashSales = FlashSale::latest()->paginate(10);
         $flashSale = FlashSale::with(['items.product'])->findOrFail($id);
-        
+
         // Transform items to match the expected structure in frontend
         $selectedProducts = $flashSale->items->map(function ($item) {
             return [
@@ -84,7 +86,7 @@ class FlashSaleController extends Controller
             'flashSales' => $flashSales,
             'flashSale' => $flashSale,
             'selectedProducts' => $selectedProducts,
-            'view' => 'edit'
+            'view' => 'edit',
         ]);
     }
 
@@ -112,10 +114,10 @@ class FlashSaleController extends Controller
             // Alternatively, update existing ones to preserve 'sold' count if needed.
             // For simplicity, we'll clear and re-add, but we should probably keep 'sold' if it's tracked.
             // If 'sold' is important, we need to match by product_id.
-            
+
             $existingItems = $flashSale->items()->get()->keyBy('product_id');
             $newProductIds = collect($request->products)->pluck('id')->toArray();
-            
+
             // Delete removed items
             $flashSale->items()->whereNotIn('product_id', $newProductIds)->delete();
 
@@ -145,9 +147,10 @@ class FlashSaleController extends Controller
     public function destroy($id)
     {
         FlashSale::findOrFail($id)->delete();
+
         return redirect()->back()->with('success', 'Flash Sale deleted successfully.');
     }
-    
+
     // API endpoint for product search
     public function searchProducts(Request $request)
     {
@@ -155,7 +158,7 @@ class FlashSaleController extends Controller
         $products = Products::where('name', 'like', "%{$query}%")
             ->limit(20)
             ->get(['id', 'name', 'price', 'image']); // Added image field
-            
+
         return response()->json($products);
     }
 }

@@ -5,7 +5,8 @@ namespace App\Models\Client_Sales;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class SalesDiscount extends Model {
+class SalesDiscount extends Model
+{
     use SoftDeletes;
 
     protected $table = 'sales_discounts';
@@ -27,7 +28,7 @@ class SalesDiscount extends Model {
         'is_active',
         'is_compound',
         'notes',
-        'created_by'
+        'created_by',
     ];
 
     protected $casts = [
@@ -40,11 +41,12 @@ class SalesDiscount extends Model {
         'is_compound' => 'boolean',
         'current_uses' => 'integer',
         'max_uses' => 'integer',
-        'max_uses_per_customer' => 'integer'
+        'max_uses_per_customer' => 'integer',
     ];
 
-    public function customers() {
+    public function customers()
+    {
         return $this->belongsToMany(Customer::class, 'sales_discount_customers', 'discount_id', 'customer_id')
-                    ->withTimestamps();
+            ->withTimestamps();
     }
 }

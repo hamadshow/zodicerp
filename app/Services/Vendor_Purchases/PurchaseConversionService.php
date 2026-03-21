@@ -2,22 +2,23 @@
 
 namespace App\Services\Vendor_Purchases;
 
-use App\Models\Vendor_Purchases\PurchaseQuotation;
 use App\Models\Vendor_Purchases\PurchaseOrder;
 use App\Models\Vendor_Purchases\PurchaseOrderItem;
+use App\Models\Vendor_Purchases\PurchaseQuotation;
 use App\Models\Vendor_Purchases\PurchaseQuotationItem;
-use Illuminate\Support\Facades\DB;
 use Exception;
+use Illuminate\Support\Facades\DB;
 
 class PurchaseConversionService
 {
     /**
      * Convert Purchase Quotation items to Purchase Order(s).
      *
-     * @param int $quotationId
-     * @param array $itemsToConvert Array of ['item_id' => int, 'quantity' => float]
-     * @param int $userId
+     * @param  int  $quotationId
+     * @param  array  $itemsToConvert  Array of ['item_id' => int, 'quantity' => float]
+     * @param  int  $userId
      * @return PurchaseOrder
+     *
      * @throws Exception
      */
     public function convertQuotationToPO($quotationId, array $itemsToConvert, $userId)
@@ -27,15 +28,15 @@ class PurchaseConversionService
 
             // 1. Validate quotation status
             if ($quotation->status !== 'approved') {
-                throw new Exception("Only approved quotations can be converted.");
+                throw new Exception('Only approved quotations can be converted.');
             }
 
             // Group items by vendor (though Quotation usually has one vendor, strictly speaking)
             // But logic allows partial items selection.
             // If the Quotation has a vendor_id, the PO will be for that vendor.
-            
+
             $po = PurchaseOrder::create([
-                'order_number' => 'PO-' . time(), // Needs better generation logic
+                'order_number' => 'PO-'.time(), // Needs better generation logic
                 'supplier_id' => $quotation->vendor_id,
                 'quotation_id' => $quotation->id,
                 'currency_id' => $quotation->currency_id,
@@ -57,13 +58,13 @@ class PurchaseConversionService
 
             foreach ($itemsToConvert as $itemData) {
                 $quotationItem = PurchaseQuotationItem::findOrFail($itemData['item_id']);
-                
+
                 if ($quotationItem->quotation_id !== $quotation->id) {
                     throw new Exception("Item {$itemData['item_id']} does not belong to quotation {$quotation->id}");
                 }
 
                 $convertQty = $itemData['quantity'];
-                
+
                 // 4. Quantity validation
                 $pendingQty = $quotationItem->quantity - $quotationItem->converted_quantity;
                 if ($convertQty > $pendingQty) {
@@ -103,11 +104,11 @@ class PurchaseConversionService
                 $netPrice = $quotationItem->unit_price - $quotationItem->discount_amount;
                 $lineTotal = $convertQty * $netPrice;
                 $taxTotal = $lineTotal * ($quotationItem->tax_amount / 100);
-                
+
                 $subtotal += $lineTotal;
                 $totalTax += $taxTotal;
                 $totalDiscount += ($quotationItem->discount_amount * $convertQty);
-                
+
                 $itemsConvertedCount++;
             }
 

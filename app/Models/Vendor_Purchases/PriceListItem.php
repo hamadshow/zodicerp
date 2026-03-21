@@ -2,10 +2,10 @@
 
 namespace App\Models\Vendor_Purchases;
 
+use App\Models\ItemUnit;
+use App\Models\Products;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Products;
-use App\Models\ItemUnit;
 
 class PriceListItem extends Model
 {
@@ -25,7 +25,7 @@ class PriceListItem extends Model
         'discount_amount',
         'effective_date',
         'expiry_date',
-        'notes'
+        'notes',
     ];
 
     protected $casts = [

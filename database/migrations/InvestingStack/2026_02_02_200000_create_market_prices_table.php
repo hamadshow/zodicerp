@@ -13,18 +13,18 @@ return new class extends Migration
     {
         Schema::create('market_prices', function (Blueprint $table) {
             $table->id();
-            
+
             // Foreign Key
             // User requested: FOREIGN KEY (instrument_id) REFERENCES companies(company_code)
             // However, company_code is VARCHAR(50) and instrument_id is requested as INT.
             // We assume referencing the 'id' column of companies table is the intended behavior for an INT column.
-            $table->foreignId('instrument_id')->constrained('companies')->onDelete('cascade');
+            $table->foreignId('instrument_id')->constrained('companies_shares')->onDelete('cascade');
 
             // Price Data
             $table->decimal('bid_price', 20, 4);
             $table->decimal('ask_price', 20, 4);
             $table->decimal('last_price', 20, 4);
-            
+
             $table->decimal('open_price', 20, 4)->nullable();
             $table->decimal('high_price', 20, 4)->nullable();
             $table->decimal('low_price', 20, 4)->nullable();
@@ -50,7 +50,7 @@ return new class extends Migration
             $table->boolean('is_intraday')->default(false);
 
             $table->timestamp('created_at')->useCurrent();
-            // Optional: $table->updatedAt(); // Not requested in SQL, but often useful. 
+            // Optional: $table->updatedAt(); // Not requested in SQL, but often useful.
             // Leaving out to strictly match SQL "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
         });
     }

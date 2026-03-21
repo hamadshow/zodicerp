@@ -1,4 +1,5 @@
 <?php
+
 return [
     'general' => 'الإعدادات العامة',
     'localization' => 'اللغات والعملات',

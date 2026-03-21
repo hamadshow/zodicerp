@@ -61,7 +61,7 @@ class NewPasswordController extends Controller
         if ($status == Password::PASSWORD_RESET) {
             return redirect()->route('login', [
                 'country' => session('country_code', 'sa'),
-                'lang' => session('locale', 'ar')
+                'lang' => session('locale', 'ar'),
             ])->with('status', __($status));
         }
 

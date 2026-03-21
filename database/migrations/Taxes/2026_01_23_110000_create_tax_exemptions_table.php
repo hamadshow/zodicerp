@@ -16,16 +16,16 @@ return new class extends Migration
             $table->string('exemption_code', 100)->unique();
             $table->string('name_ar', 200);
             $table->string('name_en', 200);
-            
+
             // Scope
             if (Schema::hasTable('countries')) {
                 $table->foreignId('country_id')->constrained('countries');
             } else {
                 $table->unsignedBigInteger('country_id');
             }
-            
+
             $table->enum('exemption_type', ['customer', 'product', 'service', 'document', 'special']);
-            
+
             // Details
             // customer_id (unsigned integer in customers table)
             if (Schema::hasTable('customers')) {
@@ -44,27 +44,27 @@ return new class extends Migration
 
             $table->unsignedBigInteger('service_id')->nullable();
             $table->enum('document_type', ['invoice', 'receipt', 'credit_note', 'debit_note', 'all'])->nullable();
-            
+
             // Exempted Taxes
             $table->json('exempted_tax_ids')->nullable(); // List of tax IDs
             $table->decimal('exemption_percentage', 5, 2)->default(100.00);
-            
+
             // Legal Basis
             $table->string('legal_basis', 500)->nullable();
             $table->string('certificate_number', 100)->nullable();
             $table->date('certificate_expiry')->nullable();
-            
+
             // Dates
             $table->date('effective_from');
             $table->date('effective_to')->nullable();
-            
+
             // System
             $table->boolean('is_active')->default(true);
             $table->boolean('requires_certificate')->default(false);
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('approved_by')->nullable();
             $table->date('approved_date')->nullable();
-            
+
             $table->timestamps();
 
             // Indexes

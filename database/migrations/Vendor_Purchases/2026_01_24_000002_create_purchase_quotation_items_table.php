@@ -38,7 +38,7 @@ return new class extends Migration
             $table->decimal('quantity', 12, 3)->default(1.000);
             $table->unsignedBigInteger('unit_id'); // item_units
             $table->decimal('received_quantity', 12, 3)->default(0.000);
-            
+
             // Generated: pending_quantity = quantity - received_quantity
             $table->decimal('pending_quantity', 12, 3)->storedAs('quantity - received_quantity');
 
@@ -46,7 +46,7 @@ return new class extends Migration
             $table->decimal('unit_price', 15, 4)->default(0.0000);
             $table->decimal('discount_percent', 5, 2)->default(0.00);
             $table->decimal('discount_amount', 15, 4)->default(0.0000);
-            
+
             // Generated: net_price = unit_price - discount_amount
             $table->decimal('net_price', 15, 4)->storedAs('unit_price - discount_amount');
 
@@ -56,7 +56,7 @@ return new class extends Migration
             // Tax
             $table->unsignedBigInteger('tax_id')->nullable();
             $table->decimal('tax_amount', 15, 4)->default(0.0000);
-            
+
             // Generated: tax_total = line_total * tax_amount / 100
             $table->decimal('tax_total', 15, 2)->storedAs('line_total * tax_amount / 100');
 

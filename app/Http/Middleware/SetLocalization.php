@@ -2,15 +2,14 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Country;
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\Session;
-
-use Illuminate\Support\Facades\URL;
-use App\Models\Country;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Session;
+use Illuminate\Support\Facades\URL;
+use Symfony\Component\HttpFoundation\Response;
 
 class SetLocalization
 {
@@ -24,23 +23,36 @@ class SetLocalization
         $countryCode = $request->segment(1);
         $langCode = $request->segment(2);
 
+        if (is_string($countryCode) && strtolower($countryCode) === 'sar') {
+            $segments = $request->segments();
+            $segments[0] = 'sa';
+
+            $url = $request->getSchemeAndHttpHost().'/'.implode('/', $segments);
+            $queryString = $request->getQueryString();
+            if (is_string($queryString) && $queryString !== '') {
+                $url .= '?'.$queryString;
+            }
+
+            return redirect()->to($url);
+        }
+
         $supportedLocales = \App\Models\Language::pluck('lang_code')->toArray();
         if (empty($supportedLocales)) {
             $supportedLocales = ['en', 'ar'];
         }
 
         $appDefaultLocale = (string) config('app.locale', 'en');
-        if (!in_array($appDefaultLocale, $supportedLocales)) {
+        if (! in_array($appDefaultLocale, $supportedLocales)) {
             $appDefaultLocale = $supportedLocales[0] ?? 'en';
         }
-        
+
         // Handle Country
         $country = null;
         if ($countryCode && strlen($countryCode) === 2) {
             $country = Country::where('code', strtoupper($countryCode))->where('status', 'active')->first();
         }
 
-        if (!$country && !Session::has('country_code')) {
+        if (! $country && ! Session::has('country_code')) {
             // Auto-detect country based on IP if not specified in URL and not in session
             $detectedCountryCode = $this->detectCountryCode($request->ip());
             if ($detectedCountryCode) {
@@ -59,7 +71,7 @@ class SetLocalization
                 Session::put('country_code', strtolower($defaultCountry->code));
             }
         }
-        
+
         $currencyCode = session('currency_code', 'SAR');
         Session::put('currency_code', strtoupper($currencyCode));
 
@@ -100,8 +112,10 @@ class SetLocalization
     protected function detectCountryCode($ip): ?string
     {
         // For development/testing, return SA or use a free API
-        if ($ip === '127.0.0.1') return 'SA';
-        
+        if ($ip === '127.0.0.1') {
+            return 'SA';
+        }
+
         try {
             // In production, use a package like torann/geoip or an external API
             // $response = Http::get("http://ip-api.com/json/{$ip}");

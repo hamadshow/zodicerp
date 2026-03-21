@@ -34,4 +34,3 @@ class Ad extends Model
         'order' => 'integer',
     ];
 }
-

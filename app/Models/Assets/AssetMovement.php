@@ -2,10 +2,10 @@
 
 namespace App\Models\Assets;
 
+use App\Models\User;
+use App\Models\Warehouses;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Warehouses;
-use App\Models\User;
 
 class AssetMovement extends Model
 {

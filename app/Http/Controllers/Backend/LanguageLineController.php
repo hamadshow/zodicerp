@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
-use App\Models\LanguageLine;
 use App\Models\Language;
+use App\Models\LanguageLine;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\File;
+use Inertia\Inertia;
 
 class LanguageLineController extends Controller
 {
@@ -17,10 +17,10 @@ class LanguageLineController extends Controller
 
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('group', 'like', "%{$search}%")
-                  ->orWhere('key', 'like', "%{$search}%")
-                  ->orWhere('text', 'like', "%{$search}%");
+                    ->orWhere('key', 'like', "%{$search}%")
+                    ->orWhere('text', 'like', "%{$search}%");
             });
         }
 
@@ -29,7 +29,7 @@ class LanguageLineController extends Controller
         }
 
         $translations = $query->latest()->paginate(100)->withQueryString();
-        
+
         $groups = LanguageLine::select('group')->distinct()->pluck('group');
         $languages = Language::all();
 
@@ -68,12 +68,16 @@ class LanguageLineController extends Controller
 
         foreach ($locales as $locale) {
             $langPath = base_path("lang/{$locale}");
-            if (!File::isDirectory($langPath)) continue;
+            if (! File::isDirectory($langPath)) {
+                continue;
+            }
 
             $files = File::files($langPath);
             foreach ($files as $file) {
                 $group = $file->getBasename('.php');
-                if ($group === 'messages') continue; // Skip our custom messages if needed, or include it
+                if ($group === 'messages') {
+                    continue;
+                } // Skip our custom messages if needed, or include it
 
                 $translations = trans($group, [], $locale);
                 if (is_array($translations)) {
@@ -99,7 +103,7 @@ class LanguageLineController extends Controller
                 ]);
 
                 $text = $line->text ?? [];
-                $text[$locale] = (string)$value;
+                $text[$locale] = (string) $value;
                 $line->text = $text;
                 $line->save();
             }

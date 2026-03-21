@@ -2,12 +2,12 @@
 
 namespace App\Models\Client_Sales;
 
+use App\Models\ItemUnit;
+use App\Models\Products;
+use App\Models\Taxes\TaxType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Products;
-use App\Models\ItemUnit;
-use App\Models\Taxes\TaxType;
 
 class SalesQuotationDetail extends Model
 {

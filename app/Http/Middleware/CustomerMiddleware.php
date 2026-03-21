@@ -13,7 +13,7 @@ class CustomerMiddleware
     {
         $user = Auth::user();
 
-        if (!$user) {
+        if (! $user) {
             // Check other guards just in case
             if (Auth::guard('customer')->check()) {
                 $user = Auth::guard('customer')->user();
@@ -22,10 +22,10 @@ class CustomerMiddleware
             }
         }
 
-        if (!$user) {
+        if (! $user) {
             return redirect()->route('login', [
                 'country' => session('country_code', 'sa'),
-                'lang' => session('locale', 'ar')
+                'lang' => session('locale', 'ar'),
             ]);
         }
 
@@ -34,7 +34,7 @@ class CustomerMiddleware
         if ($role !== 'customer') {
             $params = [
                 'country' => session('country_code', 'sa'),
-                'lang' => session('locale', 'ar')
+                'lang' => session('locale', 'ar'),
             ];
 
             if ($role === 'admin') {

@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -27,7 +27,7 @@ return new class extends Migration
 
             // Vendor
             // Mapping vendor_id to suppliers table as per project convention
-            $table->foreignId('vendor_id')->constrained('suppliers'); 
+            $table->foreignId('vendor_id')->constrained('suppliers');
             $table->string('vendor_contact_person', 150)->nullable();
             $table->string('vendor_phone', 30)->nullable();
             $table->string('vendor_email', 150)->nullable();
@@ -42,7 +42,7 @@ return new class extends Migration
                 'converted_to_po',  // تحول لأمر شراء
                 'rejected',         // مرفوض
                 'cancelled',        // ملغي
-                'expired'           // منتهي
+                'expired',           // منتهي
             ])->default('draft');
 
             $table->enum('priority', ['low', 'medium', 'high', 'urgent'])->default('medium');
@@ -95,7 +95,7 @@ return new class extends Migration
 
         // Add table comment if supported
         try {
-             DB::statement("ALTER TABLE purchase_quotations COMMENT = 'عروض أسعار الشراء'");
+            DB::statement("ALTER TABLE purchase_quotations COMMENT = 'عروض أسعار الشراء'");
         } catch (\Exception $e) {
             // Ignore
         }

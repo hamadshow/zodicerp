@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Backend\Assets;
 
 use App\Http\Controllers\Controller;
 use App\Models\Assets\Attribute;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class AssetAttributeController extends Controller
 {
@@ -16,11 +16,12 @@ class AssetAttributeController extends Controller
     {
         try {
             $attributes = Attribute::latest()->get();
+
             return Inertia::render('Backend/08-Assets/AssetAttribute', [
-                'attributes' => $attributes
+                'attributes' => $attributes,
             ]);
         } catch (\Exception $e) {
-            return redirect()->route('admin')->with('error', 'Error loading asset attributes: ' . $e->getMessage());
+            return redirect()->route('admin')->with('error', 'Error loading asset attributes: '.$e->getMessage());
         }
     }
 
@@ -43,7 +44,7 @@ class AssetAttributeController extends Controller
             if (empty($validated['code'])) {
                 $validated['code'] = Str::slug($validated['name']);
             }
-            
+
             // Set default
             $validated['is_active'] = $request->boolean('is_active', true);
 
@@ -53,7 +54,7 @@ class AssetAttributeController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error creating asset attribute: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error creating asset attribute: '.$e->getMessage());
         }
     }
 
@@ -61,8 +62,9 @@ class AssetAttributeController extends Controller
     {
         try {
             $attribute = Attribute::findOrFail($id);
+
             return Inertia::render('Backend/08-Assets/AssetAttribute', [
-                'attribute' => $attribute
+                'attribute' => $attribute,
             ]);
         } catch (ModelNotFoundException $e) {
             return redirect()->route('admin.assets.asset-attributes.index')->with('error', 'Attribute not found.');
@@ -78,15 +80,15 @@ class AssetAttributeController extends Controller
                 'name' => 'required|string|max:120',
                 'type' => 'required|string|in:text,number,date,boolean,select',
                 'is_active' => 'boolean',
-                'code' => 'nullable|string|max:50|unique:attributes,code,' . $id,
+                'code' => 'nullable|string|max:50|unique:attributes,code,'.$id,
                 'description' => 'nullable|string|max:255',
             ]);
 
             if (empty($validated['code'])) {
                 $validated['code'] = Str::slug($validated['name']);
             }
-            
-             $validated['is_active'] = $request->boolean('is_active', true);
+
+            $validated['is_active'] = $request->boolean('is_active', true);
 
             $attribute->update($validated);
 
@@ -96,7 +98,7 @@ class AssetAttributeController extends Controller
         } catch (ModelNotFoundException $e) {
             return redirect()->route('admin.assets.asset-attributes.index')->with('error', 'Attribute not found.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error updating asset attribute: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error updating asset attribute: '.$e->getMessage());
         }
     }
 
@@ -105,11 +107,12 @@ class AssetAttributeController extends Controller
         try {
             $attribute = Attribute::findOrFail($id);
             $attribute->delete();
+
             return redirect()->route('admin.assets.asset-attributes.index')->with('success', 'Asset attribute deleted successfully.');
         } catch (ModelNotFoundException $e) {
             return redirect()->route('admin.assets.asset-attributes.index')->with('error', 'Attribute not found.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error deleting asset attribute: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error deleting asset attribute: '.$e->getMessage());
         }
     }
 }

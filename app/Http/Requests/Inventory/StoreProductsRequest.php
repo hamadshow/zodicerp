@@ -26,7 +26,7 @@ class StoreProductsRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'content' => ['nullable', 'string'],
             'status' => ['required', 'in:published,draft,pending,active,inactive'],
-            
+
             // Media
             'image' => ['nullable'], // Allow string (path) or file
             'gallery' => ['nullable', 'array'],

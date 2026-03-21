@@ -55,7 +55,7 @@ class VendorWalletService
                 'type' => 'debit',
                 'amount' => $amount,
                 'currency_id' => $wallet->currency_id,
-                'description' => "Withdrawal request",
+                'description' => 'Withdrawal request',
                 'status' => 'pending',
             ]);
         });

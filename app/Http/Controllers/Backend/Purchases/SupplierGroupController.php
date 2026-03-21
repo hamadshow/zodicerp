@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Backend\Purchases;
 use App\Http\Controllers\Controller;
 use App\Models\Vendor_Purchases\SupplierGroup;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class SupplierGroupController extends Controller
@@ -22,8 +22,8 @@ class SupplierGroupController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name_ar', 'like', "%{$search}%")
-                  ->orWhere('name_en', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%");
+                    ->orWhere('name_en', 'like', "%{$search}%")
+                    ->orWhere('code', 'like', "%{$search}%");
             });
         }
 
@@ -33,7 +33,7 @@ class SupplierGroupController extends Controller
         if ($request->wantsJson()) {
             return response()->json([
                 'groups' => $groups,
-                'parentGroups' => $parentGroups
+                'parentGroups' => $parentGroups,
             ]);
         }
 
@@ -93,7 +93,7 @@ class SupplierGroupController extends Controller
                 return response()->json(['message' => 'Error creating group', 'error' => $e->getMessage()], 500);
             }
 
-            return redirect()->back()->withErrors(['error' => 'Error creating group: ' . $e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'Error creating group: '.$e->getMessage()]);
         }
     }
 
@@ -107,15 +107,15 @@ class SupplierGroupController extends Controller
             ->orderBy('code', 'desc')
             ->first();
 
-        if (!$lastRecord) {
-            return $prefix . $startNumber;
+        if (! $lastRecord) {
+            return $prefix.$startNumber;
         }
 
         $lastCode = $lastRecord->code;
         // Remove prefix to get the number part
         $lastNumber = (int) str_replace($prefix, '', $lastCode);
-        
-        return $prefix . ($lastNumber + 1);
+
+        return $prefix.($lastNumber + 1);
     }
 
     /**
@@ -132,7 +132,7 @@ class SupplierGroupController extends Controller
         $request->validate([
             'name_ar' => 'required|string|max:100',
             'name_en' => 'nullable|string|max:100',
-            'code' => 'required|string|max:20|unique:supplier_groups,code,' . $id,
+            'code' => 'required|string|max:20|unique:supplier_groups,code,'.$id,
             'parent_id' => 'nullable|exists:supplier_groups,id',
             'account_id' => 'nullable|exists:accounts,AccID',
             'payment_terms' => 'nullable|integer|min:0',
@@ -172,7 +172,7 @@ class SupplierGroupController extends Controller
                 return response()->json(['message' => 'Error updating group', 'error' => $e->getMessage()], 500);
             }
 
-            return redirect()->back()->withErrors(['error' => 'Error updating group: ' . $e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'Error updating group: '.$e->getMessage()]);
         }
     }
 
@@ -202,7 +202,7 @@ class SupplierGroupController extends Controller
                 return response()->json(['message' => 'Error deleting group', 'error' => $e->getMessage()], 500);
             }
 
-            return redirect()->back()->withErrors(['error' => 'Error deleting group: ' . $e->getMessage()]);
+            return redirect()->back()->withErrors(['error' => 'Error deleting group: '.$e->getMessage()]);
         }
     }
 }

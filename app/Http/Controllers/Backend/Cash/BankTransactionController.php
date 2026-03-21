@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Backend\Cash;
 
 use App\Http\Controllers\Controller;
-use App\Models\BankAccount;
-use App\Models\BankPayment;
-use App\Models\BankReceipt;
 use App\Models\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
+use App\Models\BankAccount;
+use App\Models\BankPayment;
+use App\Models\BankReceipt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +17,7 @@ use Inertia\Inertia;
 class BankTransactionController extends Controller
 {
     protected string $transactionCodePrefix = 'BNK-';
+
     protected int $transactionCodeStart = 10001;
 
     public function index(Request $request)
@@ -206,7 +207,7 @@ class BankTransactionController extends Controller
     protected function syncJournalEntry(string $type, string $code, array $payload): void
     {
         $bankAccount = BankAccount::with('bank')->find($payload['bank_account_id']);
-        if (!$bankAccount || !$bankAccount->gl_account_id) {
+        if (! $bankAccount || ! $bankAccount->gl_account_id) {
             abort(
                 response()->json([
                     'message' => 'Bank account must be linked to a GL account.',
@@ -220,7 +221,7 @@ class BankTransactionController extends Controller
         $bankAccountExists = Account::where('AccID', $bankGlAccountId)->exists();
         $counterAccountExists = Account::where('AccID', $counterAccountId)->exists();
 
-        if (!$bankAccountExists || !$counterAccountExists) {
+        if (! $bankAccountExists || ! $counterAccountExists) {
             abort(
                 response()->json([
                     'message' => 'One or more GL accounts are invalid.',
@@ -313,7 +314,7 @@ class BankTransactionController extends Controller
             ->where('entry_type', $qaidType)
             ->first();
 
-        if (!$header) {
+        if (! $header) {
             return;
         }
 
@@ -343,7 +344,7 @@ class BankTransactionController extends Controller
             $this->nextNumericPart($lastReceipt, $start) - 1
         );
 
-        return $prefix . max($lastNumber + 1, $start);
+        return $prefix.max($lastNumber + 1, $start);
     }
 
     protected function generateNextEntryCode(): string
@@ -356,12 +357,12 @@ class BankTransactionController extends Controller
 
         $nextNumber = $this->nextNumericPart($lastCode, 10001);
 
-        return 'QID-' . $nextNumber;
+        return 'QID-'.$nextNumber;
     }
 
     protected function nextNumericPart(?string $code, int $fallbackStart): int
     {
-        if (!$code) {
+        if (! $code) {
             return $fallbackStart;
         }
 

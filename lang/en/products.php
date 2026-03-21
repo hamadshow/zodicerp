@@ -1,4 +1,5 @@
 <?php
+
 return [
     'name' => 'Product Name',
     'sku' => 'SKU',

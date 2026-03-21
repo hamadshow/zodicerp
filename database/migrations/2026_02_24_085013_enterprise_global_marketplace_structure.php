@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Country Configurations
-        if (!Schema::hasTable('country_configs')) {
+        if (! Schema::hasTable('country_configs')) {
             Schema::create('country_configs', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('country_id')->constrained('countries')->onDelete('cascade');
@@ -24,47 +24,47 @@ return new class extends Migration
 
         // 3. Update existing tables for JSON translations
         Schema::table('products', function (Blueprint $table) {
-            if (!Schema::hasColumn('products', 'name_json')) {
+            if (! Schema::hasColumn('products', 'name_json')) {
                 $table->json('name_json')->after('name')->nullable();
             }
-            if (!Schema::hasColumn('products', 'slug_json')) {
+            if (! Schema::hasColumn('products', 'slug_json')) {
                 $table->json('slug_json')->after('slug')->nullable();
             }
-            if (!Schema::hasColumn('products', 'description_json')) {
+            if (! Schema::hasColumn('products', 'description_json')) {
                 $table->json('description_json')->after('description')->nullable();
             }
-            if (!Schema::hasColumn('products', 'meta_title_json')) {
+            if (! Schema::hasColumn('products', 'meta_title_json')) {
                 $table->json('meta_title_json')->after('meta_title')->nullable();
             }
-            if (!Schema::hasColumn('products', 'meta_description_json')) {
+            if (! Schema::hasColumn('products', 'meta_description_json')) {
                 $table->json('meta_description_json')->after('meta_description')->nullable();
             }
         });
 
         Schema::table('categories', function (Blueprint $table) {
-            if (!Schema::hasColumn('categories', 'name_json')) {
+            if (! Schema::hasColumn('categories', 'name_json')) {
                 $table->json('name_json')->after('name')->nullable();
             }
-            if (!Schema::hasColumn('categories', 'slug_json')) {
+            if (! Schema::hasColumn('categories', 'slug_json')) {
                 $table->json('slug_json')->after('slug')->nullable();
             }
         });
 
         Schema::table('suppliers', function (Blueprint $table) {
-            if (!Schema::hasColumn('suppliers', 'store_name_json')) {
+            if (! Schema::hasColumn('suppliers', 'store_name_json')) {
                 if (Schema::hasColumn('suppliers', 'name_ar')) {
                     $table->json('store_name_json')->after('name_ar')->nullable();
                 } else {
                     $table->json('store_name_json')->nullable();
                 }
             }
-            if (!Schema::hasColumn('suppliers', 'store_description_json')) {
+            if (! Schema::hasColumn('suppliers', 'store_description_json')) {
                 $table->json('store_description_json')->nullable();
             }
-            if (!Schema::hasColumn('suppliers', 'commission_rate')) {
+            if (! Schema::hasColumn('suppliers', 'commission_rate')) {
                 $table->decimal('commission_rate', 5, 2)->default(0);
             }
-            if (!Schema::hasColumn('suppliers', 'verification_status')) {
+            if (! Schema::hasColumn('suppliers', 'verification_status')) {
                 $table->string('verification_status')->default('unverified'); // unverified, pending, verified
             }
         });
@@ -80,7 +80,7 @@ return new class extends Migration
                         $columns[] = $column;
                     }
                 }
-                if (!empty($columns)) {
+                if (! empty($columns)) {
                     $table->dropColumn($columns);
                 }
             });
@@ -94,7 +94,7 @@ return new class extends Migration
                         $columns[] = $column;
                     }
                 }
-                if (!empty($columns)) {
+                if (! empty($columns)) {
                     $table->dropColumn($columns);
                 }
             });
@@ -108,7 +108,7 @@ return new class extends Migration
                         $columns[] = $column;
                     }
                 }
-                if (!empty($columns)) {
+                if (! empty($columns)) {
                     $table->dropColumn($columns);
                 }
             });

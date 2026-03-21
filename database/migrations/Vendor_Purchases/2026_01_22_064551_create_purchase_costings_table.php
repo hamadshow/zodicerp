@@ -25,16 +25,16 @@ return new class extends Migration
             $table->decimal('purchase_price', 15, 4);
             $table->decimal('landed_cost_per_unit', 15, 4)->default(0);
             $table->decimal('additional_costs', 15, 4)->default(0);
-            
+
             // Generated columns
             // total_unit_cost = purchase_price + landed_cost_per_unit + additional_costs
             $table->decimal('total_unit_cost', 15, 4)->storedAs('purchase_price + landed_cost_per_unit + additional_costs');
-            
+
             // total_cost = quantity * total_unit_cost
             // Note: In some MySQL versions, you might need to repeat the expression if referring to another generated column isn't supported directly in the definition order,
-            // but usually it works if defined after. To be safe and portable, we can repeat the expression or just try referring. 
+            // but usually it works if defined after. To be safe and portable, we can repeat the expression or just try referring.
             // However, referencing generated column is supported in MySQL 5.7.6+. Assuming modern MySQL.
-            $table->decimal('total_cost', 15, 2)->storedAs('quantity * (purchase_price + landed_cost_per_unit + additional_costs)'); 
+            $table->decimal('total_cost', 15, 2)->storedAs('quantity * (purchase_price + landed_cost_per_unit + additional_costs)');
 
             $table->decimal('average_cost', 15, 4)->nullable();
             $table->enum('costing_method', ['fifo', 'lifo', 'weighted_average', 'specific_identification'])->default('weighted_average');

@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Company;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class BranchController extends Controller
 {
@@ -16,6 +16,7 @@ class BranchController extends Controller
     {
         $branches = Branch::with(['company', 'countryData', 'cityData', 'areaData'])->latest()->get();
         $companies = Company::select('id', 'company_name')->get();
+
         return Inertia::render('Backend/01-Essential_Data/BranchInfo', [
             'branches' => $branches,
             'companies' => $companies,
@@ -25,6 +26,7 @@ class BranchController extends Controller
     public function create()
     {
         $companies = Company::select('id', 'company_name')->get();
+
         return Inertia::render('Backend/01-Essential_Data/BranchInfo', [
             'companies' => $companies,
             'formMode' => 'create',
@@ -45,7 +47,7 @@ class BranchController extends Controller
             'area' => 'nullable|string',
             'address' => 'nullable|string',
             'logo' => 'nullable|image|max:1024',
-            
+
             'accountant_name' => 'nullable|string',
             'commercial_registration' => 'nullable|string',
             'tax_number' => 'nullable|string',
@@ -56,14 +58,14 @@ class BranchController extends Controller
             'storage' => 'nullable|string',
             'work_center' => 'nullable|string',
             'subsidiary_company' => 'nullable|string',
-            
+
             'email_address' => 'nullable|email',
             'official_email' => 'nullable|email',
             'facebook' => 'nullable|string',
             'telegram' => 'nullable|string',
             'youtube' => 'nullable|string',
             'instagram' => 'nullable|string',
-            
+
             'account_holder_name' => 'nullable|string',
             'bank_name' => 'nullable|string',
             'iban' => 'nullable|string',
@@ -81,15 +83,15 @@ class BranchController extends Controller
             // Atomic branch code generation
             // Lock the table for reading to ensure sequentiality
             $lastBranch = Branch::lockForUpdate()->orderBy('id', 'desc')->first();
-            
-            if (!$lastBranch || !$lastBranch->branch_code) {
+
+            if (! $lastBranch || ! $lastBranch->branch_code) {
                 $nextCode = 20001; // Starting from 20001 for branches to distinguish from companies
             } else {
                 $nextCode = intval($lastBranch->branch_code) + 1;
             }
 
             $validated['branch_code'] = (string) $nextCode;
-            
+
             Branch::create($validated);
         });
 
@@ -104,6 +106,7 @@ class BranchController extends Controller
     public function edit(Branch $branch)
     {
         $companies = Company::select('id', 'company_name')->get();
+
         return Inertia::render('Backend/01-Essential_Data/BranchInfo', [
             'branch' => $branch,
             'companies' => $companies,
@@ -113,7 +116,7 @@ class BranchController extends Controller
 
     public function update(Request $request, Branch $branch)
     {
-         $validated = $request->validate([
+        $validated = $request->validate([
             'company_id' => 'required|exists:company,id',
             'branch_name' => 'required|string|max:255',
             'english_name' => 'nullable|string',
@@ -125,7 +128,7 @@ class BranchController extends Controller
             'area' => 'nullable|string',
             'address' => 'nullable|string',
             'logo' => 'nullable|nullable|image|max:1024',
-            
+
             'accountant_name' => 'nullable|string',
             'commercial_registration' => 'nullable|string',
             'tax_number' => 'nullable|string',
@@ -136,14 +139,14 @@ class BranchController extends Controller
             'storage' => 'nullable|string',
             'work_center' => 'nullable|string',
             'subsidiary_company' => 'nullable|string',
-            
+
             'email_address' => 'nullable|email',
             'official_email' => 'nullable|email',
             'facebook' => 'nullable|string',
             'telegram' => 'nullable|string',
             'youtube' => 'nullable|string',
             'instagram' => 'nullable|string',
-            
+
             'account_holder_name' => 'nullable|string',
             'bank_name' => 'nullable|string',
             'iban' => 'nullable|string',

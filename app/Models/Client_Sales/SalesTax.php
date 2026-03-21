@@ -2,11 +2,12 @@
 
 namespace App\Models\Client_Sales;
 
+use App\Models\Account;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Account;
 
-class SalesTax extends Model {
+class SalesTax extends Model
+{
     use SoftDeletes;
 
     protected $table = 'sales_taxes';
@@ -22,17 +23,18 @@ class SalesTax extends Model {
         'account_id',
         'is_active',
         'notes',
-        'created_by'
+        'created_by',
     ];
 
     protected $casts = [
         'tax_rate' => 'decimal:2',
         'is_collectable' => 'boolean',
         'is_active' => 'boolean',
-        'created_by' => 'integer'
+        'created_by' => 'integer',
     ];
 
-    public function account() {
+    public function account()
+    {
         return $this->belongsTo(Account::class, 'account_id', 'AccID');
     }
 }

@@ -5,20 +5,16 @@ namespace App\Http\Controllers\Backend\Assets;
 use App\Http\Controllers\Controller;
 use App\Models\Assets\Asset;
 use App\Models\Assets\AssetCategory;
-use App\Models\Warehouses;
 use App\Models\ItemUnit;
 use App\Models\User;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\Models\Warehouses;
 use Exception;
-use Throwable;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class AssetController extends Controller
 {
@@ -32,8 +28,8 @@ class AssetController extends Controller
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
                     $q->where('name_en', 'like', "%{$search}%")
-                      ->orWhere('asset_number', 'like', "%{$search}%")
-                      ->orWhere('serial_number', 'like', "%{$search}%");
+                        ->orWhere('asset_number', 'like', "%{$search}%")
+                        ->orWhere('serial_number', 'like', "%{$search}%");
                 });
             }
 
@@ -57,7 +53,7 @@ class AssetController extends Controller
                     'assets' => $assets,
                     'categories' => $categories,
                     'warehouses' => $warehouses,
-                    'units' => $units
+                    'units' => $units,
                 ]);
             }
 
@@ -66,20 +62,20 @@ class AssetController extends Controller
                 'categories' => $categories,
                 'warehouses' => $warehouses,
                 'units' => $units,
-                'filters' => $request->only(['search', 'status', 'category_id'])
+                'filters' => $request->only(['search', 'status', 'category_id']),
             ]);
         } catch (Exception $e) {
-            Log::error('Error retrieving assets: ' . $e->getMessage(), [
+            Log::error('Error retrieving assets: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
             return Inertia::render('Backend/08-Assets/Assets', [
                 'assets' => collect([]),
                 'categories' => collect([]),
                 'filters' => $request->only(['search', 'status', 'category_id']),
-                'error' => 'Failed to retrieve assets. Please try again later.'
+                'error' => 'Failed to retrieve assets. Please try again later.',
             ]);
         }
     }
@@ -119,7 +115,7 @@ class AssetController extends Controller
     public function store(Request $request)
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403, 'Unauthorized');
         }
 
@@ -137,27 +133,27 @@ class AssetController extends Controller
             $lastAsset = Asset::where('asset_number', 'like', 'AST-%')
                 ->orderByRaw('CAST(SUBSTRING(asset_number, 5) AS UNSIGNED) DESC')
                 ->first();
-            
+
             if ($lastAsset) {
                 $lastNumber = (int) substr($lastAsset->asset_number, 4);
                 $nextNumber = $lastNumber + 1;
             } else {
                 $nextNumber = 1001;
             }
-            $assetNumber = 'AST-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            $assetNumber = 'AST-'.str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
 
             $data = $request->except(['image', 'gallery', 'name']); // Exclude special fields
-            
+
             // Map Frontend 'name' to 'name_en' (and 'name_ar' if needed)
             $data['name_en'] = $request->input('name');
             $data['name_ar'] = $request->input('name_ar', $request->input('name')); // Fallback
             $data['asset_number'] = $assetNumber;
             $data['created_by'] = $user->id;
-            
+
             // Handle Category (Products used array sync, Asset uses single category_id)
             // If frontend sends array 'category_ids', take first
             if ($request->has('category_ids') && is_array($request->input('category_ids'))) {
-                 $data['category_id'] = $request->input('category_ids')[0] ?? null;
+                $data['category_id'] = $request->input('category_ids')[0] ?? null;
             }
 
             // Handle Image
@@ -175,12 +171,13 @@ class AssetController extends Controller
 
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Asset creation failed: ' . $e->getMessage(), [
+            Log::error('Asset creation failed: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
-            return back()->withErrors(['error' => 'Failed to create asset: ' . $e->getMessage()])->withInput();
+
+            return back()->withErrors(['error' => 'Failed to create asset: '.$e->getMessage()])->withInput();
         }
     }
 
@@ -192,12 +189,12 @@ class AssetController extends Controller
             DB::beginTransaction();
 
             $data = $request->except(['image', 'gallery', 'name']);
-            
+
             // Map name
             if ($request->has('name')) {
                 $data['name_en'] = $request->input('name');
             }
-            
+
             $data['updated_by'] = $user->id;
 
             // Handle Image
@@ -218,7 +215,8 @@ class AssetController extends Controller
 
         } catch (Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Failed to update asset: ' . $e->getMessage()])->withInput();
+
+            return back()->withErrors(['error' => 'Failed to update asset: '.$e->getMessage()])->withInput();
         }
     }
 

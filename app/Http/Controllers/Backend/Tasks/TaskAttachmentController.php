@@ -3,11 +3,10 @@
 namespace App\Http\Controllers\Backend\Tasks;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tasks\TaskAttachment;
-use App\Models\Tasks\Task;
 use App\Http\Requests\StoreTaskAttachmentRequest;
 use App\Http\Requests\UpdateTaskAttachmentRequest;
-use Illuminate\Http\Request;
+use App\Models\Tasks\Task;
+use App\Models\Tasks\TaskAttachment;
 use Illuminate\Support\Facades\Auth;
 
 class TaskAttachmentController extends Controller
@@ -26,14 +25,14 @@ class TaskAttachmentController extends Controller
     {
         $task = Task::find($request->task_id);
 
-        if (!$task) {
+        if (! $task) {
             return response()->json(['error' => 'Task not found'], 404);
         }
 
         $userId = Auth::id();
         $canAttach = $task->created_by === $userId || $task->assignments()->where('user_id', $userId)->exists();
 
-        if (!$canAttach) {
+        if (! $canAttach) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 

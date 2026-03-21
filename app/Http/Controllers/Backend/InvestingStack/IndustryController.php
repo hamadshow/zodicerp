@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\InvestingStack\Industry;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
 
 class IndustryController extends Controller
 {
@@ -17,17 +16,17 @@ class IndustryController extends Controller
 
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('industry_name_en', 'like', "%{$search}%")
-                  ->orWhere('industry_name_ar', 'like', "%{$search}%")
-                  ->orWhere('industry_code', 'like', "%{$search}%");
+                    ->orWhere('industry_name_ar', 'like', "%{$search}%")
+                    ->orWhere('industry_code', 'like', "%{$search}%");
             });
         }
 
         $industries = $query->orderBy('display_order')
             ->orderBy('industry_name_en')
             ->get();
-        
+
         // Fetch potential parents (industries) for dropdown
         $parentIndustries = Industry::where('is_active', true)->select('id', 'industry_name_en', 'industry_name_ar')->get();
 
@@ -76,7 +75,7 @@ class IndustryController extends Controller
     public function update(Request $request, Industry $industry)
     {
         $validated = $request->validate([
-            'industry_code' => 'required|string|max:50|unique:industries,industry_code,' . $industry->id,
+            'industry_code' => 'required|string|max:50|unique:industries,industry_code,'.$industry->id,
             'gics_industry_code' => 'nullable|string|max:10',
             'trbc_industry_code' => 'nullable|string|max:10',
             'industry_name_ar' => 'required|string|max:200',
@@ -102,6 +101,7 @@ class IndustryController extends Controller
     public function destroy(Industry $industry)
     {
         $industry->delete();
+
         return redirect()->back()->with('success', 'Industry deleted successfully.');
     }
 }

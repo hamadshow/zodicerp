@@ -26,26 +26,25 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            if (!Schema::hasColumn('users', 'last_name')) {
+            if (! Schema::hasColumn('users', 'last_name')) {
                 $table->string('last_name')->nullable();
             }
 
-            if (!Schema::hasColumn('users', 'department')) {
+            if (! Schema::hasColumn('users', 'department')) {
                 $table->string('department')->nullable();
             }
 
-            if (!Schema::hasColumn('users', 'position')) {
+            if (! Schema::hasColumn('users', 'position')) {
                 $table->string('position')->nullable();
             }
 
-            if (!Schema::hasColumn('users', 'salary')) {
+            if (! Schema::hasColumn('users', 'salary')) {
                 $table->decimal('salary', 10, 2)->nullable();
             }
 
-            if (!Schema::hasColumn('users', 'nationality')) {
+            if (! Schema::hasColumn('users', 'nationality')) {
                 $table->string('nationality')->nullable();
             }
         });
     }
 };
-

@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Backend\Essential_Data_Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Company;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class CompanyController extends Controller
 {
@@ -45,7 +45,7 @@ class CompanyController extends Controller
         }
 
         return Inertia::render('Backend/01-Essential_Data/Company', [
-            'company' => $company
+            'company' => $company,
         ]);
     }
 
@@ -56,7 +56,7 @@ class CompanyController extends Controller
             abort(403, 'Unauthorized');
         }
 
-         $validated = $request->validate([
+        $validated = $request->validate([
             'company_name' => 'required|string|max:255',
             'company_code' => 'nullable|string',
             'english_name' => 'nullable|string',
@@ -69,7 +69,7 @@ class CompanyController extends Controller
             'address' => 'nullable|string',
             'logo' => 'nullable|image|max:1024',
             'logo_path' => 'nullable|string|max:255',
-            
+
             'accountant_name' => 'nullable|string',
             'commercial_registration' => 'nullable|string',
             'tax_number' => 'nullable|string',
@@ -80,14 +80,14 @@ class CompanyController extends Controller
             'storage' => 'nullable|string',
             'work_center' => 'nullable|string',
             'subsidiary_company' => 'nullable|string',
-            
+
             'email_address' => 'nullable|email',
             'official_email' => 'nullable|email',
             'facebook' => 'nullable|string',
             'telegram' => 'nullable|string',
             'youtube' => 'nullable|string',
             'instagram' => 'nullable|string',
-            
+
             'account_holder_name' => 'nullable|string',
             'bank_name' => 'nullable|string',
             'iban' => 'nullable|string',
@@ -102,7 +102,7 @@ class CompanyController extends Controller
             }
             $path = $request->file('logo')->store('company_logos', 'public');
             $validated['logo'] = $path;
-        } elseif (!empty($validated['logo_path'] ?? null)) {
+        } elseif (! empty($validated['logo_path'] ?? null)) {
             $validated['logo'] = $validated['logo_path'];
         }
 

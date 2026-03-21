@@ -29,7 +29,7 @@ class UpdateProductsRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'content' => ['nullable', 'string'],
             'status' => ['required', 'in:published,draft,pending,active,inactive'],
-            
+
             // Media
             'image' => ['nullable'], // Allow string (path) or file
             'gallery' => ['nullable', 'array'],
@@ -44,7 +44,7 @@ class UpdateProductsRequest extends FormRequest
 
             // Relations
             'parent_id' => [
-                'nullable', 
+                'nullable',
                 'exists:products,id',
                 function ($attribute, $value, $fail) use ($productId) {
                     // Prevent self-parenting
@@ -101,7 +101,7 @@ class UpdateProductsRequest extends FormRequest
             // SEO
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string'],
-            
+
             // Actions
             'save_action' => ['nullable', 'string', 'in:save,save_and_exit'],
         ];

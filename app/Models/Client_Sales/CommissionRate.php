@@ -2,10 +2,10 @@
 
 namespace App\Models\Client_Sales;
 
+use App\Models\Categories;
+use App\Models\Vendor_Purchases\SalesAgent;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Vendor_Purchases\SalesAgent;
-use App\Models\Categories;
 
 class CommissionRate extends Model
 {

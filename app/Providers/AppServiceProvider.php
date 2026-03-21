@@ -3,12 +3,12 @@
 namespace App\Providers;
 
 use App\Models\Scopes\CompanyScope;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Auth;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -39,7 +39,7 @@ class AppServiceProvider extends ServiceProvider
         $scopedModels = [];
         Event::listen('eloquent.booted: *', function (string $eventName) use (&$scopedModels): void {
             $prefix = 'eloquent.booted: ';
-            if (!str_starts_with($eventName, $prefix)) {
+            if (! str_starts_with($eventName, $prefix)) {
                 return;
             }
 
@@ -52,12 +52,12 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
-            if (!is_subclass_of($class, Model::class)) {
+            if (! is_subclass_of($class, Model::class)) {
                 return;
             }
 
             $scopedModels[$class] = true;
-            $class::addGlobalScope(new CompanyScope());
+            $class::addGlobalScope(new CompanyScope);
         });
 
         $tableSupportsCompanyId = [];
@@ -74,12 +74,12 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen('eloquent.creating: *', function (string $eventName, array $data) use ($supportsCompanyId): void {
             $model = $data[0] ?? null;
-            if (!$model instanceof Model) {
+            if (! $model instanceof Model) {
                 return;
             }
 
             $companyId = Auth::user()?->company_id;
-            if (!$companyId) {
+            if (! $companyId) {
                 return;
             }
 
@@ -88,7 +88,7 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
-            if (!$supportsCompanyId($table)) {
+            if (! $supportsCompanyId($table)) {
                 return;
             }
 
@@ -101,20 +101,20 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen('eloquent.saving: *', function (string $eventName, array $data) use ($supportsCompanyId): void {
             $model = $data[0] ?? null;
-            if (!$model instanceof Model) {
+            if (! $model instanceof Model) {
                 return;
             }
 
             $companyId = Auth::user()?->company_id;
-            if (!$companyId) {
+            if (! $companyId) {
                 return;
             }
 
-            if (!$model->exists) {
+            if (! $model->exists) {
                 return;
             }
 
-            if (!$model->isDirty('company_id')) {
+            if (! $model->isDirty('company_id')) {
                 return;
             }
 
@@ -123,7 +123,7 @@ class AppServiceProvider extends ServiceProvider
                 return;
             }
 
-            if (!$supportsCompanyId($table)) {
+            if (! $supportsCompanyId($table)) {
                 return;
             }
 

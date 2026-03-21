@@ -3,22 +3,18 @@
 namespace App\Http\Controllers\Backend\Client_Sales;
 
 use App\Http\Controllers\Controller;
+use App\Models\Account;
+use App\Models\City;
 use App\Models\Client_Sales\Customer;
-use App\Models\Client_Sales\CustomerAddress;
-use App\Models\Client_Sales\CustomerContact;
-use App\Models\Client_Sales\CustomerOpeningBalance;
 use App\Models\Client_Sales\CustomerGroup;
 use App\Models\Country;
-use App\Models\City;
 use App\Models\Currency;
-use App\Models\Warehouses;
-use App\Models\Account;
 use App\Models\Vendor_Purchases\PriceList;
 use App\Models\Vendor_Purchases\SalesAgent;
+use App\Models\Warehouses;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class CustomerController extends Controller
@@ -86,7 +82,7 @@ class CustomerController extends Controller
                 } else {
                     $nextId = 10001;
                 }
-                $data['customer_code'] = 'CUS-' . $nextId;
+                $data['customer_code'] = 'CUS-'.$nextId;
             }
 
             $data['created_by'] = Auth::id();
@@ -94,43 +90,45 @@ class CustomerController extends Controller
             $customer = Customer::create($data);
 
             // Create Addresses
-            if (!empty($request->addresses)) {
+            if (! empty($request->addresses)) {
                 foreach ($request->addresses as $addr) {
                     $customer->addresses()->create($addr);
                 }
             }
 
             // Create Contacts
-            if (!empty($request->contacts)) {
+            if (! empty($request->contacts)) {
                 foreach ($request->contacts as $contact) {
                     $customer->contacts()->create($contact);
                 }
             }
 
             // Create Opening Balance
-            if (!empty($request->opening_balance)) {
+            if (! empty($request->opening_balance)) {
                 $obData = $request->opening_balance;
-                if (!empty($obData['debit_amount']) || !empty($obData['credit_amount'])) {
+                if (! empty($obData['debit_amount']) || ! empty($obData['credit_amount'])) {
                     $obData['created_by'] = Auth::id();
                     $customer->openingBalances()->create($obData);
                 }
             }
 
             DB::commit();
+
             return redirect()->route('admin.client-sales.customers.index')->with('success', 'Customer created successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error creating customer: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error creating customer: '.$e->getMessage());
         }
     }
 
     public function update(Request $request, $id)
     {
         $customer = Customer::findOrFail($id);
-        
+
         $data = $request->validate([
-            'customer_code' => 'required|string|unique:customers,customer_code,' . $id,
+            'customer_code' => 'required|string|unique:customers,customer_code,'.$id,
             'name_ar' => 'nullable|string|max:255',
             'name_en' => 'required|string|max:255',
             'customer_group_id' => 'nullable|exists:customer_groups,id',
@@ -164,7 +162,7 @@ class CustomerController extends Controller
 
             // Sync Addresses
             $currentAddrIds = [];
-            if (!empty($request->addresses)) {
+            if (! empty($request->addresses)) {
                 foreach ($request->addresses as $addr) {
                     if (isset($addr['id'])) {
                         $customer->addresses()->where('id', $addr['id'])->update($addr);
@@ -179,7 +177,7 @@ class CustomerController extends Controller
 
             // Sync Contacts
             $currentContactIds = [];
-            if (!empty($request->contacts)) {
+            if (! empty($request->contacts)) {
                 foreach ($request->contacts as $contact) {
                     if (isset($contact['id'])) {
                         $customer->contacts()->where('id', $contact['id'])->update($contact);
@@ -193,12 +191,12 @@ class CustomerController extends Controller
             $customer->contacts()->whereNotIn('id', $currentContactIds)->delete();
 
             // Update Opening Balance
-            if (!empty($request->opening_balance)) {
+            if (! empty($request->opening_balance)) {
                 $obData = $request->opening_balance;
                 if (isset($obData['id'])) {
                     $customer->openingBalances()->where('id', $obData['id'])->update($obData);
                 } else {
-                    if (!empty($obData['debit_amount']) || !empty($obData['credit_amount'])) {
+                    if (! empty($obData['debit_amount']) || ! empty($obData['credit_amount'])) {
                         $obData['created_by'] = Auth::id();
                         $customer->openingBalances()->create($obData);
                     }
@@ -206,11 +204,13 @@ class CustomerController extends Controller
             }
 
             DB::commit();
+
             return redirect()->route('admin.client-sales.customers.index')->with('success', 'Customer updated successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error updating customer: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error updating customer: '.$e->getMessage());
         }
     }
 
@@ -218,6 +218,7 @@ class CustomerController extends Controller
     {
         $customer = Customer::findOrFail($id);
         $customer->delete();
+
         return redirect()->route('admin.client-sales.customers.index')->with('success', 'Customer deleted successfully.');
     }
 
@@ -243,40 +244,44 @@ class CustomerController extends Controller
         // For now, we assume the frontend sends processed data or we process it here
         // If frontend sends raw file, we would need to parse it.
         // Assuming the frontend processes it and sends JSON in a real-world scenario or we use a library.
-        // Since we don't have Laravel Excel installed/configured in context, 
+        // Since we don't have Laravel Excel installed/configured in context,
         // we'll assume this method is a placeholder or uses basic PHP logic if needed.
-        
-        // However, based on the frontend code, it seems we might be sending data via a different endpoint 
+
+        // However, based on the frontend code, it seems we might be sending data via a different endpoint
         // OR the frontend handles the parsing and sends an array of customers.
-        // Let's check the frontend again. 
+        // Let's check the frontend again.
         // The frontend `processExcelData` just logs the data. It doesn't seem to have a bulk create endpoint call yet.
         // I will implement a bulk store method that accepts an array of customer data.
 
         return redirect()->back()->with('error', 'Import functionality pending server-side implementation.');
     }
-    
+
     public function bulkStore(Request $request)
     {
-         $data = $request->validate([
+        $data = $request->validate([
             'customers' => 'required|array',
             'customers.*.name_en' => 'required|string',
             'customers.*.customer_code' => 'required|string|unique:customers,customer_code',
-         ]);
+        ]);
 
-         DB::beginTransaction();
-         try {
-             foreach ($request->customers as $customerData) {
-                 $customerData['created_by'] = Auth::id();
-                 // Set defaults
-                 if (!isset($customerData['is_active'])) $customerData['is_active'] = true;
-                 
-                 Customer::create($customerData);
-             }
-             DB::commit();
-             return redirect()->route('admin.client-sales.customers.index')->with('success', 'Customers imported successfully.');
-         } catch (\Exception $e) {
-             DB::rollBack();
-             return redirect()->back()->with('error', 'Error importing customers: ' . $e->getMessage());
-         }
+        DB::beginTransaction();
+        try {
+            foreach ($request->customers as $customerData) {
+                $customerData['created_by'] = Auth::id();
+                // Set defaults
+                if (! isset($customerData['is_active'])) {
+                    $customerData['is_active'] = true;
+                }
+
+                Customer::create($customerData);
+            }
+            DB::commit();
+
+            return redirect()->route('admin.client-sales.customers.index')->with('success', 'Customers imported successfully.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()->back()->with('error', 'Error importing customers: '.$e->getMessage());
+        }
     }
 }

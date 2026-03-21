@@ -2,11 +2,11 @@
 
 namespace App\Models\Vendor_Purchases;
 
+use App\Models\Client_Sales\Customer;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Client_Sales\Customer;
-use App\Models\User;
 
 class SalesAgent extends Model
 {
@@ -26,7 +26,7 @@ class SalesAgent extends Model
         'termination_date',
         'is_active',
         'notes',
-        'user_id'
+        'user_id',
     ];
 
     protected $casts = [
@@ -51,7 +51,7 @@ class SalesAgent extends Model
     {
         return $this->belongsTo(User::class);
     }
-    
+
     public function customers()
     {
         return $this->hasMany(Customer::class);

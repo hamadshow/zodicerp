@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Backend\Client_Sales;
 
 use App\Http\Controllers\Controller;
-use App\Models\Client_Sales\SalesQuotation;
 use App\Models\Client_Sales\Customer;
 use App\Models\Client_Sales\CustomerAddress;
+use App\Models\Client_Sales\SalesQuotation;
 use App\Models\Currency;
-use App\Models\Warehouses;
 use App\Models\ItemUnit;
 use App\Models\Products;
+use App\Models\Warehouses;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class SalesQuotationController extends Controller
 {
@@ -27,10 +27,10 @@ class SalesQuotationController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('quotation_number', 'like', "%{$search}%")
-                  ->orWhereHas('customer', function ($q) use ($search) {
-                      $q->where('name_en', 'like', "%{$search}%")
-                        ->orWhere('name_ar', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('customer', function ($q) use ($search) {
+                        $q->where('name_en', 'like', "%{$search}%")
+                            ->orWhere('name_ar', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -51,7 +51,7 @@ class SalesQuotationController extends Controller
             ->get();
         $units = ItemUnit::select('id', 'name as name_en', 'name as name_ar')->get();
         $warehouses = Warehouses::select('id', 'name as name_en', 'name as name_ar')->get();
-        
+
         $customerAddresses = CustomerAddress::select('id', 'customer_id', 'address_name', 'city_id', 'is_default')
             ->with('city')
             ->get();
@@ -87,7 +87,7 @@ class SalesQuotationController extends Controller
         DB::beginTransaction();
         try {
             // Auto-generate number if not provided
-            $number = 'SQ-' . date('Ymd') . '-' . rand(1000, 9999);
+            $number = 'SQ-'.date('Ymd').'-'.rand(1000, 9999);
 
             $quotation = SalesQuotation::create([
                 'quotation_number' => $number,
@@ -101,7 +101,7 @@ class SalesQuotationController extends Controller
                 'customer_notes' => $request->customer_notes,
                 'internal_notes' => $request->internal_notes,
                 'created_by' => Auth::id(),
-                
+
                 // Financials
                 'subtotal' => $request->subtotal ?? 0,
                 'tax_amount' => $request->tax_amount ?? 0,
@@ -124,18 +124,20 @@ class SalesQuotationController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Sales Quotation created successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error creating quotation: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error creating quotation: '.$e->getMessage());
         }
     }
 
     public function update(Request $request, $id)
     {
         $quotation = SalesQuotation::findOrFail($id);
-        
+
         $validated = $request->validate([
             'quotation_date' => 'required|date',
             'customer_id' => 'required|exists:customers,id',
@@ -179,11 +181,13 @@ class SalesQuotationController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Sales Quotation updated successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error updating quotation: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error updating quotation: '.$e->getMessage());
         }
     }
 
@@ -192,9 +196,10 @@ class SalesQuotationController extends Controller
         try {
             $quotation = SalesQuotation::findOrFail($id);
             $quotation->delete(); // Soft delete
+
             return redirect()->back()->with('success', 'Sales Quotation deleted successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error deleting quotation: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error deleting quotation: '.$e->getMessage());
         }
     }
 }

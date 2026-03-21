@@ -16,13 +16,12 @@ class CompanyScope implements Scope
         /** @var \Illuminate\Http\Request $request */
         $request = request();
         /** @var \Illuminate\Database\Eloquent\Model $model */
-
-        if (!$request->hasSession()) {
+        if (! $request->hasSession()) {
             return;
         }
 
         $companyId = $request->session()->get('company_id');
-        if (!$companyId) {
+        if (! $companyId) {
             return;
         }
 
@@ -35,19 +34,20 @@ class CompanyScope implements Scope
             return;
         }
 
-        if (!$this->supportsCompanyId($table)) {
+        if (! $this->supportsCompanyId($table)) {
             return;
         }
 
         if (in_array($table, ['item_units', 'item_unit_conversions'], true)) {
             $builder->where(function (Builder $query) use ($table, $companyId): void {
-                $query->where($table . '.company_id', $companyId)
-                    ->orWhereNull($table . '.company_id');
+                $query->where($table.'.company_id', $companyId)
+                    ->orWhereNull($table.'.company_id');
             });
+
             return;
         }
 
-        $builder->where($table . '.company_id', $companyId);
+        $builder->where($table.'.company_id', $companyId);
     }
 
     protected function supportsCompanyId(string $table): bool

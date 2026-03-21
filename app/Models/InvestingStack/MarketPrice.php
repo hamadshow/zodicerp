@@ -19,8 +19,8 @@ class MarketPrice extends Model
         'is_intraday' => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        
-        // Decimal casts to ensure they are returned as numbers/strings correctly? 
+
+        // Decimal casts to ensure they are returned as numbers/strings correctly?
         // Laravel returns decimals as strings by default to preserve precision.
         // We can cast to float/double if needed for calculation, but string is safer for display.
     ];

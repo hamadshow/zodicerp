@@ -4,7 +4,6 @@ namespace App\Models\Taxes;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\Relation;
 
 class TaxInvoice extends Model
 {
@@ -69,7 +68,7 @@ class TaxInvoice extends Model
     // Polymorphic Relationships
     // Note: Since we are using ENUM for types, standard morphTo might need 'morphMap' configuration in AppServiceProvider.
     // Assuming the map keys are 'customer', 'vendor', 'company'.
-    
+
     public function issuer()
     {
         return $this->morphTo();

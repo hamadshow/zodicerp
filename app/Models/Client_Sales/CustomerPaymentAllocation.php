@@ -14,13 +14,13 @@ class CustomerPaymentAllocation extends Model
         'allocated_amount',
         'base_allocated_amount',
         'discount_given',
-        'notes'
+        'notes',
     ];
 
     protected $casts = [
         'allocated_amount' => 'decimal:2',
         'base_allocated_amount' => 'decimal:2',
-        'discount_given' => 'decimal:2'
+        'discount_given' => 'decimal:2',
     ];
 
     public function payment()

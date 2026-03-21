@@ -2,9 +2,9 @@
 
 namespace App\Models\Client_Sales;
 
-use Illuminate\Database\Eloquent\Model;
 use App\Models\Currency;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 
 class CustomerStatement extends Model
 {
@@ -29,7 +29,7 @@ class CustomerStatement extends Model
         'is_sent',
         'sent_date',
         'sent_method',
-        'created_by'
+        'created_by',
     ];
 
     protected $casts = [
@@ -48,7 +48,7 @@ class CustomerStatement extends Model
         'sent_date' => 'date',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
-        'created_by' => 'integer'
+        'created_by' => 'integer',
     ];
 
     public function customer()

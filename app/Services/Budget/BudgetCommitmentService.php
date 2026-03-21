@@ -4,9 +4,9 @@ namespace App\Services\Budget;
 
 use App\Models\Budget\BudgetCommitment;
 use App\Models\Budget\BudgetItem;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 use Exception;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class BudgetCommitmentService
 {
@@ -22,7 +22,7 @@ class BudgetCommitmentService
             $data['status'] = 'active';
             $data['utilized_amount'] = 0;
             $data['remaining_amount'] = $data['committed_amount'];
-            
+
             return BudgetCommitment::create($data);
         });
     }
@@ -33,7 +33,7 @@ class BudgetCommitmentService
     public function updateCommitment(BudgetCommitment $commitment, array $data)
     {
         if ($commitment->status !== 'active') {
-            throw new Exception("Only active commitments can be updated.");
+            throw new Exception('Only active commitments can be updated.');
         }
 
         return DB::transaction(function () use ($commitment, $data) {
@@ -44,16 +44,17 @@ class BudgetCommitmentService
             }
 
             $data['updated_by'] = Auth::id();
-            
+
             // Recalculate remaining if committed amount changes
             if (isset($data['committed_amount'])) {
                 $data['remaining_amount'] = $data['committed_amount'] - $commitment->utilized_amount;
                 if ($data['remaining_amount'] < 0) {
-                     throw new Exception("Committed amount cannot be less than already utilized amount.");
+                    throw new Exception('Committed amount cannot be less than already utilized amount.');
                 }
             }
 
             $commitment->update($data);
+
             return $commitment;
         });
     }
@@ -65,7 +66,7 @@ class BudgetCommitmentService
     {
         return DB::transaction(function () use ($commitment, $amount) {
             if ($amount > $commitment->remaining_amount) {
-                throw new Exception("Utilization amount exceeds remaining commitment.");
+                throw new Exception('Utilization amount exceeds remaining commitment.');
             }
 
             $commitment->utilized_amount += $amount;
@@ -78,6 +79,7 @@ class BudgetCommitmentService
             }
 
             $commitment->save();
+
             return $commitment;
         });
     }
@@ -89,16 +91,17 @@ class BudgetCommitmentService
     {
         return DB::transaction(function () use ($commitment) {
             if ($commitment->status === 'fully_utilized' || $commitment->status === 'cancelled') {
-                throw new Exception("Commitment is already closed or cancelled.");
+                throw new Exception('Commitment is already closed or cancelled.');
             }
 
             // We don't change committed_amount, we just mark it cancelled/closed.
-            // The available balance calculation will ignore cancelled records, 
+            // The available balance calculation will ignore cancelled records,
             // but for 'closed' (manually finished early), we might want to consider remaining as free.
             // Let's assume 'cancelled' means voided.
-            
+
             $commitment->status = 'cancelled';
             $commitment->save();
+
             return $commitment;
         });
     }
@@ -110,21 +113,21 @@ class BudgetCommitmentService
     {
         return DB::transaction(function () use ($commitment) {
             if ($commitment->status === 'cancelled') {
-                 throw new Exception("Commitment is already cancelled.");
+                throw new Exception('Commitment is already cancelled.');
             }
             // Logic: Mark as completed/closed, remaining amount is released back to budget
-            // We can set status to 'fully_utilized' or a specific 'closed' status. 
+            // We can set status to 'fully_utilized' or a specific 'closed' status.
             // The prompt says "Close Commitment". Let's use 'fully_utilized' or create a 'closed' status if strictly needed.
             // Prompt status flow: active, partially_utilized, fully_utilized, expired, cancelled.
             // 'fully_utilized' implies we spent it all. If we close with remaining, maybe 'cancelled' or just 'expired'?
             // Let's use 'cancelled' for now or just set remaining to 0.
-            
+
             // Option: Reduce committed amount to equal utilized amount, effectively closing it.
             $commitment->committed_amount = $commitment->utilized_amount;
             $commitment->remaining_amount = 0;
             $commitment->status = 'fully_utilized'; // Effectively closed
             $commitment->save();
-            
+
             return $commitment;
         });
     }
@@ -138,7 +141,7 @@ class BudgetCommitmentService
         $available = $this->getAvailableBalance($item);
 
         if ($amountNeeded > $available) {
-            throw new Exception("Insufficient budget balance. Available: " . number_format($available, 2));
+            throw new Exception('Insufficient budget balance. Available: '.number_format($available, 2));
         }
     }
 
@@ -154,7 +157,7 @@ class BudgetCommitmentService
 
         // Note: BudgetTransfer logic used 'annual_amount - annual_actual'.
         // We must subtract reserved amounts too.
-        
+
         return $item->annual_amount - $item->annual_actual - $reserved;
     }
 }

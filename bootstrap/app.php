@@ -4,7 +4,6 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 $app = Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,8 +22,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
             function (Request $request) {
                 $params = [
                     'country' => session('country_code', 'sa'),
-                    'lang' => session('locale', 'ar')
+                    'lang' => session('locale', 'ar'),
                 ];
+
                 return route('login', $params);
             }
         );

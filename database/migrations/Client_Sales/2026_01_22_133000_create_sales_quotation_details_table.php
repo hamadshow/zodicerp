@@ -22,7 +22,7 @@ return new class extends Migration
             $table->decimal('discount_amount', 15, 2)->default(0);
             $table->unsignedBigInteger('tax_id')->nullable();
             $table->decimal('tax_amount', 15, 2)->default(0);
-            
+
             // Generated column
             $table->decimal('line_total', 15, 2)->storedAs('(quantity * unit_price) - discount_amount + tax_amount');
 

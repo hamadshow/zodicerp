@@ -3,19 +3,19 @@
 namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-
 use App\Models\Language;
-use Inertia\Inertia;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redirect;
+use Inertia\Inertia;
 
 class LanguageController extends Controller
 {
     public function index()
     {
         $languages = Language::orderBy('lang_order', 'asc')->get();
+
         return Inertia::render('Backend/Settings/Locales', [
-            'locales_data' => $languages
+            'locales_data' => $languages,
         ]);
     }
 
@@ -66,7 +66,7 @@ class LanguageController extends Controller
     public function destroy($id)
     {
         $language = Language::findOrFail($id);
-        
+
         if ($language->lang_is_default) {
             return Redirect::back()->with('error', 'Cannot delete default language.');
         }
@@ -80,7 +80,7 @@ class LanguageController extends Controller
     {
         // Reset all to not default
         Language::where('lang_is_default', 1)->update(['lang_is_default' => 0]);
-        
+
         // Set selected to default
         $language = Language::findOrFail($id);
         $language->update(['lang_is_default' => 1]);

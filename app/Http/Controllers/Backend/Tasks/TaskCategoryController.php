@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Backend\Tasks;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tasks\TaskCategory;
 use App\Http\Requests\StoreTaskCategoryRequest;
 use App\Http\Requests\UpdateTaskCategoryRequest;
-use Illuminate\Http\Request;
+use App\Models\Tasks\TaskCategory;
 
 class TaskCategoryController extends Controller
 {

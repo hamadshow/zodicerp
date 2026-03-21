@@ -4,11 +4,11 @@ namespace App\Http\Controllers\Backend\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\ItemAttribute;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class ItemAttributeController extends Controller
 {
@@ -16,11 +16,12 @@ class ItemAttributeController extends Controller
     {
         try {
             $attributes = ItemAttribute::latest()->get();
+
             return Inertia::render('Backend/03-Inventory/ItemAttributes', [
-                'attributes' => $attributes
+                'attributes' => $attributes,
             ]);
         } catch (\Exception $e) {
-            return redirect()->route('admin')->with('error', 'Error loading item attributes: ' . $e->getMessage());
+            return redirect()->route('admin')->with('error', 'Error loading item attributes: '.$e->getMessage());
         }
     }
 
@@ -42,7 +43,7 @@ class ItemAttributeController extends Controller
             ]);
 
             $validated['slug'] = Str::slug($validated['title']);
-            
+
             // Set defaults if not provided
             $validated['is_searchable'] = $request->boolean('is_searchable', true);
             $validated['is_comparable'] = $request->boolean('is_comparable', true);
@@ -53,7 +54,7 @@ class ItemAttributeController extends Controller
 
             if ($request->has('details')) {
                 foreach ($request->details as $index => $detail) {
-                    if (!empty($detail['title'])) {
+                    if (! empty($detail['title'])) {
                         $attribute->details()->create([
                             'title' => $detail['title'],
                             'slug' => Str::slug($detail['title']),
@@ -70,7 +71,7 @@ class ItemAttributeController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error creating attribute: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error creating attribute: '.$e->getMessage());
         }
     }
 
@@ -78,8 +79,9 @@ class ItemAttributeController extends Controller
     {
         try {
             $attribute = ItemAttribute::with('details')->findOrFail($id);
+
             return Inertia::render('Backend/03-Inventory/ItemAttributes', [
-                'attribute' => $attribute
+                'attribute' => $attribute,
             ]);
         } catch (ModelNotFoundException $e) {
             return redirect()->route('admin.item-attributes.index')->with('error', 'Attribute not found.');
@@ -101,7 +103,7 @@ class ItemAttributeController extends Controller
             ]);
 
             $validated['slug'] = Str::slug($validated['title']);
-            
+
             $validated['is_searchable'] = $request->boolean('is_searchable');
             $validated['is_comparable'] = $request->boolean('is_comparable');
             $validated['is_use_in_product_listing'] = $request->boolean('is_use_in_product_listing');
@@ -113,7 +115,7 @@ class ItemAttributeController extends Controller
             $existingIds = [];
             if ($request->has('details')) {
                 foreach ($request->details as $index => $detail) {
-                    if (!empty($detail['title'])) {
+                    if (! empty($detail['title'])) {
                         $detailData = [
                             'title' => $detail['title'],
                             'slug' => Str::slug($detail['title']),
@@ -135,7 +137,7 @@ class ItemAttributeController extends Controller
                     }
                 }
             }
-            
+
             // Delete removed details
             $attribute->details()->whereNotIn('id', $existingIds)->delete();
 
@@ -145,7 +147,7 @@ class ItemAttributeController extends Controller
         } catch (ModelNotFoundException $e) {
             return redirect()->route('admin.item-attributes.index')->with('error', 'Attribute not found.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error updating attribute: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error updating attribute: '.$e->getMessage());
         }
     }
 
@@ -159,7 +161,7 @@ class ItemAttributeController extends Controller
         } catch (ModelNotFoundException $e) {
             return redirect()->route('admin.item-attributes.index')->with('error', 'Attribute not found.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error deleting attribute: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error deleting attribute: '.$e->getMessage());
         }
     }
 }

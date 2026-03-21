@@ -15,16 +15,16 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tax_group_id')->constrained('tax_groups')->onDelete('cascade');
             $table->foreignId('tax_id')->constrained('taxes');
-            
+
             // Order and Calculation
             $table->integer('sequence_number');
             $table->boolean('is_compound_on_previous')->default(false);
             $table->json('compound_base_tax_ids')->nullable(); // Previous taxes to calculate tax on
-            
+
             // Application
             $table->boolean('apply_to_subtotal')->default(true);
             $table->boolean('include_in_total')->default(true);
-            
+
             // System
             $table->timestamps();
 

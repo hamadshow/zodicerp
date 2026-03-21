@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::dropIfExists('product_collections_translations');
-        
+
         Schema::create('product_collections_translations', function (Blueprint $table) {
             $table->id();
             $table->string('lang_code', 10)->index();
@@ -22,9 +22,9 @@ return new class extends Migration
 
             // Foreign key constraint with custom shorter name
             $table->foreign('ec_product_collections_id', 'fk_pct_ec_id')
-                  ->references('id')
-                  ->on('product_collections')
-                  ->onDelete('cascade');
+                ->references('id')
+                ->on('product_collections')
+                ->onDelete('cascade');
 
             // Unique constraint to prevent duplicate translations for the same language
             $table->unique(['ec_product_collections_id', 'lang_code'], 'unique_collection_translation');

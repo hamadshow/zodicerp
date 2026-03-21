@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Backend\InvestingStack;
 
 use App\Http\Controllers\Controller;
-use App\Models\InvestingStack\Broker;
 use App\Models\Country;
+use App\Models\InvestingStack\Broker;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -16,10 +16,10 @@ class BrokerController extends Controller
 
         if ($request->has('search') && $request->search) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('broker_name_en', 'like', "%{$search}%")
-                  ->orWhere('broker_name_ar', 'like', "%{$search}%")
-                  ->orWhere('broker_code', 'like', "%{$search}%");
+                    ->orWhere('broker_name_ar', 'like', "%{$search}%")
+                    ->orWhere('broker_code', 'like', "%{$search}%");
             });
         }
 
@@ -57,7 +57,7 @@ class BrokerController extends Controller
         ]);
 
         // Default status if not provided
-        if (!isset($validated['status'])) {
+        if (! isset($validated['status'])) {
             $validated['status'] = 'active';
         }
 
@@ -69,7 +69,7 @@ class BrokerController extends Controller
     public function update(Request $request, Broker $broker)
     {
         $validated = $request->validate([
-            'broker_code' => 'required|string|max:50|unique:brokers,broker_code,' . $broker->id,
+            'broker_code' => 'required|string|max:50|unique:brokers,broker_code,'.$broker->id,
             'broker_name_ar' => 'required|string|max:200',
             'broker_name_en' => 'nullable|string|max:200',
             'broker_type' => 'required|in:stock,forex,commodities,crypto,full_service,discount,online,institutional',
@@ -92,6 +92,7 @@ class BrokerController extends Controller
     public function destroy(Broker $broker)
     {
         $broker->delete();
+
         return redirect()->back()->with('success', 'Broker deleted successfully.');
     }
 }

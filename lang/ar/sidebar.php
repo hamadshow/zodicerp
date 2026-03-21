@@ -1,4 +1,5 @@
 <?php
+
 return [
     'dashboard' => 'لوحة التحكم',
     'products' => 'المنتجات',

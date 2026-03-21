@@ -1,4 +1,5 @@
 <?php
+
 return [
     'main_ad' => 'Main Ad',
     'main_promo_banner' => 'Main promotional banner',

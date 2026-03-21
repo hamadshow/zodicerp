@@ -42,15 +42,14 @@ class ProductCollection extends Model
     /**
      * Get translated name.
      *
-     * @param string|null $locale
      * @return string
      */
     public function getTranslatedName(?string $locale = null)
     {
         $locale = $locale ?: app()->getLocale();
-        
+
         $translation = $this->translations->where('lang_code', $locale)->first();
-        
+
         if ($translation) {
             return $translation->name;
         }
@@ -58,10 +57,10 @@ class ProductCollection extends Model
         // Fallback to default locale if not found
         $fallbackLocale = config('app.fallback_locale');
         if ($locale !== $fallbackLocale) {
-             $translation = $this->translations->where('lang_code', $fallbackLocale)->first();
-             if ($translation) {
-                 return $translation->name;
-             }
+            $translation = $this->translations->where('lang_code', $fallbackLocale)->first();
+            if ($translation) {
+                return $translation->name;
+            }
         }
 
         return $this->name;
@@ -70,26 +69,25 @@ class ProductCollection extends Model
     /**
      * Get translated description.
      *
-     * @param string|null $locale
      * @return string|null
      */
     public function getTranslatedDescription(?string $locale = null)
     {
         $locale = $locale ?: app()->getLocale();
-        
+
         $translation = $this->translations->where('lang_code', $locale)->first();
-        
+
         if ($translation) {
             return $translation->description;
         }
-        
+
         // Fallback
         $fallbackLocale = config('app.fallback_locale');
         if ($locale !== $fallbackLocale) {
-             $translation = $this->translations->where('lang_code', $fallbackLocale)->first();
-             if ($translation) {
-                 return $translation->description;
-             }
+            $translation = $this->translations->where('lang_code', $fallbackLocale)->first();
+            if ($translation) {
+                return $translation->description;
+            }
         }
 
         return $this->description;

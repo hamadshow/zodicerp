@@ -3,15 +3,13 @@
 namespace App\Http\Controllers\Backend\Cash;
 
 use App\Http\Controllers\Controller;
+use App\Models\Account;
 use App\Models\Bank;
-use App\Models\BankAccount;
-use App\Models\Account; // Chart of Accounts
+use App\Models\BankAccount; // Chart of Accounts
 use App\Models\Currency;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class BankController extends Controller
 {
@@ -23,9 +21,9 @@ class BankController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('bank_code', 'like', "%{$search}%")
-                  ->orWhere('short_name', 'like', "%{$search}%")
-                  ->orWhere('swift_code', 'like', "%{$search}%");
+                    ->orWhere('bank_code', 'like', "%{$search}%")
+                    ->orWhere('short_name', 'like', "%{$search}%")
+                    ->orWhere('swift_code', 'like', "%{$search}%");
             });
         }
 
@@ -36,7 +34,7 @@ class BankController extends Controller
         $banks = $query->latest()->paginate(10)->withQueryString();
 
         // Get GL Accounts for dropdowns (assets/cash/bank type accounts ideally)
-        // For now, fetching all or filtering by type if known. 
+        // For now, fetching all or filtering by type if known.
         // Assuming we want leaf accounts.
         $glAccounts = Account::where('Nature', 'bank')
             ->select('AccID', 'AccName', 'AccCode')
@@ -78,7 +76,7 @@ class BankController extends Controller
     public function update(Request $request, Bank $bank)
     {
         $validated = $request->validate([
-            'bank_code' => 'required|string|unique:banks,bank_code,' . $bank->id,
+            'bank_code' => 'required|string|unique:banks,bank_code,'.$bank->id,
             'name' => 'required|string|max:255',
             'short_name' => 'nullable|string|max:50',
             'swift_code' => 'nullable|string|max:20',
@@ -107,11 +105,12 @@ class BankController extends Controller
             Storage::disk('public')->delete($bank->logo);
         }
         $bank->delete();
+
         return redirect()->back()->with('success', 'Bank deleted successfully.');
     }
 
     // Bank Account Methods (could be in separate controller but keeping here for simplicity as requested)
-    
+
     public function storeAccount(Request $request)
     {
         $validated = $request->validate([
@@ -154,12 +153,14 @@ class BankController extends Controller
     public function destroyAccount(BankAccount $bankAccount)
     {
         $bankAccount->delete();
+
         return redirect()->back()->with('success', 'Bank account deleted successfully.');
     }
 
     public function getAccounts(Bank $bank)
     {
         $accounts = $bank->accounts()->with(['glAccount', 'currencyInfo'])->get();
+
         return response()->json($accounts);
     }
 }

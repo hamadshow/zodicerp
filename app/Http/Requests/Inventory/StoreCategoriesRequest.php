@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Inventory;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreCategoriesRequest extends FormRequest
 {
@@ -23,7 +22,9 @@ class StoreCategoriesRequest extends FormRequest
             'description' => 'nullable|string',
             'icon' => 'nullable|string',
             'image' => ['nullable', function ($attribute, $value, $fail) {
-                if (is_string($value)) return;
+                if (is_string($value)) {
+                    return;
+                }
                 $validator = \Illuminate\Support\Facades\Validator::make(
                     ['image' => $value],
                     ['image' => 'image|max:2048']

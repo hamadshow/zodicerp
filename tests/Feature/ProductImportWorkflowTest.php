@@ -6,6 +6,7 @@ use App\Models\Products;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -18,25 +19,26 @@ class ProductImportWorkflowTest extends TestCase
             ->whereNotNull('company_id')
             ->first();
 
-        if (!$user) {
+        if (! $user) {
             $user = User::query()->whereNotNull('company_id')->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             $user = User::query()->where('role', 'admin')->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             $user = User::query()->first();
         }
 
-        if (!$user) {
+        if (! $user) {
             return null;
         }
 
-        if (!$user->company_id) {
-            $companyId = DB::table('companies')->value('id');
-            if (!$companyId) {
+        if (! $user->company_id) {
+            $companyTable = Schema::hasTable('companies_shares') ? 'companies_shares' : 'companies';
+            $companyId = DB::table($companyTable)->value('id');
+            if (! $companyId) {
                 return null;
             }
             $user->company_id = (int) $companyId;
@@ -53,15 +55,15 @@ class ProductImportWorkflowTest extends TestCase
         }
 
         $user = $this->resolveUser();
-        if (!$user) {
+        if (! $user) {
             $this->markTestSkipped('No suitable user/company found for import workflow test.');
         }
 
         $this->actingAs($user);
 
-        $validCode = 'TST-' . strtoupper(Str::random(8));
-        $validSku = 'SKU-' . strtoupper(Str::random(8));
-        $invalidCode = 'TST-' . strtoupper(Str::random(8));
+        $validCode = 'TST-'.strtoupper(Str::random(8));
+        $validSku = 'SKU-'.strtoupper(Str::random(8));
+        $invalidCode = 'TST-'.strtoupper(Str::random(8));
         $validName = "Test Imported Product {$validCode}";
 
         $validCsv = implode("\n", [
@@ -105,7 +107,7 @@ class ProductImportWorkflowTest extends TestCase
 
         $invalidCsv = implode("\n", [
             'name,product_code,sku,price,quantity,status',
-            ",{$invalidCode},SKU-" . strtoupper(Str::random(8)) . ',15,2,active',
+            ",{$invalidCode},SKU-".strtoupper(Str::random(8)).',15,2,active',
         ]);
 
         $invalidPreviewResponse = $this->post(route('admin.products.import.preview'), [

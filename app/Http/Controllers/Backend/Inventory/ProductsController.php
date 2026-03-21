@@ -2,31 +2,31 @@
 
 namespace App\Http\Controllers\Backend\Inventory;
 
+use App\Exports\ProductExport;
 use App\Http\Controllers\Controller;
-use App\Models\Products;
+use App\Http\Requests\Inventory\StoreProductsRequest;
+use App\Http\Requests\Inventory\UpdateProductsRequest;
+use App\Imports\ProductImport;
+use App\Imports\ProductPreviewImport;
 use App\Models\Brands;
 use App\Models\Categories;
 use App\Models\ItemAttribute;
-use App\Http\Requests\Inventory\StoreProductsRequest;
-use App\Http\Requests\Inventory\UpdateProductsRequest;
-use App\Exports\ProductExport;
-use App\Imports\ProductPreviewImport;
-use App\Imports\ProductImport;
-use Maatwebsite\Excel\Facades\Excel;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Exception;
-use Throwable;
+use App\Models\Products;
 use App\Models\Vendor_Purchases\Supplier;
+use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
+use Throwable;
 
 class ProductsController extends Controller
 {
@@ -34,9 +34,10 @@ class ProductsController extends Controller
     {
         set_time_limit(300); // 5 minutes
         $companyId = $request->user()?->company_id;
-        if (!$companyId) {
+        if (! $companyId) {
             abort(403, 'Company not set for this user.');
         }
+
         return Excel::download(new ProductExport($companyId), 'products.xlsx');
     }
 
@@ -45,7 +46,7 @@ class ProductsController extends Controller
         set_time_limit(300); // 5 minutes
 
         $companyId = $request->user()?->company_id;
-        if (!$companyId) {
+        if (! $companyId) {
             return response()->json(['error' => 'Company not set for this user.'], 403);
         }
 
@@ -57,7 +58,7 @@ class ProductsController extends Controller
             $userId = $request->user()->id;
             $file = $request->file('file');
             $ext = strtolower($file->getClientOriginalExtension() ?: 'xlsx');
-            $path = $file->storeAs("tmp-imports/{$userId}", Str::uuid() . '.' . $ext);
+            $path = $file->storeAs("tmp-imports/{$userId}", Str::uuid().'.'.$ext);
             $token = Crypt::encryptString($path);
 
             [$payload, $status] = $this->buildImportPreviewPayload($companyId, $path, 50);
@@ -67,7 +68,7 @@ class ProductsController extends Controller
                 'token' => $token,
             ], $status);
         } catch (Exception $e) {
-            return response()->json(['error' => 'Error reading file: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error reading file: '.$e->getMessage()], 500);
         }
     }
 
@@ -76,7 +77,7 @@ class ProductsController extends Controller
         set_time_limit(300);
 
         $companyId = $request->user()?->company_id;
-        if (!$companyId) {
+        if (! $companyId) {
             return response()->json(['error' => 'Company not set for this user.'], 403);
         }
 
@@ -88,10 +89,10 @@ class ProductsController extends Controller
             $path = Crypt::decryptString($request->input('token'));
             $userId = $request->user()->id;
             $prefix = "tmp-imports/{$userId}/";
-            if (!is_string($path) || !str_starts_with($path, $prefix)) {
+            if (! is_string($path) || ! str_starts_with($path, $prefix)) {
                 return response()->json(['error' => 'Invalid import token.'], 403);
             }
-            if (!Storage::exists($path)) {
+            if (! Storage::exists($path)) {
                 return response()->json(['error' => 'Import file not found or expired.'], 404);
             }
 
@@ -113,7 +114,7 @@ class ProductsController extends Controller
                 'total' => $payload['total'] ?? 0,
             ]);
         } catch (Exception $e) {
-            return response()->json(['error' => 'Error importing products: ' . $e->getMessage()], 500);
+            return response()->json(['error' => 'Error importing products: '.$e->getMessage()], 500);
         }
     }
 
@@ -122,7 +123,7 @@ class ProductsController extends Controller
         set_time_limit(300); // 5 minutes
 
         $companyId = $request->user()?->company_id;
-        if (!$companyId) {
+        if (! $companyId) {
             return back()->withErrors(['error' => 'Company not set for this user.']);
         }
 
@@ -132,23 +133,24 @@ class ProductsController extends Controller
 
         try {
             Excel::import(new ProductImport($companyId), $request->file('file'));
+
             return back()->with('success', 'Products imported successfully');
         } catch (Exception $e) {
-            return back()->withErrors(['error' => 'Error importing products: ' . $e->getMessage()]);
+            return back()->withErrors(['error' => 'Error importing products: '.$e->getMessage()]);
         }
     }
 
     private function buildImportPreviewPayload(int $companyId, string $path, int $limit): array
     {
         $fullPath = Storage::path($path);
-        $sheets = Excel::toCollection(new ProductPreviewImport(), $fullPath);
+        $sheets = Excel::toCollection(new ProductPreviewImport, $fullPath);
         $sheet = $sheets->first() ?? collect();
         $rowsRaw = $sheet->toArray();
 
         $rows = [];
         $firstNonEmptyRawKeys = null;
         foreach ($rowsRaw as $idx => $row) {
-            if (!is_array($row)) {
+            if (! is_array($row)) {
                 continue;
             }
             $hasValue = false;
@@ -162,7 +164,7 @@ class ProductsController extends Controller
                     break;
                 }
             }
-            if (!$hasValue) {
+            if (! $hasValue) {
                 continue;
             }
             if ($firstNonEmptyRawKeys === null) {
@@ -184,9 +186,9 @@ class ProductsController extends Controller
         }
 
         $hasHeaderRow = $firstNonEmptyRawKeys !== null
-            ? !array_reduce($firstNonEmptyRawKeys, fn ($carry, $k) => $carry && is_int($k), true)
+            ? ! array_reduce($firstNonEmptyRawKeys, fn ($carry, $k) => $carry && is_int($k), true)
             : true;
-        if (!$hasHeaderRow) {
+        if (! $hasHeaderRow) {
             return [[
                 'rows' => [],
                 'errors' => [[
@@ -201,7 +203,7 @@ class ProductsController extends Controller
         $requiredColumns = ['name'];
         $missing = [];
         foreach ($requiredColumns as $c) {
-            if (!array_key_exists($c, $rows[0])) {
+            if (! array_key_exists($c, $rows[0])) {
                 $missing[] = $c;
             }
         }
@@ -210,7 +212,7 @@ class ProductsController extends Controller
                 'rows' => [],
                 'errors' => [[
                     'row' => 1,
-                    'messages' => ['file' => ['Missing columns: ' . implode(', ', $missing)]],
+                    'messages' => ['file' => ['Missing columns: '.implode(', ', $missing)]],
                 ]],
                 'total' => 0,
                 'shown' => 0,
@@ -237,7 +239,7 @@ class ProductsController extends Controller
 
         $errors = [];
         foreach ($rows as $row) {
-            $rowNumber = (int)($row['__row'] ?? 0);
+            $rowNumber = (int) ($row['__row'] ?? 0);
             $validator = Validator::make($row, $rules);
             if ($validator->fails()) {
                 $errors[] = [
@@ -269,8 +271,8 @@ class ProductsController extends Controller
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('product_code', 'like', "%{$search}%")
-                      ->orWhere('sku', 'like', "%{$search}%");
+                        ->orWhere('product_code', 'like', "%{$search}%")
+                        ->orWhere('sku', 'like', "%{$search}%");
                 });
             }
 
@@ -302,7 +304,7 @@ class ProductsController extends Controller
                     'products' => $products,
                     'parents' => $parents,
                     'brands' => $brands,
-                    'categories' => $categories
+                    'categories' => $categories,
                 ]);
             }
 
@@ -310,18 +312,18 @@ class ProductsController extends Controller
                 'products' => $products,
                 'brands' => $brands,
                 'categories' => $categories,
-                'filters' => $request->only(['search', 'status', 'brand_id', 'category_id'])
+                'filters' => $request->only(['search', 'status', 'brand_id', 'category_id']),
             ]);
         } catch (Exception $e) {
-            Log::error('Error retrieving products: ' . $e->getMessage(), [
+            Log::error('Error retrieving products: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
             if ($request->wantsJson()) {
                 return response()->json([
-                    'error' => 'Failed to retrieve products. Please try again later.'
+                    'error' => 'Failed to retrieve products. Please try again later.',
                 ], 500);
             }
 
@@ -330,7 +332,7 @@ class ProductsController extends Controller
                 'brands' => collect([]),
                 'categories' => collect([]),
                 'filters' => $request->only(['search', 'status', 'brand_id', 'category_id']),
-                'error' => 'Failed to retrieve products. Please try again later.'
+                'error' => 'Failed to retrieve products. Please try again later.',
             ])->with('error', 'Failed to retrieve products. Please try again later.');
         }
     }
@@ -386,7 +388,7 @@ class ProductsController extends Controller
     public function store(StoreProductsRequest $request)
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403, 'Unauthorized');
         }
 
@@ -404,13 +406,13 @@ class ProductsController extends Controller
             } else {
                 $nextNumber = 7001;
             }
-            $productCode = 'PRD-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            $productCode = 'PRD-'.str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
 
             // Generate Slug
             $slug = Str::slug($request->name);
             $count = Products::where('slug', 'LIKE', "{$slug}%")->count();
             if ($count > 0) {
-                $slug .= '-' . ($count + 1);
+                $slug .= '-'.($count + 1);
             }
 
             $data = $request->validated();
@@ -432,7 +434,7 @@ class ProductsController extends Controller
                 $image = $request->file('image');
 
                 // Validate image file
-                if (!$this->validateImageFile($image)) {
+                if (! $this->validateImageFile($image)) {
                     throw new Exception('Invalid image file provided.');
                 }
 
@@ -443,7 +445,7 @@ class ProductsController extends Controller
 
             // Handle Gallery Images
             $galleryImages = [];
-            
+
             // 1. Uploaded files
             if ($request->hasFile('gallery')) {
                 foreach ($request->file('gallery') as $file) {
@@ -454,7 +456,7 @@ class ProductsController extends Controller
                     }
                 }
             }
-            
+
             // 2. Existing paths or Media Library paths
             if ($request->filled('gallery') && is_array($request->input('gallery'))) {
                 foreach ($request->input('gallery') as $item) {
@@ -463,8 +465,8 @@ class ProductsController extends Controller
                     }
                 }
             }
-            
-            if (!empty($galleryImages)) {
+
+            if (! empty($galleryImages)) {
                 $data['images'] = $galleryImages;
             }
 
@@ -477,9 +479,9 @@ class ProductsController extends Controller
                 $variations = $request->input('variations', []);
                 $variationFiles = $request->file('variations', []);
 
-                if (!is_array($variations) || count($variations) === 0) {
+                if (! is_array($variations) || count($variations) === 0) {
                     throw ValidationException::withMessages([
-                        'variations' => ['Variations are required for variable products.']
+                        'variations' => ['Variations are required for variable products.'],
                     ]);
                 }
 
@@ -487,7 +489,7 @@ class ProductsController extends Controller
                 $defaultMarked = false;
 
                 foreach ($variations as $index => $var) {
-                    $isDefault = (bool)($var['is_default'] ?? false);
+                    $isDefault = (bool) ($var['is_default'] ?? false);
                     if ($isDefault) {
                         $defaultMarked = true;
                     }
@@ -506,7 +508,7 @@ class ProductsController extends Controller
                     // 2. Handle strings in 'images' array (existing paths)
                     if (isset($var['images']) && is_array($var['images'])) {
                         foreach ($var['images'] as $path) {
-                            if (is_string($path) && !empty($path)) {
+                            if (is_string($path) && ! empty($path)) {
                                 $variationImages[] = $path;
                             }
                         }
@@ -518,7 +520,7 @@ class ProductsController extends Controller
                             if ($this->validateImageFile($variationFiles[$index]['image'])) {
                                 $variationImages[] = $variationFiles[$index]['image']->store('products/variations', 'public');
                             }
-                        } elseif (isset($var['image']) && is_string($var['image']) && !empty($var['image'])) {
+                        } elseif (isset($var['image']) && is_string($var['image']) && ! empty($var['image'])) {
                             $variationImages[] = $var['image'];
                         }
                     }
@@ -529,7 +531,7 @@ class ProductsController extends Controller
                     }
 
                     $variationImages = array_values(array_unique($variationImages));
-                    $mainImage = !empty($variationImages) ? $variationImages[0] : null;
+                    $mainImage = ! empty($variationImages) ? $variationImages[0] : null;
 
                     $childProductData = $product->toArray();
                     unset(
@@ -544,8 +546,8 @@ class ProductsController extends Controller
                     $childProductData['product_type'] = 'simple';
                     $childProductData['is_variation'] = false;
                     $childProductData['barcode'] = $var['barcode'] ?? null;
-                    $childProductData['product_code'] = $productCode . '-' . ($index + 1);
-                    $childProductData['slug'] = $slug . '-' . ($index + 1);
+                    $childProductData['product_code'] = $productCode.'-'.($index + 1);
+                    $childProductData['slug'] = $slug.'-'.($index + 1);
                     $childProductData['sku'] = $var['sku'] ?? null;
                     $childProductData['price'] = (array_key_exists('price', $var) && $var['price'] !== null)
                         ? $var['price']
@@ -589,7 +591,7 @@ class ProductsController extends Controller
                     } elseif (isset($var['attribute_values']) && is_array($var['attribute_values'])) {
                         foreach ($var['attribute_values'] as $attrId => $value) {
                             $attributes[] = [
-                                'attribute_id' => is_numeric($attrId) ? (int)$attrId : $attrId,
+                                'attribute_id' => is_numeric($attrId) ? (int) $attrId : $attrId,
                                 'attribute_value' => $value,
                             ];
                         }
@@ -606,7 +608,7 @@ class ProductsController extends Controller
                     $total++;
                 }
 
-                if (!$defaultMarked) {
+                if (! $defaultMarked) {
                     $first = $product->variations()->first();
                     if ($first) {
                         $first->is_default = true;
@@ -630,7 +632,7 @@ class ProductsController extends Controller
             if ($request->wantsJson()) {
                 return response()->json([
                     'message' => 'Product created successfully.',
-                    'product' => $product->load(['variations.items', 'variations.product'])
+                    'product' => $product->load(['variations.items', 'variations.product']),
                 ], 201);
             }
 
@@ -645,37 +647,37 @@ class ProductsController extends Controller
 
             if ($request->wantsJson()) {
                 return response()->json([
-                    'errors' => $e->errors()
+                    'errors' => $e->errors(),
                 ], 422);
             }
 
             return back()->withErrors($e->errors())->withInput();
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Product creation failed: ' . $e->getMessage(), [
+            Log::error('Product creation failed: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
             if ($request->wantsJson()) {
                 return response()->json([
-                    'error' => 'Failed to create product. Please try again later.'
+                    'error' => 'Failed to create product. Please try again later.',
                 ], 500);
             }
 
             return back()->withErrors(['error' => 'Failed to create product. Please try again later.'])->withInput();
         } catch (Throwable $e) {
             DB::rollBack();
-            Log::error('Unexpected error during product creation: ' . $e->getMessage(), [
+            Log::error('Unexpected error during product creation: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
             if ($request->wantsJson()) {
                 return response()->json([
-                    'error' => 'An unexpected error occurred. Please try again later.'
+                    'error' => 'An unexpected error occurred. Please try again later.',
                 ], 500);
             }
 
@@ -686,21 +688,21 @@ class ProductsController extends Controller
     public function update(UpdateProductsRequest $request, Products $product)
     {
         $user = Auth::user();
-        if (!$user) {
+        if (! $user) {
             abort(403, 'Unauthorized');
         }
 
         try {
             DB::beginTransaction();
 
-            Log::info('ProductsController::update called for product ' . $product->id);
-            Log::info('Request Content-Type: ' . $request->header('Content-Type'));
-            Log::info('Request is_featured raw: ' . json_encode($request->input('is_featured')));
-            Log::info('Request variations count: ' . count($request->input('variations', [])));
-            
+            Log::info('ProductsController::update called for product '.$product->id);
+            Log::info('Request Content-Type: '.$request->header('Content-Type'));
+            Log::info('Request is_featured raw: '.json_encode($request->input('is_featured')));
+            Log::info('Request variations count: '.count($request->input('variations', [])));
+
             // Log first variation to check structure
             $variations = $request->input('variations', []);
-            if (!empty($variations)) {
+            if (! empty($variations)) {
                 Log::info('First variation structure:', [
                     'keys' => array_keys($variations[0]),
                     'images_type' => gettype($variations[0]['images'] ?? null),
@@ -726,14 +728,14 @@ class ProductsController extends Controller
 
             // Update slug if name changed and slug not manually provided (optional logic, sticking to auto for now)
             if ($product->name !== $request->name) {
-                 $slug = Str::slug($request->name);
-                 if ($slug !== $product->slug) {
-                     $count = Products::where('slug', 'LIKE', "{$slug}%")->where('id', '!=', $product->id)->count();
-                     if ($count > 0) {
-                         $slug .= '-' . ($count + 1);
-                     }
-                     $data['slug'] = $slug;
-                 }
+                $slug = Str::slug($request->name);
+                if ($slug !== $product->slug) {
+                    $count = Products::where('slug', 'LIKE', "{$slug}%")->where('id', '!=', $product->id)->count();
+                    if ($count > 0) {
+                        $slug .= '-'.($count + 1);
+                    }
+                    $data['slug'] = $slug;
+                }
             }
 
             // Handle Main Image
@@ -741,7 +743,7 @@ class ProductsController extends Controller
                 $image = $request->file('image');
 
                 // Validate image file
-                if (!$this->validateImageFile($image)) {
+                if (! $this->validateImageFile($image)) {
                     throw new Exception('Invalid image file provided.');
                 }
 
@@ -756,7 +758,7 @@ class ProductsController extends Controller
                 // unless we implement strict ownership checks.
                 $data['image'] = $request->input('image');
             } elseif (isset($data['delete_image']) && $data['delete_image']) {
-                 if ($product->image && Storage::disk('public')->exists($product->image)) {
+                if ($product->image && Storage::disk('public')->exists($product->image)) {
                     Storage::disk('public')->delete($product->image);
                 }
                 $data['image'] = null;
@@ -788,7 +790,7 @@ class ProductsController extends Controller
                     }
                 }
             }
-            
+
             // 3. New Media Library selections (strings in gallery)
             if ($request->filled('gallery') && is_array($request->input('gallery'))) {
                 foreach ($request->input('gallery') as $item) {
@@ -813,22 +815,22 @@ class ProductsController extends Controller
                 $variations = $request->input('variations', []);
                 $variationFiles = $request->file('variations', []);
 
-                if (!is_array($variations) || count($variations) === 0) {
+                if (! is_array($variations) || count($variations) === 0) {
                     throw ValidationException::withMessages([
-                        'variations' => ['Variations are required for variable products.']
+                        'variations' => ['Variations are required for variable products.'],
                     ]);
                 }
 
                 $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
                 $product->variations()->delete();
-                if (!empty($existingVariationProductIds)) {
+                if (! empty($existingVariationProductIds)) {
                     \App\Models\Products::whereIn('id', $existingVariationProductIds)->forceDelete();
                 }
 
                 $total = 0;
                 $defaultMarked = false;
                 foreach ($variations as $index => $var) {
-                    $isDefault = (bool)($var['is_default'] ?? false);
+                    $isDefault = (bool) ($var['is_default'] ?? false);
                     if ($isDefault) {
                         $defaultMarked = true;
                     }
@@ -838,7 +840,7 @@ class ProductsController extends Controller
                     Log::info("Update: Processing variation $index", [
                         'sku' => $var['sku'] ?? 'no-sku',
                         'input_images' => $var['images'] ?? 'not-set',
-                        'input_image' => $var['image'] ?? 'not-set'
+                        'input_image' => $var['image'] ?? 'not-set',
                     ]);
 
                     // 1. Handle uploaded files in 'images' array
@@ -853,7 +855,7 @@ class ProductsController extends Controller
                     // 2. Handle strings in 'images' array (existing paths)
                     if (isset($var['images']) && is_array($var['images'])) {
                         foreach ($var['images'] as $path) {
-                            if (is_string($path) && !empty($path)) {
+                            if (is_string($path) && ! empty($path)) {
                                 $variationImages[] = $path;
                             }
                         }
@@ -865,7 +867,7 @@ class ProductsController extends Controller
                             if ($this->validateImageFile($variationFiles[$index]['image'])) {
                                 $variationImages[] = $variationFiles[$index]['image']->store('products/variations', 'public');
                             }
-                        } elseif (isset($var['image']) && is_string($var['image']) && !empty($var['image'])) {
+                        } elseif (isset($var['image']) && is_string($var['image']) && ! empty($var['image'])) {
                             $variationImages[] = $var['image'];
                         }
                     }
@@ -876,7 +878,7 @@ class ProductsController extends Controller
                     }
 
                     $variationImages = array_values(array_unique($variationImages));
-                    $mainImage = !empty($variationImages) ? $variationImages[0] : null;
+                    $mainImage = ! empty($variationImages) ? $variationImages[0] : null;
 
                     $childProductData = $product->toArray();
                     unset(
@@ -891,8 +893,8 @@ class ProductsController extends Controller
                     $childProductData['product_type'] = 'simple';
                     $childProductData['is_variation'] = false;
                     $childProductData['barcode'] = $var['barcode'] ?? null;
-                    $childProductData['product_code'] = $product->product_code . '-' . ($index + 1);
-                    $childProductData['slug'] = $product->slug . '-' . ($index + 1);
+                    $childProductData['product_code'] = $product->product_code.'-'.($index + 1);
+                    $childProductData['slug'] = $product->slug.'-'.($index + 1);
                     $childProductData['sku'] = $var['sku'] ?? null;
                     $childProductData['price'] = (array_key_exists('price', $var) && $var['price'] !== null)
                         ? $var['price']
@@ -936,7 +938,7 @@ class ProductsController extends Controller
                     } elseif (isset($var['attribute_values']) && is_array($var['attribute_values'])) {
                         foreach ($var['attribute_values'] as $attrId => $value) {
                             $attributes[] = [
-                                'attribute_id' => is_numeric($attrId) ? (int)$attrId : $attrId,
+                                'attribute_id' => is_numeric($attrId) ? (int) $attrId : $attrId,
                                 'attribute_value' => $value,
                             ];
                         }
@@ -953,7 +955,7 @@ class ProductsController extends Controller
                     $total++;
                 }
 
-                if (!$defaultMarked) {
+                if (! $defaultMarked) {
                     $first = $product->variations()->first();
                     if ($first) {
                         $first->is_default = true;
@@ -968,7 +970,7 @@ class ProductsController extends Controller
             } else {
                 $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
                 $product->variations()->delete();
-                if (!empty($existingVariationProductIds)) {
+                if (! empty($existingVariationProductIds)) {
                     \App\Models\Products::whereIn('id', $existingVariationProductIds)->delete();
                 }
                 $product->update([
@@ -980,12 +982,12 @@ class ProductsController extends Controller
             DB::commit();
 
             $saveAction = $request->input('save_action');
-            
-            if ($request->wantsJson() && !$request->header('X-Inertia')) {
+
+            if ($request->wantsJson() && ! $request->header('X-Inertia')) {
                 return response()->json([
                     'message' => 'Product updated successfully.',
                     'product' => $product->load(['variations.items', 'variations.product']),
-                    'save_action' => $saveAction
+                    'save_action' => $saveAction,
                 ], 200);
             }
 
@@ -997,15 +999,15 @@ class ProductsController extends Controller
                 ->with('success', 'Product updated successfully.');
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
-            Log::error('Product not found for update: ' . $e->getMessage(), [
+            Log::error('Product not found for update: '.$e->getMessage(), [
                 'product_id' => $product->id,
                 'user_id' => Auth::id(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
             if ($request->wantsJson()) {
                 return response()->json([
-                    'error' => 'Product not found.'
+                    'error' => 'Product not found.',
                 ], 404);
             }
 
@@ -1015,39 +1017,39 @@ class ProductsController extends Controller
 
             if ($request->wantsJson()) {
                 return response()->json([
-                    'errors' => $e->errors()
+                    'errors' => $e->errors(),
                 ], 422);
             }
 
             return back()->withErrors($e->errors())->withInput();
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Product update failed: ' . $e->getMessage(), [
+            Log::error('Product update failed: '.$e->getMessage(), [
                 'product_id' => $product->id,
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
             if ($request->wantsJson()) {
                 return response()->json([
-                    'error' => 'Failed to update product. Please try again later.'
+                    'error' => 'Failed to update product. Please try again later.',
                 ], 500);
             }
 
             return back()->withErrors(['error' => 'Failed to update product. Please try again later.'])->withInput();
         } catch (Throwable $e) {
             DB::rollBack();
-            Log::error('Unexpected error during product update: ' . $e->getMessage(), [
+            Log::error('Unexpected error during product update: '.$e->getMessage(), [
                 'product_id' => $product->id,
                 'trace' => $e->getTraceAsString(),
                 'user_id' => Auth::id(),
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
             if ($request->wantsJson()) {
                 return response()->json([
-                    'error' => 'An unexpected error occurred. Please try again later.'
+                    'error' => 'An unexpected error occurred. Please try again later.',
                 ], 500);
             }
 
@@ -1061,9 +1063,10 @@ class ProductsController extends Controller
             if ($product->children()->count() > 0) {
                 if (request()->wantsJson()) {
                     return response()->json([
-                        'error' => 'Cannot delete product with sub-products.'
+                        'error' => 'Cannot delete product with sub-products.',
                     ], 400);
                 }
+
                 return back()->withErrors(['error' => 'Cannot delete product with sub-products.']);
             }
 
@@ -1084,49 +1087,49 @@ class ProductsController extends Controller
 
             if (request()->wantsJson()) {
                 return response()->json([
-                    'message' => 'Product deleted successfully.'
+                    'message' => 'Product deleted successfully.',
                 ], 200);
             }
 
             return redirect()->route('admin.products.index')
                 ->with('success', 'Product deleted successfully.');
         } catch (ModelNotFoundException $e) {
-            Log::error('Product not found for deletion: ' . $e->getMessage(), [
+            Log::error('Product not found for deletion: '.$e->getMessage(), [
                 'product_id' => $product->id,
-                'user_id' => Auth::id()
+                'user_id' => Auth::id(),
             ]);
 
             if (request()->wantsJson()) {
                 return response()->json([
-                    'error' => 'Product not found.'
+                    'error' => 'Product not found.',
                 ], 404);
             }
 
             return back()->withErrors(['error' => 'Product not found.']);
         } catch (Exception $e) {
-            Log::error('Product deletion failed: ' . $e->getMessage(), [
+            Log::error('Product deletion failed: '.$e->getMessage(), [
                 'product_id' => $product->id,
                 'trace' => $e->getTraceAsString(),
-                'user_id' => Auth::id()
+                'user_id' => Auth::id(),
             ]);
 
             if (request()->wantsJson()) {
                 return response()->json([
-                    'error' => 'Failed to delete product. Please try again later.'
+                    'error' => 'Failed to delete product. Please try again later.',
                 ], 500);
             }
 
             return back()->withErrors(['error' => 'Failed to delete product. Please try again later.']);
         } catch (Throwable $e) {
-            Log::error('Unexpected error during product deletion: ' . $e->getMessage(), [
+            Log::error('Unexpected error during product deletion: '.$e->getMessage(), [
                 'product_id' => $product->id,
                 'trace' => $e->getTraceAsString(),
-                'user_id' => Auth::id()
+                'user_id' => Auth::id(),
             ]);
 
             if (request()->wantsJson()) {
                 return response()->json([
-                    'error' => 'An unexpected error occurred. Please try again later.'
+                    'error' => 'An unexpected error occurred. Please try again later.',
                 ], 500);
             }
 
@@ -1137,12 +1140,11 @@ class ProductsController extends Controller
     /**
      * Validate image file
      *
-     * @param \Illuminate\Http\UploadedFile $file
-     * @return bool
+     * @param  \Illuminate\Http\UploadedFile  $file
      */
     private function validateImageFile($file): bool
     {
-        if (!$file->isValid()) {
+        if (! $file->isValid()) {
             return false;
         }
 
@@ -1153,7 +1155,7 @@ class ProductsController extends Controller
 
         // Check file extension
         $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        if (!in_array(strtolower($file->getClientOriginalExtension()), $allowedExtensions)) {
+        if (! in_array(strtolower($file->getClientOriginalExtension()), $allowedExtensions)) {
             return false;
         }
 

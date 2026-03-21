@@ -21,7 +21,7 @@ return new class extends Migration
 
             $table->foreign('from_unit_id')->references('id')->on('item_units')->onDelete('cascade');
             $table->foreign('to_unit_id')->references('id')->on('item_units')->onDelete('cascade');
-            
+
             $table->unique(['from_unit_id', 'to_unit_id'], 'unique_conversion');
 
             $table->charset = 'utf8mb4';

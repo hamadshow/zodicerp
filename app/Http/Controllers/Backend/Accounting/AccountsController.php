@@ -22,16 +22,15 @@ class AccountsController extends Controller
             $search = $request->string('search')->toString();
 
             $query->where(function ($q) use ($search) {
-                $q->where('AccName', 'like', '%' . $search . '%')
-                    ->orWhere('AccCode', 'like', '%' . $search . '%')
-                    ->orWhere('AccNote', 'like', '%' . $search . '%');
+                $q->where('AccName', 'like', '%'.$search.'%')
+                    ->orWhere('AccCode', 'like', '%'.$search.'%')
+                    ->orWhere('AccNote', 'like', '%'.$search.'%');
             });
         }
 
         if ($request->filled('type')) {
             $query->where('AccType', (int) $request->input('type'));
         }
-
 
         if ($request->filled('branch')) {
             $query->where('AccBranch', (int) $request->input('branch'));
@@ -43,7 +42,7 @@ class AccountsController extends Controller
                 $ids = array_filter(explode(',', $ids));
             }
             $ids = array_map('intval', (array) $ids);
-            if (!empty($ids)) {
+            if (! empty($ids)) {
                 $query->orWhereIn('AccID', $ids);
             }
         }
@@ -71,8 +70,8 @@ class AccountsController extends Controller
 
         $byParent = [];
         foreach ($accounts as $account) {
-            $parentKey = ($account->AccParent && (int) $account->AccParent !== 0) ? (int)$account->AccParent : null;
-            if (!array_key_exists($parentKey, $byParent)) {
+            $parentKey = ($account->AccParent && (int) $account->AccParent !== 0) ? (int) $account->AccParent : null;
+            if (! array_key_exists($parentKey, $byParent)) {
                 $byParent[$parentKey] = [];
             }
             $byParent[$parentKey][] = $account;
@@ -81,7 +80,7 @@ class AccountsController extends Controller
         $buildTree = function ($parentKey) use (&$buildTree, $byParent) {
             $children = $byParent[$parentKey] ?? [];
 
-            return array_map(function (Account $account) use (&$buildTree, $byParent) {
+            return array_map(function (Account $account) use (&$buildTree) {
                 return [
                     'AccID' => $account->AccID,
                     'AccCode' => $account->AccCode,
@@ -96,7 +95,7 @@ class AccountsController extends Controller
                     'AccBranch' => $account->AccBranch,
                     'AccStopped' => $account->AccStopped,
                     'AccNote' => $account->AccNote,
-                    'children' => $buildTree((int)$account->AccCode),
+                    'children' => $buildTree((int) $account->AccCode),
                 ];
             }, $children);
         };
@@ -115,20 +114,20 @@ class AccountsController extends Controller
         if ($branch !== null) {
             $query->where(function ($q) use ($branch) {
                 $q->where('AccBranch', $branch)
-                  ->orWhereNull('AccBranch')
-                  ->orWhere('AccBranch', 0);
+                    ->orWhereNull('AccBranch')
+                    ->orWhere('AccBranch', 0);
             });
         }
 
         $accounts = $query->orderBy('AccCode')->get([
-            'AccID', 'AccCode', 'AccName', 'AccParent', 'AccStopped', 'AccFinal'
+            'AccID', 'AccCode', 'AccName', 'AccParent', 'AccStopped', 'AccFinal',
         ]);
 
         // Index by parent code (NULL/0 treated as NULL root)
         $byParent = [];
         foreach ($accounts as $a) {
-            $parentKey = ($a->AccParent && (int) $a->AccParent !== 0) ? (int)$a->AccParent : null;
-            if (!array_key_exists($parentKey, $byParent)) {
+            $parentKey = ($a->AccParent && (int) $a->AccParent !== 0) ? (int) $a->AccParent : null;
+            if (! array_key_exists($parentKey, $byParent)) {
                 $byParent[$parentKey] = [];
             }
             $byParent[$parentKey][] = $a;
@@ -140,12 +139,12 @@ class AccountsController extends Controller
         if ($code > 0) {
             $queue[] = $code;
         }
-        while (!empty($queue)) {
+        while (! empty($queue)) {
             $p = array_shift($queue);
             $children = $byParent[$p] ?? [];
             foreach ($children as $child) {
                 $childCode = (int) $child->AccCode;
-                if (!isset($descendants[$childCode])) {
+                if (! isset($descendants[$childCode])) {
                     $descendants[$childCode] = true;
                     $queue[] = $childCode;
                 }

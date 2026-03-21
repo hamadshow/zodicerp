@@ -2,10 +2,10 @@
 
 namespace App\Models\Client_Sales;
 
+use App\Models\ItemUnit;
+use App\Models\Products;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Products;
-use App\Models\ItemUnit;
 
 class DeliveryNoteDetail extends Model
 {

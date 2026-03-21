@@ -15,17 +15,17 @@ return new class extends Migration
             $table->id();
             $table->foreignId('asset_id')->constrained('assets')->cascadeOnDelete();
             $table->foreignId('attribute_id')->constrained('attributes');
-            
+
             $table->string('value_text', 500)->nullable();
             $table->decimal('value_number', 20, 4)->nullable();
             $table->date('value_date')->nullable();
             $table->boolean('value_boolean')->nullable();
-            
+
             $table->timestamps();
-            
+
             $table->charset = 'utf8mb4';
             $table->collation = 'utf8mb4_unicode_ci';
-            
+
             // Indexes
             $table->index('asset_id');
             $table->index('attribute_id');

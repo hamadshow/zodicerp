@@ -2,9 +2,9 @@
 
 namespace App\Models\Backend\Client_Sales;
 
+use App\Models\Products;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Products;
 
 class FlashSaleItem extends Model
 {

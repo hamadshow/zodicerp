@@ -1,4 +1,5 @@
 <?php
+
 return [
     'not_found' => 'Product Not Found',
     'not_found_desc' => 'The product you are looking for does not exist or has been removed.',

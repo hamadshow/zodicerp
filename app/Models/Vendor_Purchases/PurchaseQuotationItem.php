@@ -2,18 +2,18 @@
 
 namespace App\Models\Vendor_Purchases;
 
+use App\Models\ItemUnit;
+use App\Models\Products;
+use App\Models\Warehouses;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Products;
-use App\Models\ItemUnit;
-use App\Models\Warehouses;
 
 class PurchaseQuotationItem extends Model
 {
     use HasFactory;
 
     protected $table = 'purchase_quotation_items';
-    
+
     public $timestamps = false;
 
     protected $fillable = [

@@ -51,7 +51,7 @@ class AssetAttribute extends Model
                     return $this->value_text;
             }
         }
-        
+
         // Fallback if relation not loaded, check non-nulls
         return $this->value_text ?? $this->value_number ?? $this->value_date ?? $this->value_boolean;
     }

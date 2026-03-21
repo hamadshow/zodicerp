@@ -1,4 +1,5 @@
 <?php
+
 return [
     'add_to_cart' => 'Add to Cart',
     'adding' => 'Adding...',

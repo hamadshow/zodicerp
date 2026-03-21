@@ -7,7 +7,7 @@ use App\Models\FinancialReport;
 use App\Models\UserFavoriteReport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -22,25 +22,37 @@ class FinancialReportController extends Controller
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([], 401);
         }
 
-        if (method_exists($user, 'hasRole') && !$user->hasRole('admin')) {
-            return response()->json([]);
+        $companyId = $user->company_id;
+        $hasCompanyColumn = Schema::hasColumn('financial_reports', 'company_id');
+        $hasFavoriteCompanyColumn = Schema::hasColumn('user_favorite_reports', 'company_id');
+
+        $reportsQuery = FinancialReport::query()->where('is_active', true);
+
+        if ($hasCompanyColumn && $companyId) {
+            $reportsQuery->where(function ($q) use ($companyId) {
+                $q->whereNull('company_id')->orWhere('company_id', $companyId);
+            });
         }
 
-        $reports = FinancialReport::query()
-            ->where('is_active', true)
+        $reports = $reportsQuery
             ->orderBy('category')
             ->orderBy('sort_order')
             ->orderBy('report_name')
             ->get();
 
-        $favoriteIds = UserFavoriteReport::query()
-            ->where('user_id', $user->id)
-            ->pluck('report_id')
-            ->all();
+        $favoritesQuery = UserFavoriteReport::query()->where('user_id', $user->id);
+
+        if ($hasFavoriteCompanyColumn && $companyId) {
+            $favoritesQuery->where(function ($q) use ($companyId) {
+                $q->whereNull('company_id')->orWhere('company_id', $companyId);
+            });
+        }
+
+        $favoriteIds = $favoritesQuery->pluck('report_id')->all();
 
         $payload = $reports->map(function (FinancialReport $report) use ($favoriteIds) {
             $route = null;
@@ -72,14 +84,31 @@ class FinancialReportController extends Controller
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json([], 401);
         }
 
-        $favorites = UserFavoriteReport::query()
+        $companyId = $user->company_id;
+        $hasCompanyColumn = Schema::hasColumn('financial_reports', 'company_id');
+        $hasFavoriteCompanyColumn = Schema::hasColumn('user_favorite_reports', 'company_id');
+
+        $favoritesQuery = UserFavoriteReport::query()
             ->where('user_id', $user->id)
-            ->with('report')
-            ->get()
+            ->with('report');
+
+        if ($hasFavoriteCompanyColumn && $companyId) {
+            $favoritesQuery->where(function ($q) use ($companyId) {
+                $q->whereNull('company_id')->orWhere('company_id', $companyId);
+            });
+        }
+
+        if ($hasCompanyColumn && $companyId) {
+            $favoritesQuery->whereHas('report', function ($q) use ($companyId) {
+                $q->whereNull('company_id')->orWhere('company_id', $companyId);
+            });
+        }
+
+        $favorites = $favoritesQuery->get()
             ->filter(fn (UserFavoriteReport $favorite) => $favorite->report !== null)
             ->map(function (UserFavoriteReport $favorite) {
                 $report = $favorite->report;
@@ -112,7 +141,7 @@ class FinancialReportController extends Controller
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
@@ -121,20 +150,47 @@ class FinancialReportController extends Controller
         ]);
 
         $reportId = (int) $validated['report_id'];
+        $companyId = $user->company_id;
+        $hasCompanyColumn = Schema::hasColumn('financial_reports', 'company_id');
+        $hasFavoriteCompanyColumn = Schema::hasColumn('user_favorite_reports', 'company_id');
 
-        $existing = UserFavoriteReport::query()
+        $reportQuery = FinancialReport::query()->whereKey($reportId)->where('is_active', true);
+        if ($hasCompanyColumn && $companyId) {
+            $reportQuery->where(function ($q) use ($companyId) {
+                $q->whereNull('company_id')->orWhere('company_id', $companyId);
+            });
+        }
+
+        if (! $reportQuery->exists()) {
+            return response()->json(['message' => 'Report not available.'], 404);
+        }
+
+        $existingQuery = UserFavoriteReport::query()
             ->where('user_id', $user->id)
-            ->where('report_id', $reportId)
-            ->first();
+            ->where('report_id', $reportId);
+
+        if ($hasFavoriteCompanyColumn && $companyId) {
+            $existingQuery->where(function ($q) use ($companyId) {
+                $q->whereNull('company_id')->orWhere('company_id', $companyId);
+            });
+        }
+
+        $existing = $existingQuery->exists();
 
         if ($existing) {
-            $existing->delete();
+            $existingQuery->delete();
             $isFavorite = false;
         } else {
-            UserFavoriteReport::create([
+            $attributes = [
                 'user_id' => $user->id,
                 'report_id' => $reportId,
-            ]);
+            ];
+
+            if ($hasFavoriteCompanyColumn) {
+                $attributes['company_id'] = $companyId;
+            }
+
+            UserFavoriteReport::create($attributes);
             $isFavorite = true;
         }
 
@@ -150,4 +206,3 @@ class FinancialReportController extends Controller
         return Inertia::render('Backend/07-Accounting/FinancialReports/COAReport');
     }
 }
-

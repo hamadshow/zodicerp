@@ -8,7 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasTable('users')) {
+        if (! Schema::hasTable('users')) {
             return;
         }
 
@@ -16,7 +16,7 @@ return new class extends Migration
             return;
         }
 
-        if (!Schema::hasColumn('users', 'first_name')) {
+        if (! Schema::hasColumn('users', 'first_name')) {
             return;
         }
 
@@ -32,7 +32,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (!Schema::hasTable('users')) {
+        if (! Schema::hasTable('users')) {
             return;
         }
 
@@ -40,11 +40,10 @@ return new class extends Migration
             return;
         }
 
-        if (!Schema::hasColumn('users', 'fullname')) {
+        if (! Schema::hasColumn('users', 'fullname')) {
             return;
         }
 
         DB::statement('ALTER TABLE `users` CHANGE `fullname` `first_name` VARCHAR(255) NULL');
     }
 };
-

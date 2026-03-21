@@ -165,4 +165,3 @@ class FinancialReportsSeeder extends Seeder
         }
     }
 }
-

@@ -78,7 +78,7 @@ class StoreAccountRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $parentCode = $this->input('AccParent');
-            if (!$parentCode) {
+            if (! $parentCode) {
                 return;
             }
 
@@ -89,11 +89,12 @@ class StoreAccountRequest extends FormRequest
             $accCode = (int) $this->input('AccCode');
             if ($accCode && (int) $parentCode === $accCode) {
                 $validator->errors()->add('AccParent', 'Parent cannot be the same as the account.');
+
                 return;
             }
 
             $parent = Account::where('AccCode', $parentCode)->first();
-            if (!$parent) {
+            if (! $parent) {
                 $validator->errors()->add('AccParent', 'Parent account code does not exist.');
             }
 

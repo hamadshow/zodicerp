@@ -3,15 +3,15 @@
 namespace App\Http\Controllers\Home;
 
 use App\Http\Controllers\Controller;
-use App\Models\Client_Sales\SalesInvoice;
-use App\Models\Client_Sales\SalesInvoiceDetail;
+use App\Models\Categories;
 use App\Models\Client_Sales\Customer;
 use App\Models\Client_Sales\CustomerAddress;
-use App\Models\Products;
+use App\Models\Client_Sales\SalesInvoice;
+use App\Models\Client_Sales\SalesInvoiceDetail;
 use App\Models\Currency;
-use App\Models\Warehouses;
 use App\Models\ItemUnit;
-use App\Models\Categories;
+use App\Models\Products;
+use App\Models\Warehouses;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -22,8 +22,8 @@ class CheckoutController extends Controller
 {
     public function store(Request $request)
     {
-        Log::info("Checkout: Start processing order submission.");
-        
+        Log::info('Checkout: Start processing order submission.');
+
         try {
             $validated = $request->validate([
                 'full_name' => 'required|string|max:255',
@@ -34,15 +34,16 @@ class CheckoutController extends Controller
                 'country' => 'required|string|max:100',
                 'payment_method' => 'required|string|in:cod,card',
             ]);
-            Log::info("Checkout: Validation passed.");
+            Log::info('Checkout: Validation passed.');
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error("Checkout: Validation failed.", ['errors' => $e->errors()]);
+            Log::error('Checkout: Validation failed.', ['errors' => $e->errors()]);
             throw $e;
         }
 
         $cart = $request->session()->get('cart', []);
         if (empty($cart)) {
-            Log::warning("Checkout: Cart is empty.");
+            Log::warning('Checkout: Cart is empty.');
+
             return back()->withErrors(['cart' => 'Your cart is empty.']);
         }
 
@@ -50,27 +51,27 @@ class CheckoutController extends Controller
         $customer = null;
 
         if ($user) {
-            $customer = $user instanceof \App\Models\Client_Sales\Customer 
-                ? $user 
+            $customer = $user instanceof \App\Models\Client_Sales\Customer
+                ? $user
                 : \App\Models\Client_Sales\Customer::where('email', $user->email)->first();
-            Log::info("Checkout: User found.", ['user_id' => $user->id, 'customer_found' => !!$customer]);
+            Log::info('Checkout: User found.', ['user_id' => $user->id, 'customer_found' => (bool) $customer]);
         }
 
-        if (!$customer) {
-            Log::info("Checkout: Customer not found, creating or finding by email.");
-            $customerGroup = \App\Models\Client_Sales\CustomerGroup::where('is_active', true)->first() 
+        if (! $customer) {
+            Log::info('Checkout: Customer not found, creating or finding by email.');
+            $customerGroup = \App\Models\Client_Sales\CustomerGroup::where('is_active', true)->first()
                 ?: \App\Models\Client_Sales\CustomerGroup::first();
-            
-            if (!$customerGroup) {
+
+            if (! $customerGroup) {
                 // Create a default group if none exists
                 $customerGroup = \App\Models\Client_Sales\CustomerGroup::create([
                     'code' => 'DEF-GRP',
                     'name_en' => 'Default Group',
                     'name_ar' => 'المجموعة الافتراضية',
-                    'is_active' => true
+                    'is_active' => true,
                 ]);
             }
-            
+
             $country = \App\Models\Country::where('name_en', $validated['country'])
                 ->orWhere('name_ar', $validated['country'])
                 ->first();
@@ -80,7 +81,7 @@ class CheckoutController extends Controller
             $customer = Customer::firstOrCreate(
                 ['email' => $validated['email']],
                 [
-                    'customer_code' => 'CUS-' . strtoupper(uniqid()),
+                    'customer_code' => 'CUS-'.strtoupper(uniqid()),
                     'name_en' => $validated['full_name'],
                     'name_ar' => $validated['full_name'],
                     'mobile' => $validated['phone'],
@@ -90,15 +91,15 @@ class CheckoutController extends Controller
                     'is_active' => true,
                 ]
             );
-            Log::info("Checkout: Customer ensured.", ['customer_id' => $customer->id]);
+            Log::info('Checkout: Customer ensured.', ['customer_id' => $customer->id]);
         }
 
         $shippingAddress = CustomerAddress::where('customer_id', $customer->id)
             ->where('is_default', true)
             ->first();
 
-        if (!$shippingAddress) {
-            Log::info("Checkout: Shipping address not found, creating.");
+        if (! $shippingAddress) {
+            Log::info('Checkout: Shipping address not found, creating.');
             $country = \App\Models\Country::where('name_en', $validated['country'])
                 ->orWhere('name_ar', $validated['country'])
                 ->first();
@@ -116,12 +117,12 @@ class CheckoutController extends Controller
                 'is_default' => true,
                 'is_default_shipping' => true,
             ]);
-            Log::info("Checkout: Shipping address created.", ['address_id' => $shippingAddress->id]);
+            Log::info('Checkout: Shipping address created.', ['address_id' => $shippingAddress->id]);
         }
 
         DB::beginTransaction();
         try {
-            Log::info("Checkout: DB Transaction started.");
+            Log::info('Checkout: DB Transaction started.');
             $currency = Currency::where('code', 'EGP')->first() ?: Currency::first();
             $warehouse = Warehouses::first();
             $defaultUnit = ItemUnit::first();
@@ -131,8 +132,9 @@ class CheckoutController extends Controller
 
             foreach ($cart as $itemKey => $cartItem) {
                 $product = Products::find($cartItem['product_id']);
-                if (!$product) {
-                    Log::warning("Checkout: Product not found.", ['product_id' => $cartItem['product_id']]);
+                if (! $product) {
+                    Log::warning('Checkout: Product not found.', ['product_id' => $cartItem['product_id']]);
+
                     continue;
                 }
 
@@ -153,15 +155,15 @@ class CheckoutController extends Controller
             $shipping = 0;
             $total = $subtotal + $tax + $shipping;
 
-            Log::info("Checkout: Creating SalesInvoice.", [
+            Log::info('Checkout: Creating SalesInvoice.', [
                 'customer_id' => $customer->id,
                 'subtotal' => $subtotal,
                 'total' => $total,
-                'items_count' => count($itemsData)
+                'items_count' => count($itemsData),
             ]);
-            
+
             $invoiceData = [
-                'invoice_number' => 'SINV-' . date('Ymd') . '-' . strtoupper(uniqid()),
+                'invoice_number' => 'SINV-'.date('Ymd').'-'.strtoupper(uniqid()),
                 'customer_id' => $customer->id,
                 'currency_id' => $currency->id ?? 1,
                 'exchange_rate' => $currency->exchange_rate ?? 1,
@@ -179,11 +181,11 @@ class CheckoutController extends Controller
                 'created_by' => Auth::id(),
             ];
 
-            Log::debug("Checkout: Invoice data prepared.", $invoiceData);
+            Log::debug('Checkout: Invoice data prepared.', $invoiceData);
 
             $invoice = SalesInvoice::create($invoiceData);
 
-            Log::info("Checkout: SalesInvoice created successfully.", ['invoice_id' => $invoice->id, 'invoice_number' => $invoice->invoice_number]);
+            Log::info('Checkout: SalesInvoice created successfully.', ['invoice_id' => $invoice->id, 'invoice_number' => $invoice->invoice_number]);
 
             foreach ($itemsData as $index => $item) {
                 Log::debug("Checkout: Creating detail for item $index.", $item);
@@ -201,33 +203,35 @@ class CheckoutController extends Controller
             }
 
             DB::commit();
-            Log::info("Checkout: DB Transaction committed successfully.", ['invoice_number' => $invoice->invoice_number]);
-            
+            Log::info('Checkout: DB Transaction committed successfully.', ['invoice_number' => $invoice->invoice_number]);
+
             // Clear cart
             $request->session()->forget('cart');
             $request->session()->forget('cart_version');
-            Log::info("Checkout: Cart cleared, redirecting to success.");
+            Log::info('Checkout: Cart cleared, redirecting to success.');
 
             return redirect()->route('checkout.success', ['invoice' => $invoice->invoice_number]);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Checkout: Transaction failed.", [
+            Log::error('Checkout: Transaction failed.', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
-            return back()->withErrors(['error' => 'Failed to place order: ' . $e->getMessage()]);
+
+            return back()->withErrors(['error' => 'Failed to place order: '.$e->getMessage()]);
         }
     }
 
     public function success(Request $request)
     {
         $invoiceNumber = $request->query('invoice');
-        
-            Log::debug("Checkout: success method called with invoice: " . ($invoiceNumber ?? 'null'));
-        
-        if (!$invoiceNumber) {
-            Log::error("OrderSuccess: No invoice number provided.");
+
+        Log::debug('Checkout: success method called with invoice: '.($invoiceNumber ?? 'null'));
+
+        if (! $invoiceNumber) {
+            Log::error('OrderSuccess: No invoice number provided.');
+
             return redirect()->route('frontend');
         }
 
@@ -235,12 +239,13 @@ class CheckoutController extends Controller
             ->with(['customer', 'details.product'])
             ->first();
 
-        if (!$invoice) {
-            Log::error("OrderSuccess: Invoice not found: " . $invoiceNumber);
+        if (! $invoice) {
+            Log::error('OrderSuccess: Invoice not found: '.$invoiceNumber);
+
             return redirect()->route('frontend');
         }
 
-        Log::debug("OrderSuccess: Invoice found.", ['invoice_id' => $invoice->id]);
+        Log::debug('OrderSuccess: Invoice found.', ['invoice_id' => $invoice->id]);
 
         try {
             $orderData = [
@@ -259,8 +264,8 @@ class CheckoutController extends Controller
                     ];
                 }),
             ];
-            
-            Log::debug("OrderSuccess: Rendering with data.", $orderData);
+
+            Log::debug('OrderSuccess: Rendering with data.', $orderData);
 
             $categories = Categories::where(function ($query) {
                 $query->whereNull('parent_id')->orWhere('parent_id', 0);
@@ -273,12 +278,13 @@ class CheckoutController extends Controller
 
             return Inertia::render('Home/Checkout/OrderSuccess', [
                 'order' => $orderData,
-                'categories' => $categories
+                'categories' => $categories,
             ]);
         } catch (\Exception $e) {
-            Log::error("OrderSuccess Rendering Error: " . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
+            Log::error('OrderSuccess Rendering Error: '.$e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return redirect()->route('frontend')->with('error', 'Error displaying order success page.');
         }
     }

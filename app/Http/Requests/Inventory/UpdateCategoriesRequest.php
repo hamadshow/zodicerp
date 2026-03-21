@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Inventory;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateCategoriesRequest extends FormRequest
 {
@@ -18,7 +17,7 @@ class UpdateCategoriesRequest extends FormRequest
 
         return [
             'name' => 'required|string|max:255',
-            'slug' => 'nullable|string|max:255|unique:categories,slug,' . $categoryId,
+            'slug' => 'nullable|string|max:255|unique:categories,slug,'.$categoryId,
             'parent_id' => [
                 'nullable',
                 'integer',
@@ -29,11 +28,13 @@ class UpdateCategoriesRequest extends FormRequest
                 },
             ],
             'status' => 'required|in:active,inactive',
-            'order' => 'required|integer|unique:categories,order,' . $categoryId,
+            'order' => 'required|integer|unique:categories,order,'.$categoryId,
             'description' => 'nullable|string',
             'icon' => 'nullable|string',
             'image' => ['nullable', function ($attribute, $value, $fail) {
-                if (is_string($value)) return;
+                if (is_string($value)) {
+                    return;
+                }
                 $validator = \Illuminate\Support\Facades\Validator::make(
                     ['image' => $value],
                     ['image' => 'image|max:2048']

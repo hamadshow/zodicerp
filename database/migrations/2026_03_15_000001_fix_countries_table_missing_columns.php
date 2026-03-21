@@ -12,7 +12,7 @@ return new class extends Migration
         $isSqlite = DB::getDriverName() === 'sqlite';
 
         Schema::table('countries', function (Blueprint $table) use ($isSqlite) {
-            if (!Schema::hasColumn('countries', 'currency')) {
+            if (! Schema::hasColumn('countries', 'currency')) {
                 if ($isSqlite) {
                     $table->string('currency')->nullable();
                 } else {
@@ -20,7 +20,7 @@ return new class extends Migration
                 }
             }
 
-            if (!Schema::hasColumn('countries', 'timezone')) {
+            if (! Schema::hasColumn('countries', 'timezone')) {
                 if ($isSqlite) {
                     $table->string('timezone')->nullable();
                 } else {
@@ -28,7 +28,7 @@ return new class extends Migration
                 }
             }
 
-            if (!Schema::hasColumn('countries', 'phone_code')) {
+            if (! Schema::hasColumn('countries', 'phone_code')) {
                 if ($isSqlite) {
                     $table->string('phone_code')->nullable();
                 } else {
@@ -38,7 +38,7 @@ return new class extends Migration
         });
 
         Schema::table('countries', function (Blueprint $table) use ($isSqlite) {
-            if (!Schema::hasColumn('countries', 'currency_id') && Schema::hasTable('currencies')) {
+            if (! Schema::hasColumn('countries', 'currency_id') && Schema::hasTable('currencies')) {
                 if ($isSqlite) {
                     $table->unsignedBigInteger('currency_id')->nullable();
                 } else {
@@ -46,7 +46,7 @@ return new class extends Migration
                 }
             }
 
-            if (!Schema::hasColumn('countries', 'default_language')) {
+            if (! Schema::hasColumn('countries', 'default_language')) {
                 if ($isSqlite) {
                     $table->string('default_language', 5)->default('ar');
                 } else {

@@ -21,7 +21,7 @@ class ProductExport implements FromCollection, WithHeadings, WithMapping
         // Eager load relationships for performance
         return Products::with(['categories', 'brand'])
             ->whereNull('parent_id') // Export only parent products for now? Or all? User said "products table", usually main products.
-            // Let's export all for completeness, or maybe just main ones. 
+            // Let's export all for completeness, or maybe just main ones.
             // If we export variants, we need to handle parent_id.
             // For simplicity and common use case, let's export all but include parent_code if exists.
             ->get();

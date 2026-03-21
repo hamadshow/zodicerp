@@ -15,11 +15,15 @@ class CustomerAuthController extends Controller
 {
     public function showLoginForm()
     {
+        request()->session()->forget('company_id');
+
         return Inertia::render('Home/Auth/CustomerLogin');
     }
 
     public function login(Request $request)
     {
+        $request->session()->forget('company_id');
+
         $request->validate([
             'email' => 'required|email',
             'password' => 'required',
@@ -60,10 +64,10 @@ class CustomerAuthController extends Controller
         // Generate a customer code
         $latestCustomer = Customer::latest('id')->first();
         $nextId = $latestCustomer ? $latestCustomer->id + 1 : 1;
-        $customerCode = 'CUST-' . str_pad($nextId, 6, '0', STR_PAD_LEFT);
+        $customerCode = 'CUST-'.str_pad($nextId, 6, '0', STR_PAD_LEFT);
 
         // Combine names
-        $fullName = $request->first_name . ' ' . $request->last_name;
+        $fullName = $request->first_name.' '.$request->last_name;
 
         $customer = Customer::create([
             'name_ar' => $fullName,

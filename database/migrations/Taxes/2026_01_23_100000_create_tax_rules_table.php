@@ -16,31 +16,31 @@ return new class extends Migration
             $table->string('rule_code', 100)->unique();
             $table->string('name_ar', 200);
             $table->string('name_en', 200);
-            
+
             // Scope
             if (Schema::hasTable('countries')) {
                 $table->foreignId('country_id')->constrained('countries');
             } else {
                 $table->unsignedBigInteger('country_id');
             }
-            
+
             if (Schema::hasTable('states')) {
                 $table->foreignId('state_id')->nullable()->constrained('states');
             } else {
                 $table->unsignedBigInteger('state_id')->nullable();
             }
-            
+
             if (Schema::hasTable('cities')) {
                 $table->foreignId('city_id')->nullable()->constrained('cities');
             } else {
                 $table->unsignedBigInteger('city_id')->nullable();
             }
-            
+
             // Application
             $table->enum('apply_to', ['customer', 'vendor', 'product', 'service', 'category', 'all']);
             $table->enum('customer_type', ['business', 'individual', 'government', 'foreign', 'all'])->default('all');
             $table->enum('vendor_type', ['local', 'foreign', 'tax_registered', 'non_registered', 'all'])->default('all');
-            
+
             // Targeted Entities
             if (Schema::hasTable('customers')) {
                 $table->unsignedInteger('customer_id')->nullable();
@@ -74,21 +74,21 @@ return new class extends Migration
             }
 
             $table->unsignedBigInteger('service_id')->nullable(); // Assuming services table might not exist or handled differently
-            
+
             // Applied Tax
             $table->foreignId('tax_id')->nullable()->constrained('taxes');
             $table->foreignId('tax_group_id')->nullable()->constrained('tax_groups');
-            
+
             // Priority and Conditions
             $table->integer('priority')->default(1);
             $table->boolean('is_exclusive')->default(false);
             $table->decimal('minimum_amount', 20, 4)->nullable();
             $table->decimal('maximum_amount', 20, 4)->nullable();
-            
+
             // Dates
             $table->date('effective_from');
             $table->date('effective_to')->nullable();
-            
+
             // System
             $table->boolean('is_active')->default(true);
             $table->unsignedBigInteger('created_by')->nullable();

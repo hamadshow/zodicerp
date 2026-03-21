@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Backend\Budget;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use App\Models\Budget\BudgetMonitoring;
-use App\Models\Budget\Budget;
-use App\Models\Budget\BudgetItem;
-use App\Models\Budget\BudgetCommitment;
-use App\Models\Accounting\JournalEntryLine;
 use App\Models\Account;
+use App\Models\Accounting\JournalEntryLine;
+use App\Models\Budget\Budget;
+use App\Models\Budget\BudgetCommitment;
+use App\Models\Budget\BudgetItem;
+use App\Models\Budget\BudgetMonitoring;
 use Carbon\Carbon;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class BudgetMonitoringController extends Controller
 {
@@ -59,7 +59,7 @@ class BudgetMonitoringController extends Controller
         $sortBy = $request->input('sort_by', 'monitoring_date');
         $sortDir = $request->input('sort_dir', 'desc');
         $allowedSorts = ['monitoring_date', 'actual_amount', 'variance_amount', 'variance_percent', 'available_amount'];
-        
+
         if (in_array($sortBy, $allowedSorts)) {
             $query->orderBy($sortBy, $sortDir);
         } else {
@@ -107,7 +107,7 @@ class BudgetMonitoringController extends Controller
 
             $threshold = $row->budget?->variance_threshold ?? 10;
             $absVariance = abs($variancePercent);
-            
+
             // Determine Variance Status (Favorable/Unfavorable)
             // Assuming Expense Budget: Positive Variance (Actual > Budget) is Unfavorable
             if ($varianceAmount > 0) {
@@ -119,7 +119,7 @@ class BudgetMonitoringController extends Controller
             }
 
             $thresholdBreached = $absVariance >= $threshold;
-            
+
             $alertLevel = 'low'; // Default to low
             if ($absVariance >= ($threshold * 2)) {
                 $alertLevel = 'high';
@@ -146,7 +146,7 @@ class BudgetMonitoringController extends Controller
         });
 
         $budgets = Budget::select('id', 'budget_name_en', 'budget_name_ar', 'budget_number')->get();
-        
+
         // Only fetch items if budget_id is selected, otherwise empty or handle via API
         $budgetItems = [];
         if ($request->filled('budget_id')) {
@@ -156,7 +156,7 @@ class BudgetMonitoringController extends Controller
                 ->map(function ($item) {
                     return [
                         'id' => $item->id,
-                        'name' => ($item->account ? $item->account->AccName : 'No Account') . ' - ' . ($item->category ? $item->category->name_en : 'No Category')
+                        'name' => ($item->account ? $item->account->AccName : 'No Account').' - '.($item->category ? $item->category->name_en : 'No Category'),
                     ];
                 });
         }
@@ -186,7 +186,7 @@ class BudgetMonitoringController extends Controller
         ];
 
         // Mandatory Budget Selection: Return empty data if not selected
-        if (!$filters['budget_id']) {
+        if (! $filters['budget_id']) {
             return Inertia::render('Backend/Budget/BudgeDashBoard', [
                 'budgets' => $budgets,
                 'categories' => $categories,
@@ -249,12 +249,12 @@ class BudgetMonitoringController extends Controller
         $accIds = $accounts->pluck('AccID')->filter()->unique();
         $accCodes = $accounts->pluck('AccCode')->filter()->unique();
         $allIdentifiers = $accIds->merge($accCodes)->unique()->values();
-        
+
         // Map Code -> ID for aggregation
         $codeToId = $accounts->pluck('AccID', 'AccCode')->toArray();
 
         $actualByAccount = [];
-        
+
         if ($allIdentifiers->isNotEmpty() && $startDate && $endDate) {
             $rawActuals = JournalEntryLine::query()
                 ->join('journal_entries', 'journal_entries.entry_code', '=', 'journal_entry_lines.journal_entry_code')
@@ -292,13 +292,14 @@ class BudgetMonitoringController extends Controller
         }
 
         // REMOVED: BudgetCommitment usage (not in allowed tables list)
-        $commitmentByItem = collect(); 
+        $commitmentByItem = collect();
 
         // Aggregate Totals (normalized by account nature)
         $totalBudgeted = (float) $budgetItems->sum(function ($item) use ($budgetedByItem, $resolveAccount) {
             $budgeted = (float) ($budgetedByItem[$item->id] ?? 0);
             $account = $resolveAccount($item);
             $dm = $account?->AccDmType ?? 0;
+
             return $dm == 1 ? -$budgeted : $budgeted;
         });
         $totalActual = (float) $budgetItems->sum(function ($item) use ($actualByAccount, $resolveAccount) {
@@ -306,6 +307,7 @@ class BudgetMonitoringController extends Controller
             $accountId = $account?->AccID ?? $item->account_id;
             $actual = (float) ($actualByAccount[$accountId] ?? 0);
             $dm = $account?->AccDmType ?? 0;
+
             return $dm == 1 ? -$actual : $actual;
         });
         $totalAvailable = $totalBudgeted - $totalActual;
@@ -329,6 +331,7 @@ class BudgetMonitoringController extends Controller
                     $val = (float) ($budgetedByItem[$item->id] ?? 0);
                     $account = $resolveAccount($item);
                     $dm = $account?->AccDmType ?? 0;
+
                     return $dm == 1 ? -$val : $val;
                 });
                 $actual = (float) $items->sum(function ($item) use ($actualByAccount, $resolveAccount) {
@@ -336,6 +339,7 @@ class BudgetMonitoringController extends Controller
                     $accountId = $account?->AccID ?? $item->account_id;
                     $val = (float) ($actualByAccount[$accountId] ?? 0);
                     $dm = $account?->AccDmType ?? 0;
+
                     return $dm == 1 ? -$val : $val;
                 });
                 $varianceAmount = $actual - $budgeted;
@@ -391,7 +395,7 @@ class BudgetMonitoringController extends Controller
             $variancePercent = $budgetedNorm != 0 ? ($varianceAmount / $budgetedNorm) * 100 : 0;
             $varianceStatus = $varianceAmount > 0 ? 'unfavorable' : ($varianceAmount < 0 ? 'favorable' : 'neutral');
             $alertLevel = $this->resolveAlertLevel($variancePercent, $threshold);
-            
+
             // Utilization % (Actual / Budgeted * 100)
             $utilizationPercent = $budgetedNorm != 0 ? ($actualNorm / $budgetedNorm) * 100 : 0;
 
@@ -480,7 +484,7 @@ class BudgetMonitoringController extends Controller
             ->map(function ($item) {
                 return [
                     'id' => $item->id,
-                    'name' => ($item->account ? $item->account->AccName : 'No Account') . ' - ' . ($item->category ? $item->category->name_en : 'No Category')
+                    'name' => ($item->account ? $item->account->AccName : 'No Account').' - '.($item->category ? $item->category->name_en : 'No Category'),
                 ];
             });
 
@@ -490,7 +494,7 @@ class BudgetMonitoringController extends Controller
     public function update(Request $request, $id)
     {
         $monitoring = BudgetMonitoring::findOrFail($id);
-        
+
         $validated = $request->validate([
             'comments' => 'nullable|string',
             'action_required' => 'nullable|string',
@@ -505,7 +509,7 @@ class BudgetMonitoringController extends Controller
     public function acknowledge(Request $request, $id)
     {
         $monitoring = BudgetMonitoring::findOrFail($id);
-        
+
         if ($monitoring->acknowledged_by) {
             return redirect()->back()->with('error', 'Already acknowledged.');
         }
@@ -521,7 +525,7 @@ class BudgetMonitoringController extends Controller
     public function followUp(Request $request, $id)
     {
         $monitoring = BudgetMonitoring::findOrFail($id);
-        
+
         $validated = $request->validate([
             'follow_up_date' => 'required|date',
             'action_required' => 'required|string',
@@ -535,12 +539,12 @@ class BudgetMonitoringController extends Controller
     public function markActionDone(Request $request, $id)
     {
         $monitoring = BudgetMonitoring::findOrFail($id);
-        
+
         $monitoring->update([
             'action_required' => null, // Or 'Done: ' . $monitoring->action_required
             'follow_up_date' => null, // Clear follow up? Or keep history?
             // Let's assume we just append status
-            'comments' => $monitoring->comments . "\n[Action Marked Done by " . Auth::user()->name . " on " . now()->toDateString() . "]",
+            'comments' => $monitoring->comments."\n[Action Marked Done by ".Auth::user()->name.' on '.now()->toDateString().']',
         ]);
 
         return redirect()->back()->with('success', 'Action marked as done.');
@@ -551,16 +555,18 @@ class BudgetMonitoringController extends Controller
         // Simple CSV Export
         $query = BudgetMonitoring::with(['budget', 'budgetItem.account', 'budgetItem.category']);
         // Apply same filters as index... (simplified for brevity, should extract filter logic)
-        if ($request->filled('budget_id')) $query->where('budget_id', $request->budget_id);
+        if ($request->filled('budget_id')) {
+            $query->where('budget_id', $request->budget_id);
+        }
         // ... (other filters)
 
         $monitorings = $query->orderBy('monitoring_date', 'desc')->get();
 
-        $filename = "budget_monitoring_" . date('Y-m-d_His') . ".csv";
+        $filename = 'budget_monitoring_'.date('Y-m-d_His').'.csv';
         $handle = fopen('php://output', 'w');
-        
+
         header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Disposition: attachment; filename="'.$filename.'"');
 
         fputcsv($handle, ['Date', 'Budget', 'Item', 'Actual', 'Variance', 'Status']);
 
@@ -571,7 +577,7 @@ class BudgetMonitoringController extends Controller
                 $row->budgetItem->account->AccName ?? '',
                 $row->actual_amount,
                 $row->variance_amount,
-                $row->variance_status
+                $row->variance_status,
             ]);
         }
 
@@ -579,13 +585,12 @@ class BudgetMonitoringController extends Controller
         exit;
     }
 
-    
     // Helper calculation method if needed for creating records
-    // Assuming records are created via a separate process or background job, 
+    // Assuming records are created via a separate process or background job,
     // but adding a store method for manual entry/testing if required.
     public function store(Request $request)
     {
-         $validated = $request->validate([
+        $validated = $request->validate([
             'budget_id' => 'required|exists:budgets,id',
             'budget_item_id' => 'required|exists:budget_items,id',
             'monitoring_date' => 'required|date',
@@ -599,13 +604,13 @@ class BudgetMonitoringController extends Controller
         // Fetch Budget Item to get budgeted amount for calculation
         // For simplicity, assuming annual_amount or period logic here
         // This logic can be complex depending on period type (monthly vs annual)
-        
+
         DB::transaction(function () use ($validated) {
             // Calculation logic would go here
             // $available = $budgeted - $actual - $committed - $encumbered
             // $variance = $actual - $budgeted
-            
-             BudgetMonitoring::create($validated);
+
+            BudgetMonitoring::create($validated);
         });
 
         return redirect()->back()->with('success', 'Monitoring record created.');
@@ -616,19 +621,21 @@ class BudgetMonitoringController extends Controller
         $year = $request->input('period_year', date('Y'));
         $month = $request->input('period_month', date('n'));
         $type = $request->input('period_type', 'monthly');
-        
-        if ($type !== 'monthly' && $type !== 'annual') return;
+
+        if ($type !== 'monthly' && $type !== 'annual') {
+            return;
+        }
 
         $budgetId = $request->input('budget_id');
-        
+
         $query = BudgetItem::query();
         if ($budgetId) {
             $query->where('budget_id', $budgetId);
         }
-        
+
         $monitoringQuery = BudgetMonitoring::where('period_year', $year)
             ->where('period_type', $type);
-            
+
         if ($type === 'monthly') {
             $monitoringQuery->where('period_month', $month);
         }
@@ -639,16 +646,16 @@ class BudgetMonitoringController extends Controller
 
         $existingItems = $monitoringQuery->pluck('budget_item_id')->toArray();
         $itemsToCreate = $query->whereNotIn('id', $existingItems)->get();
-        
+
         foreach ($itemsToCreate as $item) {
-             BudgetMonitoring::create([
+            BudgetMonitoring::create([
                 'budget_id' => $item->budget_id,
                 'budget_item_id' => $item->id,
                 'period_year' => $year,
                 'period_month' => $type === 'monthly' ? $month : null,
                 'period_type' => $type,
-                'monitoring_date' => $type === 'monthly' 
-                    ? Carbon::create($year, $month, 1)->endOfMonth() 
+                'monitoring_date' => $type === 'monthly'
+                    ? Carbon::create($year, $month, 1)->endOfMonth()
                     : Carbon::create($year, 12, 31),
                 'monitored_by' => Auth::id() ?? 1,
                 'actual_amount' => 0,
@@ -665,12 +672,13 @@ class BudgetMonitoringController extends Controller
         if ($request->filled('date_from') || $request->filled('date_to')) {
             $start = $request->filled('date_from') ? Carbon::parse($request->date_from)->startOfDay() : null;
             $end = $request->filled('date_to') ? Carbon::parse($request->date_to)->endOfDay() : null;
-            if ($start && !$end) {
+            if ($start && ! $end) {
                 $end = $start->copy()->endOfDay();
             }
-            if ($end && !$start) {
+            if ($end && ! $start) {
                 $start = $end->copy()->startOfDay();
             }
+
             return [$start, $end];
         }
 
@@ -680,30 +688,35 @@ class BudgetMonitoringController extends Controller
             $month = $periodMonth ?: now()->month;
             $start = Carbon::create($year, $month, 1)->startOfMonth();
             $end = Carbon::create($year, $month, 1)->endOfMonth();
+
             return [$start, $end];
         }
 
         if ($periodType === 'year_to_date') {
             $start = Carbon::create($year, 1, 1)->startOfYear();
             $end = ($year == now()->year) ? now()->endOfDay() : Carbon::create($year, 12, 31)->endOfYear();
+
             return [$start, $end];
         }
 
         if ($periodType === 'quarterly') {
             $quarter = $periodQuarter ?: ($periodMonth ? (int) ceil($periodMonth / 3) : null);
-            if (!$quarter) {
+            if (! $quarter) {
                 $start = Carbon::create($year, 1, 1)->startOfYear();
                 $end = Carbon::create($year, 12, 31)->endOfYear();
+
                 return [$start, $end];
             }
             $startMonth = (($quarter - 1) * 3) + 1;
             $start = Carbon::create($year, $startMonth, 1)->startOfMonth();
             $end = Carbon::create($year, $startMonth, 1)->addMonths(2)->endOfMonth();
+
             return [$start, $end];
         }
 
         $start = Carbon::create($year, 1, 1)->startOfYear();
         $end = Carbon::create($year, 12, 31)->endOfYear();
+
         return [$start, $end];
     }
 
@@ -712,7 +725,7 @@ class BudgetMonitoringController extends Controller
         $annual = (float) $item->annual_amount;
 
         if ($periodType === 'monthly') {
-            if (!$periodMonth) {
+            if (! $periodMonth) {
                 return $annual / 12;
             }
             $monthMap = [
@@ -721,14 +734,15 @@ class BudgetMonitoringController extends Controller
                 9 => 'sep_amount', 10 => 'oct_amount', 11 => 'nov_amount', 12 => 'dec_amount',
             ];
             $column = $monthMap[(int) $periodMonth] ?? null;
+
             return $column ? (float) ($item->$column ?? 0) : ($annual / 12);
         }
 
         if ($periodType === 'quarterly') {
-            if (!$periodQuarter && $periodMonth) {
+            if (! $periodQuarter && $periodMonth) {
                 $periodQuarter = (int) ceil($periodMonth / 3);
             }
-            if (!$periodQuarter) {
+            if (! $periodQuarter) {
                 return $annual / 4;
             }
             $quarterMonths = [
@@ -742,6 +756,7 @@ class BudgetMonitoringController extends Controller
             foreach ($months as $month) {
                 $sum += $this->getBudgetedAmount($item, 'monthly', $periodYear, $month, null);
             }
+
             return $sum ?: ($annual / 4);
         }
 
@@ -765,7 +780,7 @@ class BudgetMonitoringController extends Controller
 
     private function getBudgetedAmountForRange(BudgetItem $item, $startDate, $endDate)
     {
-        if (!$startDate || !$endDate) {
+        if (! $startDate || ! $endDate) {
             return (float) $item->annual_amount;
         }
 
@@ -806,6 +821,7 @@ class BudgetMonitoringController extends Controller
         if ($absVariance >= $threshold) {
             return 'low';
         }
+
         return 'none';
     }
 }

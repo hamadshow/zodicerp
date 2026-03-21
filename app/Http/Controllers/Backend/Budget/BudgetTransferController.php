@@ -30,11 +30,11 @@ class BudgetTransferController extends Controller
         }
 
         if ($request->has('transfer_number') && $request->transfer_number) {
-            $query->where('transfer_number', 'like', '%' . $request->transfer_number . '%');
+            $query->where('transfer_number', 'like', '%'.$request->transfer_number.'%');
         }
 
         $transfers = $query->paginate(10)->withQueryString();
-        
+
         // Load active budgets for the dropdowns
         $budgets = Budget::where('status', 'active')->orWhere('status', 'approved')->select('id', 'budget_name_en', 'budget_number')->get();
 
@@ -52,8 +52,9 @@ class BudgetTransferController extends Controller
             if ($request->hasFile('reference_document')) {
                 $data['reference_document'] = $request->file('reference_document')->store('budget-transfers', 'public');
             }
-            
+
             $this->transferService->createTransfer($data);
+
             return redirect()->back()->with('success', 'Transfer draft created successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -84,6 +85,7 @@ class BudgetTransferController extends Controller
             }
 
             $this->transferService->updateTransfer($transfer, $data);
+
             return redirect()->back()->with('success', 'Transfer updated successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -94,6 +96,7 @@ class BudgetTransferController extends Controller
     {
         try {
             $this->transferService->deleteTransfer($transfer);
+
             return redirect()->back()->with('success', 'Transfer deleted successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -104,6 +107,7 @@ class BudgetTransferController extends Controller
     {
         try {
             $this->transferService->submitForApproval($transfer);
+
             return redirect()->back()->with('success', 'Transfer submitted for approval.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -114,6 +118,7 @@ class BudgetTransferController extends Controller
     {
         try {
             $this->transferService->approveTransfer($transfer);
+
             return redirect()->back()->with('success', 'Transfer approved.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -124,6 +129,7 @@ class BudgetTransferController extends Controller
     {
         try {
             $this->transferService->rejectTransfer($transfer);
+
             return redirect()->back()->with('success', 'Transfer rejected.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -134,6 +140,7 @@ class BudgetTransferController extends Controller
     {
         try {
             $this->transferService->completeTransfer($transfer);
+
             return redirect()->back()->with('success', 'Transfer completed and balances updated.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -149,7 +156,7 @@ class BudgetTransferController extends Controller
             ->map(function ($item) {
                 return [
                     'id' => $item->id,
-                    'name' => ($item->category ? $item->category->name_en . ' - ' : '') . ($item->account ? $item->account->AccName : 'Unknown'),
+                    'name' => ($item->category ? $item->category->name_en.' - ' : '').($item->account ? $item->account->AccName : 'Unknown'),
                     'available_balance' => $item->annual_amount - $item->annual_actual, // Simplified logic
                     'annual_amount' => $item->annual_amount,
                 ];

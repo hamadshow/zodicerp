@@ -33,22 +33,21 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('product_variations', function (Blueprint $table) {
-            if (!Schema::hasColumn('product_variations', 'sku')) {
+            if (! Schema::hasColumn('product_variations', 'sku')) {
                 $table->string('sku', 150)->nullable()->after('is_default');
             }
-            if (!Schema::hasColumn('product_variations', 'price')) {
+            if (! Schema::hasColumn('product_variations', 'price')) {
                 $table->decimal('price', 12, 2)->nullable()->after('sku');
             }
-            if (!Schema::hasColumn('product_variations', 'stock')) {
+            if (! Schema::hasColumn('product_variations', 'stock')) {
                 $table->integer('stock')->default(0)->after('price');
             }
-            if (!Schema::hasColumn('product_variations', 'image')) {
+            if (! Schema::hasColumn('product_variations', 'image')) {
                 $table->string('image')->nullable()->after('stock');
             }
-            if (!Schema::hasColumn('product_variations', 'created_at') && !Schema::hasColumn('product_variations', 'updated_at')) {
+            if (! Schema::hasColumn('product_variations', 'created_at') && ! Schema::hasColumn('product_variations', 'updated_at')) {
                 $table->timestamps();
             }
         });
     }
 };
-

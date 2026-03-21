@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('branch_infos', function (Blueprint $table) {
             $table->id();
-            
+
             // Basic Information
             $table->foreignId('company_id')->constrained('company')->onDelete('cascade');
             $table->string('branch_code')->unique()->nullable();

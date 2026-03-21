@@ -3,17 +3,16 @@
 namespace App\Http\Controllers\Backend\Client_Sales;
 
 use App\Http\Controllers\Controller;
-use App\Models\Client_Sales\SalesInvoice;
-use App\Models\Client_Sales\SalesInvoiceDetail;
 use App\Models\Client_Sales\Customer;
+use App\Models\Client_Sales\SalesInvoice;
 use App\Models\Currency;
-use App\Models\Warehouses;
 use App\Models\ItemUnit;
 use App\Models\Products;
+use App\Models\Warehouses;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class SalesInvoiceController extends Controller
 {
@@ -27,10 +26,10 @@ class SalesInvoiceController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('invoice_number', 'like', "%{$search}%")
-                  ->orWhereHas('customer', function ($q) use ($search) {
-                      $q->where('name_en', 'like', "%{$search}%")
-                        ->orWhere('name_ar', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('customer', function ($q) use ($search) {
+                        $q->where('name_en', 'like', "%{$search}%")
+                            ->orWhere('name_ar', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -52,7 +51,7 @@ class SalesInvoiceController extends Controller
             ->get();
         $units = ItemUnit::select('id', 'name as name_en', 'name as name_ar')->get();
         $warehouses = Warehouses::select('id', 'name as name_en', 'name as name_ar')->get();
-        
+
         // Mock data for terms
         $paymentTerms = [
             ['id' => 1, 'name' => 'Net 30'],
@@ -93,8 +92,8 @@ class SalesInvoiceController extends Controller
         DB::beginTransaction();
         try {
             // Auto-generate number if not provided
-            $number = $request->invoice_number ?? 'SINV-' . date('Ymd') . '-' . rand(1000, 9999);
-            
+            $number = $request->invoice_number ?? 'SINV-'.date('Ymd').'-'.rand(1000, 9999);
+
             $defaultWarehouseId = Warehouses::first()->id ?? 1;
             $warehouseId = $request->warehouse_id ?? $defaultWarehouseId;
 
@@ -107,7 +106,7 @@ class SalesInvoiceController extends Controller
                 'exchange_rate' => $request->exchange_rate,
                 'invoice_type' => $request->invoice_type,
                 'payment_status' => $request->payment_status,
-                
+
                 // Sales specific fields
                 'sales_agent_id' => $request->sales_agent_id,
                 'shipping_address_id' => $request->shipping_address_id,
@@ -116,7 +115,7 @@ class SalesInvoiceController extends Controller
 
                 'created_by' => Auth::id(),
                 'warehouse_id' => $warehouseId,
-                
+
                 // Financials
                 'subtotal' => $request->subtotal ?? 0,
                 'tax_amount' => $request->tax_amount ?? 0,
@@ -125,7 +124,7 @@ class SalesInvoiceController extends Controller
                 'other_charges' => $request->other_charges ?? 0, // Note: other_charges for sales
                 'total_amount' => $request->total_amount ?? 0,
                 'paid_amount' => $request->paid_amount ?? 0,
-                
+
                 'payment_terms' => $request->payment_terms, // Assuming string or ID as per schema
             ]);
 
@@ -143,18 +142,20 @@ class SalesInvoiceController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Sales Invoice created successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error creating invoice: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error creating invoice: '.$e->getMessage());
         }
     }
 
     public function update(Request $request, $id)
     {
         $invoice = SalesInvoice::findOrFail($id);
-        
+
         $validated = $request->validate([
             'invoice_date' => 'required|date',
             'due_date' => 'nullable|date|after_or_equal:invoice_date',
@@ -184,7 +185,7 @@ class SalesInvoiceController extends Controller
                 'exchange_rate' => $request->exchange_rate,
                 'invoice_type' => $request->invoice_type,
                 'payment_status' => $request->payment_status,
-                
+
                 'sales_agent_id' => $request->sales_agent_id,
                 'shipping_address_id' => $request->shipping_address_id,
                 'customer_notes' => $request->customer_notes,
@@ -219,11 +220,13 @@ class SalesInvoiceController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Sales Invoice updated successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error updating invoice: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error updating invoice: '.$e->getMessage());
         }
     }
 
@@ -232,9 +235,10 @@ class SalesInvoiceController extends Controller
         try {
             $invoice = SalesInvoice::findOrFail($id);
             $invoice->delete(); // Soft delete
+
             return redirect()->back()->with('success', 'Sales Invoice deleted successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error deleting invoice: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error deleting invoice: '.$e->getMessage());
         }
     }
 }

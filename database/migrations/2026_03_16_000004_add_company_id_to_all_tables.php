@@ -28,7 +28,7 @@ return new class extends Migration
     {
         $rows = DB::select('SHOW TABLES');
         $dbName = DB::getDatabaseName();
-        $key = 'Tables_in_' . $dbName;
+        $key = 'Tables_in_'.$dbName;
 
         $tables = [];
         foreach ($rows as $row) {
@@ -45,11 +45,11 @@ return new class extends Migration
                 continue;
             }
 
-            if (!$this->isBaseTable($table)) {
+            if (! $this->isBaseTable($table)) {
                 continue;
             }
 
-            if (!Schema::hasTable($table)) {
+            if (! Schema::hasTable($table)) {
                 continue;
             }
 
@@ -70,15 +70,15 @@ return new class extends Migration
                 continue;
             }
 
-            if (!$this->isBaseTable($table)) {
+            if (! $this->isBaseTable($table)) {
                 continue;
             }
 
-            if (!Schema::hasTable($table)) {
+            if (! Schema::hasTable($table)) {
                 continue;
             }
 
-            if (!Schema::hasColumn($table, 'company_id')) {
+            if (! Schema::hasColumn($table, 'company_id')) {
                 continue;
             }
 
@@ -95,4 +95,3 @@ return new class extends Migration
         }
     }
 };
-

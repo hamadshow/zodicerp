@@ -12,12 +12,13 @@ class CartController extends Controller
     {
         $next = (int) $request->session()->get('cart_version', 0) + 1;
         $request->session()->put('cart_version', $next);
+
         return $next;
     }
 
     private function normalizeVariants($value)
     {
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             return $value;
         }
 
@@ -74,13 +75,13 @@ class CartController extends Controller
         $allowOutOfStock = (bool) ($product->allow_checkout_when_out_of_stock ?? false);
 
         if ($manageStock) {
-            if ($availableStock <= 0 && !$allowOutOfStock) {
+            if ($availableStock <= 0 && ! $allowOutOfStock) {
                 return response()->json([
                     'message' => 'This product is out of stock.',
                 ], 422);
             }
 
-            if ($availableStock > 0 && $quantity > $availableStock && !$allowOutOfStock) {
+            if ($availableStock > 0 && $quantity > $availableStock && ! $allowOutOfStock) {
                 return response()->json([
                     'message' => "Only {$availableStock} item(s) available.",
                 ], 422);
@@ -88,10 +89,10 @@ class CartController extends Controller
         }
 
         $variantHash = md5(json_encode($variants, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        $itemKey = $product->id . '|' . $variantHash;
+        $itemKey = $product->id.'|'.$variantHash;
 
         $cart = $request->session()->get('cart', []);
-        if (!is_array($cart)) {
+        if (! is_array($cart)) {
             $cart = [];
         }
 
@@ -99,7 +100,7 @@ class CartController extends Controller
         $newQty = $existingQty + $quantity;
 
         if ($manageStock) {
-            if ($availableStock > 0 && $newQty > $availableStock && !$allowOutOfStock) {
+            if ($availableStock > 0 && $newQty > $availableStock && ! $allowOutOfStock) {
                 return response()->json([
                     'message' => "Only {$availableStock} item(s) available.",
                 ], 422);
@@ -127,7 +128,7 @@ class CartController extends Controller
     public function mini(Request $request)
     {
         $cart = $request->session()->get('cart', []);
-        if (!is_array($cart)) {
+        if (! is_array($cart)) {
             $cart = [];
         }
 
@@ -149,7 +150,7 @@ class CartController extends Controller
         $subTotal = 0.0;
 
         $formatImage = function ($img) {
-            if (!$img) {
+            if (! $img) {
                 return null;
             }
 
@@ -160,13 +161,13 @@ class CartController extends Controller
             $normalized = ltrim($img, '/');
             $normalized = preg_replace('#^(files|storage|media-files)/#', '', $normalized);
 
-            return '/media-files/' . $normalized;
+            return '/media-files/'.$normalized;
         };
 
         foreach ($cart as $itemKey => $cartItem) {
             $productId = (int) ($cartItem['product_id'] ?? 0);
             $product = $products->get($productId);
-            if (!$product) {
+            if (! $product) {
                 continue;
             }
 
@@ -180,7 +181,7 @@ class CartController extends Controller
             $subTotal += $lineTotal;
 
             $image = $product->image;
-            if (!$image && $product->parent) {
+            if (! $image && $product->parent) {
                 $image = $product->parent->image;
             }
 
@@ -217,7 +218,7 @@ class CartController extends Controller
         ]);
 
         $cart = $request->session()->get('cart', []);
-        if (!is_array($cart)) {
+        if (! is_array($cart)) {
             $cart = [];
         }
 
@@ -240,11 +241,11 @@ class CartController extends Controller
         ]);
 
         $cart = $request->session()->get('cart', []);
-        if (!is_array($cart)) {
+        if (! is_array($cart)) {
             $cart = [];
         }
 
-        if (!isset($cart[$validated['item_key']])) {
+        if (! isset($cart[$validated['item_key']])) {
             return response()->json([
                 'message' => 'Item not found in cart.',
             ], 404);

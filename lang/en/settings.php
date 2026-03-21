@@ -1,4 +1,5 @@
 <?php
+
 return [
     'general' => 'General Settings',
     'localization' => 'Localization',

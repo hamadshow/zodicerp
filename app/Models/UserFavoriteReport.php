@@ -12,6 +12,7 @@ class UserFavoriteReport extends Model
     protected $table = 'user_favorite_reports';
 
     protected $fillable = [
+        'company_id',
         'user_id',
         'report_id',
     ];
@@ -26,4 +27,3 @@ class UserFavoriteReport extends Model
         return $this->belongsTo(FinancialReport::class, 'report_id');
     }
 }
-

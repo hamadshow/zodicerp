@@ -81,7 +81,7 @@ class UpdateAccountRequest extends FormRequest
     {
         $validator->after(function ($validator) {
             $account = $this->route('account');
-            if (!$account) {
+            if (! $account) {
                 return;
             }
 
@@ -93,16 +93,17 @@ class UpdateAccountRequest extends FormRequest
                 }
                 if ((int) $parentCode === (int) $currentCode) {
                     $validator->errors()->add('AccParent', 'Parent cannot be the same as the account.');
+
                     return;
                 }
                 $ancestorCode = $parentCode;
-                while ($ancestorCode && (int)$ancestorCode !== 0) {
-                    if ((int)$ancestorCode === (int)$currentCode) {
+                while ($ancestorCode && (int) $ancestorCode !== 0) {
+                    if ((int) $ancestorCode === (int) $currentCode) {
                         $validator->errors()->add('AccParent', 'Circular parent selection is not allowed.');
                         break;
                     }
                     $ancestor = Account::where('AccCode', $ancestorCode)->first();
-                    if (!$ancestor) {
+                    if (! $ancestor) {
                         // If ancestor code is valid (non-zero) but not found in DB
                         $validator->errors()->add('AccParent', 'Parent account code does not exist.');
                         break;

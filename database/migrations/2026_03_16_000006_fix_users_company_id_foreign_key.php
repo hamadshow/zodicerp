@@ -9,11 +9,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        if (!Schema::hasTable('users') || !Schema::hasColumn('users', 'company_id')) {
+        if (! Schema::hasTable('users') || ! Schema::hasColumn('users', 'company_id')) {
             return;
         }
 
-        if (!Schema::hasTable('company')) {
+        if (! Schema::hasTable('company')) {
             return;
         }
         $desiredCompanyTable = 'company';
@@ -65,7 +65,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (!Schema::hasTable('users') || !Schema::hasColumn('users', 'company_id')) {
+        if (! Schema::hasTable('users') || ! Schema::hasColumn('users', 'company_id')) {
             return;
         }
 

@@ -3,11 +3,10 @@
 namespace App\Http\Controllers\Backend\Tasks;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tasks\TaskComment;
-use App\Models\Tasks\Task;
 use App\Http\Requests\StoreTaskCommentRequest;
 use App\Http\Requests\UpdateTaskCommentRequest;
-use Illuminate\Http\Request;
+use App\Models\Tasks\Task;
+use App\Models\Tasks\TaskComment;
 use Illuminate\Support\Facades\Auth;
 
 class TaskCommentController extends Controller
@@ -25,13 +24,13 @@ class TaskCommentController extends Controller
     public function store(StoreTaskCommentRequest $request)
     {
         $task = Task::find($request->task_id);
-        if (!$task) {
+        if (! $task) {
             return response()->json(['error' => 'Task not found'], 404);
         }
         $userId = Auth::id();
         $canComment = $task->created_by === $userId || $task->assignments()->where('user_id', $userId)->exists();
 
-        if (!$canComment) {
+        if (! $canComment) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 

@@ -3,11 +3,10 @@
 namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
-use App\Models\LanguageLine;
 use App\Models\Language;
+use App\Models\LanguageLine;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\File;
 
 class ThemeTranslationController extends Controller
 {
@@ -17,10 +16,10 @@ class ThemeTranslationController extends Controller
 
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('group', 'like', "%{$search}%")
-                  ->orWhere('key', 'like', "%{$search}%")
-                  ->orWhere('text', 'like', "%{$search}%");
+                    ->orWhere('key', 'like', "%{$search}%")
+                    ->orWhere('text', 'like', "%{$search}%");
             });
         }
 
@@ -51,7 +50,7 @@ class ThemeTranslationController extends Controller
 
     public function sync()
     {
-        // Re-use logic from LanguageLineController for now, 
+        // Re-use logic from LanguageLineController for now,
         // as theme translations in this project seem to be spread across groups
         return app(LanguageLineController::class)->sync();
     }

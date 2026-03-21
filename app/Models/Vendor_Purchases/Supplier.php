@@ -2,27 +2,26 @@
 
 namespace App\Models\Vendor_Purchases;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Notifications\Notifiable;
 use App\Models\Account;
-use App\Models\Currency;
-use App\Models\Warehouses;
-use App\Models\Country;
 use App\Models\City;
-use App\Models\User;
+use App\Models\Country;
+use App\Models\Currency;
 use App\Models\Products;
-
+use App\Models\User;
+use App\Models\Warehouses;
 use App\Traits\HasTranslations;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 
 class Supplier extends Authenticatable
 {
-    use HasFactory, SoftDeletes, Notifiable, HasTranslations;
+    use HasFactory, HasTranslations, Notifiable, SoftDeletes;
 
     // Primary key is 'id' by default (INT AUTO_INCREMENT as requested), so we don't need to specify it unless it differs.
     // Previous version used 'supplier_id', but new request says 'id INT PRIMARY KEY'.
-    // protected $primaryKey = 'id'; 
+    // protected $primaryKey = 'id';
 
     protected $fillable = [
         'supplier_code',
@@ -132,7 +131,7 @@ class Supplier extends Authenticatable
     {
         return $this->hasMany(SupplierOpeningBalance::class, 'supplier_id');
     }
-    
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');

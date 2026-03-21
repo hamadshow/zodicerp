@@ -1,4 +1,5 @@
 <?php
+
 use App\Models\LanguageLine;
 
 $translations = [

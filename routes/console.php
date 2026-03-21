@@ -1,12 +1,12 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Schedule;
 use App\Models\Ad;
 use App\Models\Language;
 use App\Models\LanguageLine;
+use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -31,7 +31,7 @@ Artisan::command('translations:sync', function () {
 
     foreach ($locales as $locale) {
         $langPath = base_path("lang/{$locale}");
-        if (!File::isDirectory($langPath)) {
+        if (! File::isDirectory($langPath)) {
             continue;
         }
 
@@ -43,7 +43,7 @@ Artisan::command('translations:sync', function () {
             }
 
             $translations = trans($group, [], $locale);
-            if (!is_array($translations)) {
+            if (! is_array($translations)) {
                 continue;
             }
 
@@ -54,7 +54,7 @@ Artisan::command('translations:sync', function () {
     $this->info("Translations synced. Updated {$imported} entries.");
 })->purpose('Sync lang files to language_lines');
 
-if (!function_exists('importTranslations')) {
+if (! function_exists('importTranslations')) {
     function importTranslations(array $translations, string $group, string $locale, string $parentKey = ''): int
     {
         $count = 0;
@@ -64,6 +64,7 @@ if (!function_exists('importTranslations')) {
 
             if (is_array($value)) {
                 $count += importTranslations($value, $group, $locale, $fullKey);
+
                 continue;
             }
 

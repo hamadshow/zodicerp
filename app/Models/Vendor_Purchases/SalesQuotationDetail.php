@@ -2,11 +2,11 @@
 
 namespace App\Models\Vendor_Purchases;
 
+use App\Models\ItemUnit;
+use App\Models\Products;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Products;
-use App\Models\ItemUnit;
 
 class SalesQuotationDetail extends Model
 {

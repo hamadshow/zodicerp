@@ -2,11 +2,10 @@
 
 namespace App\Models\Client_Sales;
 
+use App\Models\Account;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Account;
-use App\Models\Client_Sales\Customer;
 
 class CustomerGroup extends Model
 {
@@ -24,7 +23,7 @@ class CustomerGroup extends Model
         'discount_percentage',
         'is_active',
         'notes',
-        'created_by'
+        'created_by',
     ];
 
     protected $casts = [

@@ -2,11 +2,11 @@
 
 namespace App\Models\Client_Sales;
 
+use App\Models\Currency;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Currency;
-use App\Models\User;
 
 class CustomerOpeningBalance extends Model
 {
@@ -46,7 +46,7 @@ class CustomerOpeningBalance extends Model
     {
         return $this->belongsTo(Currency::class);
     }
-    
+
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');

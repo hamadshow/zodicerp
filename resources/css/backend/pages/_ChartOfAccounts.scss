@@ -123,9 +123,28 @@
   transition: border-color 0.15s ease;
 }
 
+.ChartOfAccounts-page .account-form-card input,
+.ChartOfAccounts-page .account-form-card select,
+.ChartOfAccounts-page .account-form-card textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  transition: border-color 0.15s ease;
+}
+
 .ChartOfAccounts-page .modal input:focus,
 .ChartOfAccounts-page .modal select:focus,
 .ChartOfAccounts-page .modal textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.ChartOfAccounts-page .account-form-card input:focus,
+.ChartOfAccounts-page .account-form-card select:focus,
+.ChartOfAccounts-page .account-form-card textarea:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
@@ -151,6 +170,16 @@
   box-shadow: var(--shadow-md);
   padding: 24px;
   margin-bottom: 24px;
+}
+
+.account-form-card .card-title {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 1.05rem;
+}
+
+.account-form-card .modal-body {
+  margin-top: 16px;
 }
 
 .accounts-table {

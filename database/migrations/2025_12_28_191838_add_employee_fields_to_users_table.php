@@ -45,7 +45,7 @@ return new class extends Migration
                 'status',
                 'address',
                 'notes',
-                'avatar'
+                'avatar',
             ]);
         });
     }

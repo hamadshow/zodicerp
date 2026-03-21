@@ -3,17 +3,16 @@
 namespace App\Http\Controllers\Backend\Purchases;
 
 use App\Http\Controllers\Controller;
-use App\Models\Vendor_Purchases\PurchaseInvoice;
-use App\Models\Vendor_Purchases\PurchaseInvoiceDetail;
-use App\Models\Vendor_Purchases\Supplier;
 use App\Models\Currency;
-use App\Models\Warehouses;
 use App\Models\ItemUnit;
 use App\Models\Products;
+use App\Models\Vendor_Purchases\PurchaseInvoice;
+use App\Models\Vendor_Purchases\Supplier;
+use App\Models\Warehouses;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class PurchaseInvoiceController extends Controller
 {
@@ -27,10 +26,9 @@ class PurchaseInvoiceController extends Controller
             $search = $request->input('search');
             $query->where(function ($q) use ($search) {
                 $q->where('invoice_number', 'like', "%{$search}%")
-                  ->orWhereHas('supplier', function ($q) use ($search) {
-                      $q->where('name_en', 'like', "%{$search}%")
-                        ->orWhere('name_ar', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('supplier', function ($q) use ($search) {
+                        $q->where('name_ar', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -42,7 +40,7 @@ class PurchaseInvoiceController extends Controller
 
         // Load shared data for filters/modals
         $suppliers = Supplier::where('is_active', true)
-            ->select('id', 'name_en', 'name_ar', 'currency_id')
+            ->select('id', 'name_ar', 'currency_id')
             ->get();
         $currencies = Currency::where('status', 'active')
             ->select('id', 'name', 'code', 'symbol')
@@ -51,7 +49,7 @@ class PurchaseInvoiceController extends Controller
             ->get();
         $units = ItemUnit::select('id', 'name as name_en', 'name as name_ar')->get();
         $warehouses = Warehouses::select('id', 'name as name_en', 'name as name_ar')->get();
-        
+
         // Mock data for terms (should be replaced with actual models later)
         $paymentTerms = [
             ['id' => 1, 'name' => 'Net 30'],
@@ -92,8 +90,8 @@ class PurchaseInvoiceController extends Controller
         DB::beginTransaction();
         try {
             // Auto-generate number if not provided
-            $number = $request->invoice_number ?? 'INV-' . date('Ymd') . '-' . rand(1000, 9999);
-            
+            $number = $request->invoice_number ?? 'INV-'.date('Ymd').'-'.rand(1000, 9999);
+
             // Default warehouse if not provided (should be provided in real app)
             $defaultWarehouseId = Warehouses::first()->id ?? 1;
             $warehouseId = $request->warehouse_id ?? $defaultWarehouseId;
@@ -110,7 +108,7 @@ class PurchaseInvoiceController extends Controller
                 'notes' => $request->notes,
                 'created_by' => Auth::id(),
                 'warehouse_id' => $warehouseId,
-                
+
                 // Financials
                 'subtotal' => $request->subtotal ?? 0,
                 'tax_amount' => $request->tax_amount ?? 0,
@@ -120,7 +118,7 @@ class PurchaseInvoiceController extends Controller
                 'total_amount' => $request->total_amount ?? 0,
                 'paid_amount' => $request->paid_amount ?? 0,
                 // balance_amount is generated
-                
+
                 'payment_terms' => $request->payment_terms_id, // Note: column is payment_terms (string) or use ID if schema changed. Schema says string(255).
             ]);
 
@@ -138,18 +136,20 @@ class PurchaseInvoiceController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Purchase Invoice created successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error creating invoice: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error creating invoice: '.$e->getMessage());
         }
     }
 
     public function update(Request $request, $id)
     {
         $invoice = PurchaseInvoice::findOrFail($id);
-        
+
         $validated = $request->validate([
             'invoice_date' => 'required|date',
             'due_date' => 'nullable|date|after_or_equal:invoice_date',
@@ -209,11 +209,13 @@ class PurchaseInvoiceController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Purchase Invoice updated successfully.');
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error updating invoice: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error updating invoice: '.$e->getMessage());
         }
     }
 
@@ -222,9 +224,10 @@ class PurchaseInvoiceController extends Controller
         try {
             $invoice = PurchaseInvoice::findOrFail($id);
             $invoice->delete(); // Soft delete
+
             return redirect()->back()->with('success', 'Purchase Invoice deleted successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error deleting invoice: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error deleting invoice: '.$e->getMessage());
         }
     }
 }

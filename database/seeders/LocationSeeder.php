@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use App\Models\Country;
-use App\Models\City;
 use App\Models\Area;
+use App\Models\City;
+use App\Models\Country;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 

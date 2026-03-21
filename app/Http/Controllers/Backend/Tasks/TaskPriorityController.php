@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers\Backend\Tasks;
 
-use App\Models\Tasks\TaskPriority;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTaskPriorityRequest;
 use App\Http\Requests\UpdateTaskPriorityRequest;
-use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
+use App\Models\Tasks\TaskPriority;
 
 class TaskPriorityController extends Controller
 {

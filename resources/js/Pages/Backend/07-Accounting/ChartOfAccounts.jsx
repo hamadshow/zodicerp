@@ -75,6 +75,7 @@ export default function ChartOfAccounts() {
   const [allAccounts, setAllAccounts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [currentAccount, setCurrentAccount] = useState(null);
   const [form, setForm] = useState({
     AccCode: '',
@@ -100,6 +101,10 @@ export default function ChartOfAccounts() {
   const [expanded, setExpanded] = useState({});
   const [parentOptionsRemote, setParentOptionsRemote] = useState(null);
   const [branches, setBranches] = useState([]);
+
+  useEffect(() => {
+    setShowForm(isModalOpen);
+  }, [isModalOpen]);
 
   const loadAccounts = async () => {
     setLoading(true);
@@ -486,7 +491,10 @@ export default function ChartOfAccounts() {
             <button
               type="button"
               className="icon-btn edit"
-              onClick={() => openModal(account)}
+              onClick={() => {
+                setShowForm(true);
+                openModal(account);
+              }}
             >
               <span className="material-icons-outlined">edit</span>
             </button>
@@ -529,123 +537,128 @@ export default function ChartOfAccounts() {
         <span>/</span>
         <span>Chart of Accounts</span>
       </div>
-      <div className="stats-cards">
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
-            <span className="material-icons-outlined">account_tree</span>
+      {!showForm && (
+        <div className="stats-cards">
+          <div className="stat-card">
+            <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
+              <span className="material-icons-outlined">account_tree</span>
+            </div>
+            <div className="stat-content">
+              <div className="stat-value">{stats.total}</div>
+              <div className="stat-label">Total Accounts</div>
+            </div>
           </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.total}</div>
-            <div className="stat-label">Total Accounts</div>
+          <div className="stat-card">
+            <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
+              <span className="material-icons-outlined">check_circle</span>
+            </div>
+            <div className="stat-content">
+              <div className="stat-value">{stats.active}</div>
+              <div className="stat-label">Active Accounts</div>
+            </div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-icon" style={{ backgroundColor: 'var(--gray-color)' }}>
+              <span className="material-icons-outlined">pause_circle</span>
+            </div>
+            <div className="stat-content">
+              <div className="stat-value">{stats.inactive}</div>
+              <div className="stat-label">Inactive Accounts</div>
+            </div>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
-            <span className="material-icons-outlined">check_circle</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.active}</div>
-            <div className="stat-label">Active Accounts</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: 'var(--gray-color)' }}>
-            <span className="material-icons-outlined">pause_circle</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.inactive}</div>
-            <div className="stat-label">Inactive Accounts</div>
-          </div>
-        </div>
-      </div>
-      <div className="accounts-card fade-in">
-        <div className="card-header">
-          <div className="accounts-actions">
-            <div className="search-bar light">
-              <input
-                type="text"
-                placeholder="Search accounts..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <button type="button">
-                <span className="material-icons-outlined">search</span>
+      )}
+      {!showForm && (
+        <div className="accounts-card fade-in">
+          <div className="card-header">
+            <div className="accounts-actions">
+              <div className="search-bar light">
+                <input
+                  type="text"
+                  placeholder="Search accounts..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <button type="button">
+                  <span className="material-icons-outlined">search</span>
+                </button>
+              </div>
+            </div>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setShowForm(true);
+                  openModal();
+                }}
+              >
+                <span className="material-icons-outlined">add</span>
+                <span>Add Account</span>
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={loadAccounts}
+              >
+                <span className="material-icons-outlined">refresh</span>
+                <span>Refresh</span>
               </button>
             </div>
           </div>
-          <div className="actions">
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => openModal()}
-            >
-              <span className="material-icons-outlined">add</span>
-              <span>Add Account</span>
-            </button>
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={loadAccounts}
-            >
-              <span className="material-icons-outlined">refresh</span>
-              <span>Refresh</span>
-            </button>
+          {error && <div className="error-banner">{error}</div>}
+          <div className="table-container">
+            <table className="accounts-table">
+              <thead>
+                <tr>
+                  <th>CODE</th>
+                  <th>ACCOUNT</th>
+                  <th>TYPE</th>
+                  <th>NATURE</th>
+                  <th>FINAL</th>
+                  <th>STATUS</th>
+                  <th>ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && (
+                  <tr>
+                    <td colSpan={7} className="text-center">
+                      Loading...
+                    </td>
+                  </tr>
+                )}
+                {!loading && visibleTree.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="text-center">
+                      No accounts found.
+                    </td>
+                  </tr>
+                )}
+                {!loading && renderRows(visibleTree)}
+              </tbody>
+            </table>
           </div>
         </div>
-        {error && <div className="error-banner">{error}</div>}
-        <div className="table-container">
-          <table className="accounts-table">
-            <thead>
-              <tr>
-                <th>CODE</th>
-                <th>ACCOUNT</th>
-                <th>TYPE</th>
-                <th>NATURE</th>
-                <th>FINAL</th>
-                <th>STATUS</th>
-                <th>ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan={7} className="text-center">
-                    Loading...
-                  </td>
-                </tr>
-              )}
-              {!loading && visibleTree.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="text-center">
-                    No accounts found.
-                  </td>
-                </tr>
-              )}
-              {!loading && renderRows(visibleTree)}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div
-        className={`modal-overlay ${isModalOpen ? 'active' : ''}`}
-        onClick={(e) => {
-          if (String(e.target.className).includes('modal-overlay')) {
-            closeModal();
-          }
-        }}
-      >
-        <div className="modal">
-          <div className="modal-header">
-            <div className="modal-title">
+      )}
+      {showForm && (
+        <div className="accounts-card account-form-card fade-in">
+          <div className="card-header">
+            <div className="card-title">
               {currentAccount ? 'Edit Account' : 'Add New Account'}
             </div>
-            <button
-              type="button"
-              className="modal-close"
-              onClick={closeModal}
-            >
-              <span className="material-icons-outlined">close</span>
-            </button>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => {
+                  setShowForm(false);
+                  closeModal();
+                }}
+              >
+                Back
+              </button>
+            </div>
           </div>
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
@@ -745,7 +758,9 @@ export default function ChartOfAccounts() {
                     name="AccDmType"
                     className="form-control"
                     value={form.AccDmType}
-                    onChange={(e) => handleFieldChange('AccDmType', Number(e.target.value))}
+                    onChange={(e) =>
+                      handleFieldChange('AccDmType', Number(e.target.value))
+                    }
                   >
                     {DM_TYPES.map((t) => (
                       <option key={t.value} value={t.value}>
@@ -862,7 +877,12 @@ export default function ChartOfAccounts() {
                     type="checkbox"
                     className="toggle-input"
                     checked={!form.AccStopped}
-                    onChange={(e) => handleFieldChange('AccStopped', !e.target.checked ? true : false)}
+                    onChange={(e) =>
+                      handleFieldChange(
+                        'AccStopped',
+                        !e.target.checked ? true : false,
+                      )
+                    }
                     aria-label="Toggle account status"
                   />
                   <span className="toggle-slider" />
@@ -876,7 +896,10 @@ export default function ChartOfAccounts() {
               <button
                 type="button"
                 className="btn btn-outline"
-                onClick={closeModal}
+                onClick={() => {
+                  setShowForm(false);
+                  closeModal();
+                }}
               >
                 Cancel
               </button>
@@ -890,7 +913,7 @@ export default function ChartOfAccounts() {
             </div>
           </form>
         </div>
-      </div>
+      )}
       </div>
     </AdminLayout>
   );

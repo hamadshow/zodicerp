@@ -22,27 +22,27 @@ return new class extends Migration
             $table->string('code', 50)->unique();
             $table->string('name_ar', 200);
             $table->string('name_en', 200);
-            
+
             // Classification
             $table->enum('tax_category', ['sales', 'purchase', 'income', 'withholding', 'excise', 'customs', 'property', 'other']);
             $table->enum('tax_level', ['federal', 'state', 'provincial', 'county', 'city', 'municipal', 'special']);
-            
+
             // Tax System
             $table->string('tax_system_code', 50)->nullable(); // e.g. VAT, GST
-            
+
             $table->foreignId('country_id')->constrained('countries')->onDelete('cascade');
-            
+
             // Legal Info
             $table->string('legal_reference', 500)->nullable();
             $table->date('effective_date');
             $table->date('expiry_date')->nullable();
-            
+
             // Account Properties
             $table->boolean('is_recoverable')->default(true);
             $table->boolean('is_withholding')->default(false);
             $table->boolean('is_compound')->default(false);
             $table->boolean('is_active')->default(true);
-            
+
             // System
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();

@@ -2,10 +2,10 @@
 
 namespace App\Models\Vendor_Purchases;
 
+use App\Models\Currency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Currency;
 
 class VendorWallet extends Model
 {
@@ -48,14 +48,14 @@ class VendorWallet extends Model
     public function credit($amount, $referenceType = null, $referenceId = null, $description = null)
     {
         $this->increment('balance', $amount);
-        
+
         return $this->transactions()->create([
             'amount' => $amount,
             'type' => 'credit',
             'status' => 'completed',
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
-            'transaction_number' => 'CR' . time() . rand(100, 999),
+            'transaction_number' => 'CR'.time().rand(100, 999),
             'description' => $description,
         ]);
     }
@@ -77,7 +77,7 @@ class VendorWallet extends Model
             'status' => 'completed',
             'reference_type' => $referenceType,
             'reference_id' => $referenceId,
-            'transaction_number' => 'DB' . time() . rand(100, 999),
+            'transaction_number' => 'DB'.time().rand(100, 999),
             'description' => $description,
         ]);
     }

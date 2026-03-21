@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers\Backend\Tasks;
 
-use App\Models\Tasks\TaskStatus;
+use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTaskStatusRequest;
 use App\Http\Requests\UpdateTaskStatusRequest;
-use Illuminate\Http\Request;
-use App\Http\Controllers\Controller;
+use App\Models\Tasks\TaskStatus;
 
 class TaskStatusController extends Controller
 {

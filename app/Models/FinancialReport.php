@@ -10,6 +10,7 @@ class FinancialReport extends Model
     use HasFactory;
 
     protected $fillable = [
+        'company_id',
         'report_key',
         'report_name',
         'category',
@@ -29,4 +30,3 @@ class FinancialReport extends Model
         return $this->hasMany(UserFavoriteReport::class, 'report_id');
     }
 }
-

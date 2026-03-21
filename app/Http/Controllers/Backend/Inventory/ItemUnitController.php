@@ -5,13 +5,13 @@ namespace App\Http\Controllers\Backend\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\ItemUnit;
 use App\Models\ItemUnitConversion;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Inertia\Inertia;
 
 class ItemUnitController extends Controller
 {
@@ -23,10 +23,10 @@ class ItemUnitController extends Controller
 
             return Inertia::render('Backend/03-Inventory/ItemUnits', [
                 'units' => $units,
-                'parents' => $parents
+                'parents' => $parents,
             ]);
         } catch (\Exception $e) {
-            return redirect()->route('admin')->with('error', 'Error loading item units: ' . $e->getMessage());
+            return redirect()->route('admin')->with('error', 'Error loading item units: '.$e->getMessage());
         }
     }
 
@@ -34,7 +34,7 @@ class ItemUnitController extends Controller
     {
         try {
             $companyId = $request->user()?->company_id;
-            if (!$companyId) {
+            if (! $companyId) {
                 abort(403, 'Company not set for this user.');
             }
 
@@ -77,7 +77,7 @@ class ItemUnitController extends Controller
                     ->whereKey($validated['base_unit'])
                     ->first();
 
-                if (!$baseUnit) {
+                if (! $baseUnit) {
                     throw ValidationException::withMessages([
                         'base_unit' => 'Invalid base unit.',
                     ]);
@@ -107,6 +107,7 @@ class ItemUnitController extends Controller
                         'conversion_factor' => $validated['conversion_factor'],
                         'is_active' => true,
                     ]);
+
                     return;
                 }
 
@@ -123,7 +124,7 @@ class ItemUnitController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error creating item unit: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error creating item unit: '.$e->getMessage());
         }
     }
 
@@ -133,7 +134,7 @@ class ItemUnitController extends Controller
             $unit = ItemUnit::findOrFail($id);
 
             $companyId = $request->user()?->company_id;
-            if (!$companyId) {
+            if (! $companyId) {
                 abort(403, 'Company not set for this user.');
             }
 
@@ -152,8 +153,8 @@ class ItemUnitController extends Controller
                 'active' => 'boolean',
             ]);
 
-            if ($request->base_unit && (int)$request->base_unit === (int)$id) {
-                 return redirect()->back()->with('error', 'A unit cannot be its own base unit.');
+            if ($request->base_unit && (int) $request->base_unit === (int) $id) {
+                return redirect()->back()->with('error', 'A unit cannot be its own base unit.');
             }
 
             $validated['updated_by'] = Auth::id();
@@ -182,7 +183,7 @@ class ItemUnitController extends Controller
                     ->whereKey($validated['base_unit'])
                     ->first();
 
-                if (!$baseUnit) {
+                if (! $baseUnit) {
                     throw ValidationException::withMessages([
                         'base_unit' => 'Invalid base unit.',
                     ]);
@@ -212,6 +213,7 @@ class ItemUnitController extends Controller
                         'conversion_factor' => $validated['conversion_factor'],
                         'is_active' => true,
                     ]);
+
                     return;
                 }
 
@@ -230,7 +232,7 @@ class ItemUnitController extends Controller
         } catch (ModelNotFoundException $e) {
             return redirect()->back()->with('error', 'Item Unit not found.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error updating item unit: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error updating item unit: '.$e->getMessage());
         }
     }
 
@@ -238,7 +240,7 @@ class ItemUnitController extends Controller
     {
         try {
             $unit = ItemUnit::findOrFail($id);
-            
+
             if ($unit->children()->count() > 0) {
                 return redirect()->back()->with('error', 'Cannot delete unit because it has sub-units.');
             }
@@ -249,7 +251,7 @@ class ItemUnitController extends Controller
         } catch (ModelNotFoundException $e) {
             return redirect()->back()->with('error', 'Item Unit not found.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error deleting item unit: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error deleting item unit: '.$e->getMessage());
         }
     }
 }

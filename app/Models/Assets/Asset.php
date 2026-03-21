@@ -3,11 +3,11 @@
 namespace App\Models\Assets;
 
 use App\Models\Account;
-use App\Models\ItemUnit;
 use App\Models\Currency;
+use App\Models\ItemUnit;
 use App\Models\User;
-use App\Models\Warehouses;
 use App\Models\Vendor_Purchases\PurchaseTax;
+use App\Models\Warehouses;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 

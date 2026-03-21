@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('budget_transfers')) {
+        if (! Schema::hasTable('budget_transfers')) {
             Schema::create('budget_transfers', function (Blueprint $table) {
                 $table->id();
                 $table->string('transfer_number', 50)->unique();
@@ -58,7 +58,7 @@ return new class extends Migration
 
                 $table->index('status', 'idx_transfer_status');
                 $table->index('transfer_date', 'idx_transfer_date');
-                
+
                 $table->charset = 'utf8mb4';
                 $table->collation = 'utf8mb4_unicode_ci';
             });

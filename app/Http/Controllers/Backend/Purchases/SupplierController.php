@@ -3,62 +3,55 @@
 namespace App\Http\Controllers\Backend\Purchases;
 
 use App\Http\Controllers\Controller;
-use App\Models\Vendor_Purchases\Supplier;
-use App\Models\Vendor_Purchases\SupplierAddress;
-use App\Models\Vendor_Purchases\SupplierContact;
-use App\Models\Vendor_Purchases\SupplierOpeningBalance;
-use App\Models\Vendor_Purchases\SupplierGroup;
-use App\Models\Country;
-use App\Models\City;
-use App\Models\Currency;
-use App\Models\Warehouses;
-use App\Models\Account;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Str;
-use Inertia\Inertia;
-use App\Http\Requests\Purchases\StoreSupplierRequest;
-use App\Http\Requests\Purchases\UpdateSupplierRequest;
-use App\Models\Products;
-use App\Models\Client_Sales\SalesOrder;
-use App\Models\Client_Sales\SalesOrderDetail;
-use App\Models\Brands;
-use App\Models\Categories;
-use App\Models\ItemAttribute;
 use App\Http\Requests\Inventory\StoreProductsRequest;
 use App\Http\Requests\Inventory\UpdateProductsRequest;
-use App\Models\ProductVariation;
-use App\Models\ProductVariationItem;
-use Illuminate\Validation\ValidationException;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\Http\Requests\Purchases\StoreSupplierRequest;
+use App\Http\Requests\Purchases\UpdateSupplierRequest;
+use App\Models\Account;
+use App\Models\Brands;
+use App\Models\Categories;
+use App\Models\City;
+use App\Models\Client_Sales\SalesOrder;
+use App\Models\Client_Sales\SalesOrderDetail;
+use App\Models\Country;
+use App\Models\Currency;
+use App\Models\ItemAttribute;
+use App\Models\Products;
+use App\Models\Vendor_Purchases\Supplier;
+use App\Models\Vendor_Purchases\SupplierGroup;
+use App\Models\Warehouses;
 use Exception;
-use Throwable;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
 
 class SupplierController extends Controller
 {
     public function dashboard()
     {
         $supplier = Auth::guard('supplier')->user();
-        
-        if (!$supplier) {
+
+        if (! $supplier) {
             // This should ideally be handled by middleware, but for safety:
-             return redirect()->route('supplier.login');
+            return redirect()->route('supplier.login');
         }
 
         // Stats
         $totalProducts = Products::where('supplier_code', $supplier->supplier_code)->count();
 
         // Get order details for this supplier's products
-        $supplierOrderDetailsQuery = SalesOrderDetail::whereHas('product', function($q) use ($supplier) {
+        $supplierOrderDetailsQuery = SalesOrderDetail::whereHas('product', function ($q) use ($supplier) {
             $q->where('supplier_code', $supplier->supplier_code);
         });
 
         // Clone query for revenue calculation
         $totalRevenue = (clone $supplierOrderDetailsQuery)->sum('line_total');
-        
+
         // Get unique order IDs
         $orderIds = (clone $supplierOrderDetailsQuery)->pluck('order_id')->unique();
         $totalOrders = $orderIds->count();
@@ -69,15 +62,15 @@ class SupplierController extends Controller
 
         // Recent Orders
         $recentOrders = SalesOrder::whereIn('id', $orderIds)
-            ->with(['details' => function($q) use ($supplier) {
-                $q->whereHas('product', function($sq) use ($supplier) {
+            ->with(['details' => function ($q) use ($supplier) {
+                $q->whereHas('product', function ($sq) use ($supplier) {
                     $sq->where('supplier_code', $supplier->supplier_code);
                 })->with('product');
             }])
             ->orderBy('created_at', 'desc')
             ->take(5)
             ->get()
-            ->map(function($order) {
+            ->map(function ($order) {
                 $supplierDetails = $order->details;
                 $supplierAmount = $supplierDetails->sum('line_total');
                 // Access name via translation or direct property depending on model
@@ -110,7 +103,7 @@ class SupplierController extends Controller
     public function products(Request $request)
     {
         $supplier = Auth::guard('supplier')->user();
-        
+
         $query = Products::with(['parent', 'brand', 'categories'])
             ->where('supplier_code', $supplier->supplier_code)
             ->whereNull('parent_id');
@@ -120,8 +113,8 @@ class SupplierController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('product_code', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
+                    ->orWhere('product_code', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%");
             });
         }
 
@@ -154,7 +147,7 @@ class SupplierController extends Controller
     public function createProduct()
     {
         $supplier = Auth::guard('supplier')->user();
-        
+
         $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
         $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
         $itemAttributes = ItemAttribute::with(['details' => function ($query) {
@@ -192,13 +185,13 @@ class SupplierController extends Controller
             } else {
                 $nextNumber = 7001;
             }
-            $productCode = 'PRD-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            $productCode = 'PRD-'.str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
 
             // Generate Slug
             $slug = Str::slug($request->name);
             $count = Products::where('slug', 'LIKE', "{$slug}%")->count();
             if ($count > 0) {
-                $slug .= '-' . ($count + 1);
+                $slug .= '-'.($count + 1);
             }
 
             $data = $request->validated();
@@ -212,22 +205,22 @@ class SupplierController extends Controller
             // Handle Main Image
             if ($request->hasFile('image')) {
                 $image = $request->file('image');
-                $data['image'] = $image->store('suppliers/' . $supplier->supplier_code . '/products', 'public');
+                $data['image'] = $image->store('suppliers/'.$supplier->supplier_code.'/products', 'public');
             }
 
             // Handle Gallery
             $galleryPaths = [];
             foreach ((array) $request->input('gallery', []) as $path) {
-                if (is_string($path) && !empty($path)) {
+                if (is_string($path) && ! empty($path)) {
                     $galleryPaths[] = $path;
                 }
             }
             foreach ((array) $request->file('gallery', []) as $file) {
                 if ($file instanceof \Illuminate\Http\UploadedFile) {
-                    $galleryPaths[] = $file->store('suppliers/' . $supplier->supplier_code . '/products/gallery', 'public');
+                    $galleryPaths[] = $file->store('suppliers/'.$supplier->supplier_code.'/products/gallery', 'public');
                 }
             }
-            if (!empty($galleryPaths)) {
+            if (! empty($galleryPaths)) {
                 $data['images'] = array_values(array_unique($galleryPaths));
             }
 
@@ -254,19 +247,21 @@ class SupplierController extends Controller
             if ($action === 'save_and_exit') {
                 return redirect()->route('supplier.products')->with('success', 'Product created successfully.');
             }
+
             return redirect()->route('supplier.products.edit', $product->id)->with('success', 'Product created successfully.');
 
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Supplier Product Create Error: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'Failed to create product: ' . $e->getMessage()])->withInput();
+            Log::error('Supplier Product Create Error: '.$e->getMessage());
+
+            return back()->withErrors(['error' => 'Failed to create product: '.$e->getMessage()])->withInput();
         }
     }
 
     public function editProduct(Products $product)
     {
         $supplier = Auth::guard('supplier')->user();
-        
+
         // Ensure ownership
         if ($product->supplier_code !== $supplier->supplier_code) {
             abort(403, 'Unauthorized access to this product.');
@@ -296,7 +291,7 @@ class SupplierController extends Controller
     public function updateProduct(UpdateProductsRequest $request, Products $product)
     {
         $supplier = Auth::guard('supplier')->user();
-        
+
         if ($product->supplier_code !== $supplier->supplier_code) {
             abort(403, 'Unauthorized');
         }
@@ -306,7 +301,7 @@ class SupplierController extends Controller
 
             $data = $request->validated();
             $data['is_featured'] = $request->boolean('is_featured');
-            
+
             // Handle Main Image
             if ($request->boolean('delete_image')) {
                 if ($product->image && Storage::disk('public')->exists($product->image)) {
@@ -319,18 +314,18 @@ class SupplierController extends Controller
                     Storage::disk('public')->delete($product->image);
                 }
                 $image = $request->file('image');
-                $data['image'] = $image->store('suppliers/' . $supplier->supplier_code . '/products', 'public');
+                $data['image'] = $image->store('suppliers/'.$supplier->supplier_code.'/products', 'public');
             }
 
             // Handle Gallery
             $currentImages = array_values(array_filter((array) $request->input('existing_images', []), function ($value) {
-                return is_string($value) && !empty($value);
+                return is_string($value) && ! empty($value);
             }));
             $newImages = [];
-            
+
             foreach ((array) $request->file('gallery', []) as $file) {
                 if ($file instanceof \Illuminate\Http\UploadedFile) {
-                    $newImages[] = $file->store('suppliers/' . $supplier->supplier_code . '/products/gallery', 'public');
+                    $newImages[] = $file->store('suppliers/'.$supplier->supplier_code.'/products/gallery', 'public');
                 }
             }
 
@@ -338,7 +333,7 @@ class SupplierController extends Controller
             $data['images'] = $finalImages;
 
             $previousImages = array_values(array_filter((array) ($product->images ?? []), function ($value) {
-                return is_string($value) && !empty($value);
+                return is_string($value) && ! empty($value);
             }));
             $deletedImages = array_diff($previousImages, $currentImages);
             foreach ($deletedImages as $path) {
@@ -367,12 +362,14 @@ class SupplierController extends Controller
             if ($action === 'save_and_exit') {
                 return redirect()->route('supplier.products')->with('success', 'Product updated successfully.');
             }
+
             return back()->with('success', 'Product updated successfully.');
 
         } catch (Exception $e) {
             DB::rollBack();
-            Log::error('Supplier Product Update Error: ' . $e->getMessage());
-            return back()->withErrors(['error' => 'Failed to update product: ' . $e->getMessage()])->withInput();
+            Log::error('Supplier Product Update Error: '.$e->getMessage());
+
+            return back()->withErrors(['error' => 'Failed to update product: '.$e->getMessage()])->withInput();
         }
     }
 
@@ -393,7 +390,7 @@ class SupplierController extends Controller
                 Storage::disk('public')->delete($product->image);
             }
             foreach ((array) ($product->images ?? []) as $path) {
-                if (is_string($path) && !empty($path) && Storage::disk('public')->exists($path)) {
+                if (is_string($path) && ! empty($path) && Storage::disk('public')->exists($path)) {
                     Storage::disk('public')->delete($path);
                 }
             }
@@ -403,7 +400,8 @@ class SupplierController extends Controller
             return redirect()->route('supplier.products')
                 ->with('success', 'Product deleted successfully.');
         } catch (Exception $e) {
-            Log::error('Supplier Product Delete Error: ' . $e->getMessage());
+            Log::error('Supplier Product Delete Error: '.$e->getMessage());
+
             return back()->withErrors(['error' => 'Failed to delete product.']);
         }
     }
@@ -411,39 +409,39 @@ class SupplierController extends Controller
     private function handleVariations(Products $product, Request $request)
     {
         $data = $request->all();
-        
+
         // If switching to variable or updating variable product
         if (($data['product_type'] ?? $product->product_type) === 'variable') {
             $variations = $request->input('variations', []);
             $variationFiles = $request->file('variations', []);
 
-            if (!is_array($variations) || count($variations) === 0) {
+            if (! is_array($variations) || count($variations) === 0) {
                 // If we are just updating non-variation fields of a variable product, we might not send variations if they are unchanged?
                 // But usually the form sends everything.
                 // Admin controller throws validation exception here.
                 throw ValidationException::withMessages([
-                    'variations' => ['Variations are required for variable products.']
+                    'variations' => ['Variations are required for variable products.'],
                 ]);
             }
 
             $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
-            
-            // We delete all old variations and recreate them. 
+
+            // We delete all old variations and recreate them.
             // This is how Admin controller does it (simplistic but effective for consistency).
             // Optimization: checking ID to update instead of delete/create would be better but complex.
             $product->variations()->delete();
-            if (!empty($existingVariationProductIds)) {
+            if (! empty($existingVariationProductIds)) {
                 \App\Models\Products::whereIn('id', $existingVariationProductIds)->forceDelete();
             }
 
             $total = 0;
             $defaultMarked = false;
-            
+
             $supplierCode = $product->supplier_code;
             $variationPath = "suppliers/{$supplierCode}/products/variations";
 
             foreach ($variations as $index => $var) {
-                $isDefault = (bool)($var['is_default'] ?? false);
+                $isDefault = (bool) ($var['is_default'] ?? false);
                 if ($isDefault) {
                     $defaultMarked = true;
                 }
@@ -462,7 +460,7 @@ class SupplierController extends Controller
                 // 2. Handle strings (existing paths)
                 if (isset($var['images']) && is_array($var['images'])) {
                     foreach ($var['images'] as $path) {
-                        if (is_string($path) && !empty($path)) {
+                        if (is_string($path) && ! empty($path)) {
                             $variationImages[] = $path;
                         }
                     }
@@ -474,7 +472,7 @@ class SupplierController extends Controller
                         if ($this->validateImageFile($variationFiles[$index]['image'])) {
                             $variationImages[] = $variationFiles[$index]['image']->store($variationPath, 'public');
                         }
-                    } elseif (isset($var['image']) && is_string($var['image']) && !empty($var['image'])) {
+                    } elseif (isset($var['image']) && is_string($var['image']) && ! empty($var['image'])) {
                         $variationImages[] = $var['image'];
                     }
                 }
@@ -485,7 +483,7 @@ class SupplierController extends Controller
                 }
 
                 $variationImages = array_values(array_unique($variationImages));
-                $mainImage = !empty($variationImages) ? $variationImages[0] : null;
+                $mainImage = ! empty($variationImages) ? $variationImages[0] : null;
 
                 $childProductData = $product->toArray();
                 unset(
@@ -500,8 +498,8 @@ class SupplierController extends Controller
                 $childProductData['product_type'] = 'simple';
                 $childProductData['is_variation'] = false;
                 $childProductData['barcode'] = $var['barcode'] ?? null;
-                $childProductData['product_code'] = $product->product_code . '-' . ($index + 1);
-                $childProductData['slug'] = $product->slug . '-' . ($index + 1);
+                $childProductData['product_code'] = $product->product_code.'-'.($index + 1);
+                $childProductData['slug'] = $product->slug.'-'.($index + 1);
                 $childProductData['sku'] = $var['sku'] ?? null;
                 $childProductData['price'] = (array_key_exists('price', $var) && $var['price'] !== null) ? $var['price'] : $product->price;
                 $childProductData['sale_price'] = (array_key_exists('sale_price', $var) && $var['sale_price'] !== null) ? $var['sale_price'] : null;
@@ -530,7 +528,7 @@ class SupplierController extends Controller
                 } elseif (isset($var['attribute_values']) && is_array($var['attribute_values'])) {
                     foreach ($var['attribute_values'] as $attrId => $value) {
                         $attributes[] = [
-                            'attribute_id' => is_numeric($attrId) ? (int)$attrId : $attrId,
+                            'attribute_id' => is_numeric($attrId) ? (int) $attrId : $attrId,
                             'attribute_value' => $value,
                         ];
                     }
@@ -547,7 +545,7 @@ class SupplierController extends Controller
                 $total++;
             }
 
-            if (!$defaultMarked) {
+            if (! $defaultMarked) {
                 $first = $product->variations()->first();
                 if ($first) {
                     $first->is_default = true;
@@ -563,7 +561,7 @@ class SupplierController extends Controller
             // Not variable anymore, delete variations
             $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
             $product->variations()->delete();
-            if (!empty($existingVariationProductIds)) {
+            if (! empty($existingVariationProductIds)) {
                 \App\Models\Products::whereIn('id', $existingVariationProductIds)->delete();
             }
             $product->update([
@@ -575,16 +573,17 @@ class SupplierController extends Controller
 
     private function validateImageFile($file): bool
     {
-        if (!$file->isValid()) {
+        if (! $file->isValid()) {
             return false;
         }
         if ($file->getSize() > 5 * 1024 * 1024) {
             return false;
         }
         $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-        if (!in_array(strtolower($file->getClientOriginalExtension()), $allowedExtensions)) {
+        if (! in_array(strtolower($file->getClientOriginalExtension()), $allowedExtensions)) {
             return false;
         }
+
         return true;
     }
 
@@ -615,10 +614,10 @@ class SupplierController extends Controller
             ->when(request('search'), function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('supplier_code', 'like', "%{$search}%")
-                      ->orWhere('name_ar', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%")
-                      ->orWhere('primary_phone', 'like', "%{$search}%")
-                      ->orWhere('secondary_phone', 'like', "%{$search}%");
+                        ->orWhere('name_ar', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('primary_phone', 'like', "%{$search}%")
+                        ->orWhere('secondary_phone', 'like', "%{$search}%");
                 });
             })
             ->orderBy('favorite', 'desc')
@@ -648,7 +647,7 @@ class SupplierController extends Controller
     public function toggleFavorite($id)
     {
         $supplier = Supplier::findOrFail($id);
-        $supplier->favorite = !$supplier->favorite;
+        $supplier->favorite = ! $supplier->favorite;
         $supplier->save();
 
         return redirect()->back()->with('success', 'Supplier favorite status updated.');
@@ -660,7 +659,7 @@ class SupplierController extends Controller
 
         $rows = $request->input('rows');
         if (empty($rows)) {
-             return redirect()->back()->with('error', 'No valid rows to import.');
+            return redirect()->back()->with('error', 'No valid rows to import.');
         }
 
         $created = 0;
@@ -683,7 +682,7 @@ class SupplierController extends Controller
         $emails = collect($rows)->pluck('email')->filter()->toArray();
 
         $existingCodes = [];
-        if (!empty($supplierCodes)) {
+        if (! empty($supplierCodes)) {
             $existingCodes = Supplier::whereIn('supplier_code', $supplierCodes)
                 ->pluck('supplier_code')
                 ->flip()
@@ -691,7 +690,7 @@ class SupplierController extends Controller
         }
 
         $existingEmails = [];
-        if (!empty($emails)) {
+        if (! empty($emails)) {
             $existingEmails = Supplier::whereIn('email', $emails)
                 ->pluck('email')
                 ->flip()
@@ -708,12 +707,13 @@ class SupplierController extends Controller
                 // Skip if supplier_code already exists
                 $code = $row['supplier_code'] ?? null;
                 if ($code && isset($existingCodes[$code])) {
-                    $errors[] = "Row " . ($index + 1) . ": Supplier Code '$code' already exists.";
+                    $errors[] = 'Row '.($index + 1).": Supplier Code '$code' already exists.";
+
                     continue;
                 }
 
                 // Handle Telegram Duplication (Set to null if exists)
-                $telegram = !empty($row['telegram']) ? $row['telegram'] : null;
+                $telegram = ! empty($row['telegram']) ? $row['telegram'] : null;
                 if ($telegram && isset($existingTelegrams[$telegram])) {
                     $telegram = null; // Clear telegram to avoid unique constraint violation
                 }
@@ -725,7 +725,7 @@ class SupplierController extends Controller
                     'supplier_group_id' => $defaultGroupId,
                     'primary_phone' => $row['primary_phone'] ?? null,
                     'telegram' => $telegram,
-                    'is_active' => isset($row['is_active']) ? (bool)$row['is_active'] : true,
+                    'is_active' => isset($row['is_active']) ? (bool) $row['is_active'] : true,
                     'created_by' => $userId,
                     'password' => \Illuminate\Support\Facades\Hash::make(Str::random(12)), // Manually hash for bulk insert
                     'currency_id' => null,
@@ -735,25 +735,27 @@ class SupplierController extends Controller
                 ];
 
                 // Foreign Key Lookups (Memory-based)
-                if (!empty($row['group_code']) && isset($groups[$row['group_code']])) {
+                if (! empty($row['group_code']) && isset($groups[$row['group_code']])) {
                     $data['supplier_group_id'] = $groups[$row['group_code']];
                 }
 
-                if (!empty($row['currency_code']) && isset($currencies[$row['currency_code']])) {
+                if (! empty($row['currency_code']) && isset($currencies[$row['currency_code']])) {
                     $data['currency_id'] = $currencies[$row['currency_code']];
                 }
-                
-                if (!empty($row['account_code']) && isset($accounts[$row['account_code']])) {
+
+                if (! empty($row['account_code']) && isset($accounts[$row['account_code']])) {
                     $data['account_id'] = $accounts[$row['account_code']];
                 }
 
                 // Basic Validation (Manual check to avoid Validator overhead)
                 if (empty($data['supplier_code'])) {
-                    $errors[] = "Row " . ($index + 1) . ": Supplier Code is required.";
+                    $errors[] = 'Row '.($index + 1).': Supplier Code is required.';
+
                     continue;
                 }
                 if (empty($data['name_ar'])) {
-                    $errors[] = "Row " . ($index + 1) . ": Name (AR) is required.";
+                    $errors[] = 'Row '.($index + 1).': Name (AR) is required.';
+
                     continue;
                 }
 
@@ -762,7 +764,7 @@ class SupplierController extends Controller
             }
 
             // Bulk Insert in Chunks
-            if (!empty($insertData)) {
+            if (! empty($insertData)) {
                 foreach (array_chunk($insertData, 500) as $chunk) {
                     Supplier::insert($chunk);
                 }
@@ -772,18 +774,22 @@ class SupplierController extends Controller
                 DB::commit();
                 $msg = "Successfully imported $created suppliers.";
                 if (count($errors) > 0) {
-                    $msg .= " Skipped " . count($errors) . " rows due to errors.";
+                    $msg .= ' Skipped '.count($errors).' rows due to errors.';
+
                     return redirect()->back()->with('warning', $msg);
                 }
+
                 return redirect()->back()->with('success', $msg);
             } else {
                 DB::rollBack();
-                return redirect()->back()->with('error', 'No suppliers imported. Errors: ' . implode(' | ', array_slice($errors, 0, 10)) . (count($errors) > 10 ? '...' : ''));
+
+                return redirect()->back()->with('error', 'No suppliers imported. Errors: '.implode(' | ', array_slice($errors, 0, 10)).(count($errors) > 10 ? '...' : ''));
             }
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Server Error: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Server Error: '.$e->getMessage());
         }
     }
 
@@ -793,7 +799,7 @@ class SupplierController extends Controller
         try {
             $data = $request->validated();
             unset($data['password_confirmation']);
-            
+
             // Auto-generate supplier code
             $latest = Supplier::latest('id')->first();
             if ($latest && preg_match('/^VEN-(\d+)$/', $latest->supplier_code, $matches)) {
@@ -801,7 +807,7 @@ class SupplierController extends Controller
             } else {
                 $nextId = 10001;
             }
-            $data['supplier_code'] = 'VEN-' . $nextId;
+            $data['supplier_code'] = 'VEN-'.$nextId;
 
             $data['created_by'] = Auth::id();
             if (empty($data['password'])) {
@@ -812,14 +818,14 @@ class SupplierController extends Controller
             $supplier = Supplier::create($data);
 
             // Create Addresses
-            if (!empty($data['addresses'])) {
+            if (! empty($data['addresses'])) {
                 foreach ($data['addresses'] as $addressData) {
                     $supplier->addresses()->create($addressData);
                 }
             }
 
             // Create Contacts
-            if (!empty($data['contacts'])) {
+            if (! empty($data['contacts'])) {
                 foreach ($data['contacts'] as $contactData) {
                     if (empty($contactData['name_ar'])) {
                         $contactData['name_ar'] = $contactData['name_en'] ?? 'Contact';
@@ -829,20 +835,22 @@ class SupplierController extends Controller
             }
 
             // Create Opening Balance
-            if (!empty($data['opening_balance'])) {
+            if (! empty($data['opening_balance'])) {
                 $obData = $data['opening_balance'];
                 $obData['created_by'] = Auth::id();
                 // Ensure required fields for OB are present or defaults set
-                if (!empty($obData['debit_amount']) || !empty($obData['credit_amount'])) {
+                if (! empty($obData['debit_amount']) || ! empty($obData['credit_amount'])) {
                     $supplier->openingBalances()->create($obData);
                 }
             }
 
             DB::commit();
+
             return redirect()->route('admin.purchases.suppliers.index')->with('success', 'Supplier created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->route('admin.purchases.suppliers.index')->with('error', 'Error creating supplier: ' . $e->getMessage());
+
+            return redirect()->route('admin.purchases.suppliers.index')->with('error', 'Error creating supplier: '.$e->getMessage());
         }
     }
 
@@ -856,8 +864,9 @@ class SupplierController extends Controller
         if (request()->wantsJson()) {
             return response()->json($supplier);
         }
+
         return Inertia::render('Backend/04-Purchases/Suppliers', [
-            'supplier' => $supplier
+            'supplier' => $supplier,
         ]);
     }
 
@@ -880,12 +889,12 @@ class SupplierController extends Controller
             // For simplicity in this form, we might delete missing and update/create existing if IDs are provided.
             // But 'sync' isn't standard for hasMany without custom logic.
             // I'll loop through provided addresses.
-            
+
             // 1. Get current address IDs
             $currentAddressIds = $supplier->addresses()->pluck('id')->toArray();
             $incomingAddressIds = [];
 
-            if (!empty($data['addresses'])) {
+            if (! empty($data['addresses'])) {
                 foreach ($data['addresses'] as $addressData) {
                     if (isset($addressData['id']) && in_array($addressData['id'], $currentAddressIds)) {
                         $incomingAddressIds[] = $addressData['id'];
@@ -897,7 +906,7 @@ class SupplierController extends Controller
             }
             // Delete removed addresses
             $addressesToDelete = array_diff($currentAddressIds, $incomingAddressIds);
-            if (!empty($addressesToDelete)) {
+            if (! empty($addressesToDelete)) {
                 $supplier->addresses()->whereIn('id', $addressesToDelete)->delete();
             }
 
@@ -905,7 +914,7 @@ class SupplierController extends Controller
             $currentContactIds = $supplier->contacts()->pluck('id')->toArray();
             $incomingContactIds = [];
 
-            if (!empty($data['contacts'])) {
+            if (! empty($data['contacts'])) {
                 foreach ($data['contacts'] as $contactData) {
                     if (isset($contactData['id']) && in_array($contactData['id'], $currentContactIds)) {
                         $incomingContactIds[] = $contactData['id'];
@@ -922,29 +931,31 @@ class SupplierController extends Controller
                 }
             }
             $contactsToDelete = array_diff($currentContactIds, $incomingContactIds);
-            if (!empty($contactsToDelete)) {
+            if (! empty($contactsToDelete)) {
                 $supplier->contacts()->whereIn('id', $contactsToDelete)->delete();
             }
 
             // Update Opening Balance
             // Assuming we edit the passed one or create if not exists
-            if (!empty($data['opening_balance'])) {
+            if (! empty($data['opening_balance'])) {
                 $obData = $data['opening_balance'];
                 if (isset($obData['id'])) {
                     $supplier->openingBalances()->where('id', $obData['id'])->update($obData);
                 } else {
                     $obData['created_by'] = Auth::id();
-                    if (!empty($obData['debit_amount']) || !empty($obData['credit_amount'])) {
+                    if (! empty($obData['debit_amount']) || ! empty($obData['credit_amount'])) {
                         $supplier->openingBalances()->create($obData);
                     }
                 }
             }
 
             DB::commit();
+
             return redirect()->route('admin.purchases.suppliers.index')->with('success', 'Supplier updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->route('admin.purchases.suppliers.index')->with('error', 'Error updating supplier: ' . $e->getMessage());
+
+            return redirect()->route('admin.purchases.suppliers.index')->with('error', 'Error updating supplier: '.$e->getMessage());
         }
     }
 
@@ -953,9 +964,10 @@ class SupplierController extends Controller
         try {
             $supplier = Supplier::findOrFail($id);
             $supplier->delete();
+
             return redirect()->route('admin.purchases.suppliers.index')->with('success', 'Supplier deleted successfully.');
         } catch (\Exception $e) {
-            return redirect()->route('admin.purchases.suppliers.index')->with('error', 'Error deleting supplier: ' . $e->getMessage());
+            return redirect()->route('admin.purchases.suppliers.index')->with('error', 'Error deleting supplier: '.$e->getMessage());
         }
     }
 }

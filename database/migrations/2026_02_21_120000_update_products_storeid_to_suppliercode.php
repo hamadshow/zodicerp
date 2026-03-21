@@ -2,15 +2,15 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
         Schema::table('products', function (Blueprint $table) {
-            if (!Schema::hasColumn('products', 'supplier_code')) {
+            if (! Schema::hasColumn('products', 'supplier_code')) {
                 $table->string('supplier_code', 50)->nullable()->after('category_id');
             }
         });
@@ -31,7 +31,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('products', function (Blueprint $table) {
-            if (!Schema::hasColumn('products', 'store_id')) {
+            if (! Schema::hasColumn('products', 'store_id')) {
                 $table->foreignId('store_id')->nullable()->after('category_id');
             }
         });

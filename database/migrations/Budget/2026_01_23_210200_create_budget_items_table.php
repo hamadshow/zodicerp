@@ -11,12 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('budget_items')) {
+        if (! Schema::hasTable('budget_items')) {
             Schema::create('budget_items', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('budget_id')->constrained('budgets')->onDelete('cascade');
                 $table->foreignId('category_id')->constrained('budget_categories');
-                
+
                 if (Schema::hasTable('accounts')) {
                     $table->unsignedInteger('account_id');
                     $table->foreign('account_id')->references('AccID')->on('accounts');

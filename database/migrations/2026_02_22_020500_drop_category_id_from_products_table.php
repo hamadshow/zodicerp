@@ -44,18 +44,18 @@ return new class extends Migration
                     [$database]
                 );
 
-                if ($fk && !empty($fk->name)) {
+                if ($fk && ! empty($fk->name)) {
                     DB::statement("ALTER TABLE `products` DROP FOREIGN KEY `{$fk->name}`");
                 }
             } else {
-                 // For SQLite, try standard dropForeign, though dropColumn usually handles it by table rebuild
-                 try {
-                     Schema::table('products', function (Blueprint $table) {
-                         $table->dropForeign(['category_id']);
-                     });
-                 } catch (\Exception $e) {
-                     // Ignore if not found
-                 }
+                // For SQLite, try standard dropForeign, though dropColumn usually handles it by table rebuild
+                try {
+                    Schema::table('products', function (Blueprint $table) {
+                        $table->dropForeign(['category_id']);
+                    });
+                } catch (\Exception $e) {
+                    // Ignore if not found
+                }
             }
 
             Schema::table('products', function (Blueprint $table) {
@@ -66,7 +66,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (!Schema::hasColumn('products', 'category_id')) {
+        if (! Schema::hasColumn('products', 'category_id')) {
             Schema::table('products', function (Blueprint $table) {
                 $table->foreignId('category_id')->nullable()->constrained('categories')->nullOnDelete();
             });
