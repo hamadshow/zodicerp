@@ -9,6 +9,7 @@ use App\Models\Warehouses;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -208,6 +209,11 @@ class OpeningStockController extends Controller
     {
         $user = $request->user();
         $companyId = $user?->company_id;
+        Log::info('OpeningStock store request', [
+            'user_id' => $user?->id,
+            'company_id' => $companyId,
+            'items_count' => is_array($request->input('items')) ? count($request->input('items')) : null,
+        ]);
         if (! $companyId) {
             return redirect()->back()->with('error', 'Company is not set for this user.');
         }
@@ -228,7 +234,7 @@ class OpeningStockController extends Controller
             $existsInRef = DB::table($stockCompanyRefTable)->where('id', $companyId)->exists();
             if (! $existsInRef) {
                 return redirect()
-                    ->route('admin.opening-stock.index', [
+                    ->route('admin.inventory.opening-stock.index', [
                         'country' => $request->route('country') ?? session('country_code', 'sa'),
                         'lang' => $request->route('lang') ?? session('locale', config('app.locale', 'ar')),
                     ])
@@ -288,7 +294,16 @@ class OpeningStockController extends Controller
             }
         });
 
-        $validated = $validator->validate();
+        try {
+            $validated = $validator->validate();
+        } catch (ValidationException $e) {
+            Log::warning('OpeningStock store validation failed', [
+                'user_id' => $user?->id,
+                'company_id' => $companyId,
+                'errors' => $e->errors(),
+            ]);
+            throw $e;
+        }
 
         try {
             DB::transaction(function () use ($validated, $companyId) {
@@ -350,6 +365,14 @@ class OpeningStockController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
+            Log::error('OpeningStock store failed', [
+                'user_id' => $user?->id,
+                'company_id' => $companyId,
+                'warehouse_id' => $request->input('warehouse_id'),
+                'date' => $request->input('date'),
+                'items_count' => is_array($request->input('items')) ? count($request->input('items')) : null,
+                'exception' => $e,
+            ]);
             report($e);
 
             $params = [
@@ -358,7 +381,7 @@ class OpeningStockController extends Controller
             ];
 
             return redirect()
-                ->route('admin.opening-stock.index', $params)
+                ->route('admin.inventory.opening-stock.index', $params)
                 ->with('error', 'تعذر حفظ رصيد الافتتاح. تحقق من البيانات وحاول مرة أخرى.');
         }
 
@@ -368,7 +391,7 @@ class OpeningStockController extends Controller
         ];
 
         return redirect()
-            ->route('admin.opening-stock.index', $params)
+            ->route('admin.inventory.opening-stock.index', $params)
             ->with('success', 'Opening stock saved successfully.');
     }
 
@@ -376,6 +399,12 @@ class OpeningStockController extends Controller
     {
         $user = $request->user();
         $companyId = $user?->company_id;
+        Log::info('OpeningStock update request', [
+            'user_id' => $user?->id,
+            'company_id' => $companyId,
+            'movement_id' => (int) $id,
+            'items_count' => is_array($request->input('items')) ? count($request->input('items')) : null,
+        ]);
         if (! $companyId) {
             return redirect()->back()->with('error', 'Company is not set for this user.');
         }
@@ -443,7 +472,17 @@ class OpeningStockController extends Controller
             }
         });
 
-        $validated = $validator->validate();
+        try {
+            $validated = $validator->validate();
+        } catch (ValidationException $e) {
+            Log::warning('OpeningStock update validation failed', [
+                'user_id' => $user?->id,
+                'company_id' => $companyId,
+                'movement_id' => (int) $id,
+                'errors' => $e->errors(),
+            ]);
+            throw $e;
+        }
 
         try {
             DB::transaction(function () use ($validated, $companyId, $movement) {
@@ -484,6 +523,15 @@ class OpeningStockController extends Controller
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Throwable $e) {
+            Log::error('OpeningStock update failed', [
+                'user_id' => $user?->id,
+                'company_id' => $companyId,
+                'movement_id' => (int) $id,
+                'warehouse_id' => $request->input('warehouse_id'),
+                'date' => $request->input('date'),
+                'items_count' => is_array($request->input('items')) ? count($request->input('items')) : null,
+                'exception' => $e,
+            ]);
             report($e);
 
             $params = [
@@ -492,7 +540,7 @@ class OpeningStockController extends Controller
             ];
 
             return redirect()
-                ->route('admin.opening-stock.index', $params)
+                ->route('admin.inventory.opening-stock.index', $params)
                 ->with('error', 'تعذر تعديل رصيد الافتتاح. تحقق من البيانات وحاول مرة أخرى.');
         }
 
@@ -502,7 +550,7 @@ class OpeningStockController extends Controller
         ];
 
         return redirect()
-            ->route('admin.opening-stock.index', $params)
+            ->route('admin.inventory.opening-stock.index', $params)
             ->with('success', 'Opening stock updated successfully.');
     }
 
@@ -510,30 +558,63 @@ class OpeningStockController extends Controller
     {
         $user = $request->user();
         $companyId = (int) ($user?->company_id ?? 0);
+        Log::info('OpeningStock delete request', [
+            'user_id' => $user?->id,
+            'company_id' => $companyId,
+            'movement_id' => (int) $id,
+        ]);
 
         if (! $companyId) {
             return redirect()->back()->with('error', 'Company is not set for this user.');
         }
-
-        $deleted = DB::table('stock_movements')
-            ->where('id', (int) $id)
-            ->where('reference_type', 'opening_stock')
-            ->where('company_id', $companyId)
-            ->delete();
 
         $params = [
             'country' => $request->route('country') ?? session('country_code', 'sa'),
             'lang' => $request->route('lang') ?? session('locale', config('app.locale', 'ar')),
         ];
 
+        try {
+            $deleted = DB::transaction(function () use ($id, $companyId) {
+                $movement = DB::table('stock_movements')
+                    ->where('id', (int) $id)
+                    ->where('reference_type', 'opening_stock')
+                    ->where('company_id', $companyId)
+                    ->first(['id']);
+
+                if (! $movement) {
+                    return 0;
+                }
+
+                DB::table('stock_movements_details')
+                    ->where('stock_movement_id', (int) $movement->id)
+                    ->delete();
+
+                return DB::table('stock_movements')
+                    ->where('id', (int) $movement->id)
+                    ->delete();
+            });
+        } catch (\Throwable $e) {
+            Log::error('OpeningStock delete failed', [
+                'user_id' => $user?->id,
+                'company_id' => $companyId,
+                'movement_id' => (int) $id,
+                'exception' => $e,
+            ]);
+            report($e);
+
+            return redirect()
+                ->route('admin.inventory.opening-stock.index', $params)
+                ->with('error', 'تعذر حذف رصيد الافتتاح. حاول مرة أخرى.');
+        }
+
         if (! $deleted) {
             return redirect()
-                ->route('admin.opening-stock.index', $params)
+                ->route('admin.inventory.opening-stock.index', $params)
                 ->with('error', 'Opening stock voucher not found.');
         }
 
         return redirect()
-            ->route('admin.opening-stock.index', $params)
+            ->route('admin.inventory.opening-stock.index', $params)
             ->with('success', 'Opening stock deleted successfully.');
     }
 }

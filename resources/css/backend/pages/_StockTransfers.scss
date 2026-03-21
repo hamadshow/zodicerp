@@ -1,0 +1,169 @@
+.stock-transfers-page {
+  background: #f8fbff;
+  border-radius: 16px;
+  padding: 0 2px 16px;
+
+  .page-header-section {
+    padding: 18px 0 10px;
+  }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 10px;
+  }
+
+  .breadcrumb a {
+    color: #3b82f6;
+    text-decoration: none;
+  }
+
+  .breadcrumb .current {
+    color: #111827;
+    font-weight: 600;
+  }
+
+  .stock-transfers-titlebar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .stock-transfers-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .page-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+  }
+
+  .page-subtitle {
+    margin-top: 0.25rem;
+    font-size: 0.9rem;
+    color: #64748b;
+  }
+
+  .stock-transfers-card {
+    margin-top: 4px;
+    padding: 18px;
+    border-radius: 14px;
+    background: #fff;
+    box-shadow: 0 4px 18px rgba(15, 23, 42, 0.06);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+  }
+
+  .stock-transfers-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .stock-transfers-header-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px;
+    align-items: end;
+    margin-bottom: 14px;
+  }
+
+  .stock-transfers-table-wrap {
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .stock-transfers-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+
+    thead th {
+      background: #f8fafc;
+      border-bottom: 2px solid rgba(59, 130, 246, 0.45);
+      font-size: 0.83rem;
+      color: #334155;
+      padding: 12px 10px;
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    tbody td {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+      padding: 10px;
+      vertical-align: middle;
+    }
+
+    tbody tr:hover td {
+      background: rgba(59, 130, 246, 0.03);
+    }
+  }
+
+  .icon-btn {
+    border: 0;
+    background: transparent;
+    padding: 6px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    &.danger {
+      color: #ef4444;
+    }
+    &.primary {
+      color: #3b82f6;
+    }
+  }
+
+  .field-error {
+    margin-top: 6px;
+    font-size: 0.8rem;
+    color: #ef4444;
+  }
+
+  @media (max-width: 740px) {
+    .stock-transfers-toolbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .stock-transfers-table thead {
+      display: none;
+    }
+
+    .stock-transfers-table,
+    .stock-transfers-table tbody,
+    .stock-transfers-table tr,
+    .stock-transfers-table td {
+      display: block;
+      width: 100%;
+    }
+
+    .stock-transfers-table tbody tr {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    .stock-transfers-table tbody td {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      border: 0;
+      padding: 10px 12px;
+    }
+  }
+}

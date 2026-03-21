@@ -440,6 +440,7 @@ const OpeningStock = () => {
   const [editingId, setEditingId] = useState(null);
   const [localSuccess, setLocalSuccess] = useState('');
   const [localError, setLocalError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const defaultUnitId = units?.[0]?.id ? String(units[0].id) : '';
   const defaultWarehouseId = warehouses?.[0]?.id ? String(warehouses[0].id) : '';
@@ -447,12 +448,9 @@ const OpeningStock = () => {
   const {
     data,
     setData,
-    transform,
-    post,
-    put,
-    delete: destroy,
     processing,
     errors,
+    setError,
     reset,
     clearErrors,
   } = useForm({
@@ -463,6 +461,8 @@ const OpeningStock = () => {
     notes: '',
     items: [newRow(defaultUnitId)],
   });
+
+  const busy = processing || submitting;
 
   useEffect(() => {
     setData((prev) => ({
@@ -559,7 +559,7 @@ const OpeningStock = () => {
   const handleBackClick = () => {
     setEditingId(null);
     setMode('view');
-    router.get(buildLocalizedRoute('admin.opening-stock.index', localization), {}, { preserveScroll: true });
+    router.get(buildLocalizedRoute('admin.inventory.opening-stock.index', localization), {}, { preserveScroll: true });
   };
 
   const handleCreateClick = () => {
@@ -581,7 +581,7 @@ const OpeningStock = () => {
 
   const handleEditClick = (stockMovementId) => {
     router.get(
-      buildLocalizedRoute('admin.opening-stock.index', localization),
+      buildLocalizedRoute('admin.inventory.opening-stock.index', localization),
       { edit: stockMovementId },
       { preserveScroll: true },
     );
@@ -589,9 +589,33 @@ const OpeningStock = () => {
 
   const handleDelete = (stockMovementId) => {
     if (!window.confirm('Are you sure you want to delete this opening stock voucher?')) return;
-    destroy(buildLocalizedRoute('admin.opening-stock.destroy', localization, { opening_stock: stockMovementId }), {
-      preserveScroll: true,
-    });
+    setLocalSuccess('');
+    setLocalError('');
+    setSubmitting(true);
+    try {
+      router.post(
+        buildLocalizedRoute('admin.inventory.opening-stock.destroy', localization, { opening_stock: stockMovementId }),
+        { _method: 'delete' },
+        {
+          preserveScroll: true,
+          onError: (errs) => {
+            setError(errs || {});
+            const allMessages = Object.values(errs || {})
+              .flatMap((v) => (Array.isArray(v) ? v : [v]))
+              .filter(Boolean)
+              .map((v) => String(v).trim())
+              .filter(Boolean);
+            setLocalError(allMessages.length ? allMessages.join(' | ') : 'تعذر الحذف، تحقق من البيانات وحاول مرة أخرى.');
+          },
+          onFinish: () => {
+            setSubmitting(false);
+          },
+        },
+      );
+    } catch {
+      setSubmitting(false);
+      setLocalError('تعذر تنفيذ الحذف بسبب خطأ في بناء الرابط.');
+    }
   };
 
   const canSubmit = useMemo(() => {
@@ -648,7 +672,9 @@ const OpeningStock = () => {
       return;
     }
 
+    const isEdit = mode === 'edit' && editingId;
     const payload = {
+      ...(isEdit ? { _method: 'put' } : {}),
       date: data.date,
       warehouse_id: Number(data.warehouse_id),
       notes: data.notes,
@@ -663,45 +689,49 @@ const OpeningStock = () => {
     };
 
     const targetRoute =
-      mode === 'edit' && editingId
-        ? buildLocalizedRoute('admin.opening-stock.update', localization, { opening_stock: editingId })
-        : buildLocalizedRoute('admin.opening-stock.store', localization);
+      isEdit
+        ? buildLocalizedRoute('admin.inventory.opening-stock.update', localization, { opening_stock: editingId })
+        : buildLocalizedRoute('admin.inventory.opening-stock.store', localization);
 
-    const submitFn = mode === 'edit' && editingId ? put : post;
-
-    transform(() => payload);
-    submitFn(targetRoute, {
-      preserveScroll: true,
-      onSuccess: (page) => {
-        const flashError = page?.props?.flash?.error ? String(page.props.flash.error) : '';
-        if (flashError) {
-          setLocalError(flashError);
-          return;
-        }
-        setMode('view');
-        setEditingId(null);
-        reset();
-        setData('date', defaultDate || new Date().toISOString().slice(0, 10));
-        setData('reference_id', referenceId || 1);
-        setData('reference_no', referenceNo || padOp(referenceId || 1));
-        setData('warehouse_id', defaultWarehouseId);
-        setData('notes', '');
-        setData('items', [newRow(defaultUnitId)]);
-        setBarcode('');
-      },
-      onError: (errs) => {
-        const allMessages = Object.values(errs || {})
-          .flatMap((v) => (Array.isArray(v) ? v : [v]))
-          .filter(Boolean)
-          .map((v) => String(v).trim())
-          .filter(Boolean);
-        const message = allMessages.length ? allMessages.join(' | ') : 'تعذر الحفظ، تحقق من البيانات وحاول مرة أخرى.';
-        setLocalError(message);
-      },
-      onFinish: () => {
-        transform((formData) => formData);
-      },
-    });
+    setSubmitting(true);
+    try {
+      router.post(targetRoute, payload, {
+        preserveScroll: true,
+        onSuccess: (page) => {
+          const flashError = page?.props?.flash?.error ? String(page.props.flash.error) : '';
+          if (flashError) {
+            setLocalError(flashError);
+            return;
+          }
+          setMode('view');
+          setEditingId(null);
+          reset();
+          setData('date', defaultDate || new Date().toISOString().slice(0, 10));
+          setData('reference_id', referenceId || 1);
+          setData('reference_no', referenceNo || padOp(referenceId || 1));
+          setData('warehouse_id', defaultWarehouseId);
+          setData('notes', '');
+          setData('items', [newRow(defaultUnitId)]);
+          setBarcode('');
+        },
+        onError: (errs) => {
+          setError(errs || {});
+          const allMessages = Object.values(errs || {})
+            .flatMap((v) => (Array.isArray(v) ? v : [v]))
+            .filter(Boolean)
+            .map((v) => String(v).trim())
+            .filter(Boolean);
+          const message = allMessages.length ? allMessages.join(' | ') : 'تعذر الحفظ، تحقق من البيانات وحاول مرة أخرى.';
+          setLocalError(message);
+        },
+        onFinish: () => {
+          setSubmitting(false);
+        },
+      });
+    } catch {
+      setSubmitting(false);
+      setLocalError('تعذر تنفيذ الحفظ بسبب خطأ في بناء الرابط.');
+    }
   };
 
   const importExcel = async (file) => {
@@ -828,7 +858,7 @@ const OpeningStock = () => {
         <div className="page-header">
           <h1>{mode === 'view' ? 'Opening Stock' : mode === 'edit' ? 'Edit Opening Stock' : 'New Opening Stock'}</h1>
           {mode !== 'view' && (
-            <button className="btn btn-secondary" onClick={handleBackClick} disabled={processing}>
+            <button className="btn btn-secondary" onClick={handleBackClick} disabled={busy}>
               <span className="material-icons-outlined">arrow_back</span>
               Back to List
             </button>
@@ -855,7 +885,7 @@ const OpeningStock = () => {
             products={products}
             units={units}
             warehouses={warehouses}
-            processing={processing}
+            processing={busy}
             errors={errors}
             onBack={handleBackClick}
             onSubmit={submit}
