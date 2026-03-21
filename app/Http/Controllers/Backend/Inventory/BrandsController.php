@@ -60,7 +60,7 @@ class BrandsController extends Controller
 
             DB::commit();
 
-            return redirect()->route('admin.brands.index')
+            return redirect()->route('admin.inventory.brands.index')
                 ->with('success', 'Brand created successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -83,7 +83,7 @@ class BrandsController extends Controller
 
             DB::commit();
 
-            return redirect()->route('admin.brands.index')
+            return redirect()->route('admin.inventory.brands.index')
                 ->with('success', 'Brand updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -100,7 +100,7 @@ class BrandsController extends Controller
 
         $brand->delete();
 
-        return redirect()->route('admin.brands.index')
+        return redirect()->route('admin.inventory.brands.index')
             ->with('success', 'Brand deleted successfully.');
     }
 }

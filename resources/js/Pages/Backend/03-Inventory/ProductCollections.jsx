@@ -51,7 +51,7 @@ const ProductCollectionsList = ({ collections = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this collection?')) {
-            router.delete(route('admin.product-collections.destroy', id));
+            router.delete(route('admin.inventory.product-collections.destroy', id));
         }
     };
 
@@ -125,7 +125,7 @@ const ProductCollectionsList = ({ collections = [] }) => {
                         </div>
                     </div>
                     <div className="actions">
-                        <Link href={route('admin.product-collections.create')} className="btn btn-primary">
+                        <Link href={route('admin.inventory.product-collections.create')} className="btn btn-primary">
                             <span className="material-icons-outlined">add</span>
                             <span>Add Collection</span>
                         </Link>
@@ -176,7 +176,7 @@ const ProductCollectionsList = ({ collections = [] }) => {
                                             )}
                                         </td>
                                         <td>
-                                            <Link href={route('admin.product-collections.edit', collection.id)} className="icon-btn edit">
+                                            <Link href={route('admin.inventory.product-collections.edit', collection.id)} className="icon-btn edit">
                                                 <span className="material-icons-outlined">edit</span>
                                             </Link>
                                             <button className="icon-btn delete" onClick={() => handleDelete(collection.id)}>
@@ -242,9 +242,9 @@ const ProductCollectionsForm = ({ collection = null }) => {
                     // Try to use localized route if available, fallback to standard route
                     let url;
                     try {
-                        url = getLocalizedRoute('admin.product-collections.get-products');
+                        url = getLocalizedRoute('admin.inventory.product-collections.get-products');
                     } catch {
-                        url = route('admin.product-collections.get-products');
+                        url = route('admin.inventory.product-collections.get-products');
                     }
                     
                     window.axios.get(url, { params: { query: searchTerm } })
@@ -289,9 +289,9 @@ const ProductCollectionsForm = ({ collection = null }) => {
         e.preventDefault();
         
         if (isEdit) {
-            put(route('admin.product-collections.update', collection.id));
+            put(route('admin.inventory.product-collections.update', collection.id));
         } else {
-            post(route('admin.product-collections.store'));
+            post(route('admin.inventory.product-collections.store'));
         }
     };
 
@@ -306,7 +306,7 @@ const ProductCollectionsForm = ({ collection = null }) => {
                     <span>/</span>
                     <a href="#">Inventory</a>
                     <span>/</span>
-                    <Link href={route('admin.product-collections.index')}>Product Collections</Link>
+                    <Link href={route('admin.inventory.product-collections.index')}>Product Collections</Link>
                     <span>/</span>
                     <span>{pageTitle}</span>
                 </div>
@@ -564,7 +564,7 @@ const ProductCollectionsForm = ({ collection = null }) => {
                                             </button>
                                         </div>
                                         <div className="mt-3">
-                                            <Link href={route('admin.product-collections.index')} className="btn btn-outline btn-block text-center">
+                                            <Link href={route('admin.inventory.product-collections.index')} className="btn btn-outline btn-block text-center">
                                                 Cancel
                                             </Link>
                                         </div>
@@ -618,8 +618,8 @@ const ProductCollectionsForm = ({ collection = null }) => {
 
 const ProductCollectionsPage = ({ collections = [], collection = null, mode = null }) => {
     // Check if we are in create or edit mode based on route or props
-    const isCreateRoute = typeof route === 'function' && route().current('admin.product-collections.create');
-    const isEditRoute = typeof route === 'function' && route().current('admin.product-collections.edit');
+    const isCreateRoute = typeof route === 'function' && route().current('admin.inventory.product-collections.create');
+    const isEditRoute = typeof route === 'function' && route().current('admin.inventory.product-collections.edit');
     const isFormMode = mode === 'create' || mode === 'edit' || isCreateRoute || isEditRoute || !!collection;
 
     return (

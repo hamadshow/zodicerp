@@ -405,7 +405,7 @@ const Warehouses = ({ warehouses = [], branches = [] }) => {
 
     const handleFormSubmit = (data) => {
         if (mode === 'edit' && selectedWarehouse) {
-            router.put(route('admin.warehouses.update', selectedWarehouse.id), data, {
+            router.put(route('admin.inventory.warehouses.update', selectedWarehouse.id), data, {
                 preserveScroll: true,
                 onSuccess: () => {
                     setMode('view');
@@ -413,7 +413,7 @@ const Warehouses = ({ warehouses = [], branches = [] }) => {
                 }
             });
         } else {
-            router.post(route('admin.warehouses.store'), data, {
+            router.post(route('admin.inventory.warehouses.store'), data, {
                 preserveScroll: true,
                 onSuccess: () => {
                     setMode('view');
@@ -425,7 +425,7 @@ const Warehouses = ({ warehouses = [], branches = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this warehouse?')) {
-            router.delete(route('admin.warehouses.destroy', id), {
+            router.delete(route('admin.inventory.warehouses.destroy', id), {
                 preserveScroll: true
             });
         }

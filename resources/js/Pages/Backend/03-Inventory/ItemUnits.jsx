@@ -189,15 +189,15 @@ const ItemUnits = ({ units = [], parents = [] }) => {
         };
 
         if (isCreating) {
-            post(route('admin.item-units.store'), options);
+            post(route('admin.inventory.item-units.store'), options);
         } else if (selectedUnit) {
-            put(route('admin.item-units.update', selectedUnit.id), options);
+            put(route('admin.inventory.item-units.update', selectedUnit.id), options);
         }
     };
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this unit?')) {
-            router.delete(route('admin.item-units.destroy', id), {
+            router.delete(route('admin.inventory.item-units.destroy', id), {
                 onSuccess: () => {
                     if (selectedUnit?.id === id) {
                         handleCreateNew();
@@ -230,7 +230,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
         const newType = newParentId ? 2 : 1;
         const newFactor = newParentId ? unit.conversion_factor : 1; // Main units usually factor 1
 
-        router.put(route('admin.item-units.update', draggedId), {
+        router.put(route('admin.inventory.item-units.update', draggedId), {
             ...unit,
             base_unit: newParentId,
             unit_type: newType,

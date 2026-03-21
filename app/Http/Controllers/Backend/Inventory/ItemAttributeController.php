@@ -67,7 +67,7 @@ class ItemAttributeController extends Controller
                 }
             }
 
-            return redirect()->route('admin.item-attributes.index')->with('success', 'Attribute created successfully.');
+            return redirect()->route('admin.inventory.item-attributes.index')->with('success', 'Attribute created successfully.');
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
@@ -82,9 +82,10 @@ class ItemAttributeController extends Controller
 
             return Inertia::render('Backend/03-Inventory/ItemAttributes', [
                 'attribute' => $attribute,
+                'isEdit' => true,
             ]);
         } catch (ModelNotFoundException $e) {
-            return redirect()->route('admin.item-attributes.index')->with('error', 'Attribute not found.');
+            return redirect()->route('admin.inventory.item-attributes.index')->with('error', 'Attribute not found.');
         }
     }
 
@@ -141,11 +142,11 @@ class ItemAttributeController extends Controller
             // Delete removed details
             $attribute->details()->whereNotIn('id', $existingIds)->delete();
 
-            return redirect()->route('admin.item-attributes.index')->with('success', 'Attribute updated successfully.');
+            return redirect()->route('admin.inventory.item-attributes.index')->with('success', 'Attribute updated successfully.');
         } catch (ValidationException $e) {
             throw $e;
         } catch (ModelNotFoundException $e) {
-            return redirect()->route('admin.item-attributes.index')->with('error', 'Attribute not found.');
+            return redirect()->route('admin.inventory.item-attributes.index')->with('error', 'Attribute not found.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error updating attribute: '.$e->getMessage());
         }
@@ -157,9 +158,9 @@ class ItemAttributeController extends Controller
             $attribute = ItemAttribute::findOrFail($id);
             $attribute->delete();
 
-            return redirect()->route('admin.item-attributes.index')->with('success', 'Attribute deleted successfully.');
+            return redirect()->route('admin.inventory.item-attributes.index')->with('success', 'Attribute deleted successfully.');
         } catch (ModelNotFoundException $e) {
-            return redirect()->route('admin.item-attributes.index')->with('error', 'Attribute not found.');
+            return redirect()->route('admin.inventory.item-attributes.index')->with('error', 'Attribute not found.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error deleting attribute: '.$e->getMessage());
         }

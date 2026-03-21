@@ -636,9 +636,9 @@ class ProductsController extends Controller
                 ], 201);
             }
 
-            $redirect = redirect()->route('admin.products.index');
+            $redirect = redirect()->route('admin.inventory.products.index');
             if ($request->input('save_action') === 'save') {
-                $redirect = redirect()->route('admin.products.edit', $product->id);
+                $redirect = redirect()->route('admin.inventory.products.edit', $product->id);
             }
 
             return $redirect->with('success', 'Product created successfully.');
@@ -995,7 +995,7 @@ class ProductsController extends Controller
                 return back()->with('success', 'Product updated successfully.');
             }
 
-            return redirect()->route('admin.products.index')
+            return redirect()->route('admin.inventory.products.index')
                 ->with('success', 'Product updated successfully.');
         } catch (ModelNotFoundException $e) {
             DB::rollBack();
@@ -1091,7 +1091,7 @@ class ProductsController extends Controller
                 ], 200);
             }
 
-            return redirect()->route('admin.products.index')
+            return redirect()->route('admin.inventory.products.index')
                 ->with('success', 'Product deleted successfully.');
         } catch (ModelNotFoundException $e) {
             Log::error('Product not found for deletion: '.$e->getMessage(), [

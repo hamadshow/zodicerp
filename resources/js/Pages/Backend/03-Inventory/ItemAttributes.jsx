@@ -38,7 +38,7 @@ const ItemAttributesList = ({ attributes = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this attribute?')) {
-            router.delete(route('admin.item-attributes.destroy', id));
+            router.delete(route('admin.inventory.item-attributes.destroy', id));
         }
     };
 
@@ -109,7 +109,7 @@ const ItemAttributesList = ({ attributes = [] }) => {
                         </div>
                     </div>
                     <div className="actions">
-                        <Link href={route('admin.item-attributes.create')} className="btn btn-primary">
+                        <Link href={route('admin.inventory.item-attributes.create')} className="btn btn-primary">
                             <span className="material-icons-outlined">add</span>
                             <span>Add Attribute</span>
                         </Link>
@@ -151,7 +151,7 @@ const ItemAttributesList = ({ attributes = [] }) => {
                                             </span>
                                         </td>
                                         <td>
-                                            <Link href={route('admin.item-attributes.edit', attr.id)} className="icon-btn edit">
+                                            <Link href={route('admin.inventory.item-attributes.edit', attr.id)} className="icon-btn edit">
                                                 <span className="material-icons-outlined">edit</span>
                                             </Link>
                                             <button className="icon-btn delete" onClick={() => handleDelete(attr.id)}>
@@ -191,9 +191,9 @@ const ItemAttributesForm = ({ attribute = null }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (isEdit) {
-            put(route('admin.item-attributes.update', attribute.id));
+            put(route('admin.inventory.item-attributes.update', attribute.id));
         } else {
-            post(route('admin.item-attributes.store'));
+            post(route('admin.inventory.item-attributes.store'));
         }
     };
 
@@ -242,7 +242,7 @@ const ItemAttributesForm = ({ attribute = null }) => {
                     <span>/</span>
                     <a href="#">Inventory</a>
                     <span>/</span>
-                    <Link href={route('admin.item-attributes.index')}>Item Attributes</Link>
+                    <Link href={route('admin.inventory.item-attributes.index')}>Item Attributes</Link>
                     <span>/</span>
                     <span>{pageTitle}</span>
                 </div>
@@ -377,7 +377,7 @@ const ItemAttributesForm = ({ attribute = null }) => {
                                             </button>
                                         </div>
                                         <div className="mt-3">
-                                            <Link href={route('admin.item-attributes.index')} className="btn btn-outline btn-block text-center">
+                                            <Link href={route('admin.inventory.item-attributes.index')} className="btn btn-outline btn-block text-center">
                                                 Cancel
                                             </Link>
                                         </div>
@@ -485,8 +485,8 @@ const ItemAttributesForm = ({ attribute = null }) => {
 };
 
 const ItemAttributesPage = ({ attributes = [], attribute = null, mode = null }) => {
-    const isCreateRoute = typeof route === 'function' && route().current('admin.item-attributes.create');
-    const isEditRoute = typeof route === 'function' && route().current('admin.item-attributes.edit');
+    const isCreateRoute = typeof route === 'function' && route().current('admin.inventory.item-attributes.create');
+    const isEditRoute = typeof route === 'function' && route().current('admin.inventory.item-attributes.edit');
     const isFormMode = mode === 'create' || mode === 'edit' || isCreateRoute || isEditRoute || !!attribute;
 
     return (

@@ -198,7 +198,7 @@ class CategoriesController extends Controller
                 return response()->json(['message' => 'Category created successfully', 'category' => $category], 201);
             }
 
-            return redirect()->route('admin.categories.index')->with('success', 'Category created successfully');
+            return redirect()->route('admin.inventory.categories.index')->with('success', 'Category created successfully');
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -248,7 +248,7 @@ class CategoriesController extends Controller
                 return response()->json(['message' => 'Category updated successfully', 'category' => $category]);
             }
 
-            return redirect()->route('admin.categories.index')->with('success', 'Category updated successfully');
+            return redirect()->route('admin.inventory.categories.index')->with('success', 'Category updated successfully');
 
         } catch (\Exception $e) {
             if ($request->wantsJson()) {
@@ -281,7 +281,7 @@ class CategoriesController extends Controller
                 return response()->json(['message' => 'Category deleted successfully']);
             }
 
-            return redirect()->route('admin.categories.index')->with('success', 'Category deleted successfully');
+            return redirect()->route('admin.inventory.categories.index')->with('success', 'Category deleted successfully');
 
         } catch (\Exception $e) {
             if (request()->wantsJson()) {

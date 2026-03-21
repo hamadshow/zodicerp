@@ -105,7 +105,7 @@ class WarehousesController extends Controller
         }
 
         // Return inertia view if needed, or just redirect to index with selected item
-        return redirect()->route('admin.warehouses', ['warehouse_id' => $warehouse->id]);
+        return redirect()->route('admin.inventory.warehouses.index', ['warehouse_id' => $warehouse->id]);
     }
 
     /**

@@ -86,17 +86,17 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
     };
 
     const applyFilters = () => {
-        Inertia.get(route('admin.products.index'), filterParams, { preserveState: true });
+        Inertia.get(route('admin.inventory.products.index'), filterParams, { preserveState: true });
     };
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this product?')) {
-            Inertia.delete(route('admin.products.destroy', id));
+            Inertia.delete(route('admin.inventory.products.destroy', id));
         }
     };
 
     const handleExport = () => {
-        window.location.href = route('admin.products.export');
+        window.location.href = route('admin.inventory.products.export');
     };
 
     // Import Preview States
@@ -137,7 +137,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
         
         const axios = window.axios; 
         
-        axios.post(route('admin.products.import.preview'), formData, {
+        axios.post(route('admin.inventory.products.import.preview'), formData, {
             headers: {
                 'Content-Type': 'multipart/form-data'
             }
@@ -176,7 +176,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
 
         setImporting(true);
         const axios = window.axios;
-        axios.post(route('admin.products.import.confirm'), { token: previewToken })
+        axios.post(route('admin.inventory.products.import.confirm'), { token: previewToken })
             .then((response) => {
                 alert(response?.data?.message || 'Import completed.');
                 cancelImport();
@@ -307,7 +307,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                             <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
                                 <span className="material-icons-outlined">upload</span> {importing ? 'Importing...' : 'Import'}
                             </button>
-                            <Link className="btn btn-primary" href={route('admin.products.create')}>
+                            <Link className="btn btn-primary" href={route('admin.inventory.products.create')}>
                                 <span className="material-icons-outlined">add</span>
                                 Add Product
                             </Link>
@@ -383,7 +383,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                                 <div className="actions-cell">
                                                     <button
                                                         className="icon-btn edit"
-                                                        onClick={() => Inertia.get(route('admin.products.edit', product.id))}
+                                                        onClick={() => Inertia.get(route('admin.inventory.products.edit', product.id))}
                                                         title="Edit"
                                                     >
                                                         <span className="material-icons-outlined">edit</span>
@@ -1186,9 +1186,9 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
         };
 
         if (product) {
-            post(route('admin.products.update', product.id), options);
+            post(route('admin.inventory.products.update', product.id), options);
         } else {
-            post(route('admin.products.store'), options);
+            post(route('admin.inventory.products.store'), options);
         }
     };
 
@@ -1208,7 +1208,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                     <span>/</span>
                     <span>Inventory</span>
                     <span>/</span>
-                    <Link href={route('admin.products.index')}>
+                    <Link href={route('admin.inventory.products.index')}>
                         Products
                     </Link>
                     <span>/</span>
@@ -1221,7 +1221,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                             <h3 className="products-ce-title">{pageTitle}</h3>
                             <div className="products-ce-actions">
                                 <Link
-                                    href={route('admin.products.index')}
+                                    href={route('admin.inventory.products.index')}
                                     className="btn btn-outline-danger"
                                 >
                                     Back to List

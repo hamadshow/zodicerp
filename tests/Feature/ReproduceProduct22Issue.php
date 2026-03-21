@@ -64,7 +64,7 @@ class ReproduceProduct22Issue extends TestCase
         ];
 
         // 4. Send POST request
-        $response = $this->postJson(route('admin.products.update', $product->id), $payload);
+        $response = $this->postJson(route('admin.inventory.products.update', $product->id), $payload);
 
         // 5. Assert Success
         if ($response->status() !== 200 && $response->status() !== 302) {

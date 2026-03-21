@@ -109,8 +109,8 @@ class ProductCollectionController extends Controller
             $collection->products()->sync($request->products);
         }
 
-        return redirect()->route('admin.product-collections.index')
-            ->with('success', 'Product Collection created successfully.');
+        return redirect()->route('admin.inventory.product-collections.index')
+            ->with('success', 'Collection created successfully.');
     }
 
     /**
@@ -122,7 +122,7 @@ class ProductCollectionController extends Controller
 
         return Inertia::render('Backend/03-Inventory/ProductCollections', [
             'collection' => $collection,
-            'mode' => 'edit',
+            'isEdit' => true,
         ]);
     }
 
@@ -188,8 +188,8 @@ class ProductCollectionController extends Controller
             $collection->products()->sync($request->products);
         }
 
-        return redirect()->route('admin.product-collections.index')
-            ->with('success', 'Product Collection updated successfully.');
+        return redirect()->route('admin.inventory.product-collections.index')
+            ->with('success', 'Collection updated successfully.');
     }
 
     /**
@@ -200,7 +200,7 @@ class ProductCollectionController extends Controller
         $collection = ProductCollection::findOrFail($id);
         $collection->delete();
 
-        return redirect()->route('admin.product-collections.index')
-            ->with('success', 'Product Collection deleted successfully.');
+        return redirect()->route('admin.inventory.product-collections.index')
+            ->with('success', 'Collection deleted successfully.');
     }
 }

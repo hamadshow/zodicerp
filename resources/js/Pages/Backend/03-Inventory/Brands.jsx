@@ -190,11 +190,11 @@ const Brands = ({ brands = [], parents = [] }) => {
         };
 
         if (currentBrand) {
-            router.put(route('admin.brands.update', currentBrand.id), data, {
+            router.put(route('admin.inventory.brands.update', currentBrand.id), data, {
                 onSuccess: () => closeModal(),
             });
         } else {
-            router.post(route('admin.brands.store'), data, {
+            router.post(route('admin.inventory.brands.store'), data, {
                 onSuccess: () => closeModal(),
             });
         }
@@ -202,7 +202,7 @@ const Brands = ({ brands = [], parents = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this brand?')) {
-            router.delete(route('admin.brands.destroy', id));
+            router.delete(route('admin.inventory.brands.destroy', id));
         }
     };
 
@@ -229,7 +229,7 @@ const Brands = ({ brands = [], parents = [] }) => {
         // Prevent moving to self or own child (circular reference check needed ideally)
         if (String(brand.parent_id) === String(newParentId)) return; // No change
 
-        router.put(route('admin.brands.update', draggedId), {
+        router.put(route('admin.inventory.brands.update', draggedId), {
             ...brand,
             parent_id: newParentId
         }, {

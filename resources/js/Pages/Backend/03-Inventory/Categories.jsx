@@ -313,12 +313,12 @@ const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = []
         };
 
         if (isCreating) {
-            post(route('admin.categories.store'), options);
+            post(route('admin.inventory.categories.store'), options);
         } else if (selectedCategory) {
             // Use router.post with _method: 'PUT' for file uploads if needed, 
             // but Inertia's put usually handles it unless files are involved. 
             // Laravel requires POST with _method=PUT for FormData with files.
-            router.post(route('admin.categories.update', selectedCategory.id), {
+            router.post(route('admin.inventory.categories.update', selectedCategory.id), {
                 _method: 'PUT',
                 ...data
             }, options);
@@ -327,7 +327,7 @@ const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = []
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this category?')) {
-            router.delete(route('admin.categories.destroy', id), {
+            router.delete(route('admin.inventory.categories.destroy', id), {
                 onSuccess: () => {
                     if (selectedCategory?.id === id) {
                         handleCreateNew();
@@ -355,7 +355,7 @@ const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = []
         const category = categories.find(c => String(c.id) === String(draggedId));
         if (!category || String(category.parent_id) === String(newParentId)) return;
         
-        router.put(route('admin.categories.update', draggedId), {
+        router.put(route('admin.inventory.categories.update', draggedId), {
             ...category,
             parent_id: newParentId
         }, { preserveScroll: true });
@@ -442,7 +442,7 @@ const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = []
     };
 
     const handleExport = () => {
-        window.location.href = route('admin.categories.export');
+        window.location.href = route('admin.inventory.categories.export');
     };
 
     const handleImport = (e) => {
@@ -452,7 +452,7 @@ const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = []
         const formData = new FormData();
         formData.append('file', file);
 
-        router.post(route('admin.categories.import'), formData, {
+        router.post(route('admin.inventory.categories.import'), formData, {
             preserveScroll: true,
             onStart: () => setImporting(true),
             onFinish: () => {

@@ -71,7 +71,7 @@ class ProductImportWorkflowTest extends TestCase
             "{$validName},{$validCode},{$validSku},99.5,10,active",
         ]);
 
-        $previewResponse = $this->post(route('admin.products.import.preview'), [
+        $previewResponse = $this->post(route('admin.inventory.products.import.preview'), [
             'file' => UploadedFile::fake()->createWithContent('products-valid.csv', $validCsv),
         ]);
 
@@ -91,7 +91,7 @@ class ProductImportWorkflowTest extends TestCase
         $token = $previewResponse->json('token');
         $this->assertNotEmpty($token);
 
-        $confirmResponse = $this->post(route('admin.products.import.confirm'), [
+        $confirmResponse = $this->post(route('admin.inventory.products.import.confirm'), [
             'token' => $token,
         ]);
 
@@ -110,7 +110,7 @@ class ProductImportWorkflowTest extends TestCase
             ",{$invalidCode},SKU-".strtoupper(Str::random(8)).',15,2,active',
         ]);
 
-        $invalidPreviewResponse = $this->post(route('admin.products.import.preview'), [
+        $invalidPreviewResponse = $this->post(route('admin.inventory.products.import.preview'), [
             'file' => UploadedFile::fake()->createWithContent('products-invalid.csv', $invalidCsv),
         ]);
 
@@ -118,7 +118,7 @@ class ProductImportWorkflowTest extends TestCase
         $invalidPreviewResponse->assertJsonPath('total', 1);
         $this->assertGreaterThan(0, count($invalidPreviewResponse->json('errors', [])));
 
-        $invalidConfirmResponse = $this->post(route('admin.products.import.confirm'), [
+        $invalidConfirmResponse = $this->post(route('admin.inventory.products.import.confirm'), [
             'token' => $invalidPreviewResponse->json('token'),
         ]);
         $invalidConfirmResponse->assertStatus(422);
@@ -129,14 +129,14 @@ class ProductImportWorkflowTest extends TestCase
             'No Name Column,10,1',
         ]);
 
-        $wrongColumnsResponse = $this->post(route('admin.products.import.preview'), [
+        $wrongColumnsResponse = $this->post(route('admin.inventory.products.import.preview'), [
             'file' => UploadedFile::fake()->createWithContent('products-wrong-columns.csv', $wrongColumnsCsv),
         ]);
         $wrongColumnsResponse->assertStatus(422);
         $this->assertGreaterThan(0, count($wrongColumnsResponse->json('errors', [])));
 
         $emptyCsv = 'name,product_code,sku,price,quantity,status';
-        $emptyResponse = $this->post(route('admin.products.import.preview'), [
+        $emptyResponse = $this->post(route('admin.inventory.products.import.preview'), [
             'file' => UploadedFile::fake()->createWithContent('products-empty.csv', $emptyCsv),
         ]);
         $emptyResponse->assertStatus(200);
