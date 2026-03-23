@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Head, Link, usePage, useForm } from '@inertiajs/react';
-import { Inertia } from '@inertiajs/inertia';
+import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
+// import { Inertia } from '@inertiajs/inertia';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 import MediaPickerModal from '../Media/MediaPickerModal';
@@ -9,9 +9,23 @@ import MediaPickerModal from '../Media/MediaPickerModal';
 // Helper Components
 // ==========================================
 
-const CategoryTreeItem = ({ category, selectedIds, onToggle, level = 0 }) => {
+const CategoryTreeItem = ({ category, selectedIds, onToggle, level = 0, search = '' }) => {
     const [isOpen, setIsOpen] = useState(false);
     const hasChildren = category.children && category.children.length > 0;
+    
+    const matchesSearch = search 
+        ? category.name.toLowerCase().includes(search.toLowerCase()) || 
+          (hasChildren && category.children.some(child => child.name.toLowerCase().includes(search.toLowerCase())))
+        : true;
+
+    // Auto-open if children match search
+    useEffect(() => {
+        if (search && hasChildren && category.children.some(child => child.name.toLowerCase().includes(search.toLowerCase()))) {
+            setIsOpen(true);
+        }
+    }, [search, hasChildren, category.children]);
+
+    if (!matchesSearch && search !== '') return null;
     
     const handleToggle = (e) => {
         e.preventDefault();
@@ -19,42 +33,51 @@ const CategoryTreeItem = ({ category, selectedIds, onToggle, level = 0 }) => {
         setIsOpen(!isOpen);
     };
 
+    const isSelected = selectedIds.includes(String(category.id));
+
     return (
         <div className="category-tree-item" style={{ '--level': level }}>
-            <div className="category-row">
-                {hasChildren ? (
-                    <span 
-                        className={`toggle-icon ${isOpen ? 'open' : ''}`}
-                        onClick={handleToggle}
-                    >
-                        {isOpen ? '▼' : '▶'}
-                    </span>
-                ) : (
-                    <span className="toggle-placeholder"></span>
-                )}
-                
-                <label className="checkbox-label">
-                    <input
-                        type="checkbox"
-                        value={category.id}
-                        checked={selectedIds.includes(String(category.id))}
-                        onChange={() => onToggle(String(category.id))}
-                    />
+            <div className={`category-row ${isSelected ? 'selected' : ''}`}>
+                <div className="category-row-inner" onClick={() => onToggle(String(category.id))}>
+                    {hasChildren ? (
+                        <span 
+                            className={`toggle-icon ${isOpen ? 'open' : ''}`}
+                            onClick={handleToggle}
+                        >
+                            <span className="material-icons-outlined">
+                                chevron_right
+                            </span>
+                        </span>
+                    ) : (
+                        <span className="toggle-placeholder"></span>
+                    )}
+                    
+                    <div className="checkbox-custom">
+                        <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => onToggle(String(category.id))}
+                        />
+                        <span className="checkmark"></span>
+                    </div>
                     <span className="category-name">{category.name}</span>
-                </label>
+                </div>
             </div>
 
-            <div className={`category-children ${isOpen ? 'expanded' : ''}`}>
-                {hasChildren && category.children.map(child => (
-                    <CategoryTreeItem
-                        key={child.id}
-                        category={child}
-                        selectedIds={selectedIds}
-                        onToggle={onToggle}
-                        level={level + 1}
-                    />
-                ))}
-            </div>
+            {hasChildren && (
+                <div className={`category-children ${isOpen ? 'expanded' : ''}`}>
+                    {category.children.map(child => (
+                        <CategoryTreeItem
+                            key={child.id}
+                            category={child}
+                            selectedIds={selectedIds}
+                            onToggle={onToggle}
+                            level={level + 1}
+                            search={search}
+                        />
+                    ))}
+                </div>
+            )}
         </div>
     );
 };
@@ -65,7 +88,9 @@ const CategoryTreeItem = ({ category, selectedIds, onToggle, level = 0 }) => {
 
 const ProductsList = ({ products, brands, categories, filters = {} }) => {
     const { flash } = usePage().props;
-    const safeProducts = products || { data: [], total: 0, from: 0, to: 0, links: [] };
+    const safeProducts = (products && Array.isArray(products.data)) 
+        ? products 
+        : (Array.isArray(products) ? { data: products, total: products.length, from: 1, to: products.length, links: [] } : { data: [], total: 0, from: 0, to: 0, links: [] });
     const safeBrands = Array.isArray(brands) ? brands : [];
     const safeCategories = Array.isArray(categories) ? categories : [];
     
@@ -86,12 +111,12 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
     };
 
     const applyFilters = () => {
-        Inertia.get(route('admin.inventory.products.index'), filterParams, { preserveState: true });
+        router.get(route('admin.inventory.products.index'), filterParams, { preserveState: true });
     };
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this product?')) {
-            Inertia.delete(route('admin.inventory.products.destroy', id));
+            router.delete(route('admin.inventory.products.destroy', id));
         }
     };
 
@@ -180,7 +205,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
             .then((response) => {
                 alert(response?.data?.message || 'Import completed.');
                 cancelImport();
-                Inertia.reload({ preserveScroll: true });
+                router.reload({ preserveScroll: true });
             })
             .catch((error) => {
                 const payload = error?.response?.data;
@@ -359,9 +384,9 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                                             <span className="material-icons-outlined text-gray-light">image</span>
                                                         </div>
                                                     )}
-                                                    <div>
-                                                        <div className="font-semibold">{product.name}</div>
-                                                        <small className="text-gray-medium">{product.product_code}</small>
+                                                    <div className="product-info">
+                                                        <div className="product-name">{product?.name || 'No Name'}</div>
+                                                        <div className="product-code">{product?.product_code || ''}</div>
                                                     </div>
                                                 </div>
                                             </td>
@@ -383,7 +408,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                                 <div className="actions-cell">
                                                     <button
                                                         className="icon-btn edit"
-                                                        onClick={() => Inertia.get(route('admin.inventory.products.edit', product.id))}
+                                                        onClick={() => router.get(route('admin.inventory.products.edit', product.id))}
                                                         title="Edit"
                                                     >
                                                         <span className="material-icons-outlined">edit</span>
@@ -415,7 +440,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                     <button
                                         key={i}
                                         className={`page-btn ${link.active ? 'active' : ''}`}
-                                        onClick={() => link.url && Inertia.get(link.url, filterParams, { preserveState: true })}
+                                        onClick={() => link.url && router.get(link.url, filterParams, { preserveState: true })}
                                         disabled={!link.url}
                                         dangerouslySetInnerHTML={{ __html: link.label }}
                                     ></button>
@@ -424,102 +449,101 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                         </div>
                     )}
                 </div>
-                
-                            {showPreviewModal && (
-                                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                                    <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col" style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1000, width: '90%', maxHeight: '90vh', background: 'white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', borderRadius: '8px', display: 'flex', flexDirection: 'column'}}>
-                                        <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                                            <h3 className="text-xl font-bold">Import Preview</h3>
-                                            <button onClick={cancelImport} className="text-gray-500 hover:text-gray-700">
-                                                <span className="material-icons-outlined">close</span>
-                                            </button>
-                                        </div>
-                                        
-                                        <div className="p-4 overflow-auto flex-1">
-                                            <p className="mb-4 text-sm text-gray-600">
-                                                Showing {previewShown} of {previewTotal} rows.
-                                            </p>
-                                            {previewErrors.length > 0 && (
-                                                <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                                                    {previewErrors.length} rows have validation errors. Fix the file and re-upload, or proceed only after correcting the errors.
-                                                </div>
-                                            )}
-                                            
-                                            <div className="border rounded-lg overflow-auto" style={{maxHeight: '60vh'}}>
-                                                <table className="min-w-full divide-y divide-gray-200">
-                                                    <thead className="bg-gray-50 sticky top-0">
-                                                        <tr>
-                                                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border border-gray-200">
-                                                                #
-                                                            </th>
-                                                            {previewHeaders.map((header, idx) => (
-                                                                <th key={idx} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border border-gray-200">
-                                                                    {header}
-                                                                </th>
-                                                            ))}
-                                                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border border-gray-200">
-                                                                Errors
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="bg-white divide-y divide-gray-200">
-                                                        {previewRows.map((row, rowIdx) => {
-                                                            const rowNumber = row?.__row ?? rowIdx + 1;
-                                                            const rowErrors = previewErrorsByRow.get(rowNumber);
-                                                            const hasErrors = rowErrors && Object.keys(rowErrors).length > 0;
-                                                            const rowBg = hasErrors ? 'bg-red-50' : (rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50');
-                                                            return (
-                                                            <tr key={rowIdx} className={rowBg}>
-                                                                <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 border border-gray-200">
-                                                                    {rowNumber}
-                                                                </td>
-                                                                {previewHeaders.map((header, cellIdx) => (
-                                                                    <td key={cellIdx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 border border-gray-200">
-                                                                        {row?.[header] ?? ''}
-                                                                    </td>
-                                                                ))}
-                                                                <td className="px-6 py-4 whitespace-nowrap text-sm border border-gray-200">
-                                                                    {hasErrors ? (
-                                                                        <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
-                                                                            {Object.keys(rowErrors).length} fields
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                                                                            OK
-                                                                        </span>
-                                                                    )}
-                                                                </td>
-                                                            </tr>
-                                                        )})}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
-                                            <button 
-                                                className="btn btn-outline"
-                                                onClick={cancelImport}
-                                                disabled={importing}
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button 
-                                                className="btn btn-primary"
-                                                onClick={confirmImport}
-                                                disabled={importing || previewErrors.length > 0}
-                                            >
-                                                {importing && <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>}
-                                                Confirm Import
-                                            </button>
-                                        </div>
+
+                {showPreviewModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+                        <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col" style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1000, width: '90%', maxHeight: '90vh', background: 'white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', borderRadius: '8px', display: 'flex', flexDirection: 'column'}}>
+                            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
+                                <h3 className="text-xl font-bold">Import Preview</h3>
+                                <button onClick={cancelImport} className="text-gray-500 hover:text-gray-700">
+                                    <span className="material-icons-outlined">close</span>
+                                </button>
+                            </div>
+                            
+                            <div className="p-4 overflow-auto flex-1">
+                                <p className="mb-4 text-sm text-gray-600">
+                                    Showing {previewShown} of {previewTotal} rows.
+                                </p>
+                                {previewErrors.length > 0 && (
+                                    <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                                        {previewErrors.length} rows have validation errors. Fix the file and re-upload, or proceed only after correcting the errors.
                                     </div>
+                                )}
+                                
+                                <div className="border rounded-lg overflow-auto" style={{maxHeight: '60vh'}}>
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50 sticky top-0">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border border-gray-200">
+                                                    #
+                                                </th>
+                                                {previewHeaders.map((header, idx) => (
+                                                    <th key={idx} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border border-gray-200">
+                                                        {header}
+                                                    </th>
+                                                ))}
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border border-gray-200">
+                                                    Errors
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {previewRows.map((row, rowIdx) => {
+                                                const rowNumber = row?.__row ?? rowIdx + 1;
+                                                const rowErrors = previewErrorsByRow.get(rowNumber);
+                                                const hasErrors = rowErrors && Object.keys(rowErrors).length > 0;
+                                                const rowBg = hasErrors ? 'bg-red-50' : (rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50');
+                                                return (
+                                                <tr key={rowIdx} className={rowBg}>
+                                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 border border-gray-200">
+                                                        {rowNumber}
+                                                    </td>
+                                                    {previewHeaders.map((header, cellIdx) => (
+                                                        <td key={cellIdx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 border border-gray-200">
+                                                            {row?.[header] ?? ''}
+                                                        </td>
+                                                    ))}
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm border border-gray-200">
+                                                        {hasErrors ? (
+                                                            <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
+                                                                {Object.keys(rowErrors).length} fields
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                                                OK
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            )})}
+                                        </tbody>
+                                    </table>
                                 </div>
-                            )}
-                
-                </div>
+                            </div>
+                            
+                            <div className="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
+                                <button 
+                                    className="btn btn-outline"
+                                    onClick={cancelImport}
+                                    disabled={importing}
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    className="btn btn-primary"
+                                    onClick={confirmImport}
+                                    disabled={importing || previewErrors.length > 0}
+                                >
+                                    {importing && <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>}
+                                    Confirm Import
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
-        </AdminLayout>
+        </div>
+    </AdminLayout>
     );
 };
 
@@ -590,7 +614,6 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
     });
     const [newVariationImages, setNewVariationImages] = useState([]);
     const [currentVariationImageTarget, setCurrentVariationImageTarget] = useState(null);
-    const [isAttributeModalOpen, setIsAttributeModalOpen] = useState(false);
     const [selectedAttributeIds, setSelectedAttributeIds] = useState([]);
     const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
     const [selectedVariationOptions, setSelectedVariationOptions] = useState({});
@@ -620,6 +643,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
     const [store, setStore] = useState('');
     const [categorySearch, setCategorySearch] = useState('');
     const [taxOption, setTaxOption] = useState('none');
+    const [isAttributesExpanded, setIsAttributesExpanded] = useState(false);
     void showSeoMeta;
     void setShowSeoMeta;
     void specTable;
@@ -1298,9 +1322,66 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                 </div>
 
                                 <div className="products-section-card">
+                                    <div 
+                                        className="products-section-header d-flex justify-between align-items-center" 
+                                        onClick={() => setIsAttributesExpanded(!isAttributesExpanded)}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <h4 className="products-section-title">Product Attributes (Optional)</h4>
+                                        <span className="material-icons-outlined toggle-icon-attributes">
+                                            {isAttributesExpanded ? 'expand_less' : 'expand_more'}
+                                        </span>
+                                    </div>
+                                    {isAttributesExpanded && (
+                                        <div className="products-section-content">
+                                            <div className="attributes-selection-grid">
+                                                {itemAttributes.map(attr => (
+                                                    <label
+                                                        key={attr.id}
+                                                        className={`checkbox-option attribute-checkbox ${selectedAttributeIds.includes(attr.id) ? 'selected' : ''}`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedAttributeIds.includes(attr.id)}
+                                                            onChange={() => {
+                                                                toggleAttributeSelection(attr.id);
+                                                                // Auto-update product type
+                                                                const willBeSelected = !selectedAttributeIds.includes(attr.id);
+                                                                const anySelected = willBeSelected || selectedAttributeIds.some(id => id !== attr.id);
+                                                                
+                                                                if (!anySelected) {
+                                                                    setSelectedVariationOptions({});
+                                                                    setVariationAttributeValues({});
+                                                                    setData(curr => ({
+                                                                        ...curr,
+                                                                        product_type: 'simple',
+                                                                        is_variation: false,
+                                                                        variations: [],
+                                                                    }));
+                                                                } else {
+                                                                    setData(curr => ({
+                                                                        ...curr,
+                                                                        product_type: 'variable',
+                                                                        is_variation: true,
+                                                                    }));
+                                                                }
+                                                            }}
+                                                        />
+                                                        <span className="checkbox-custom-mark"></span>
+                                                        <span className="attribute-title">{attr.title}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                            {itemAttributes.length === 0 && (
+                                                <div className="empty-attributes-msg">No attributes available.</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="products-section-card">
                                     <div className="products-section-header">
                                         <h4 className="products-section-title">Detailed Description</h4>
-                                        <div className="products-section-actions">
                                             <button
                                                 type="button"
                                                 className="btn btn-outline-secondary"
@@ -1315,7 +1396,6 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                                 UI Blocks
                                             </button>
                                         </div>
-                                    </div>
                                     <div className="products-section-content">
                                         {showContentEditor && (
                                             <textarea
@@ -1444,9 +1524,13 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                             <button
                                                 type="button"
                                                 className="btn btn-outline"
-                                                onClick={() => setIsAttributeModalOpen(true)}
+                                                onClick={() => {
+                                                    setIsAttributesExpanded(true);
+                                                    // scroll to attributes section if needed
+                                                    document.querySelector('.attributes-selection-grid')?.scrollIntoView({ behavior: 'smooth' });
+                                                }}
                                             >
-                                                Edit attribute
+                                                Select attribute
                                             </button>
                                             <button
                                                 type="button"
@@ -1826,8 +1910,53 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                             </select>
                                         </div>
                                         
-                                        <div className="form-group">
+                                        <div className="form-group categories-section">
                                             <label className="form-label">Categories</label>
+                                            
+                                            {/* Category Search and Selected Chips */}
+                                            <div className="category-search-wrapper">
+                                                <div className="search-input-container">
+                                                    <span className="material-icons-outlined search-icon">search</span>
+                                                    <input 
+                                                        type="text" 
+                                                        className="category-search-input" 
+                                                        placeholder="Search categories..." 
+                                                        value={categorySearch}
+                                                        onChange={(e) => setCategorySearch(e.target.value)}
+                                                    />
+                                                    {categorySearch && (
+                                                        <button 
+                                                            type="button" 
+                                                            className="clear-search"
+                                                            onClick={() => setCategorySearch('')}
+                                                        >
+                                                            <span className="material-icons-outlined">close</span>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {Array.isArray(data.category_ids) && data.category_ids.length > 0 && (
+                                                <div className="selected-categories-chips">
+                                                    {data.category_ids.map(id => {
+                                                        const cat = categories.find(c => String(c.id) === String(id));
+                                                        if (!cat) return null;
+                                                        return (
+                                                            <div key={id} className="category-chip">
+                                                                <span>{cat.name}</span>
+                                                                <button 
+                                                                    type="button" 
+                                                                    className="remove-chip"
+                                                                    onClick={() => handleCategoryToggle(String(id))}
+                                                                >
+                                                                    <span className="material-icons-outlined">close</span>
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
                                             <div className="category-tree-container">
                                                 {categoryTree.map(category => (
                                                     <CategoryTreeItem
@@ -1838,6 +1967,18 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                                         search={categorySearch}
                                                     />
                                                 ))}
+                                                {categoryTree.length === 0 && (
+                                                    <div className="empty-tree">No categories found</div>
+                                                )}
+                                            </div>
+                                            <div className="category-actions mt-2">
+                                                <Link 
+                                                    href={route('admin.inventory.categories.create')} 
+                                                    className="add-new-category-link"
+                                                >
+                                                    <span className="material-icons-outlined">add</span>
+                                                    Add new category
+                                                </Link>
                                             </div>
                                         </div>
 
@@ -1869,40 +2010,31 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                         </button>
                                     </div>
                                     <div className="modal-body">
-                                        <div className="form-grid">
+                                        <div className="attributes-container mb-4">
                                             {itemAttributes
                                                 .filter(attr => selectedAttributeIds.includes(attr.id))
                                                 .map(attr => {
                                                     const details = Array.isArray(attr.details)
                                                         ? attr.details
                                                         : [];
+                                                    const selected = variationAttributeValues[attr.id] || '';
                                                     return (
-                                                        <div key={attr.id} className="form-group">
-                                                            <label className="form-label">
-                                                                {attr.title} *
-                                                            </label>
-                                                            <select
-                                                                className="form-control"
-                                                                value={
-                                                                    variationAttributeValues[attr.id] || ''
-                                                                }
-                                                                onChange={e =>
-                                                                    handleVariationAttributeChange(
-                                                                        attr.id,
-                                                                        e.target.value
-                                                                    )
-                                                                }
-                                                            >
-                                                                <option value="">-- Select --</option>
+                                                        <div key={attr.id} className="attribute-item">
+                                                            <div className="attribute-label">
+                                                                {attr.title}
+                                                            </div>
+                                                            <div className="attribute-value-wrapper">
                                                                 {details.map(detail => (
-                                                                    <option
+                                                                    <button
                                                                         key={detail.id}
-                                                                        value={detail.id}
+                                                                        type="button"
+                                                                        className={`attribute-value-btn ${String(selected) === String(detail.id) ? 'active' : ''}`}
+                                                                        onClick={() => handleVariationAttributeChange(attr.id, detail.id)}
                                                                     >
                                                                         {detail.title}
-                                                                    </option>
+                                                                    </button>
                                                                 ))}
-                                                            </select>
+                                                            </div>
                                                         </div>
                                                     );
                                                 })}
@@ -2227,7 +2359,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                         </button>
                                     </div>
                                     <div className="modal-body">
-                                        <div className="form-grid">
+                                        <div className="attributes-container mb-4">
                                             {itemAttributes
                                                 .filter(attr => {
                                                     const ids = Object.keys(editVariationForm.attribute_values || {}).map(Number);
@@ -2239,30 +2371,22 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                                         : [];
                                                     const selected = (editVariationForm.attribute_values || {})[attr.id] || '';
                                                     return (
-                                                        <div key={attr.id} className="form-group">
-                                                            <label className="form-label">
-                                                                {attr.title} *
-                                                            </label>
-                                                            <select
-                                                                className="form-control"
-                                                                value={selected}
-                                                                onChange={e =>
-                                                                    handleEditVariationAttributeChange(
-                                                                        attr.id,
-                                                                        e.target.value
-                                                                    )
-                                                                }
-                                                            >
-                                                                <option value="">-- Select --</option>
+                                                        <div key={attr.id} className="attribute-item">
+                                                            <div className="attribute-label">
+                                                                {attr.title}
+                                                            </div>
+                                                            <div className="attribute-value-wrapper">
                                                                 {details.map(detail => (
-                                                                    <option
+                                                                    <button
                                                                         key={detail.id}
-                                                                        value={detail.id}
+                                                                        type="button"
+                                                                        className={`attribute-value-btn ${String(selected) === String(detail.id) ? 'active' : ''}`}
+                                                                        onClick={() => handleEditVariationAttributeChange(attr.id, detail.id)}
                                                                     >
                                                                         {detail.title}
-                                                                    </option>
+                                                                    </button>
                                                                 ))}
-                                                            </select>
+                                                            </div>
                                                         </div>
                                                     );
                                                 })}
@@ -2547,81 +2671,6 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                             </div>
                         )}
 
-                        {isAttributeModalOpen && (
-                            <div className="modal-overlay active">
-                                <div className="modal">
-                                    <div className="modal-header">
-                                        <h3 className="modal-title">Select attribute</h3>
-                                        <button
-                                            type="button"
-                                            className="modal-close"
-                                            onClick={() => setIsAttributeModalOpen(false)}
-                                        >
-                                            ×
-                                        </button>
-                                    </div>
-                                    <div className="modal-body">
-                                        <div className="form-group">
-                                            {itemAttributes.map(attr => (
-                                                <label
-                                                    key={attr.id}
-                                                    className="checkbox-option"
-                                                    style={{ marginRight: '24px' }}
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedAttributeIds.includes(attr.id)}
-                                                        onChange={() => toggleAttributeSelection(attr.id)}
-                                                    />
-                                                    <span>{attr.title}</span>
-                                                </label>
-                                            ))}
-                                        </div>
-                                        <div className="alert alert-warning" style={{ marginTop: '16px' }}>
-                                            <span className="material-icons-outlined" style={{ marginRight: '8px' }}>
-                                                warning
-                                            </span>
-                                            <span>Selected attributes will be applied to this product.</span>
-                                        </div>
-                                    </div>
-                                    <div className="modal-actions">
-                                        <button
-                                            type="button"
-                                            className="btn btn-outline"
-                                            onClick={() => setIsAttributeModalOpen(false)}
-                                        >
-                                            Close
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="btn btn-primary"
-                                            onClick={() => {
-                                                if (selectedAttributeIds.length === 0) {
-                                                    setSelectedVariationOptions({});
-                                                    setVariationAttributeValues({});
-                                                    setData(curr => ({
-                                                        ...curr,
-                                                        product_type: 'simple',
-                                                        is_variation: false,
-                                                        variations: [],
-                                                    }));
-                                                } else {
-                                                    setData(curr => ({
-                                                        ...curr,
-                                                        product_type: 'variable',
-                                                        is_variation: true,
-                                                    }));
-                                                }
-                                                setIsAttributeModalOpen(false);
-                                            }}
-                                        >
-                                            Save changes
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         {isGenerateModalOpen && (
                             <div className="modal-overlay active">
                                 <div className="modal">
@@ -2637,7 +2686,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                     </div>
                                     <div className="modal-body">
                                         <p className="mb-3">Select attributes to create variations:</p>
-                                        <div className="form-grid">
+                                        <div className="attributes-container">
                                             {itemAttributes
                                                 .filter(attr => selectedAttributeIds.includes(attr.id))
                                                 .map(attr => {
@@ -2650,40 +2699,27 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                                         details.length > 0 &&
                                                         currentIds.length === details.length;
                                                     return (
-                                                        <div key={attr.id} className="form-group">
-                                                            <div className="form-label" style={{ fontWeight: 600 }}>
+                                                        <div key={attr.id} className="attribute-item">
+                                                            <div className="attribute-label">
                                                                 {attr.title}
                                                             </div>
-                                                            <div className="generate-variation-options">
-                                                                <label className="checkbox-option">
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={allSelected}
-                                                                        onChange={() =>
-                                                                            toggleAllOptions(attr.id, details)
-                                                                        }
-                                                                    />
-                                                                    <span>All</span>
-                                                                </label>
+                                                            <div className="attribute-value-wrapper">
+                                                                <button
+                                                                    type="button"
+                                                                    className={`attribute-value-btn ${allSelected ? 'active' : ''}`}
+                                                                    onClick={() => toggleAllOptions(attr.id, details)}
+                                                                >
+                                                                    All
+                                                                </button>
                                                                 {details.map(detail => (
-                                                                    <label
+                                                                    <button
                                                                         key={detail.id}
-                                                                        className="checkbox-option"
+                                                                        type="button"
+                                                                        className={`attribute-value-btn ${currentIds.includes(detail.id) ? 'active' : ''}`}
+                                                                        onClick={() => toggleOption(attr.id, detail.id)}
                                                                     >
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={currentIds.includes(
-                                                                                detail.id
-                                                                            )}
-                                                                            onChange={() =>
-                                                                                toggleOption(
-                                                                                    attr.id,
-                                                                                    detail.id
-                                                                                )
-                                                                            }
-                                                                        />
-                                                                        <span>{detail.title}</span>
-                                                                    </label>
+                                                                        {detail.title}
+                                                                    </button>
                                                                 ))}
                                                             </div>
                                                         </div>
@@ -2734,17 +2770,16 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
 // ==========================================
 
 const Products = (props) => {
-    const { url } = usePage();
-    const path = url?.split('?')[0] || '';
-    const isCreate = path.endsWith('/admin/products/create') || path.endsWith('/admin/products/create/');
-    const isEdit = /\/admin\/products\/\d+\/edit\/?$/.test(path);
-    const hasProducts = Boolean(props?.products);
+    const { products, product } = props;
 
-    if (isCreate || isEdit || !hasProducts) {
-        return <ProductsForm {...props} />;
+    // If products (plural) is provided AND we're not explicitly on an edit page
+    // (Inertia might provide both in some scenarios depending on how props are shared)
+    if (products && !product) {
+        return <ProductsList {...props} />;
     }
 
-    return <ProductsList {...props} />;
+    // Otherwise, we are on create or edit page
+    return <ProductsForm {...props} />;
 };
 
 export default Products;

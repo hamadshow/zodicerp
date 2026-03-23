@@ -218,6 +218,7 @@ Route::middleware('web')->group(function () {
 
     // Financial Reports Routes
     Route::get('financial-reports', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getData']);
+    Route::get('financial-reports/inventory-valuation-summary', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getInventoryValuationSummaryData']);
     Route::post('reports/favorite', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'toggleFavorite']);
 
     // Branch Routes

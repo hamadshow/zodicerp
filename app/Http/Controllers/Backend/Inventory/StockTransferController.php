@@ -20,6 +20,52 @@ class StockTransferController extends Controller
             abort(403, 'Company not set for this user.');
         }
 
+        $stockTransfers = \App\Models\TransferStock::with(['warehouse', 'fromWarehouse', 'toWarehouse', 'company', 'creator', 'items.product', 'items.unit'])
+            ->where('notes', 'like', '%TransferStock%')
+            ->where('company_id', $companyId)
+            ->orderByDesc('id')
+            ->paginate(25);
+
+        $warehouses = Warehouses::query()
+            ->select(['id', 'name'])
+            ->where('company_id', $companyId)
+            ->orderBy('id')
+            ->get();
+
+        $products = Products::query()
+            ->select(['id', 'name', 'sku', 'barcode'])
+            ->where('company_id', $companyId)
+            ->orderBy('id', 'desc')
+            ->limit(2000)
+            ->get();
+
+        $units = ItemUnit::query()
+            ->select(['id', 'name'])
+            ->where('active', true)
+            ->orderBy('id')
+            ->get();
+
+        return Inertia::render('Backend/03-Inventory/TransferStock', [
+            'transferStocks' => $stockTransfers->items(),
+            'pagination' => $stockTransfers->linkCollection(),
+            'warehouses' => $warehouses,
+            'products' => $products,
+            'units' => $units,
+            'initialShowForm' => false,
+        ]);
+    }
+
+    public function show(Request $request, $id)
+    {
+        $companyId = $request->user()?->company_id;
+        if (! $companyId) {
+            abort(403, 'Company not set for this user.');
+        }
+
+        $transfer = \App\Models\TransferStock::with(['warehouse', 'fromWarehouse', 'toWarehouse', 'company', 'creator', 'items.product', 'items.unit'])
+            ->where('company_id', $companyId)
+            ->findOrFail($id);
+
         $warehouses = Warehouses::query()
             ->select(['id', 'name'])
             ->where('company_id', $companyId)
@@ -43,16 +89,17 @@ class StockTransferController extends Controller
             'warehouses' => $warehouses,
             'products' => $products,
             'units' => $units,
+            'initialShowForm' => true,
+            'viewing' => true,
+            'transfer' => $transfer,
         ]);
     }
 
     public function store(Request $request)
     {
-        if (! auth()->check()) {
-            return back()->withErrors(['auth' => 'غير مصدق عليه.']);
-        }
+        $user = $request->user();
+        $companyId = $user?->company_id;
 
-        $companyId = auth()->user()->company_id;
         if (! $companyId) {
             return back()->withErrors(['general' => 'المستخدم غير مرتبط بشركة.']);
         }
@@ -86,7 +133,7 @@ class StockTransferController extends Controller
             ? 'TransferStock | '.$userNotes
             : 'TransferStock';
 
-        $userId = auth()->id();
+        $userId = $user->id;
 
         try {
             DB::transaction(function () use ($validated, $companyId, $userId, $notes) {
@@ -128,5 +175,34 @@ class StockTransferController extends Controller
                 'lang' => $request->route('lang'),
             ])
             ->with('success', 'تم حفظ التحويل المخزني بنجاح');
+    }
+
+    public function destroy(Request $request, $id)
+    {
+        $companyId = $request->user()?->company_id;
+        if (! $companyId) {
+            abort(403);
+        }
+
+        try {
+            DB::transaction(function () use ($id, $companyId) {
+                // Ensure the movement belongs to the company before deleting items
+                $exists = DB::table('stock_movements')
+                    ->where('id', $id)
+                    ->where('company_id', $companyId)
+                    ->exists();
+
+                if (! $exists) {
+                    throw new \Exception('Unauthorized or record not found.');
+                }
+
+                DB::table('stock_movements_items')->where('stock_movement_id', $id)->delete();
+                DB::table('stock_movements')->where('id', $id)->delete();
+            });
+
+            return back()->with('success', 'تم حذف التحويل بنجاح');
+        } catch (\Exception $e) {
+            return back()->withErrors(['general' => 'حدث خطأ أثناء الحذف: ' . $e->getMessage()]);
+        }
     }
 }

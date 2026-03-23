@@ -14,6 +14,17 @@ class StoreProductsRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'is_featured' => filter_var($this->is_featured, FILTER_VALIDATE_BOOLEAN),
+            'allow_checkout_when_out_of_stock' => filter_var($this->allow_checkout_when_out_of_stock, FILTER_VALIDATE_BOOLEAN),
+            'with_storehouse_management' => filter_var($this->with_storehouse_management, FILTER_VALIDATE_BOOLEAN),
+            'price_includes_tax' => filter_var($this->price_includes_tax, FILTER_VALIDATE_BOOLEAN),
+            'delete_image' => filter_var($this->delete_image, FILTER_VALIDATE_BOOLEAN),
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *

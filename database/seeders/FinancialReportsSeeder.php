@@ -113,7 +113,7 @@ class FinancialReportsSeeder extends Seeder
             [
                 'category' => 'Inventory Reports',
                 'reports' => [
-                    ['key' => 'inventory-valuation-summary', 'name' => 'Inventory Valuation Summary', 'route' => '#'],
+                    ['key' => 'inventory-valuation-summary', 'name' => 'Inventory Valuation Summary', 'route' => 'admin.financial-reports.inventory-valuation-summary'],
                     ['key' => 'inventory-valuation-detail', 'name' => 'Inventory Valuation Detail', 'route' => '#'],
                     ['key' => 'inventory-stock-status', 'name' => 'Inventory Stock Status by Item', 'route' => '#'],
                     ['key' => 'physical-inventory', 'name' => 'Physical Inventory Worksheet', 'route' => '#'],

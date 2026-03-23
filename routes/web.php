@@ -419,6 +419,8 @@ Route::group([
             Route::post('products/import', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'import'])->name('products.import');
             Route::get('opening-stock', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'index'])->name('opening-stock.index');
             Route::post('opening-stock', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'store'])->name('opening-stock.store');
+            Route::get('opening-stock/{id}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'show'])->name('opening-stock.show');
+            Route::delete('opening-stock/{id}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'destroy'])->name('opening-stock.destroy');
             Route::resource('products', \App\Http\Controllers\Backend\Inventory\ProductsController::class);
             Route::get('categories/export', [\App\Http\Controllers\Backend\Inventory\CategoriesController::class, 'export'])->name('categories.export');
             Route::post('categories/import', [\App\Http\Controllers\Backend\Inventory\CategoriesController::class, 'import'])->name('categories.import');
@@ -434,6 +436,10 @@ Route::group([
                 ->name('stock-transfers.index');
             Route::post('stock-transfers', [\App\Http\Controllers\Backend\Inventory\StockTransferController::class, 'store'])
                 ->name('stock-transfers.store');
+            Route::get('stock-transfers/{id}', [\App\Http\Controllers\Backend\Inventory\StockTransferController::class, 'show'])
+                ->name('stock-transfers.show');
+            Route::delete('stock-transfers/{id}', [\App\Http\Controllers\Backend\Inventory\StockTransferController::class, 'destroy'])
+                ->name('stock-transfers.destroy');
 
             Route::get('stock-adjustments', function () {
                 return Inertia::render('Backend/ComingSoon', ['title' => 'Stock Adjustments']);
@@ -452,6 +458,8 @@ Route::group([
         })->name('journal-entries');
         Route::get('financial-reports', [FinancialReportController::class, 'index'])->name('financial-reports.index');
         Route::get('financial-reports/coa', [FinancialReportController::class, 'coaReport'])->name('financial-reports.coa');
+        Route::get('financial-reports/inventory-valuation-summary', [FinancialReportController::class, 'inventoryValuationSummary'])->name('financial-reports.inventory-valuation-summary');
+        Route::get('financial-reports/inventory-valuation-summary/export', [FinancialReportController::class, 'exportInventoryValuationSummary'])->name('financial-reports.inventory-valuation-summary.export');
 
         // 9. Cash & Banks (النقدية والبنوك)
         Route::resource('banks', \App\Http\Controllers\Backend\Cash\BankController::class);

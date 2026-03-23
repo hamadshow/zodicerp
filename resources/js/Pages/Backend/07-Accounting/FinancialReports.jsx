@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 
@@ -154,17 +154,47 @@ export default function FinancialReports({ activeReport }) {
   };
 
   const renderReportCard = (report) => {
-    const href =
-      report.route && typeof report.route === 'string' && report.route.length > 0
-        ? report.route
-        : '#';
-
     const isActive = activeReportId != null && report.id === activeReportId;
+    
+    // Fallback route generation if API fails to provide a full URL
+    const getReportHref = () => {
+      if (report.route && report.route !== '#') return report.route;
+      
+      // Fallback to Ziggy if available and we have a route name in the report object
+      // or try to construct it from the key
+      try {
+        if (report.report_key === 'inventory-valuation-summary') {
+          return route('admin.financial-reports.inventory-valuation-summary', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+        }
+      } catch (e) {
+        console.error('Route generation fallback failed:', e);
+      }
+      
+      return '#';
+    };
+
+    const href = getReportHref();
+
+    const handleCardClick = (e) => {
+      // If the click was on the favorite toggle, don't navigate
+      if (e.target.closest('.report-favorite-toggle')) {
+        return;
+      }
+      
+      e.preventDefault();
+      if (href && href !== '#') {
+        router.visit(href);
+      }
+    };
 
     return (
-      <Link
+      <a
         key={report.id}
         href={href}
+        onClick={handleCardClick}
         className={`report-card ${isActive ? 'report-card-active' : ''}`}
       >
         <div className="report-card-main">
@@ -210,7 +240,7 @@ export default function FinancialReports({ activeReport }) {
           <span className="report-link-label">Open report</span>
           <span className="material-icons-outlined">arrow_forward</span>
         </div>
-      </Link>
+      </a>
     );
   };
 

@@ -360,6 +360,23 @@ class ProductsController extends Controller
         ]);
     }
 
+    public function show(Products $product)
+    {
+        $product->load(['categories', 'brand', 'variations.items', 'variations.product']);
+
+        if (request()->wantsJson()) {
+            return response()->json([
+                'product' => $product,
+            ]);
+        }
+
+        return Inertia::render('Backend/03-Inventory/Products', [
+            'product' => $product,
+            'brands' => Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get(),
+            'categories' => Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get(),
+        ]);
+    }
+
     public function edit(Products $product, Request $request)
     {
         $product->load(['categories', 'variations.items', 'variations.product']);

@@ -315,16 +315,18 @@
     gap: $spacing-md;
 
     .product-thumb {
-        width: 48px;
-        height: 48px;
+        width: 60px;
+        height: 60px;
         border-radius: $radius-md;
         object-fit: cover;
         border: 1px solid $border-color;
+        flex-shrink: 0;
+        display: block;
     }
 
     .product-thumb-placeholder {
-        width: 48px;
-        height: 48px;
+        width: 60px;
+        height: 60px;
         border-radius: $radius-md;
         background: $light-color;
         display: flex;
@@ -332,6 +334,29 @@
         justify-content: center;
         color: $gray-color;
         border: 1px solid $border-color;
+        flex-shrink: 0;
+    }
+
+    .product-info {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+
+        .product-name {
+            font-weight: 600;
+            color: $dark-color;
+            font-size: $font-size-sm;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .product-code {
+            font-size: $font-size-xs;
+            color: $gray-color;
+        }
     }
 
     .font-semibold { font-weight: 600; color: $dark-color; }
