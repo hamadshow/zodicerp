@@ -12,6 +12,7 @@ const AdminLayout = ({
   children,
   activeMenu: initialActiveMenu = 'Dashboard',
 }) => {
+  const page = usePage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -20,10 +21,12 @@ const AdminLayout = ({
   });
   const [activeMenu, setActiveMenu] = useState(initialActiveMenu);
   const [openSubmenus, setOpenSubmenus] = useState({});
-  const { props, url } = usePage();
+  const { props, url } = page;
   const user = props?.auth?.user;
   const localization = props?.localization;
   const isRtl = localization?.is_rtl;
+  const flashSuccess = props?.flash?.success;
+  const flashError = props?.flash?.error;
 
   useEffect(() => {
     document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
@@ -124,8 +127,7 @@ const AdminLayout = ({
         { icon: 'branding_watermark', label: 'Brands', href: getLocalizedRoute('admin.inventory.brands.index') },
         { icon: 'inventory', label: 'Products', href: getLocalizedRoute('admin.inventory.products.index') },
         { icon: 'playlist_add', label: 'Opening Stock', href: getLocalizedRoute('admin.inventory.opening-stock.index') },
-        // Items without routes commented out until implemented
-        { icon: 'transfer_within_a_station', label: 'Stock Transfers', href: getLocalizedRoute('admin.inventory.stock-transfers.index') },
+        { icon: 'swap_horiz', label: 'Transfer Stock', href: getLocalizedRoute('admin.inventory.stock-transfers.index') },
         { icon: 'assignment', label: 'Stock Adjustments', href: getLocalizedRoute('admin.inventory.stock-adjustments.index') },
         { icon: 'report', label: 'Inventory Reports', href: getLocalizedRoute('admin.inventory.reports.index') },
       ],
@@ -339,6 +341,17 @@ const AdminLayout = ({
       <div className={`main-wrapper ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="main-content">
           <Header toggleSidebar={toggleSidebar} isRtl={isRtl} />
+
+          {flashSuccess && (
+            <div className="alert alert-success m-3" role="alert">
+              {flashSuccess}
+            </div>
+          )}
+          {flashError && (
+            <div className="alert alert-danger m-3" role="alert">
+              {flashError}
+            </div>
+          )}
 
           <main className="content">{children}</main>
         </div>

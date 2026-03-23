@@ -2,6 +2,8 @@
   background: #f8fbff;
   border-radius: 16px;
   padding: 0 2px 16px;
+  direction: ltr;
+  unicode-bidi: isolate;
 
   .page-header-section {
     padding: 18px 0 10px;
@@ -180,7 +182,7 @@
 
   .opening-stock-summary {
     display: none;
-    text-align: right;
+    text-align: left;
     padding: 10px 12px;
     border: 1px solid rgba(148, 163, 184, 0.45);
     border-radius: 12px;

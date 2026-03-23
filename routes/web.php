@@ -417,10 +417,8 @@ Route::group([
             Route::post('products/import/preview', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'previewImport'])->name('products.import.preview');
             Route::post('products/import/confirm', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'confirmImport'])->name('products.import.confirm');
             Route::post('products/import', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'import'])->name('products.import');
-            Route::resource('opening-stock', \App\Http\Controllers\Backend\Inventory\OpeningStockController::class)
-                ->names('opening-stock');
-            Route::resource('stock-transfers', \App\Http\Controllers\Backend\Inventory\StockTransferController::class)
-                ->names('stock-transfers');
+            Route::get('opening-stock', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'index'])->name('opening-stock.index');
+            Route::post('opening-stock', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'store'])->name('opening-stock.store');
             Route::resource('products', \App\Http\Controllers\Backend\Inventory\ProductsController::class);
             Route::get('categories/export', [\App\Http\Controllers\Backend\Inventory\CategoriesController::class, 'export'])->name('categories.export');
             Route::post('categories/import', [\App\Http\Controllers\Backend\Inventory\CategoriesController::class, 'import'])->name('categories.import');
@@ -431,6 +429,11 @@ Route::group([
             Route::resource('item-attributes', \App\Http\Controllers\Backend\Inventory\ItemAttributeController::class);
             Route::get('product-collections/get-products', [\App\Http\Controllers\Backend\Inventory\ProductCollectionController::class, 'getProducts'])->name('product-collections.get-products');
             Route::resource('product-collections', \App\Http\Controllers\Backend\Inventory\ProductCollectionController::class);
+
+            Route::get('stock-transfers', [\App\Http\Controllers\Backend\Inventory\StockTransferController::class, 'index'])
+                ->name('stock-transfers.index');
+            Route::post('stock-transfers', [\App\Http\Controllers\Backend\Inventory\StockTransferController::class, 'store'])
+                ->name('stock-transfers.store');
 
             Route::get('stock-adjustments', function () {
                 return Inertia::render('Backend/ComingSoon', ['title' => 'Stock Adjustments']);
