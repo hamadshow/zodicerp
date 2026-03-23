@@ -160,9 +160,13 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
         
         setImporting(true);
         
-        const axios = window.axios; 
+        if (!window.axios) {
+            alert('HTTP client not available. Please refresh the page.');
+            setImporting(false);
+            return;
+        }
         
-        axios.post(route('admin.inventory.products.import.preview'), formData, {
+        window.axios.post(route('admin.inventory.products.import.preview'), formData, {
             headers: {
                 'Content-Type': 'multipart/form-data'
             }
@@ -200,8 +204,12 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
         if (!previewToken) return;
 
         setImporting(true);
-        const axios = window.axios;
-        axios.post(route('admin.inventory.products.import.confirm'), { token: previewToken })
+        if (!window.axios) {
+            alert('HTTP client not available. Please refresh the page.');
+            setImporting(false);
+            return;
+        }
+        window.axios.post(route('admin.inventory.products.import.confirm'), { token: previewToken })
             .then((response) => {
                 alert(response?.data?.message || 'Import completed.');
                 cancelImport();
@@ -638,21 +646,8 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
 
     const [permalink, setPermalink] = useState('');
     const [showContentEditor, setShowContentEditor] = useState(true);
-    const [showSeoMeta, setShowSeoMeta] = useState(false);
-    const [specTable, setSpecTable] = useState('none');
-    const [store, setStore] = useState('');
     const [categorySearch, setCategorySearch] = useState('');
-    const [taxOption, setTaxOption] = useState('none');
     const [isAttributesExpanded, setIsAttributesExpanded] = useState(false);
-    void showSeoMeta;
-    void setShowSeoMeta;
-    void specTable;
-    void setSpecTable;
-    void store;
-    void setStore;
-    void setCategorySearch;
-    void taxOption;
-    void setTaxOption;
 
     const handleVariationChange = (field, value) => {
         setVariationForm(prev => ({
@@ -992,11 +987,9 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
     }, [data.variations, variationsSearch, formatAttributes]);
 
     const categoryTree = useMemo(() => {
-        if (!categories) return [];
+        if (!Array.isArray(categories) || categories.length === 0) return [];
         const map = {};
         const roots = [];
-        // Create a deep copy to avoid mutating props directly if needed, 
-        // though mapping usually creates new objects.
         const cats = categories.map(c => ({ ...c, children: [] }));
         
         cats.forEach(c => map[c.id] = c);
@@ -1013,10 +1006,11 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
     }, [categories]);
 
     const handleCategoryToggle = (id) => {
-        const currentIds = Array.isArray(data.category_ids) ? data.category_ids : [];
-        const newIds = currentIds.includes(id)
-            ? currentIds.filter(cId => cId !== id)
-            : [...currentIds, id];
+        const idString = String(id);
+        const currentIds = Array.isArray(data.category_ids) ? data.category_ids.map(String) : [];
+        const newIds = currentIds.includes(idString)
+            ? currentIds.filter(cId => cId !== idString)
+            : [...currentIds, idString];
         setData('category_ids', newIds);
     };
 
@@ -1936,7 +1930,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                                 </div>
                                             </div>
 
-                                            {Array.isArray(data.category_ids) && data.category_ids.length > 0 && (
+                                            {Array.isArray(data.category_ids) && data.category_ids.length > 0 && Array.isArray(categories) && (
                                                 <div className="selected-categories-chips">
                                                     {data.category_ids.map(id => {
                                                         const cat = categories.find(c => String(c.id) === String(id));
@@ -1947,7 +1941,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                                                 <button 
                                                                     type="button" 
                                                                     className="remove-chip"
-                                                                    onClick={() => handleCategoryToggle(String(id))}
+                                                                    onClick={() => handleCategoryToggle(id)}
                                                                 >
                                                                     <span className="material-icons-outlined">close</span>
                                                                 </button>
@@ -1958,16 +1952,17 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                             )}
 
                                             <div className="category-tree-container">
-                                                {categoryTree.map(category => (
-                                                    <CategoryTreeItem
-                                                        key={category.id}
-                                                        category={category}
-                                                        selectedIds={Array.isArray(data.category_ids) ? data.category_ids : []}
-                                                        onToggle={handleCategoryToggle}
-                                                        search={categorySearch}
-                                                    />
-                                                ))}
-                                                {categoryTree.length === 0 && (
+                                                {Array.isArray(categoryTree) && categoryTree.length > 0 ? (
+                                                    categoryTree.map(category => (
+                                                        <CategoryTreeItem
+                                                            key={category.id}
+                                                            category={category}
+                                                            selectedIds={Array.isArray(data.category_ids) ? data.category_ids.map(String) : []}
+                                                            onToggle={handleCategoryToggle}
+                                                            search={categorySearch}
+                                                        />
+                                                    ))
+                                                ) : (
                                                     <div className="empty-tree">No categories found</div>
                                                 )}
                                             </div>
@@ -2419,7 +2414,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
 
                                         <div className="form-grid">
                                             <div className="form-group">
-                                                <label className="form-label">Price sale</label>
+                                                <label className="form-label">Sale Price</label>
                                                 <input
                                                     type="number"
                                                     className="form-control"

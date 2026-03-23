@@ -125,7 +125,7 @@ class FinancialReportsSeeder extends Seeder
             [
                 'category' => 'Accountant & Taxes Reports',
                 'reports' => [
-                    ['key' => 'chart-of-accounts', 'name' => 'Chart of Accounts', 'route' => 'admin.reports.chart-of-accounts'],
+                    ['key' => 'chart-of-accounts', 'name' => 'Chart of Accounts', 'route' => 'admin.financial-reports.coa'],
                     ['key' => 'audit-log', 'name' => 'Audit Log', 'route' => '#'],
                     ['key' => 'general-ledger', 'name' => 'General Ledger', 'route' => 'admin.reports.general-ledger'],
                     ['key' => 'journal', 'name' => 'Journal', 'route' => 'admin.journals.index'],

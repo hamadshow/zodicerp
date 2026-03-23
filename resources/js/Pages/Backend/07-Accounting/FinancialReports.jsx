@@ -154,11 +154,35 @@ export default function FinancialReports({ activeReport }) {
   };
 
   const renderReportCard = (report) => {
-    const isActive = activeReportId != null && report.id === activeReportId;
+      const isActive = activeReportId != null && report.id === activeReportId;
     
     // Fallback route generation if API fails to provide a full URL
     const getReportHref = () => {
-      if (report.route && report.route !== '#') return report.route;
+      console.log('Generating href for report:', report.report_key, report.route);
+      
+      if (report.report_key === 'chart-of-accounts') {
+        try {
+          const url = route('admin.financial-reports.coa', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated COA URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for COA:', e);
+        }
+      }
+      
+      if (report.route && report.route !== '#') {
+        try {
+          return route(report.route, {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+        } catch (e) {
+          console.error('Ziggy route generation failed for:', report.route, e);
+        }
+      }
       
       // Fallback to Ziggy if available and we have a route name in the report object
       // or try to construct it from the key
@@ -250,9 +274,9 @@ export default function FinancialReports({ activeReport }) {
         <Head title="Financial Reports - ZodicERP" />
 
         <div className="breadcrumb">
-          <a href="#">Dashboard</a>
+          <Link href={route('admin.dashboard')}>Dashboard</Link>
           <span>/</span>
-          <a href="#">Accounting</a>
+          <span>Accounting</span>
           <span>/</span>
           <span>Financial Reports</span>
         </div>
