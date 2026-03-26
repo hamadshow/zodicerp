@@ -10,7 +10,7 @@ class OpeningStockItem extends Model
 {
     use HasFactory;
 
-    protected $table = 'stock_movements_items';
+    protected $table = 'inventory_movement_lines';
 
     protected $fillable = [
         'stock_movement_id',

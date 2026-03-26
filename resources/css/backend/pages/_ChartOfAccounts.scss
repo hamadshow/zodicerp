@@ -164,6 +164,296 @@
   border-top: 1px solid #e2e8f0;
 }
 
+/* Import Excel Styles */
+.btn-import {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background-color: #10b981;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.btn-import:hover {
+  background-color: #059669;
+}
+
+.btn-template {
+  margin-top: 15px;
+  padding: 6px 12px;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  color: #475569;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-template:hover {
+  background-color: #e2e8f0;
+}
+
+.btn-reset {
+  padding: 4px 10px;
+  background: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  color: #64748b;
+  font-size: 0.75rem;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.btn-remove {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 5px;
+}
+
+.btn-cancel {
+  padding: 8px 16px;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.import-modal {
+  width: 900px !important;
+}
+
+.import-preview-container {
+  margin-bottom: 20px;
+}
+
+.import-section {
+  margin-top: 20px;
+}
+
+.import-section h4 {
+  margin-bottom: 10px;
+  color: #1e293b;
+  font-size: 1rem;
+}
+
+.import-section.invalid h4 {
+  color: #ef4444;
+}
+
+.preview-table {
+  font-size: 0.85rem;
+}
+
+.preview-table th {
+  background-color: #f8fafc;
+}
+
+.ChartOfAccounts-page .modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.ChartOfAccounts-page .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+
+.ChartOfAccounts-page .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.ChartOfAccounts-page .modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 !important;
+}
+
+.ChartOfAccounts-page .modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 4px;    border-radius: 6px;
+    transition: all 0.2s ease;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.ChartOfAccounts-page .modal-close:hover {
+    background-color: #f1f5f9;
+    color: #334155;
+}
+
+.ChartOfAccounts-page .modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    max-height: calc(90vh - 140px);
+}
+
+.ChartOfAccounts-page .drop-zone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    margin-bottom: 20px;
+    color: #64748b;
+    background-color: #f8fafc;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.ChartOfAccounts-page .drop-zone:hover {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+
+.ChartOfAccounts-page .drop-zone p {
+    margin: 0;
+}
+
+.ChartOfAccounts-page .preview-stats {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.ChartOfAccounts-page .stat-badge {    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.ChartOfAccounts-page .stat-badge.total {
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+.ChartOfAccounts-page .stat-badge.valid {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.ChartOfAccounts-page .stat-badge.invalid {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.ChartOfAccounts-page .progress-bar {
+    height: 6px;
+    background-color: #e2e8f0;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.ChartOfAccounts-page .progress-bar__fill {
+    width: 100%;
+    height: 100%;
+    background-color: #3b82f6;
+    animation: progress-animation 1.5s infinite linear;
+    transform-origin: 0% 50%;
+}
+
+@keyframes progress-animation {
+    0% { transform: scaleX(0); }
+    50% { transform: scaleX(0.5); }
+    100% { transform: scaleX(1); }
+}
+
+.ChartOfAccounts-page .import-preview {
+    margin-top: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.ChartOfAccounts-page .row-error {
+    display: block;
+    color: #ef4444;
+    font-size: 0.75rem;
+    margin-top: 2px;
+}
+
+.ChartOfAccounts-page .invalid-row {
+    background-color: #fff1f2;
+}
+
+.ChartOfAccounts-page .import-instructions {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 24px;
+}
+
+.ChartOfAccounts-page .import-instructions h4 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: #1e293b;
+    font-size: 0.9rem;
+}
+
+.ChartOfAccounts-page .import-instructions ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.ChartOfAccounts-page .import-instructions li {
+    margin-bottom: 6px;
+}
+
+.alert {
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border: 1px solid transparent;
+  font-size: 0.95rem;
+}
+
+.alert--error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.alert--success {
+  background-color: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
 .accounts-card {
   background-color: white;
   border-radius: 10px;

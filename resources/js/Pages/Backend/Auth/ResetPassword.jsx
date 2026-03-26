@@ -5,12 +5,23 @@ import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { FinanzaFooter, FinanzaHeader } from '@/Pages/Home/Home';
+import { useTranslation } from '@/Hooks/useTranslation';
 
 export default function ResetPassword({ token, email }) {
   const { localization } = usePage().props;
-  const country = localization?.country_code || localization?.current_country || 'sa';
+  const { t } = useTranslation();
   const lang = localization?.current_locale || 'ar';
-  const homeHref = `/${country}/${lang}`;
+  const dir = lang === 'ar' ? 'rtl' : 'ltr';
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
+  const homeHref = getLocalizedRoute('home');
   const { data, setData, post, processing, errors, reset } = useForm({
     token: token,
     email: email,
@@ -21,21 +32,26 @@ export default function ResetPassword({ token, email }) {
   const submit = (e) => {
     e.preventDefault();
 
-    post(route('password.store'), {
+    post(getLocalizedRoute('password.store'), {
       onFinish: () => reset('password', 'password_confirmation'),
     });
   };
 
   return (
-    <div id="top" className="finanza-landing">
-      <FinanzaHeader variant="minimal" homeHref={homeHref} loginHref={`${homeHref}/login`} registerHref={`${homeHref}/register`} />
+    <div id="top" className="finanza-landing" dir={dir}>
+      <FinanzaHeader 
+        variant="minimal" 
+        homeHref={homeHref} 
+        loginHref={getLocalizedRoute('login')} 
+        registerHref={getLocalizedRoute('register')} 
+      />
       <main id="main-content">
         <GuestLayout>
-          <Head title="Reset Password" />
+          <Head title={t('auth.reset_password_title', 'Reset Password')} />
 
           <form onSubmit={submit}>
             <div>
-              <InputLabel htmlFor="email" value="Email" />
+              <InputLabel htmlFor="email" value={t('auth.email', 'Email Address')} />
 
               <TextInput
                 id="email"
@@ -51,7 +67,7 @@ export default function ResetPassword({ token, email }) {
             </div>
 
             <div className="mt-4">
-              <InputLabel htmlFor="password" value="Password" />
+              <InputLabel htmlFor="password" value={t('auth.password_label', 'Password')} />
 
               <TextInput
                 id="password"
@@ -68,7 +84,7 @@ export default function ResetPassword({ token, email }) {
             </div>
 
             <div className="mt-4">
-              <InputLabel htmlFor="password_confirmation" value="Confirm Password" />
+              <InputLabel htmlFor="password_confirmation" value={t('auth.confirm_password', 'Confirm Password')} />
 
               <TextInput
                 type="password"
@@ -85,7 +101,7 @@ export default function ResetPassword({ token, email }) {
 
             <div className="mt-4 flex items-center justify-end">
               <PrimaryButton className="ms-4" disabled={processing}>
-                Reset Password
+                {t('auth.reset_password', 'Reset Password')}
               </PrimaryButton>
             </div>
           </form>

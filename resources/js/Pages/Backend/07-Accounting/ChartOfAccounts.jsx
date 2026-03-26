@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Head } from '@inertiajs/react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { Head, router } from '@inertiajs/react';
+import * as XLSX from 'xlsx';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 import { apiService } from '../../../services/api';
@@ -101,6 +102,310 @@ export default function ChartOfAccounts() {
   const [expanded, setExpanded] = useState({});
   const [parentOptionsRemote, setParentOptionsRemote] = useState(null);
   const [branches, setBranches] = useState([]);
+
+  // Import System State
+  const [showImport, setShowImport] = useState(false);
+  const [excelRows, setExcelRows] = useState([]);
+  const [invalidRows, setInvalidRows] = useState([]);
+  const [importSummary, setImportSummary] = useState({});
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const downloadTemplate = () => {
+    const headers = ['AccCode', 'AccName', 'AccType', 'AccParent', 'AccDmType', 'Nature', 'AccFinal', 'AccBranch', 'AccNote', 'AccStopped'];
+    const sample = ['1001', 'Cash in Hand', '1', '10', '0', 'cash', '1', '1', 'General cash account', '0'];
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template");
+    XLSX.writeFile(wb, "chart_of_accounts_template.xlsx");
+  };
+
+  const handleFileUpload = (file) => {
+    if (!file) return;
+    setImportLoading(true);
+    setImportError(null);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        processExcelData(jsonData);
+      } catch (err) {
+        setImportError(err?.message || 'Error reading file');
+        setImportLoading(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    setImportError(null);
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+      handleFileUpload(file);
+    } else {
+      setImportError('Please upload a valid Excel file (.xlsx, .xls)');
+    }
+  };
+
+  const processExcelData = (rows) => {
+    if (rows.length < 2) {
+      setImportError('File is empty or missing headers');
+      setImportLoading(false);
+      return;
+    }
+
+    const headers = rows[0].map(h => String(h).trim());
+    const dataRows = rows.slice(1);
+    const valid = [];
+    const invalid = [];
+
+    // Column mapping
+    const map = {
+      'AccCode': headers.indexOf('AccCode'),
+      'AccName': headers.indexOf('AccName'),
+      'AccType': headers.indexOf('AccType'),
+      'AccParent': headers.indexOf('AccParent'),
+      'AccDmType': headers.indexOf('AccDmType'),
+      'Nature': headers.indexOf('Nature'),
+      'AccFinal': headers.indexOf('AccFinal'),
+      'AccBranch': headers.indexOf('AccBranch'),
+      'AccNote': headers.indexOf('AccNote'),
+      'AccStopped': headers.indexOf('AccStopped'),
+    };
+
+    dataRows.forEach((row) => {
+      const getVal = (key) => {
+        const colIdx = map[key];
+        return colIdx !== -1 && row[colIdx] !== undefined ? String(row[colIdx]).trim() : '';
+      };
+
+      const item = {
+        AccCode: getVal('AccCode'),
+        AccName: getVal('AccName'),
+        AccType: getVal('AccType'),
+        AccParent: getVal('AccParent'),
+        AccDmType: getVal('AccDmType'),
+        Nature: getVal('Nature'),
+        AccFinal: getVal('AccFinal'),
+        AccBranch: getVal('AccBranch'),
+        AccNote: getVal('AccNote'),
+        AccStopped: getVal('AccStopped'),
+        _errors: []
+      };
+
+      // Client-side Validation
+      if (!item.AccCode) item._errors.push('Account Code is required');
+      if (!item.AccName) item._errors.push('Account Name is required');
+      
+      // Check duplicates in current batch
+      if (valid.find(v => v.AccCode === item.AccCode && item.AccCode)) {
+        item._errors.push('Duplicate Account Code in file');
+      }
+
+      if (item._errors.length > 0) {
+        invalid.push(item);
+      } else {
+        valid.push(item);
+      }
+    });
+
+    setExcelRows(valid);
+    setInvalidRows(invalid);
+    setImportSummary({
+      total: dataRows.length,
+      valid: valid.length,
+      invalid: invalid.length
+    });
+    setImportLoading(false);
+  };
+
+  const removeImportRow = (index) => {
+    const rows = [...excelRows];
+    rows.splice(index, 1);
+    setExcelRows(rows);
+    setImportSummary(prev => ({ ...prev, valid: rows.length }));
+  };
+
+  const submitImport = () => {
+    if (excelRows.length === 0) return;
+    setImportError(null);
+    const batch_id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    router.post(route('admin.accounts.bulkImport'), {
+      rows: excelRows,
+      batch_id: batch_id
+    }, {
+      onSuccess: () => {
+        setShowImport(false);
+        setExcelRows([]);
+        setInvalidRows([]);
+        setImportSummary({});
+        loadAccounts();
+      },
+      onError: (errors) => {
+        setImportError('Failed to import. Please check the file format or server logs.');
+        console.error(errors);
+      }
+    });
+  };
+
+  const renderImportModal = () => {
+    if (!showImport) return null;
+
+    return (
+      <div className="modal-overlay active" onClick={() => !importLoading && setShowImport(false)}>
+        <div className="modal import-modal" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3 className="modal-title">Import Chart of Accounts from Excel</h3>
+            <button className="modal-close" onClick={() => setShowImport(false)}>&times;</button>
+          </div>
+
+          <div className="modal-body">
+            {!excelRows.length && !invalidRows.length ? (
+              <div 
+                className="drop-zone"
+                onDragOver={e => e.preventDefault()}
+                onDrop={handleFileDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={e => handleFileUpload(e.target.files[0])} 
+                  accept=".xlsx, .xls"
+                  style={{ display: 'none' }}
+                />
+                <i className="icon-upload-cloud" style={{ fontSize: '48px', color: '#3b82f6' }}></i>
+                <p>Click to upload or drag and drop</p>
+                <span>Excel files only (.xlsx, .xls)</span>
+                <button className="btn-template" onClick={(e) => { e.stopPropagation(); downloadTemplate(); }}>
+                  Download Template
+                </button>
+              </div>
+            ) : (
+              <div className="import-preview-container">
+                <div className="preview-stats">
+                  <span className="stat-badge total">Total: {importSummary.total}</span>
+                  <span className="stat-badge valid">Valid: {importSummary.valid}</span>
+                  <span className="stat-badge invalid">Invalid: {importSummary.invalid}</span>
+                  <button className="btn-reset" onClick={() => { setExcelRows([]); setInvalidRows([]); }}>
+                    Upload Different File
+                  </button>
+                </div>
+
+                {importLoading && (
+                  <div className="progress-bar">
+                    <div className="progress-bar__fill"></div>
+                  </div>
+                )}
+
+                <div className="import-tables">
+                  {excelRows.length > 0 && (
+                    <div className="import-section">
+                      <h4>Valid Rows ({excelRows.length})</h4>
+                      <div className="table-responsive">
+                        <table className="data-table preview-table">
+                          <thead>
+                            <tr>
+                              <th>Code</th>
+                              <th>Name</th>
+                              <th>Type</th>
+                              <th>Parent</th>
+                              <th>Nature</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {excelRows.map((row, idx) => (
+                              <tr key={idx}>
+                                <td>{row.AccCode}</td>
+                                <td>{row.AccName}</td>
+                                <td>{row.AccType === '0' ? 'Main' : 'Sub'}</td>
+                                <td>{row.AccParent || '-'}</td>
+                                <td>{row.Nature || '-'}</td>
+                                <td>
+                                  <button className="btn-remove" onClick={() => removeImportRow(idx)}>&times;</button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {invalidRows.length > 0 && (
+                    <div className="import-section invalid">
+                      <h4>Invalid Rows ({invalidRows.length})</h4>
+                      <div className="table-responsive">
+                        <table className="data-table preview-table">
+                          <thead>
+                            <tr>
+                              <th>Code</th>
+                              <th>Name</th>
+                              <th>Errors</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {invalidRows.map((row, idx) => (
+                              <tr key={idx} className="invalid-row">
+                                <td>{row.AccCode || '-'}</td>
+                                <td>{row.AccName || '-'}</td>
+                                <td>
+                                  {row._errors.map((err, i) => (
+                                    <span key={i} className="row-error">{err}</span>
+                                  ))}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {importError && (
+              <div className="alert alert--error" style={{ marginTop: '20px' }}>
+                {importError}
+              </div>
+            )}
+
+            <div className="import-instructions">
+              <h4>Instructions:</h4>
+              <ul>
+                <li>Download the template to ensure correct column mapping.</li>
+                <li><b>AccCode:</b> Required. Must be unique.</li>
+                <li><b>AccName:</b> Required.</li>
+                <li><b>AccType:</b> 0 for Main, 1 for Sub.</li>
+                <li><b>AccParent:</b> Parent account code (optional for root accounts).</li>
+                <li><b>AccDmType:</b> 0 for Debit, 1 for Credit.</li>
+                <li><b>AccFinal:</b> 0 for Balance Sheet, 1 for P&L.</li>
+                <li><b>AccStopped:</b> 0 for Active, 1 for Stopped.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="modal-actions">
+            <button className="btn-cancel" onClick={() => setShowImport(false)}>Cancel</button>
+            <button 
+              className="btn-primary" 
+              onClick={submitImport}
+              disabled={excelRows.length === 0 || importLoading}
+            >
+              {importLoading ? 'Importing...' : `Import ${excelRows.length} Accounts`}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     setShowForm(isModalOpen);
@@ -587,6 +892,14 @@ export default function ChartOfAccounts() {
             <div className="actions">
               <button
                 type="button"
+                className="btn-import"
+                onClick={() => setShowImport(true)}
+              >
+                <span className="material-icons-outlined">upload_file</span>
+                <span>Import Excel</span>
+              </button>
+              <button
+                type="button"
                 className="btn btn-primary"
                 onClick={() => {
                   setShowForm(true);
@@ -607,6 +920,7 @@ export default function ChartOfAccounts() {
             </div>
           </div>
           {error && <div className="error-banner">{error}</div>}
+          {renderImportModal()}
           <div className="table-container">
             <table className="accounts-table">
               <thead>
@@ -912,6 +1226,130 @@ export default function ChartOfAccounts() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Import Modal */}
+      {showImport && (
+        <div className="modal-overlay active">
+          <div className="modal" style={{ maxWidth: '900px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Import Chart of Accounts from Excel</h3>
+              <button className="modal-close" onClick={() => setShowImport(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              {!excelRows.length && !invalidRows.length ? (
+                <div 
+                  className="drop-zone"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={handleFileDrop}
+                  onClick={() => fileInputRef.current.click()}
+                >
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    hidden 
+                    accept=".xlsx, .xls"
+                    onChange={(e) => handleFileUpload(e.target.files[0])}
+                  />
+                  <span className="material-icons-outlined" style={{ fontSize: '48px', marginBottom: '10px' }}>cloud_upload</span>
+                  <p>Click to upload or drag and drop Excel file</p>
+                  <p style={{ fontSize: '0.8rem', marginTop: '5px' }}>Supported formats: .xlsx, .xls</p>
+                </div>
+              ) : (
+                <div className="import-preview-container">
+                  <div className="preview-stats">
+                    <span className="stat-badge total">Total: {importSummary.total}</span>
+                    <span className="stat-badge valid">Valid: {importSummary.valid}</span>
+                    <span className="stat-badge invalid">Invalid: {importSummary.invalid}</span>
+                  </div>
+
+                  {importLoading && (
+                    <div className="progress-bar">
+                      <div className="progress-bar__fill"></div>
+                    </div>
+                  )}
+
+                  {importError && (
+                    <div className="alert alert--error">{importError}</div>
+                  )}
+
+                  <div className="table-responsive import-preview">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Code</th>
+                          <th>Name</th>
+                          <th>Type</th>
+                          <th>Parent</th>
+                          <th>Errors</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Valid Rows */}
+                        {excelRows.map((row, idx) => (
+                          <tr key={`valid-${idx}`}>
+                            <td>{row.AccCode}</td>
+                            <td>{row.AccName}</td>
+                            <td>{row.AccType}</td>
+                            <td>{row.AccParent}</td>
+                            <td className="text-success">Ready</td>
+                            <td>
+                              <button className="btn-icon delete" onClick={() => removeImportRow(idx)}>
+                                <span className="material-icons-outlined">delete</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                        {/* Invalid Rows */}
+                        {invalidRows.map((row, idx) => (
+                          <tr key={`invalid-${idx}`} className="invalid-row">
+                            <td>{row.AccCode}</td>
+                            <td>{row.AccName}</td>
+                            <td>{row.AccType}</td>
+                            <td>{row.AccParent}</td>
+                            <td>
+                              {row._errors.map((err, eIdx) => (
+                                <span key={eIdx} className="row-error">• {err}</span>
+                              ))}
+                            </td>
+                            <td>-</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <div className="import-instructions" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+                <h4 style={{ marginBottom: '10px', fontSize: '0.95rem' }}>Instructions:</h4>
+                <ul style={{ fontSize: '0.85rem', color: '#64748b', paddingLeft: '20px' }}>
+                  <li>Download the template to see required columns.</li>
+                  <li><strong>AccCode</strong> and <strong>AccName</strong> are mandatory.</li>
+                  <li><strong>AccType</strong>: 0 for Main, 1 for Sub.</li>
+                  <li><strong>AccDmType</strong>: 0 for Debit, 1 for Credit.</li>
+                  <li><strong>AccStopped</strong>: 0 for Active, 1 for Inactive.</li>
+                </ul>
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={downloadTemplate}>
+                <span className="material-icons-outlined">download</span> Download Template
+              </button>
+              <button className="btn btn-secondary" onClick={() => { setExcelRows([]); setInvalidRows([]); setImportError(null); }}>
+                Clear
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={submitImport}
+                disabled={excelRows.length === 0 || importLoading}
+              >
+                {importLoading ? 'Importing...' : `Import ${excelRows.length} Accounts`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
       </div>

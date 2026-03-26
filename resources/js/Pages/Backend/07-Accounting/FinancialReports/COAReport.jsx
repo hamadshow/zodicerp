@@ -89,10 +89,10 @@ export default function COAReport() {
       <div className="COAReport-page">
         <Head title="Chart of Accounts Report - ZodicERP" />
 
-        <div className="breadcrumb">
-          <Link href={route('admin.dashboard')}>Dashboard</Link>
+         <div className="breadcrumb">
+          <Link href={route('admin.dashboard', { country: route().params.country || 'sa', lang: route().params.lang || 'en' })}>Dashboard</Link>
           <span>/</span>
-          <Link href={route('admin.reports.index')}>Financial Reports</Link>
+          <Link href={route('admin.financial-reports.index', { country: route().params.country || 'sa', lang: route().params.lang || 'en' })}>Financial Reports</Link>
           <span>/</span>
           <span>Accountant & Taxes Reports</span>
           <span>/</span>

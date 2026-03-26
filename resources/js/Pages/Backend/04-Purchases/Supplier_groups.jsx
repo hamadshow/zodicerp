@@ -1,19 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 
 // --- View Section Component ---
 const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredGroups, setFilteredGroups] = useState(groups);
+    const { auth } = usePage().props;
+    const isRtl = auth?.user?.lang === 'ar' || document.dir === 'rtl';
+    const t = (ar, en) => isRtl ? ar : en;
 
     // Update stats
     const stats = useMemo(() => {
-        const total = filteredGroups.length;
-        const active = filteredGroups.filter(g => g.is_active).length;
+        const total = groups.length;
+        const active = groups.filter(g => g.is_active).length;
         const inactive = total - active;
         return { total, active, inactive };
-    }, [filteredGroups]);
+    }, [groups]);
 
     useEffect(() => {
         if (!searchTerm) {
@@ -38,7 +41,7 @@ const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
                     </div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.total}</span>
-                        <span className="stat-label">Total Groups</span>
+                        <span className="stat-label">{t('إجمالي المجموعات', 'Total Groups')}</span>
                     </div>
                 </div>
                 <div className="stat-card">
@@ -47,7 +50,7 @@ const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
                     </div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.active}</span>
-                        <span className="stat-label">Active Groups</span>
+                        <span className="stat-label">{t('المجموعات النشطة', 'Active Groups')}</span>
                     </div>
                 </div>
                 <div className="stat-card">
@@ -56,7 +59,7 @@ const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
                     </div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.inactive}</span>
-                        <span className="stat-label">Inactive Groups</span>
+                        <span className="stat-label">{t('المجموعات غير النشطة', 'Inactive Groups')}</span>
                     </div>
                 </div>
             </div>
@@ -68,14 +71,14 @@ const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
                         <span className="material-icons-outlined search-icon">search</span>
                         <input
                             type="text"
-                            placeholder="Search groups..."
+                            placeholder={t('البحث في المجموعات...', 'Search groups...')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <button className="btn btn-primary" onClick={onCreate}>
                         <span className="material-icons-outlined">add</span>
-                        Add New Group
+                        {t('إضافة مجموعة جديدة', 'Add New Group')}
                     </button>
                 </div>
 
@@ -83,12 +86,13 @@ const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
                     <table className="professional-table">
                         <thead>
                             <tr>
-                                <th>Code</th>
-                                <th>Name (AR)</th>
-                                <th>Name (EN)</th>
-                                <th>Parent Group</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th>{t('الكود', 'Code')}</th>
+                                <th>{t('الاسم (عربي)', 'Name (AR)')}</th>
+                                <th>{t('الاسم (إنجليزي)', 'Name (EN)')}</th>
+                                <th>{t('المجموعة الأم', 'Parent')}</th>
+                                <th>{t('الحساب', 'Account')}</th>
+                                <th>{t('الحالة', 'Status')}</th>
+                                <th>{t('الإجراءات', 'Actions')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -100,16 +104,24 @@ const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
                                         <td>{group.name_en || '-'}</td>
                                         <td>{group.parent?.name_ar || '-'}</td>
                                         <td>
+                                            {group.account ? (
+                                                <div className="account-info">
+                                                    <small className="account-code">{group.account.AccCode}</small>
+                                                    <span className="account-name"> - {isRtl ? group.account.AccNameAR : group.account.AccNameEN}</span>
+                                                </div>
+                                            ) : '-'}
+                                        </td>
+                                        <td>
                                             <span className={`status-badge ${group.is_active ? 'active' : 'inactive'}`}>
-                                                {group.is_active ? 'Active' : 'Inactive'}
+                                                {group.is_active ? t('نشط', 'Active') : t('غير نشط', 'Inactive')}
                                             </span>
                                         </td>
                                         <td>
                                             <div className="action-buttons">
-                                                <button onClick={() => onEdit(group)} title="Edit">
+                                                <button onClick={() => onEdit(group)} title={t('تعديل', 'Edit')}>
                                                     <span className="material-icons-outlined">edit</span>
                                                 </button>
-                                                <button className="delete-btn" onClick={() => onDelete(group.id)} title="Delete">
+                                                <button className="delete-btn" onClick={() => onDelete(group.id)} title={t('حذف', 'Delete')}>
                                                     <span className="material-icons-outlined">delete</span>
                                                 </button>
                                             </div>
@@ -118,8 +130,8 @@ const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>
-                                        No supplier groups found.
+                                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
+                                        {t('لم يتم العثور على مجموعات موردين.', 'No supplier groups found.')}
                                     </td>
                                 </tr>
                             )}
@@ -132,24 +144,39 @@ const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
 };
 
 // --- Form Section Component (Used for Create & Edit) ---
-const FormSection = ({ mode, initialData, parentGroups, onBack, onSubmit }) => {
+const FormSection = ({ mode, initialData, parentGroups, accounts = [], onBack, onSuccess }) => {
     const isEdit = mode === 'edit';
-    const { errors } = usePage().props;
-    
+    const { auth } = usePage().props;
+    const isRtl = auth?.user?.lang === 'ar' || document.dir === 'rtl';
+    const t = (ar, en) => isRtl ? ar : en;
+
+    const { data, setData, post, put, processing, errors, reset } = useForm({
+        code: initialData?.code || '',
+        name_ar: initialData?.name_ar || '',
+        name_en: initialData?.name_en || '',
+        parent_id: initialData?.parent_id || '',
+        account_id: initialData?.account_id || '',
+        payment_terms: initialData?.payment_terms || 30,
+        default_credit_limit: initialData?.default_credit_limit || 0,
+        notes: initialData?.notes || '',
+        is_active: initialData ? (initialData.is_active ? '1' : '0') : '1',
+    });
+
     const handleSubmit = (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
-        const data = {
-            code: formData.get('code'),
-            name_ar: formData.get('name_ar'),
-            name_en: formData.get('name_en'),
-            parent_id: formData.get('parent_id'),
-            payment_terms: formData.get('payment_terms'),
-            default_credit_limit: formData.get('default_credit_limit'),
-            notes: formData.get('notes'),
-            is_active: formData.get('is_active') === '1',
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => {
+                reset();
+                onSuccess();
+            },
         };
-        onSubmit(data);
+
+        if (isEdit) {
+            put(route('admin.purchases.supplier-groups.update', initialData.id), options);
+        } else {
+            post(route('admin.purchases.supplier-groups.store'), options);
+        }
     };
 
     return (
@@ -157,31 +184,31 @@ const FormSection = ({ mode, initialData, parentGroups, onBack, onSubmit }) => {
             <div className="content-card">
                 <div className="form-container">
                     <div className="form-section-title">
-                        {isEdit ? 'Edit Supplier Group' : 'Create New Supplier Group'}
+                        {isEdit ? t('تعديل مجموعة موردين', 'Edit Supplier Group') : t('إنشاء مجموعة موردين جديدة', 'Create New Supplier Group')}
                     </div>
 
                     <form onSubmit={handleSubmit}>
                         <div className="form-grid">
                             <div className="form-group">
-                                <label>Group Code</label>
+                                <label>{t('كود المجموعة', 'Group Code')}</label>
                                 <input
                                     type="text"
-                                    name="code"
-                                    defaultValue={initialData?.code}
-                                    placeholder="Auto-generated (e.g., GRS-001)"
-                                    readOnly={true}
-                                    style={{ backgroundColor: '#f3f4f6' }}
+                                    value={data.code}
+                                    onChange={e => setData('code', e.target.value)}
+                                    placeholder={t('يتم إنشاؤه تلقائياً (مثال: GRS-10001)', 'Auto-generated (e.g., GRS-10001)')}
+                                    readOnly={!isEdit}
+                                    style={{ backgroundColor: !isEdit ? '#f3f4f6' : 'white' }}
                                 />
                                 {errors.code && <div className="error-message">{errors.code}</div>}
                             </div>
                             <div className="form-group">
-                                <label>Parent Group</label>
+                                <label>{t('المجموعة الأم', 'Parent Group')}</label>
                                 <select
-                                    name="parent_id"
-                                    defaultValue={initialData?.parent_id || ''}
+                                    value={data.parent_id}
+                                    onChange={e => setData('parent_id', e.target.value)}
                                 >
-                                    <option value="">None (Main Group)</option>
-                                    {parentGroups.map(pg => (
+                                    <option value="">{t('لا يوجد (مجموعة رئيسية)', 'None (Main Group)')}</option>
+                                    {parentGroups.filter(pg => pg.id !== initialData?.id).map(pg => (
                                         <option key={pg.id} value={pg.id}>{pg.name_ar}</option>
                                     ))}
                                 </select>
@@ -191,23 +218,23 @@ const FormSection = ({ mode, initialData, parentGroups, onBack, onSubmit }) => {
 
                         <div className="form-grid">
                             <div className="form-group">
-                                <label>Name (Arabic) <span style={{ color: 'red' }}>*</span></label>
+                                <label>{t('الاسم (بالعربي)', 'Name (Arabic)')} <span style={{ color: 'red' }}>*</span></label>
                                 <input
                                     type="text"
-                                    name="name_ar"
-                                    defaultValue={initialData?.name_ar}
+                                    value={data.name_ar}
+                                    onChange={e => setData('name_ar', e.target.value)}
                                     required
-                                    placeholder="Enter Arabic Name"
+                                    placeholder={t('أدخل الاسم بالعربي', 'Enter Arabic Name')}
                                 />
                                 {errors.name_ar && <div className="error-message">{errors.name_ar}</div>}
                             </div>
                             <div className="form-group">
-                                <label>Name (English)</label>
+                                <label>{t('الاسم (بالإنجليزي)', 'Name (English)')}</label>
                                 <input
                                     type="text"
-                                    name="name_en"
-                                    defaultValue={initialData?.name_en}
-                                    placeholder="Enter English Name"
+                                    value={data.name_en}
+                                    onChange={e => setData('name_en', e.target.value)}
+                                    placeholder={t('أدخل الاسم بالإنجليزي', 'Enter English Name')}
                                 />
                                 {errors.name_en && <div className="error-message">{errors.name_en}</div>}
                             </div>
@@ -215,21 +242,50 @@ const FormSection = ({ mode, initialData, parentGroups, onBack, onSubmit }) => {
 
                         <div className="form-grid">
                             <div className="form-group">
-                                <label>Payment Terms (Days)</label>
+                                <label>{t('حساب الأستاذ العام', 'General Ledger Account')}</label>
+                                <select
+                                    value={data.account_id}
+                                    onChange={e => setData('account_id', e.target.value)}
+                                >
+                                    <option value="">{t('اختر الحساب...', 'Select Account...')}</option>
+                                    {accounts.map(acc => (
+                                        <option key={acc.AccID} value={acc.AccID}>
+                                            {acc.AccCode} - {isRtl ? acc.AccNameAR : acc.AccNameEN}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.account_id && <div className="error-message">{errors.account_id}</div>}
+                            </div>
+                            <div className="form-group">
+                                <label>{t('الحالة', 'Status')}</label>
+                                <select
+                                    value={data.is_active}
+                                    onChange={e => setData('is_active', e.target.value)}
+                                >
+                                    <option value="1">{t('نشط', 'Active')}</option>
+                                    <option value="0">{t('غير نشط', 'Inactive')}</option>
+                                </select>
+                                {errors.is_active && <div className="error-message">{errors.is_active}</div>}
+                            </div>
+                        </div>
+
+                        <div className="form-grid">
+                            <div className="form-group">
+                                <label>{t('شروط الدفع (أيام)', 'Payment Terms (Days)')}</label>
                                 <input
                                     type="number"
-                                    name="payment_terms"
-                                    defaultValue={initialData?.payment_terms || 30}
+                                    value={data.payment_terms}
+                                    onChange={e => setData('payment_terms', e.target.value)}
                                     min="0"
                                 />
                                 {errors.payment_terms && <div className="error-message">{errors.payment_terms}</div>}
                             </div>
                             <div className="form-group">
-                                <label>Default Credit Limit</label>
+                                <label>{t('الحد الائتماني الافتراضي', 'Default Credit Limit')}</label>
                                 <input
                                     type="number"
-                                    name="default_credit_limit"
-                                    defaultValue={initialData?.default_credit_limit || 0}
+                                    value={data.default_credit_limit}
+                                    onChange={e => setData('default_credit_limit', e.target.value)}
                                     step="0.01"
                                     min="0"
                                 />
@@ -238,33 +294,21 @@ const FormSection = ({ mode, initialData, parentGroups, onBack, onSubmit }) => {
                         </div>
 
                         <div className="form-group">
-                            <label>Status</label>
-                            <select
-                                name="is_active"
-                                defaultValue={initialData ? (initialData.is_active ? '1' : '0') : '1'}
-                            >
-                                <option value="1">Active</option>
-                                <option value="0">Inactive</option>
-                            </select>
-                            {errors.is_active && <div className="error-message">{errors.is_active}</div>}
-                        </div>
-
-                        <div className="form-group">
-                            <label>Notes</label>
+                            <label>{t('ملاحظات', 'Notes')}</label>
                             <textarea
-                                name="notes"
-                                defaultValue={initialData?.notes}
-                                placeholder="Additional notes..."
+                                value={data.notes}
+                                onChange={e => setData('notes', e.target.value)}
+                                placeholder={t('ملاحظات إضافية...', 'Additional notes...')}
                             ></textarea>
                             {errors.notes && <div className="error-message">{errors.notes}</div>}
                         </div>
 
                         <div className="form-actions">
-                            <button type="button" className="btn btn-secondary" onClick={onBack}>
-                                Cancel
+                            <button type="button" className="btn btn-secondary" onClick={onBack} disabled={processing}>
+                                {t('إلغاء', 'Cancel')}
                             </button>
-                            <button type="submit" className="btn btn-primary">
-                                {isEdit ? 'Update Group' : 'Create Group'}
+                            <button type="submit" className="btn btn-primary" disabled={processing}>
+                                {processing ? t('جاري الحفظ...', 'Saving...') : (isEdit ? t('تحديث المجموعة', 'Update Group') : t('إنشاء المجموعة', 'Create Group'))}
                             </button>
                         </div>
                     </form>
@@ -275,10 +319,12 @@ const FormSection = ({ mode, initialData, parentGroups, onBack, onSubmit }) => {
 };
 
 // --- Main Container Component ---
-const SupplierGroups = ({ groups = [], parentGroups = [] }) => {
+const SupplierGroups = ({ groups = [], parentGroups = [], accounts = [] }) => {
     const [mode, setMode] = useState('view'); // 'view' | 'create' | 'edit'
     const [selectedGroup, setSelectedGroup] = useState(null);
-    const { flash } = usePage().props;
+    const { flash, auth } = usePage().props;
+    const isRtl = auth?.user?.lang === 'ar' || document.dir === 'rtl';
+    const t = (ar, en) => isRtl ? ar : en;
 
     // Reset mode to view on successful Inertia navigation if strictly needed, 
     // but we control mode locally for smoother experience.
@@ -305,28 +351,13 @@ const SupplierGroups = ({ groups = [], parentGroups = [] }) => {
         setSelectedGroup(null);
     };
 
-    const handleFormSubmit = (data) => {
-        if (mode === 'edit' && selectedGroup) {
-            router.put(route('admin.purchases.supplier-groups.update', selectedGroup.id), data, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setMode('view');
-                    setSelectedGroup(null);
-                }
-            });
-        } else {
-            router.post(route('admin.purchases.supplier-groups.store'), data, {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setMode('view');
-                    setSelectedGroup(null);
-                }
-            });
-        }
+    const handleSuccess = () => {
+        setMode('view');
+        setSelectedGroup(null);
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this group?')) {
+        if (window.confirm(t('هل أنت متأكد من حذف هذه المجموعة؟', 'Are you sure you want to delete this group?'))) {
             router.delete(route('admin.purchases.supplier-groups.destroy', id), {
                 preserveScroll: true
             });
@@ -335,20 +366,20 @@ const SupplierGroups = ({ groups = [], parentGroups = [] }) => {
 
     return (
         <AdminLayout activeMenu="Supplier Groups">
-            <Head title="Supplier Groups - ZodicERP" />
+            <Head title={t('مجموعات الموردين - ZodicERP', 'Supplier Groups - ZodicERP')} />
             
             <div className="supplier-groups-container">
                 {/* Fixed Page Header Title based on Mode */}
                 <div className="page-header">
                     <h1>
-                        {mode === 'view' && 'Supplier Groups'}
-                        {mode === 'create' && 'New Supplier Group'}
-                        {mode === 'edit' && 'Edit Supplier Group'}
+                        {mode === 'view' && t('مجموعات الموردين', 'Supplier Groups')}
+                        {mode === 'create' && t('مجموعة موردين جديدة', 'New Supplier Group')}
+                        {mode === 'edit' && t('تعديل مجموعة موردين', 'Edit Supplier Group')}
                     </h1>
                     {mode !== 'view' && (
                         <button className="btn btn-secondary" onClick={handleBackClick}>
                             <span className="material-icons-outlined">arrow_back</span>
-                            Back to List
+                            {t('العودة للقائمة', 'Back to List')}
                         </button>
                     )}
                 </div>
@@ -367,8 +398,9 @@ const SupplierGroups = ({ groups = [], parentGroups = [] }) => {
                     <FormSection 
                         mode="create" 
                         parentGroups={parentGroups} 
+                        accounts={accounts}
                         onBack={handleBackClick} 
-                        onSubmit={handleFormSubmit}
+                        onSuccess={handleSuccess}
                     />
                 )}
 
@@ -377,8 +409,9 @@ const SupplierGroups = ({ groups = [], parentGroups = [] }) => {
                         mode="edit" 
                         initialData={selectedGroup} 
                         parentGroups={parentGroups} 
+                        accounts={accounts}
                         onBack={handleBackClick} 
-                        onSubmit={handleFormSubmit}
+                        onSuccess={handleSuccess}
                     />
                 )}
             </div>

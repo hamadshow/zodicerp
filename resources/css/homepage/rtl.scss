@@ -69,20 +69,35 @@
 }
 
 .finanza-header-inner {
-  height: 64px;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .finanza-brand {
   font-family: 'Jost', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 28px;
+  font-weight: 800;
   color: var(--finanza-primary);
   text-decoration: none;
-  letter-spacing: 0.2px;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.finanza-brand::before {
+  content: '';
+  display: block;
+  width: 32px;
+  height: 32px;
+  background-color: var(--finanza-primary);
+  border-radius: 8px;
+  background-image: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 100%);
 }
 
 .finanza-nav {

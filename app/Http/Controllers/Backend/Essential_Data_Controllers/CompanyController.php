@@ -12,14 +12,7 @@ class CompanyController extends Controller
 {
     public function index(Request $request)
     {
-        $companyId = $request->user()?->company_id;
-
-        $companiesQuery = Company::with(['countryData', 'cityData', 'areaData'])->latest();
-        if ($companyId) {
-            $companiesQuery->whereKey($companyId);
-        }
-
-        $companies = $companiesQuery->get();
+        $companies = Company::with(['countryData', 'cityData', 'areaData'])->latest()->get();
 
         return Inertia::render('Backend/01-Essential_Data/Company', [
             'companies' => $companies,
@@ -51,11 +44,6 @@ class CompanyController extends Controller
 
     public function update(Request $request, Company $company)
     {
-        $companyId = $request->user()?->company_id;
-        if ($companyId && (int) $company->getKey() !== (int) $companyId) {
-            abort(403, 'Unauthorized');
-        }
-
         $validated = $request->validate([
             'company_name' => 'required|string|max:255',
             'company_code' => 'nullable|string',

@@ -27,11 +27,12 @@ export default function TransferStock({
 
     const t = (ar, en) => isRtl ? ar : en;
 
-    const storeUrl = useMemo(() => {
-        return `/${country}/${lang}/admin/inventory/stock-transfers`;
-    }, [country, lang]);
+    // Using route() helper instead of hardcoded paths
+    const storeUrl = route('admin.inventory.stock-transfers.store', { country, lang });
+    const updateUrl = transfer ? route('admin.inventory.stock-transfers.update', { country, lang, id: transfer.id }) : null;
+    const indexUrl = route('admin.inventory.stock-transfers.index', { country, lang });
 
-    const { data, setData, post, processing, errors, reset, transform } = useForm({
+    const { data, setData, post, put, processing, errors, reset, transform } = useForm({
         movement_date: transfer?.movement_date || new Date().toISOString().split('T')[0],
         from_warehouse_id: transfer?.from_warehouse_id || '',
         to_warehouse_id: transfer?.to_warehouse_id || '',
@@ -93,7 +94,8 @@ export default function TransferStock({
         }
 
         setIsSaving(true);
-        post(storeUrl, {
+
+        const options = {
             preserveScroll: true,
             onSuccess: () => {
                 reset();
@@ -104,12 +106,18 @@ export default function TransferStock({
                 setIsSaving(false);
             },
             onFinish: () => setIsSaving(false)
-        });
+        };
+
+        if (transfer) {
+            put(updateUrl, options);
+        } else {
+            post(storeUrl, options);
+        }
     };
 
     const handleDelete = (id) => {
         if (confirm(t('هل أنت متأكد من حذف هذا التحويل؟', 'Are you sure you want to delete this transfer?'))) {
-            router.delete(`/${country}/${lang}/admin/inventory/stock-transfers/${id}`, {
+            router.delete(route('admin.inventory.stock-transfers.destroy', { country, lang, stock_transfer: id }), {
                 preserveScroll: true
             });
         }
@@ -128,7 +136,7 @@ export default function TransferStock({
 
     const handleBackToList = () => {
         if (viewing) {
-            router.visit(`/${country}/${lang}/admin/inventory/stock-transfers`);
+            router.visit(indexUrl);
         } else {
             setShowForm(false);
         }
@@ -186,12 +194,23 @@ export default function TransferStock({
                                     <td>
                                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                             <Link
-                                                href={`/${country}/${lang}/admin/inventory/stock-transfers/${stock.id}`}
+                                                href={route('admin.inventory.stock-transfers.show', { country, lang, id: stock.id })}
                                                 style={{ color: '#3b82f6' }}
                                                 title={t("عرض", "View")}
                                             >
                                                 <span className="material-icons-outlined">visibility</span>
                                             </Link>
+                                            <button
+                                                onClick={() => {
+                                                    router.get(route('admin.inventory.stock-transfers.show', { country, lang, id: stock.id }), {
+                                                        edit: true
+                                                    });
+                                                }}
+                                                style={{ color: '#10b981', border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
+                                                title={t("تعديل", "Edit")}
+                                            >
+                                                <span className="material-icons-outlined">edit</span>
+                                            </button>
                                             <button
                                                 onClick={() => handleDelete(stock.id)}
                                                 style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}

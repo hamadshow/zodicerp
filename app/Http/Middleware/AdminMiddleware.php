@@ -35,7 +35,7 @@ class AdminMiddleware
 
         $role = strtolower($user->role ?? '');
 
-        if ($role !== 'admin') {
+        if (! in_array($role, ['admin', 'superadmin'])) {
             $params = [
                 'country' => session('country_code', 'sa'),
                 'lang' => session('locale', 'ar'),

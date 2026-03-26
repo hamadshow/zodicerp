@@ -1,9 +1,11 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FinanzaFooter, FinanzaHeader } from '@/Pages/Home/Home';
+import { useTranslation } from '@/Hooks/useTranslation';
 
 export default function Register() {
   const { localization } = usePage().props;
+  const { t } = useTranslation();
   const country = localization?.country_code || 'sa';
   const lang = localization?.current_locale || 'en';
   const dir = lang === 'ar' ? 'rtl' : 'ltr';
@@ -89,15 +91,15 @@ export default function Register() {
               </div>
 
               <div className="registerCard">
-                <div className="registerCard-title">Get Started Now!</div>
-                <div className="registerCard-subtitle">Please enter the following information</div>
+                <div className="registerCard-title">{t('auth.register_title', 'Get Started Now!')}</div>
+                <div className="registerCard-subtitle">{t('auth.register_subtitle', 'Please enter the following information')}</div>
 
                 <form onSubmit={submit} className="registerForm" noValidate>
               <div className="registerField">
                 <input
                   type="text"
                   className={`registerInput ${errors.name ? 'is-invalid' : ''}`}
-                  placeholder="Full Name*"
+                  placeholder={t('auth.name', 'Full Name*')}
                   value={data.name}
                   onChange={(e) => setData('name', e.target.value)}
                   required
@@ -110,7 +112,7 @@ export default function Register() {
                 <input
                   type="text"
                   className={`registerInput ${errors.username ? 'is-invalid' : ''}`}
-                  placeholder="Username*"
+                  placeholder={t('auth.username', 'Username*')}
                   value={data.username}
                   onChange={(e) => setData('username', e.target.value)}
                   required
@@ -123,7 +125,7 @@ export default function Register() {
                 <input
                   type="email"
                   className={`registerInput ${errors.email ? 'is-invalid' : ''}`}
-                  placeholder="Email Address*"
+                  placeholder={t('auth.email', 'Email Address*')}
                   value={data.email}
                   onChange={(e) => setData('email', e.target.value)}
                   required
@@ -150,7 +152,7 @@ export default function Register() {
                 <input
                   type="tel"
                   className={`registerInput ${errors.phone ? 'is-invalid' : ''}`}
-                  placeholder="Phone Number*"
+                  placeholder={t('auth.phone_number', 'Phone Number*')}
                   value={data.phone_number}
                   onChange={(e) => setData('phone_number', e.target.value)}
                   required
@@ -163,7 +165,7 @@ export default function Register() {
                 <input
                   type={showPassword ? 'text' : 'password'}
                   className={`registerInput ${errors.password ? 'is-invalid' : ''}`}
-                  placeholder="Password *"
+                  placeholder={t('auth.password_label', 'Password *')}
                   value={data.password}
                   onChange={(e) => setData('password', e.target.value)}
                   required
@@ -173,7 +175,7 @@ export default function Register() {
                   type="button"
                   className="registerPasswordToggle"
                   onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={showPassword ? t('auth.hide_password', 'Hide password') : t('auth.show_password', 'Show password')}
                 >
                   <span className="material-icons-outlined">{showPassword ? 'visibility_off' : 'visibility'}</span>
                 </button>
@@ -184,7 +186,7 @@ export default function Register() {
                 <input
                   type={showPasswordConfirmation ? 'text' : 'password'}
                   className={`registerInput ${errors.password_confirmation ? 'is-invalid' : ''}`}
-                  placeholder="Confirm Password*"
+                  placeholder={t('auth.confirm_password', 'Confirm Password*')}
                   value={data.password_confirmation}
                   onChange={(e) => setData('password_confirmation', e.target.value)}
                   required
@@ -194,7 +196,7 @@ export default function Register() {
                   type="button"
                   className="registerPasswordToggle"
                   onClick={() => setShowPasswordConfirmation((v) => !v)}
-                  aria-label={showPasswordConfirmation ? 'Hide password confirmation' : 'Show password confirmation'}
+                  aria-label={showPasswordConfirmation ? t('auth.hide_password_confirmation', 'Hide password confirmation') : t('auth.show_password_confirmation', 'Show password confirmation')}
                 >
                   <span className="material-icons-outlined">{showPasswordConfirmation ? 'visibility_off' : 'visibility'}</span>
                 </button>
@@ -211,21 +213,21 @@ export default function Register() {
                   required
                 />
                 <span>
-                  By continuing, I agree to Mubasher.info's{' '}
+                  {t('auth.terms_agreement', "By continuing, I agree to ZodicERP's")}{' '}
                   <a className="registerTermsLink" href="#" onClick={(e) => e.preventDefault()}>
-                    Terms And Conditions
+                    {t('auth.terms_link', 'Terms And Conditions')}
                   </a>
                 </span>
               </label>
 
               <button className="registerSubmit" type="submit" disabled={processing}>
-                Verify and Continue
+                {t('auth.create_account', 'Create Account')}
               </button>
 
               <div className="registerBottom">
-                <span>Already registered?</span>
+                <span>{t('auth.already_registered', 'Already registered?')}</span>
                 <Link className="registerBottomLink" href={getLocalizedRoute('auth.login')}>
-                  Login
+                  {t('auth.login', 'Login')}
                 </Link>
               </div>
             </form>

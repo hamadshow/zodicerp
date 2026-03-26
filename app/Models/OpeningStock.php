@@ -11,13 +11,16 @@ class OpeningStock extends Model
 {
     use HasFactory;
 
-    protected $table = 'stock_movements';
+    protected $table = 'inventory_movement_headers';
 
     protected $fillable = [
         'movement_date',
+        'type',
+        'direction',
+        'reference_id',
+        'reference_type',
+        'voucher_num',
         'warehouse_id',
-        'from_warehouse_id',
-        'to_warehouse_id',
         'company_id',
         'created_by',
         'notes',

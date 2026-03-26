@@ -5,12 +5,23 @@ import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { FinanzaFooter, FinanzaHeader } from '@/Pages/Home/Home';
+import { useTranslation } from '@/Hooks/useTranslation';
 
 export default function ConfirmPassword() {
   const { localization } = usePage().props;
-  const country = localization?.country_code || localization?.current_country || 'sa';
+  const { t } = useTranslation();
   const lang = localization?.current_locale || 'ar';
-  const homeHref = `/${country}/${lang}`;
+  const dir = lang === 'ar' ? 'rtl' : 'ltr';
+
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
+  const homeHref = getLocalizedRoute('home');
   const { data, setData, post, processing, errors, reset } = useForm({
     password: '',
   });
@@ -18,25 +29,30 @@ export default function ConfirmPassword() {
   const submit = (e) => {
     e.preventDefault();
 
-    post(route('password.confirm'), {
+    post(getLocalizedRoute('password.confirm'), {
       onFinish: () => reset('password'),
     });
   };
 
   return (
-    <div id="top" className="finanza-landing">
-      <FinanzaHeader variant="minimal" homeHref={homeHref} loginHref={`${homeHref}/login`} registerHref={`${homeHref}/register`} />
+    <div id="top" className="finanza-landing" dir={dir}>
+      <FinanzaHeader 
+        variant="minimal" 
+        homeHref={homeHref} 
+        loginHref={getLocalizedRoute('login')} 
+        registerHref={getLocalizedRoute('register')} 
+      />
       <main id="main-content">
         <GuestLayout>
-          <Head title="Confirm Password" />
+          <Head title={t('auth.confirm_password_title', 'Confirm Password')} />
 
           <div className="mb-4 text-sm text-gray-600">
-            This is a secure area of the application. Please confirm your password before continuing.
+            {t('auth.confirm_password_subtitle', 'This is a secure area of the application. Please confirm your password before continuing.')}
           </div>
 
           <form onSubmit={submit}>
             <div className="mt-4">
-              <InputLabel htmlFor="password" value="Password" />
+              <InputLabel htmlFor="password" value={t('auth.password_label', 'Password')} />
 
               <TextInput
                 id="password"
@@ -53,7 +69,7 @@ export default function ConfirmPassword() {
 
             <div className="mt-4 flex items-center justify-end">
               <PrimaryButton className="ms-4" disabled={processing}>
-                Confirm
+                {t('auth.confirm', 'Confirm')}
               </PrimaryButton>
             </div>
           </form>

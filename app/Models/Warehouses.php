@@ -24,6 +24,7 @@ class Warehouses extends Model
         'icon',
         'color',
         'description',
+        'company_id',
     ];
 
     /**

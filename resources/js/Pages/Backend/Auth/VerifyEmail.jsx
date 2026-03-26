@@ -2,11 +2,14 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { FinanzaFooter, FinanzaHeader } from '@/Pages/Home/Home';
+import { useTranslation } from '@/Hooks/useTranslation';
 
 export default function VerifyEmail({ status }) {
   const { auth, localization } = usePage().props;
+  const { t } = useTranslation();
   const country = localization?.country_code || localization?.current_country || 'sa';
   const lang = localization?.current_locale || 'ar';
+  const dir = lang === 'ar' ? 'rtl' : 'ltr';
   const homeHref = `/${country}/${lang}`;
   const logoutHref = `${homeHref}/logout`;
   const customerFirstName = auth?.user?.first_name || auth?.user?.name || null;
@@ -19,7 +22,7 @@ export default function VerifyEmail({ status }) {
   };
 
   return (
-    <div id="top" className="finanza-landing">
+    <div id="top" className="finanza-landing" dir={dir}>
       <FinanzaHeader
         variant="minimal"
         homeHref={homeHref}
@@ -30,22 +33,23 @@ export default function VerifyEmail({ status }) {
       />
       <main id="main-content">
         <GuestLayout>
-          <Head title="Email Verification" />
+          <Head title={t('auth.verify_email_title', 'Email Verification')} />
 
           <div className="mb-4 text-sm text-gray-600">
-            Thanks for signing up! Before getting started, could you verify your email address by clicking on the link we just emailed to you? If you didn't
-            receive the email, we will gladly send you another.
+            {t('auth.verify_email_subtitle', "Thanks for signing up! Before getting started, could you verify your email address by clicking on the link we just emailed to you? If you didn't receive the email, we will gladly send you another.")}
           </div>
 
           {status === 'verification-link-sent' && (
             <div className="mb-4 text-sm font-medium text-green-600">
-              A new verification link has been sent to the email address you provided during registration.
+              {t('auth.verification_link_sent', 'A new verification link has been sent to the email address you provided during registration.')}
             </div>
           )}
 
           <form onSubmit={submit}>
             <div className="mt-4 flex items-center justify-between">
-              <PrimaryButton disabled={processing}>Resend Verification Email</PrimaryButton>
+              <PrimaryButton disabled={processing}>
+                {t('auth.resend_verification_email', 'Resend Verification Email')}
+              </PrimaryButton>
 
               <Link
                 href={route('logout')}
@@ -53,7 +57,7 @@ export default function VerifyEmail({ status }) {
                 as="button"
                 className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
               >
-                Log Out
+                {t('auth.logout', 'Log Out')}
               </Link>
             </div>
           </form>

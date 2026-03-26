@@ -34,8 +34,6 @@ import '@fontsource/figtree/600.css';
 
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
-import { Suspense } from 'react';
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -63,33 +61,10 @@ createInertiaApp({
       ),
     });
   },
+  // eslint-disable-next-line no-unused-vars
   setup({ el, App, props }) {
-    const ResolvedApp =
-      typeof App === 'object' && App?.default ? App.default : App;
-    if (!ResolvedApp || typeof ResolvedApp !== 'function') {
-      const root = createRoot(el);
-      root.render(<div>App component failed to load</div>);
-      return;
-    }
     const root = createRoot(el);
-
-    root.render(
-      <BrowserRouter>
-        <Suspense
-          fallback={
-            <div className="loading-container">
-              <div className="spinner"></div>
-              <p>Loading...</p>
-            </div>
-          }
-        >
-          <Routes>
-            <Route path="/admin/warehouses" element={<ResolvedApp {...props} />} />
-            <Route path="*" element={<ResolvedApp {...props} />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
-    );
+    root.render(<App {...props} />);
   },
   progress: {
     color: '#4B5563',

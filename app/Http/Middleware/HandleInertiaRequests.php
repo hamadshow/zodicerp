@@ -37,7 +37,7 @@ class HandleInertiaRequests extends Middleware
                 ->toArray();
 
             $fileTranslations = [];
-            $files = ['home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar'];
+            $files = ['home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth' ,'verify_email','confirm','reset_password'];
 
             foreach ($files as $file) {
                 $path = lang_path("$locale/$file.php");

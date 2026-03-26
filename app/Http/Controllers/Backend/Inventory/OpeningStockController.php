@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Backend\Inventory;
 
+use App\Models\OpeningStock;
+use App\Models\OpeningStockItem;
 use App\Http\Controllers\Controller;
 use App\Models\ItemUnit;
 use App\Models\Products;
@@ -17,26 +19,18 @@ class OpeningStockController extends Controller
      */
     public function index(Request $request)
     {
-        $companyId = $request->user()?->company_id;
-        if (! $companyId) {
-            abort(403, 'Company not set for this user.');
-        }
-
-        $openingStocks = \App\Models\OpeningStock::with(['warehouse', 'company', 'creator', 'items.product', 'items.unit'])
-            ->where('notes', 'like', '%OpeningStock%')
-            ->where('company_id', $companyId)
+        $openingStocks = OpeningStock::with(['warehouse', 'company', 'creator', 'items.product', 'items.unit'])
+            ->where('type', 'opening')
             ->orderByDesc('id')
             ->paginate(25);
 
         $warehouses = Warehouses::query()
             ->select(['id', 'name'])
-            ->where('company_id', $companyId)
             ->orderBy('id')
             ->get();
 
         $products = Products::query()
             ->select(['id', 'name', 'sku', 'barcode'])
-            ->where('company_id', $companyId)
             ->orderBy('id', 'desc')
             ->limit(2000)
             ->get();
@@ -58,49 +52,12 @@ class OpeningStockController extends Controller
     }
 
     /**
-     * Show the form for creating a new opening stock.
-     */
-    public function create()
-    {
-        $warehouses = Warehouses::query()
-            ->select(['id', 'name'])
-            ->orderBy('id')
-            ->get();
-
-        $products = Products::query()
-            ->select(['id', 'name', 'sku', 'barcode'])
-            ->orderBy('id', 'desc')
-            ->limit(2000)
-            ->get();
-
-        $units = ItemUnit::query()
-            ->select(['id', 'name'])
-            ->where('active', true)
-            ->orderBy('id')
-            ->get();
-
-        return Inertia::render('Backend/03-Inventory/OpeningStock', [
-            'openingStocks' => [],
-            'pagination' => [],
-            'warehouses' => $warehouses,
-            'products' => $products,
-            'units' => $units,
-            'initialShowForm' => true,
-        ]);
-    }
-
-    /**
      * Store a newly created opening stock in storage.
      */
     public function store(Request $request)
     {
         $user = $request->user();
         $companyId = $user?->company_id;
-
-        if (! $companyId) {
-            return back()->withErrors(['general' => 'المستخدم غير مرتبط بشركة.']);
-        }
-        $userId = $user->id;
 
         $validated = $request->validate([
             'movement_date' => ['nullable', 'date'],
@@ -114,38 +71,30 @@ class OpeningStockController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($validated, $companyId, $userId) {
-                // Ensure 'OpeningStock' tag is in notes for filtering
-                $notes = $validated['notes'] ?? '';
-                if (strpos($notes, 'OpeningStock') === false) {
-                    $notes = trim($notes . ' OpeningStock');
-                }
+            DB::transaction(function () use ($validated, $companyId, $user) {
+                // Generate voucher number for opening stock
+                $voucherNum = 'OS-'.date('Ymd').'-'.strtoupper(substr(uniqid(), -4));
 
-                $openingStockId = DB::table('stock_movements')->insertGetId([
+                $openingStock = OpeningStock::create([
                     'movement_date' => $validated['movement_date'] ?? null,
+                    'type' => 'opening',
+                    'direction' => 'in',
+                    'voucher_num' => $voucherNum,
                     'warehouse_id' => $validated['warehouse_id'],
                     'company_id' => $companyId,
-                    'created_by' => $userId,
-                    'notes' => $notes,
-                    'created_at' => now(),
-                    'updated_at' => now(),
+                    'created_by' => $user->id,
+                    'notes' => $validated['notes'] ?? 'OpeningStock',
                 ]);
 
-                $rows = collect($validated['items'])
-                    ->map(function ($item) use ($openingStockId) {
-                        return [
-                            'stock_movement_id' => $openingStockId,
-                            'product_id' => (int) $item['product_id'],
-                            'unit_id' => (int) $item['unit_id'],
-                            'quantity' => $item['quantity'],
-                            'cost_price' => $item['cost_price'] ?? 0,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ];
-                    })
-                    ->all();
-
-                DB::table('stock_movements_items')->insert($rows);
+                foreach ($validated['items'] as $item) {
+                    OpeningStockItem::create([
+                        'stock_movement_id' => $openingStock->id,
+                        'product_id' => (int) $item['product_id'],
+                        'unit_id' => (int) $item['unit_id'],
+                        'quantity' => $item['quantity'],
+                        'cost_price' => $item['cost_price'] ?? 0,
+                    ]);
+                }
             });
         } catch (\Exception $e) {
             return back()->withErrors(['general' => 'An error occurred while saving: '.$e->getMessage()]);
@@ -162,9 +111,9 @@ class OpeningStockController extends Controller
     /**
      * Display the specified opening stock.
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
-        $openingStock = \App\Models\OpeningStock::with(['warehouse', 'company', 'creator', 'items.product', 'items.unit'])
+        $openingStock = OpeningStock::with(['warehouse', 'company', 'creator', 'items.product', 'items.unit'])
             ->findOrFail($id);
 
         $warehouses = Warehouses::query()
@@ -184,14 +133,70 @@ class OpeningStockController extends Controller
             ->orderBy('id')
             ->get();
 
+        $viewing = $request->query('edit') ? false : true;
+
         return Inertia::render('Backend/03-Inventory/OpeningStock', [
             'openingStock' => $openingStock,
             'warehouses' => $warehouses,
             'products' => $products,
             'units' => $units,
             'initialShowForm' => true,
-            'viewing' => true,
+            'viewing' => $viewing,
         ]);
+    }
+
+    /**
+     * Update the specified opening stock in storage.
+     */
+    public function update(Request $request, $id)
+    {
+        $user = $request->user();
+        $companyId = $user?->company_id;
+
+        $validated = $request->validate([
+            'movement_date' => ['nullable', 'date'],
+            'warehouse_id' => ['required', 'integer', 'exists:warehouses,id'],
+            'notes' => ['nullable', 'string'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'items.*.unit_id' => ['required', 'integer', 'exists:item_units,id'],
+            'items.*.quantity' => ['required', 'numeric', 'gt:0'],
+            'items.*.cost_price' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        try {
+            DB::transaction(function () use ($validated, $id) {
+                $openingStock = OpeningStock::where('id', $id)
+                    ->firstOrFail();
+
+                $openingStock->update([
+                    'movement_date' => $validated['movement_date'] ?? null,
+                    'warehouse_id' => $validated['warehouse_id'],
+                    'notes' => $validated['notes'] ?? 'OpeningStock',
+                ]);
+
+                // Update items: delete old and insert new
+                $openingStock->items()->delete();
+
+                foreach ($validated['items'] as $item) {
+                    $openingStock->items()->create([
+                        'product_id' => (int) $item['product_id'],
+                        'unit_id' => (int) $item['unit_id'],
+                        'quantity' => $item['quantity'],
+                        'cost_price' => $item['cost_price'] ?? 0,
+                    ]);
+                }
+            });
+        } catch (\Exception $e) {
+            return back()->withErrors(['general' => 'An error occurred while updating: '.$e->getMessage()]);
+        }
+
+        return redirect()
+            ->route('admin.inventory.opening-stock.index', [
+                'country' => request()->route('country'),
+                'lang' => request()->route('lang'),
+            ])
+            ->with('success', 'Opening stock updated successfully');
     }
 
     /**
@@ -199,25 +204,13 @@ class OpeningStockController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $companyId = $request->user()?->company_id;
-        if (! $companyId) {
-            abort(403);
-        }
-
         try {
-            DB::transaction(function () use ($id, $companyId) {
-                // Ensure the movement belongs to the company before deleting items
-                $exists = DB::table('stock_movements')
-                    ->where('id', $id)
-                    ->where('company_id', $companyId)
-                    ->exists();
+            DB::transaction(function () use ($id) {
+                $openingStock = OpeningStock::where('id', $id)
+                    ->firstOrFail();
 
-                if (! $exists) {
-                    throw new \Exception('Unauthorized or record not found.');
-                }
-
-                DB::table('stock_movements_items')->where('stock_movement_id', $id)->delete();
-                DB::table('stock_movements')->where('id', $id)->delete();
+                $openingStock->items()->delete();
+                $openingStock->delete();
             });
 
             return back()->with('success', 'Opening stock deleted successfully');

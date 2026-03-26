@@ -34,16 +34,13 @@ class ItemUnitController extends Controller
     {
         try {
             $companyId = $request->user()?->company_id;
-            if (! $companyId) {
-                abort(403, 'Company not set for this user.');
-            }
 
             $validated = $request->validate([
                 'name' => 'required|string|max:100',
                 'unit_type' => 'required|integer|in:1,2',
                 'base_unit' => [
                     'nullable',
-                    Rule::exists('item_units', 'id')->where(fn ($query) => $query->where('company_id', $companyId)),
+                    'exists:item_units,id',
                 ],
                 'conversion_factor' => 'nullable|numeric|gt:0',
                 'active' => 'boolean',
@@ -73,7 +70,6 @@ class ItemUnitController extends Controller
                 }
 
                 $baseUnit = ItemUnit::query()
-                    ->where('company_id', $companyId)
                     ->whereKey($validated['base_unit'])
                     ->first();
 
@@ -134,20 +130,13 @@ class ItemUnitController extends Controller
             $unit = ItemUnit::findOrFail($id);
 
             $companyId = $request->user()?->company_id;
-            if (! $companyId) {
-                abort(403, 'Company not set for this user.');
-            }
-
-            if ((int) ($unit->company_id ?? 0) !== (int) $companyId) {
-                abort(403, 'Unauthorized');
-            }
 
             $validated = $request->validate([
                 'name' => 'required|string|max:100',
                 'unit_type' => 'required|integer|in:1,2',
                 'base_unit' => [
                     'nullable',
-                    Rule::exists('item_units', 'id')->where(fn ($query) => $query->where('company_id', $companyId)),
+                    'exists:item_units,id',
                 ],
                 'conversion_factor' => 'nullable|numeric|gt:0',
                 'active' => 'boolean',
@@ -179,7 +168,6 @@ class ItemUnitController extends Controller
                 }
 
                 $baseUnit = ItemUnit::query()
-                    ->where('company_id', $companyId)
                     ->whereKey($validated['base_unit'])
                     ->first();
 

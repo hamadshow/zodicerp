@@ -17,7 +17,7 @@ class CustomerAuthController extends Controller
     {
         request()->session()->forget('company_id');
 
-        return Inertia::render('Home/Auth/CustomerLogin');
+        return Inertia::render('Backend/Auth/Login');
     }
 
     public function login(Request $request)
@@ -42,7 +42,7 @@ class CustomerAuthController extends Controller
 
     public function showRegisterForm()
     {
-        return Inertia::render('Home/Auth/CustomerRegister');
+        return Inertia::render('Backend/Auth/Register');
     }
 
     public function register(Request $request)

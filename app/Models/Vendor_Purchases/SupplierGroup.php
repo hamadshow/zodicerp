@@ -2,6 +2,7 @@
 
 namespace App\Models\Vendor_Purchases;
 
+use App\Models\Account;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -49,5 +50,15 @@ class SupplierGroup extends Model
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function account()
+    {
+        return $this->belongsTo(Account::class, 'account_id', 'AccID');
+    }
+
+    public function suppliers()
+    {
+        return $this->hasMany(Supplier::class, 'supplier_group_id');
     }
 }

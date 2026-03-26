@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\ItemUnit;
 use App\Models\Products;
+use App\Models\TransferStock;
 use App\Models\User;
 use App\Models\Warehouses;
 use Carbon\Carbon;
@@ -112,54 +113,161 @@ class StockTransferCrudTest extends TestCase
         ]);
     }
 
-    public function test_opening_stock_store_creates_records(): void
+    public function test_stock_transfer_store_creates_records(): void
     {
         $companyId = $this->ensureCompanyTwoExists();
         $user = $this->createUser($companyId);
-        $wh = $this->createWarehouse($companyId, 'TST-WH', 'Main WH');
+        $wh1 = $this->createWarehouse($companyId, 'WH1', 'Warehouse 1');
+        $wh2 = $this->createWarehouse($companyId, 'WH2', 'Warehouse 2');
+        
+        dump([
+            'wh1_id' => $wh1->id,
+            'wh1_company' => $wh1->company_id,
+            'wh2_id' => $wh2->id,
+            'wh2_company' => $wh2->company_id,
+        ]);
+
         $unit = $this->createUnit($companyId);
         $productA = $this->createProduct($companyId, 'PRD-A', 'Product A');
+        
+        dump([
+            'productA_id' => $productA->id,
+            'productA_company' => $productA->company_id,
+        ]);
 
         $params = ['country' => 'sa', 'lang' => 'ar'];
         $date = Carbon::now()->toDateString();
 
         $payload = [
             'movement_date' => $date,
-            'warehouse_id' => $wh->id,
-            'notes' => 'Opening stock',
+            'from_warehouse_id' => $wh1->id,
+            'to_warehouse_id' => $wh2->id,
+            'notes' => 'Test transfer',
             'items' => [
                 [
                     'product_id' => $productA->id,
                     'unit_id' => $unit->id,
                     'quantity' => 10,
-                    'cost_price' => 3.5,
                 ],
             ],
         ];
 
-        $response = $this->actingAs($user)->post(route('admin.inventory.opening-stock.store', $params), $payload);
+        $response = $this->actingAs($user)->post(route('admin.inventory.stock-transfers.store', $params), $payload);
+        if ($response->status() !== 302) {
+            dump($response->getContent());
+        }
         $response->assertStatus(302);
+        
+        $errors = session('errors');
+        if ($errors) {
+            dump($errors->getMessages());
+        }
 
-        $openingStock = DB::table('stock_movements')
+        $allHeaders = DB::table('inventory_movement_headers')->get();
+        if ($allHeaders->isEmpty()) {
+            dump('No headers found in inventory_movement_headers');
+        }
+
+        $transfer = DB::table('inventory_movement_headers')
             ->where('company_id', $companyId)
-            ->where('warehouse_id', $wh->id)
+            ->where('from_warehouse_id', $wh1->id)
+            ->where('to_warehouse_id', $wh2->id)
             ->orderByDesc('id')
             ->first();
 
-        $this->assertNotNull($openingStock);
-        $this->assertSame($date, $openingStock->movement_date);
-        $this->assertSame($user->id, (int) $openingStock->created_by);
+        $this->assertNotNull($transfer);
+        $this->assertSame($date, $transfer->movement_date);
+        $this->assertSame('transfer', $transfer->type);
+        $this->assertStringStartsWith('TR-', $transfer->voucher_num);
+        $this->assertSame($user->id, $transfer->created_by);
 
-        $itemsCount = DB::table('stock_movements_items')
-            ->where('stock_movement_id', $openingStock->id)
+        $itemsCount = DB::table('inventory_movement_lines')
+            ->where('stock_movement_id', $transfer->id)
             ->count();
         $this->assertSame(1, $itemsCount);
 
-        $row = DB::table('stock_movements_items')
-            ->where('stock_movement_id', $openingStock->id)
+        $row = DB::table('inventory_movement_lines')
+            ->where('stock_movement_id', $transfer->id)
             ->first();
         $this->assertNotNull($row);
         $this->assertSame($productA->id, (int) $row->product_id);
         $this->assertSame($unit->id, (int) $row->unit_id);
+    }
+
+    public function test_stock_transfer_update_works(): void
+    {
+        $companyId = $this->ensureCompanyTwoExists();
+        $user = $this->createUser($companyId);
+        $wh1 = $this->createWarehouse($companyId, 'WH1', 'Warehouse 1');
+        $wh2 = $this->createWarehouse($companyId, 'WH2', 'Warehouse 2');
+        $unit = $this->createUnit($companyId);
+        $productA = $this->createProduct($companyId, 'PRD-A', 'Product A');
+
+        // Create initial record
+        $transfer = TransferStock::create([
+            'movement_date' => Carbon::now()->toDateString(),
+            'type' => 'transfer',
+            'direction' => 'out',
+            'voucher_num' => 'TR-INIT',
+            'warehouse_id' => $wh1->id,
+            'from_warehouse_id' => $wh1->id,
+            'to_warehouse_id' => $wh2->id,
+            'company_id' => $companyId,
+            'created_by' => $user->id,
+        ]);
+
+        $params = ['country' => 'sa', 'lang' => 'ar'];
+        $newDate = Carbon::now()->addDay()->toDateString();
+        
+        $payload = [
+            'movement_date' => $newDate,
+            'from_warehouse_id' => $wh1->id,
+            'to_warehouse_id' => $wh2->id,
+            'notes' => 'Updated notes',
+            'items' => [
+                [
+                    'product_id' => $productA->id,
+                    'unit_id' => $unit->id,
+                    'quantity' => 50, // Updated quantity
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($user)->put(route('admin.inventory.stock-transfers.update', array_merge($params, ['stock_transfer' => $transfer->id])), $payload);
+        
+        $response->assertStatus(302);
+        
+        $transfer->refresh();
+        $this->assertSame($newDate, $transfer->movement_date);
+        $this->assertStringContainsString('Updated notes', $transfer->notes);
+
+        $item = $transfer->items()->first();
+        $this->assertEquals(50, $item->quantity);
+    }
+
+    public function test_stock_transfer_destroy_works(): void
+    {
+        $companyId = $this->ensureCompanyTwoExists();
+        $user = $this->createUser($companyId);
+        $wh1 = $this->createWarehouse($companyId, 'WH1', 'Warehouse 1');
+        $wh2 = $this->createWarehouse($companyId, 'WH2', 'Warehouse 2');
+
+        $transfer = TransferStock::create([
+            'movement_date' => Carbon::now()->toDateString(),
+            'type' => 'transfer',
+            'direction' => 'out',
+            'voucher_num' => 'TR-TO-DELETE',
+            'warehouse_id' => $wh1->id,
+            'from_warehouse_id' => $wh1->id,
+            'to_warehouse_id' => $wh2->id,
+            'company_id' => $companyId,
+            'created_by' => $user->id,
+        ]);
+
+        $params = ['country' => 'sa', 'lang' => 'ar'];
+        $response = $this->actingAs($user)->delete(route('admin.inventory.stock-transfers.destroy', array_merge($params, ['stock_transfer' => $transfer->id])));
+
+        $response->assertStatus(302);
+        $this->assertDatabaseMissing('inventory_movement_headers', ['id' => $transfer->id]);
     }
 }

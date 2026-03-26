@@ -51,15 +51,9 @@ class CategoriesController extends Controller
 
     public function index(Request $request)
     {
-        $companyId = $request->user()?->company_id;
-        if (! $companyId) {
-            abort(403, 'Company not set for this user.');
-        }
-
         $query = Categories::query()
             ->with('parent')
-            ->withCount('products')
-            ->where('company_id', $companyId);
+            ->withCount('products');
 
         if ($request->has('search')) {
             $search = $request->search;
@@ -98,7 +92,6 @@ class CategoriesController extends Controller
         $categoryTree = $this->buildCategoryTree($grouped, 0);
 
         $parents = Categories::query()
-            ->where('company_id', $companyId)
             ->select('id', 'name')
             ->orderBy('name')
             ->get();

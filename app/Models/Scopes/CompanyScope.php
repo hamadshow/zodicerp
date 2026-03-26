@@ -13,41 +13,8 @@ class CompanyScope implements Scope
 
     public function apply(Builder $builder, Model $model): void
     {
-        /** @var \Illuminate\Http\Request $request */
-        $request = request();
-        /** @var \Illuminate\Database\Eloquent\Model $model */
-        if (! $request->hasSession()) {
-            return;
-        }
-
-        $companyId = $request->session()->get('company_id');
-        if (! $companyId) {
-            return;
-        }
-
-        $table = $model->getTable();
-        if ($table === 'company') {
-            return;
-        }
-
-        if (in_array($table, ['migrations', 'failed_jobs', 'password_reset_tokens', 'personal_access_tokens'], true)) {
-            return;
-        }
-
-        if (! $this->supportsCompanyId($table)) {
-            return;
-        }
-
-        if (in_array($table, ['item_units', 'item_unit_conversions'], true)) {
-            $builder->where(function (Builder $query) use ($table, $companyId): void {
-                $query->where($table.'.company_id', $companyId)
-                    ->orWhereNull($table.'.company_id');
-            });
-
-            return;
-        }
-
-        $builder->where($table.'.company_id', $companyId);
+        // تم إلغاء التصفية حسب الشركة للسماح لجميع المستخدمين بالوصول لجميع البيانات
+        return;
     }
 
     protected function supportsCompanyId(string $table): bool

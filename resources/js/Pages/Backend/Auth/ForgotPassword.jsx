@@ -4,12 +4,22 @@ import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { FinanzaFooter, FinanzaHeader } from '@/Pages/Home/Home';
+import { useTranslation } from '@/Hooks/useTranslation';
 
 export default function ForgotPassword({ status }) {
   const { localization } = usePage().props;
-  const country = localization?.country_code || localization?.current_country || 'sa';
+  const { t } = useTranslation();
   const lang = localization?.current_locale || 'ar';
-  const homeHref = `/${country}/${lang}`;
+  const dir = lang === 'ar' ? 'rtl' : 'ltr';
+  const getLocalizedRoute = (name, params = {}) => {
+    return route(name, {
+      country: localization?.country_code || 'sa',
+      lang: localization?.current_locale || 'ar',
+      ...params
+    });
+  };
+
+  const homeHref = getLocalizedRoute('home');
   const { data, setData, post, processing, errors } = useForm({
     email: '',
   });
@@ -17,19 +27,23 @@ export default function ForgotPassword({ status }) {
   const submit = (e) => {
     e.preventDefault();
 
-    post(route('password.email'));
+    post(getLocalizedRoute('password.email'));
   };
 
   return (
-    <div id="top" className="finanza-landing">
-      <FinanzaHeader variant="minimal" homeHref={homeHref} loginHref={`${homeHref}/login`} registerHref={`${homeHref}/register`} />
+    <div id="top" className="finanza-landing" dir={dir}>
+      <FinanzaHeader 
+        variant="minimal" 
+        homeHref={homeHref} 
+        loginHref={getLocalizedRoute('login')} 
+        registerHref={getLocalizedRoute('register')} 
+      />
       <main id="main-content">
         <GuestLayout>
-          <Head title="Forgot Password" />
+          <Head title={t('auth.forgot_password_title', 'Forgot Password')} />
 
           <div className="mb-4 text-sm text-gray-600">
-            Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose
-            a new one.
+            {t('auth.forgot_password_subtitle', 'Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.')}
           </div>
 
           {status && <div className="mb-4 text-sm font-medium text-green-600">{status}</div>}
@@ -42,6 +56,7 @@ export default function ForgotPassword({ status }) {
               value={data.email}
               className="mt-1 block w-full"
               isFocused={true}
+              placeholder={t('auth.email', 'Email Address')}
               onChange={(e) => setData('email', e.target.value)}
             />
 
@@ -49,7 +64,7 @@ export default function ForgotPassword({ status }) {
 
             <div className="mt-4 flex items-center justify-end">
               <PrimaryButton className="ms-4" disabled={processing}>
-                Email Password Reset Link
+                {t('auth.email_password_reset_link', 'Email Password Reset Link')}
               </PrimaryButton>
             </div>
           </form>

@@ -135,7 +135,8 @@ Route::group([
             ->name('auth.login');
         Route::get('auth', [AuthenticatedSessionController::class, 'create']);
 
-        Route::post('Auth', [AuthenticatedSessionController::class, 'store']);
+        Route::post('Auth', [AuthenticatedSessionController::class, 'store'])
+            ->name('auth.login.store');
         Route::post('auth', [AuthenticatedSessionController::class, 'store']);
 
         Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
@@ -432,14 +433,7 @@ Route::group([
             Route::get('product-collections/get-products', [\App\Http\Controllers\Backend\Inventory\ProductCollectionController::class, 'getProducts'])->name('product-collections.get-products');
             Route::resource('product-collections', \App\Http\Controllers\Backend\Inventory\ProductCollectionController::class);
 
-            Route::get('stock-transfers', [\App\Http\Controllers\Backend\Inventory\StockTransferController::class, 'index'])
-                ->name('stock-transfers.index');
-            Route::post('stock-transfers', [\App\Http\Controllers\Backend\Inventory\StockTransferController::class, 'store'])
-                ->name('stock-transfers.store');
-            Route::get('stock-transfers/{id}', [\App\Http\Controllers\Backend\Inventory\StockTransferController::class, 'show'])
-                ->name('stock-transfers.show');
-            Route::delete('stock-transfers/{id}', [\App\Http\Controllers\Backend\Inventory\StockTransferController::class, 'destroy'])
-                ->name('stock-transfers.destroy');
+            Route::resource('stock-transfers', \App\Http\Controllers\Backend\Inventory\StockTransferController::class);
 
             Route::get('stock-adjustments', function () {
                 return Inertia::render('Backend/ComingSoon', ['title' => 'Stock Adjustments']);

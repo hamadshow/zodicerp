@@ -68,6 +68,7 @@ class Products extends Model
         'created_by_type',
         'updated_by_id',
         'updated_by_type',
+        'company_id',
     ];
 
     protected $casts = [
