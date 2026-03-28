@@ -15,7 +15,7 @@ class StoreTaskAssignmentRequest extends FormRequest
     {
         return [
             'task_id' => 'required|exists:tasks,id',
-            'user_id' => 'required|exists:users,id',
+            'user_id' => 'required|exists:employees,id',
             'assigned_at' => 'nullable|date',
         ];
     }

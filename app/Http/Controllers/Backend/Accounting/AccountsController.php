@@ -272,4 +272,45 @@ class AccountsController extends Controller
             'account' => $account,
         ]);
     }
+
+    public function bulkImport(Request $request)
+    {
+        // Increase execution time for large imports
+        set_time_limit(300); 
+
+        $rows = $request->input('rows', []);
+        
+        if (empty($rows)) {
+            return redirect()->back()->with('error', 'لا توجد بيانات للاستيراد');
+        }
+
+        try {
+            DB::transaction(function () use ($rows) {
+                foreach ($rows as $row) {
+                    Account::updateOrCreate(
+                        ['AccCode' => $row['AccCode']],
+                        [
+                            'AccName' => $row['AccName'],
+                            'AccType' => (int) ($row['AccType'] ?? 0),
+                            'AccParent' => ! empty($row['AccParent']) ? (int) $row['AccParent'] : null,
+                            'AccDmType' => (int) ($row['AccDmType'] ?? 1),
+                            'Nature' => $row['Nature'] ?? null,
+                            'AccFinal' => (bool) ($row['AccFinal'] ?? false),
+                            'AccMaxLimt' => ! empty($row['AccMaxLimt']) ? (float) $row['AccMaxLimt'] : null,
+                            'AccMaxDuration' => ! empty($row['AccMaxDuration']) ? (int) $row['AccMaxDuration'] : null,
+                            'AccBranch' => ! empty($row['AccBranch']) ? (int) $row['AccBranch'] : null,
+                            'AccNote' => $row['AccNote'] ?? null,
+                            'AccStopped' => (bool) ($row['AccStopped'] ?? false),
+                            'AddUser' => Auth::id(),
+                            'AddDate' => now()->toDateString(),
+                        ]
+                    );
+                }
+            });
+
+            return redirect()->back()->with('success', 'تم استيراد ' . count($rows) . ' حساب بنجاح');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'فشل الاستيراد: '.$e->getMessage());
+        }
+    }
 }

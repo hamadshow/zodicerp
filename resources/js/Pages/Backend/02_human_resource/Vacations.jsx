@@ -4,13 +4,7 @@ import AdminLayout from '../components/AdminLayout';
 
 /* =====================================================
    CONSTANT DATA (replace with API later)
-===================================================== */
-
-const EMPLOYEES = [
-  { id: 1, name: 'Ahmed Mohamed', department: 'IT Department' },
-  { id: 2, name: 'Sarah Johnson', department: 'Human Resources' },
-  { id: 3, name: 'James Wilson', department: 'Sales' },
-];
+   ===================================================== */
 
 const LEAVE_TYPES = {
   annual: 'Annual Leave',
@@ -29,7 +23,23 @@ const STATUS_CLASS = {
    MAIN COMPONENT
 ===================================================== */
 
-export default function VacationsManagement() {
+export default function VacationsManagement({ employees: propEmployees }) {
+  const [dbEmployees, setDbEmployees] = useState([]);
+
+  useEffect(() => {
+    const propData = propEmployees?.data || propEmployees;
+    if (!propData || !Array.isArray(propData) || propData.length === 0) {
+      fetch('/api/employees')
+        .then(response => response.json())
+        .then(data => {
+          const employeeData = data.data || data;
+          setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
+        })
+        .catch(error => console.error('Error fetching employees:', error));
+    }
+  }, [propEmployees]);
+
+  const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
   /* -------------------- STATE -------------------- */
   const [vacations, setVacations] = useState([]);
   const [filters] = useState({ search: '', status: '', type: '' });
@@ -105,7 +115,7 @@ export default function VacationsManagement() {
       {/* ================= MODAL ================= */}
       {modalOpen && (
         <VacationModal
-          employees={EMPLOYEES}
+          employees={employees}
           leaveTypes={LEAVE_TYPES}
           initial={editing}
           onClose={() => setModalOpen(false)}
@@ -233,13 +243,20 @@ function VacationModal({ employees, leaveTypes, initial, onClose, onSave }) {
           <select
             value={form.employeeId}
             onChange={(e) => {
-              const emp = employees.find((x) => x.id == e.target.value);
-              setForm({ ...form, employeeId: emp.id, employeeName: emp.name });
+              const val = e.target.value;
+              if (!val) {
+                setForm({ ...form, employeeId: '', employeeName: '' });
+                return;
+              }
+              const emp = Array.isArray(employees) ? employees.find((x) => x.id == val) : null;
+              if (emp) {
+                setForm({ ...form, employeeId: emp.id, employeeName: emp.name });
+              }
             }}
             required
           >
-            <option value="">Employee</option>
-            {employees.map((e) => (
+            <option value="">Select Employee</option>
+            {Array.isArray(employees) && employees.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.name}
               </option>

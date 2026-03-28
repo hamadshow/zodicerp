@@ -1,202 +1,45 @@
 import React, { useState, useEffect } from 'react';
+import { Head, useForm, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 
-
-const Departments = () => {
-    // Sample department data
-    const initialDepartments = [
-        {
-            id: 1,
-            name: 'Information Technology',
-            code: 'IT',
-            head: 'Ahmed Mohamed',
-            headId: 'ahmed',
-            employees: 24,
-            budget: 500000,
-            location: 'Floor 3, Building A',
-            status: 'active',
-            icon: 'computer',
-            color: '#3b82f6',
-            description: 'Responsible for software development, infrastructure, and technical support.',
-            createdAt: '2023-01-15'
-        },
-        {
-            id: 2,
-            name: 'Human Resources',
-            code: 'HR',
-            head: 'Sarah Johnson',
-            headId: 'sarah',
-            employees: 12,
-            budget: 300000,
-            location: 'Floor 2, Building A',
-            status: 'active',
-            icon: 'people',
-            color: '#10b981',
-            description: 'Handles recruitment, employee relations, training, and benefits administration.',
-            createdAt: '2022-03-10'
-        },
-        {
-            id: 3,
-            name: 'Sales Department',
-            code: 'SALES',
-            head: 'James Wilson',
-            headId: 'james',
-            employees: 32,
-            budget: 800000,
-            location: 'Floor 1, Building B',
-            status: 'active',
-            icon: 'trending_up',
-            color: '#ef4444',
-            description: 'Responsible for sales strategy, client acquisition, and revenue growth.',
-            createdAt: '2021-11-20'
-        },
-        {
-            id: 4,
-            name: 'Marketing',
-            code: 'MKT',
-            head: 'Fatima Al-Mansour',
-            headId: 'fatima',
-            employees: 18,
-            budget: 450000,
-            location: 'Floor 2, Building B',
-            status: 'active',
-            icon: 'campaign',
-            color: '#8b5cf6',
-            description: 'Handles brand management, advertising, digital marketing, and market research.',
-            createdAt: '2023-06-05'
-        },
-        {
-            id: 5,
-            name: 'Finance',
-            code: 'FIN',
-            head: 'Mohammed Al-Farsi',
-            headId: 'mohammed',
-            employees: 15,
-            budget: 350000,
-            location: 'Floor 4, Building A',
-            status: 'active',
-            icon: 'account_balance',
-            color: '#f59e0b',
-            description: 'Responsible for financial planning, budgeting, accounting, and auditing.',
-            createdAt: '2022-09-12'
-        },
-        {
-            id: 6,
-            name: 'Customer Service',
-            code: 'CS',
-            head: 'Priya Sharma',
-            headId: 'priya',
-            employees: 28,
-            budget: 380000,
-            location: 'Floor 1, Building C',
-            status: 'active',
-            icon: 'support_agent',
-            color: '#06b6d4',
-            description: 'Provides customer support, handles complaints, and manages client relationships.',
-            createdAt: '2023-02-28'
-        },
-        {
-            id: 7,
-            name: 'Operations',
-            code: 'OPS',
-            head: 'Ali Khan',
-            headId: 'ali',
-            employees: 22,
-            budget: 420000,
-            location: 'Floor 3, Building C',
-            status: 'active',
-            icon: 'local_shipping',
-            color: '#64748b',
-            description: 'Manages daily operations, logistics, and process optimization.',
-            createdAt: '2021-08-15'
-        },
-        {
-            id: 8,
-            name: 'Engineering',
-            code: 'ENG',
-            head: 'Marie Dubois',
-            headId: 'marie',
-            employees: 16,
-            budget: 600000,
-            location: 'Floor 4, Building B',
-            status: 'inactive',
-            icon: 'engineering',
-            color: '#ec4899',
-            description: 'Product development and engineering team (currently inactive).',
-            createdAt: '2020-12-01'
-        }
-    ];
-
-    const departmentHeads = {
-        'ahmed': 'Ahmed Mohamed',
-        'sarah': 'Sarah Johnson',
-        'james': 'James Wilson',
-        'fatima': 'Fatima Al-Mansour',
-        'mohammed': 'Mohammed Al-Farsi',
-        'priya': 'Priya Sharma',
-        'ali': 'Ali Khan',
-        'marie': 'Marie Dubois'
-    };
-
-    const icons = [
-        { icon: 'computer', name: 'IT' },
-        { icon: 'people', name: 'HR' },
-        { icon: 'trending_up', name: 'Sales' },
-        { icon: 'campaign', name: 'Marketing' },
-        { icon: 'account_balance', name: 'Finance' },
-        { icon: 'engineering', name: 'Engineering' },
-        { icon: 'support_agent', name: 'Support' },
-        { icon: 'local_shipping', name: 'Operations' },
-        { icon: 'science', name: 'R&D' },
-        { icon: 'security', name: 'Security' }
-    ];
-
-    const colors = [
-        '#3b82f6', '#10b981', '#f59e0b', '#ef4444', 
-        '#8b5cf6', '#06b6d4', '#ec4899', '#64748b'
-    ];
-
-    const [departments, setDepartments] = useState(initialDepartments);
-    const [filteredDepartments, setFilteredDepartments] = useState(initialDepartments);
+const Departments = ({ departments: propDepartments, employees: propEmployees }) => {
+    const departmentsData = propDepartments?.data || (Array.isArray(propDepartments) ? propDepartments : []);
+    const employeesData = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : []);
+    
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentDepartment, setCurrentDepartment] = useState(null);
-    const [selectedIcon, setSelectedIcon] = useState('computer');
-    const [selectedColor, setSelectedColor] = useState('#3b82f6');
-    const [stats, setStats] = useState({
-        total: 0,
-        active: 0,
-        employees: 0,
-        budget: 0
+
+    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
+        name_ar: '',
+        name_en: '',
+        description: '',
+        manager_id: '',
+        is_active: true,
+        company_id: null,
     });
 
+    const [filteredDepartments, setFilteredDepartments] = useState(departmentsData);
+
     useEffect(() => {
-        updateStats();
-        filterDepartments();
-    }, [departments, searchTerm]);
-
-    const updateStats = () => {
-        const total = departments.length;
-        const active = departments.filter(d => d.status === 'active').length;
-        const employees = departments.reduce((sum, d) => sum + d.employees, 0);
-        const budget = departments.reduce((sum, d) => sum + d.budget, 0);
-
-        setStats({ total, active, employees, budget });
-    };
-
-    const filterDepartments = () => {
         if (!searchTerm) {
-            setFilteredDepartments(departments);
+            setFilteredDepartments(departmentsData);
             return;
         }
         const lowerTerm = searchTerm.toLowerCase();
-        const filtered = departments.filter(d => 
-            d.name.toLowerCase().includes(lowerTerm) ||
-            d.code.toLowerCase().includes(lowerTerm) ||
-            d.head.toLowerCase().includes(lowerTerm)
+        const filtered = departmentsData.filter(d => 
+            (d.name_en && d.name_en.toLowerCase().includes(lowerTerm)) ||
+            (d.name_ar && d.name_ar.toLowerCase().includes(lowerTerm)) ||
+            (d.manager && d.manager.name && d.manager.name.toLowerCase().includes(lowerTerm))
         );
         setFilteredDepartments(filtered);
+    }, [propDepartments, searchTerm]);
+
+    const stats = {
+        total: departmentsData.length,
+        active: departmentsData.filter(d => d.is_active).length,
+        employees: employeesData.length,
     };
 
     const handleSearch = (e) => {
@@ -204,14 +47,20 @@ const Departments = () => {
     };
 
     const openModal = (dept = null) => {
+        clearErrors();
         if (dept) {
             setCurrentDepartment(dept);
-            setSelectedIcon(dept.icon);
-            setSelectedColor(dept.color);
+            setData({
+                name_ar: dept.name_ar || '',
+                name_en: dept.name_en || '',
+                description: dept.description || '',
+                manager_id: dept.manager_id || '',
+                is_active: !!dept.is_active,
+                company_id: dept.company_id || null,
+            });
         } else {
             setCurrentDepartment(null);
-            setSelectedIcon('computer');
-            setSelectedColor('#3b82f6');
+            reset();
         }
         setIsModalOpen(true);
     };
@@ -219,43 +68,31 @@ const Departments = () => {
     const closeModal = () => {
         setIsModalOpen(false);
         setCurrentDepartment(null);
+        reset();
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
-        const newDept = {
-            id: currentDepartment ? currentDepartment.id : Date.now(),
-            name: formData.get('name'),
-            code: formData.get('code'),
-            headId: formData.get('headId'),
-            head: departmentHeads[formData.get('headId')] || '',
-            employees: currentDepartment ? currentDepartment.employees : 0, // Preserve or default
-            budget: parseFloat(formData.get('budget')) || 0,
-            location: formData.get('location'),
-            status: formData.get('status'),
-            icon: selectedIcon,
-            color: selectedColor,
-            description: formData.get('description'),
-            createdAt: currentDepartment ? currentDepartment.createdAt : new Date().toISOString().split('T')[0]
-        };
-
         if (currentDepartment) {
-            setDepartments(departments.map(d => d.id === currentDepartment.id ? newDept : d));
+            put(route('admin.departments.update', { id: currentDepartment.id, ...route().params }), {
+                onSuccess: () => closeModal(),
+            });
         } else {
-            setDepartments([...departments, newDept]);
+            post(route('admin.departments.store', route().params), {
+                onSuccess: () => closeModal(),
+            });
         }
-        closeModal();
     };
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this department?')) {
-            setDepartments(departments.filter(d => d.id !== id));
+            router.delete(route('admin.departments.destroy', { id, ...route().params }));
         }
     };
 
     return (
         <AdminLayout activeMenu="Departments">
+            <Head title="Departments" />
             <div className="breadcrumb">
                 <a href="#">Dashboard</a>
                 <span>/</span>
@@ -293,31 +130,12 @@ const Departments = () => {
                         <div className="stat-label">Total Employees</div>
                     </div>
                 </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--warning-color)' }}>
-                        <span className="material-icons-outlined">attach_money</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">${(stats.budget / 1000000).toFixed(1)}M</div>
-                        <div className="stat-label">Total Budget</div>
-                    </div>
-                </div>
             </div>
 
             {/* Main Card */}
             <div className="departments-card fade-in">
                 <div className="card-header">
                     <div className="departments-actions">
-                        <select className="btn btn-outline" defaultValue="">
-                            <option disabled value="">Bulk Actions</option>
-                            <option value="activate">Activate Selected</option>
-                            <option value="deactivate">Deactivate Selected</option>
-                            <option value="delete">Delete Selected</option>
-                        </select>
-                        <button className="btn btn-outline">
-                            <span className="material-icons-outlined">play_arrow</span>
-                            <span>Apply</span>
-                        </button>
                         <div className="search-bar light">
                             <input 
                                 type="text" 
@@ -335,7 +153,7 @@ const Departments = () => {
                             <span className="material-icons-outlined">add</span>
                             <span>Add Department</span>
                         </button>
-                        <button className="btn btn-outline" onClick={() => window.location.reload()}>
+                        <button className="btn btn-outline" onClick={() => router.reload()}>
                             <span className="material-icons-outlined">refresh</span>
                             <span>Refresh</span>
                         </button>
@@ -347,13 +165,11 @@ const Departments = () => {
                         <thead>
                             <tr>
                                 <th><input type="checkbox" /></th>
-                                <th>ID <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>DEPARTMENT <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>HEAD <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>EMPLOYEES <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>BUDGET <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>LOCATION <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>STATUS <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
+                                <th>ID</th>
+                                <th>DEPARTMENT (EN)</th>
+                                <th>DEPARTMENT (AR)</th>
+                                <th>MANAGER</th>
+                                <th>STATUS</th>
                                 <th>OPERATIONS</th>
                             </tr>
                         </thead>
@@ -362,28 +178,12 @@ const Departments = () => {
                                 <tr key={dept.id}>
                                     <td><input type="checkbox" className="department-checkbox" /></td>
                                     <td>{dept.id.toString().padStart(3, '0')}</td>
+                                    <td>{dept.name_en}</td>
+                                    <td>{dept.name_ar}</td>
+                                    <td>{dept.manager?.name || 'No Manager'}</td>
                                     <td>
-                                        <div className="department-info">
-                                            <div className="department-icon" style={{ backgroundColor: dept.color }}>
-                                                <span className="material-icons-outlined">{dept.icon}</span>
-                                            </div>
-                                            <div className="department-details">
-                                                <div className="department-name">{dept.name} ({dept.code})</div>
-                                                <div className="department-head">{dept.head}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>{dept.head}</td>
-                                    <td>
-                                        <span className="employee-count">{dept.employees} employees</span>
-                                    </td>
-                                    <td>
-                                        <div className="budget-display">${dept.budget.toLocaleString()}</div>
-                                    </td>
-                                    <td>{dept.location}</td>
-                                    <td>
-                                        <span className={`department-status status-${dept.status}`}>
-                                            {dept.status === 'active' ? 'Active' : 'Inactive'}
+                                        <span className={`department-status status-${dept.is_active ? 'active' : 'inactive'}`}>
+                                            {dept.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
                                     <td>
@@ -393,32 +193,11 @@ const Departments = () => {
                                         <button className="icon-btn delete" onClick={() => handleDelete(dept.id)}>
                                             <span className="material-icons-outlined">delete</span>
                                         </button>
-                                        <button className="icon-btn" style={{ color: 'var(--info-color)' }}>
-                                            <span className="material-icons-outlined">visibility</span>
-                                        </button>
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                </div>
-
-                <div className="pagination">
-                    <div className="pagination-info">
-                        <select className="select-dropdown" defaultValue="10">
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                        </select>
-                        <span>Show from 1 to {filteredDepartments.length > 10 ? 10 : filteredDepartments.length} in <span style={{ backgroundColor: '#64748b', color: 'white', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{filteredDepartments.length}</span> records</span>
-                    </div>
-                    <div className="pagination-controls">
-                        <button className="page-btn">« Previous</button>
-                        <button className="page-btn active">1</button>
-                        <button className="page-btn">2</button>
-                        <button className="page-btn">Next »</button>
-                    </div>
                 </div>
             </div>
 
@@ -434,82 +213,73 @@ const Departments = () => {
                     <form onSubmit={handleSubmit}>
                         <div className="modal-body">
                             <div className="form-group">
-                                <label className="form-label">Department Name *</label>
-                                <input type="text" className="form-control" name="name" placeholder="Enter department name" required defaultValue={currentDepartment?.name} />
+                                <label className="form-label">Department Name (EN) *</label>
+                                <input 
+                                    type="text" 
+                                    className="form-control" 
+                                    value={data.name_en}
+                                    onChange={e => setData('name_en', e.target.value)}
+                                    required 
+                                />
+                                {errors.name_en && <div className="text-error">{errors.name_en}</div>}
                             </div>
 
                             <div className="form-group">
-                                <label className="form-label">Department Code *</label>
-                                <input type="text" className="form-control" name="code" placeholder="e.g., IT, HR, SALES" required defaultValue={currentDepartment?.code} />
+                                <label className="form-label">Department Name (AR) *</label>
+                                <input 
+                                    type="text" 
+                                    className="form-control" 
+                                    value={data.name_ar}
+                                    onChange={e => setData('name_ar', e.target.value)}
+                                    required 
+                                />
+                                {errors.name_ar && <div className="text-error">{errors.name_ar}</div>}
                             </div>
 
                             <div className="form-group">
-                                <label className="form-label">Department Head</label>
-                                <select className="form-control" name="headId" defaultValue={currentDepartment?.headId || ''}>
-                                    <option value="">Select Department Head</option>
-                                    {Object.entries(departmentHeads).map(([id, name]) => (
-                                        <option key={id} value={id}>{name}</option>
+                                <label className="form-label">Department Manager</label>
+                                <select 
+                                    className="form-control" 
+                                    value={data.manager_id}
+                                    onChange={e => setData('manager_id', e.target.value)}
+                                >
+                                    <option value="">Select Manager</option>
+                                    {employeesData.map((emp) => (
+                                        <option key={emp.id} value={emp.id}>{emp.name}</option>
                                     ))}
                                 </select>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Location</label>
-                                    <input type="text" className="form-control" name="location" placeholder="e.g., Floor 3, Building A" defaultValue={currentDepartment?.location} />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Budget ($)</label>
-                                    <input type="number" className="form-control" name="budget" placeholder="Annual budget" min="0" step="0.01" defaultValue={currentDepartment?.budget} />
-                                </div>
+                                {errors.manager_id && <div className="text-error">{errors.manager_id}</div>}
                             </div>
 
                             <div className="form-group">
                                 <label className="form-label">Status</label>
-                                <select className="form-control" name="status" defaultValue={currentDepartment?.status || 'active'}>
-                                    <option value="active">Active</option>
-                                    <option value="inactive">Inactive</option>
+                                <select 
+                                    className="form-control" 
+                                    value={data.is_active}
+                                    onChange={e => setData('is_active', e.target.value === 'true')}
+                                >
+                                    <option value="true">Active</option>
+                                    <option value="false">Inactive</option>
                                 </select>
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">Department Icon</label>
-                                <div className="icon-selector">
-                                    {icons.map(item => (
-                                        <div 
-                                            key={item.icon}
-                                            className={`icon-option ${selectedIcon === item.icon ? 'selected' : ''}`}
-                                            onClick={() => setSelectedIcon(item.icon)}
-                                        >
-                                            <span className="material-icons-outlined">{item.icon}</span>
-                                            <span className="icon-name">{item.name}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">Icon Color</label>
-                                <div className="color-picker">
-                                    {colors.map(color => (
-                                        <div 
-                                            key={color}
-                                            className={`color-option ${selectedColor === color ? 'selected' : ''}`}
-                                            style={{ backgroundColor: color }}
-                                            onClick={() => setSelectedColor(color)}
-                                        ></div>
-                                    ))}
-                                </div>
+                                {errors.is_active && <div className="text-error">{errors.is_active}</div>}
                             </div>
 
                             <div className="form-group">
                                 <label className="form-label">Description</label>
-                                <textarea className="form-control form-textarea" name="description" placeholder="Enter department description" defaultValue={currentDepartment?.description}></textarea>
+                                <textarea 
+                                    className="form-control form-textarea" 
+                                    value={data.description}
+                                    onChange={e => setData('description', e.target.value)}
+                                    placeholder="Enter department description"
+                                ></textarea>
+                                {errors.description && <div className="text-error">{errors.description}</div>}
                             </div>
                         </div>
                         <div className="modal-actions">
                             <button type="button" className="btn" onClick={closeModal}>Cancel</button>
-                            <button type="submit" className="btn btn-primary">Save Department</button>
+                            <button type="submit" className="btn btn-primary" disabled={processing}>
+                                {currentDepartment ? 'Update Department' : 'Save Department'}
+                            </button>
                         </div>
                     </form>
                 </div>

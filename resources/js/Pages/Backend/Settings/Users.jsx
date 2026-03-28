@@ -53,120 +53,9 @@ const UsersManagement = () => {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [toast, setToast] = useState(null);
 
-  // Sample data (in production, this would come from an API)
-  const sampleEmployees = [
-    {
-      id: 1,
-      name: 'Ahmed Mohamed',
-      fullname: 'Ahmed Mohamed',
-      email: 'ahmed.mohamed@company.com',
-      phone: '+201234567890',
-      hire_date: '2023-01-15',
-      status: 'active',
-      address: 'Cairo, Egypt',
-      notes: 'Excellent performance',
-      avatar: null,
-      created_at: '2023-01-15',
-    },
-    {
-      id: 2,
-      name: 'Sarah Johnson',
-      fullname: 'Sarah Johnson',
-      email: 'sarah.j@company.com',
-      phone: '+12025550123',
-      hire_date: '2022-03-10',
-      status: 'active',
-      address: 'New York, USA',
-      notes: '',
-      avatar: null,
-      created_at: '2022-03-10',
-    },
-    {
-      id: 3,
-      name: 'James Wilson',
-      fullname: 'James Wilson',
-      email: 'james.w@company.com',
-      phone: '+442012345678',
-      hire_date: '2021-11-20',
-      status: 'active',
-      address: 'London, UK',
-      notes: 'Top performer',
-      avatar: null,
-      created_at: '2021-11-20',
-    },
-    {
-      id: 4,
-      name: 'Fatima Al-Mansour',
-      fullname: 'Fatima Al-Mansour',
-      email: 'fatima.am@company.com',
-      phone: '+966501234567',
-      hire_date: '2023-06-05',
-      status: 'active',
-      address: 'Riyadh, Saudi Arabia',
-      notes: '',
-      avatar: null,
-      created_at: '2023-06-05',
-    },
-    {
-      id: 5,
-      name: 'Mohammed Al-Farsi',
-      fullname: 'Mohammed Al-Farsi',
-      email: 'mohammed.af@company.com',
-      phone: '+971501234567',
-      hire_date: '2022-09-12',
-      status: 'active',
-      address: 'Dubai, UAE',
-      notes: 'CPA certified',
-      avatar: null,
-      created_at: '2022-09-12',
-    },
-    {
-      id: 6,
-      name: 'Priya Sharma',
-      fullname: 'Priya Sharma',
-      email: 'priya.s@company.com',
-      phone: '+919876543210',
-      hire_date: '2023-02-28',
-      status: 'on-leave',
-      address: 'Mumbai, India',
-      notes: 'On maternity leave',
-      avatar: null,
-      created_at: '2023-02-28',
-    },
-    {
-      id: 7,
-      name: 'Ali Khan',
-      fullname: 'Ali Khan',
-      email: 'ali.k@company.com',
-      phone: '+923001234567',
-      hire_date: '2021-08-15',
-      status: 'active',
-      address: 'Karachi, Pakistan',
-      notes: '',
-      avatar: null,
-      created_at: '2021-08-15',
-    },
-    {
-      id: 8,
-      name: 'Marie Dubois',
-      fullname: 'Marie Dubois',
-      email: 'marie.d@company.com',
-      phone: '+33123456789',
-      hire_date: '2020-12-01',
-      status: 'inactive',
-      address: 'Paris, France',
-      notes: 'Left the company',
-      avatar: null,
-      created_at: '2020-12-01',
-    },
-  ];
-
-  // Menu items - Removed redundant configuration
-
   // Fetch employees from API
   const fetchEmployees = async (page = 1, search = '') => {
     try {
-      // loading indicator removed
       const response = await apiService.get('/users', {
         page,
         per_page: rowsPerPage,
@@ -174,15 +63,11 @@ const UsersManagement = () => {
       });
       const data = response.data;
       setEmployees(Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
-      // totalEmployees state removed
       setCurrentPage(data.current_page || 1);
     } catch (error) {
       console.error('Error fetching users:', error);
       showToast('Error loading users', 'error');
-      setEmployees(Array.isArray(sampleEmployees) ? sampleEmployees : []);
-      // totalEmployees state removed
-    } finally {
-      // loading indicator removed
+      setEmployees([]);
     }
   };
 

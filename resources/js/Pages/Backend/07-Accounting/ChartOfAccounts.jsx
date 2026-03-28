@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 import { apiService } from '../../../services/api';
@@ -72,6 +74,7 @@ const filterTree = (nodes, term) => {
 };
 
 export default function ChartOfAccounts() {
+  const { props } = usePage();
   const [tree, setTree] = useState([]);
   const [allAccounts, setAllAccounts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -109,8 +112,35 @@ export default function ChartOfAccounts() {
   const [invalidRows, setInvalidRows] = useState([]);
   const [importSummary, setImportSummary] = useState({});
   const [importLoading, setImportLoading] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
   const [importError, setImportError] = useState(null);
+  const [showExcelMenu, setShowExcelMenu] = useState(false);
   const fileInputRef = useRef(null);
+  const excelMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (excelMenuRef.current && !excelMenuRef.current.contains(event.target)) {
+        setShowExcelMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (props.flash?.success) {
+      toast.success(props.flash.success);
+      setShowImport(false);
+      setExcelRows([]);
+      setInvalidRows([]);
+      setImportSummary({});
+      loadAccounts();
+    }
+    if (props.flash?.error) {
+      toast.error(props.flash.error);
+    }
+  }, [props.flash]);
 
   const downloadTemplate = () => {
     const headers = ['AccCode', 'AccName', 'AccType', 'AccParent', 'AccDmType', 'Nature', 'AccFinal', 'AccBranch', 'AccNote', 'AccStopped'];
@@ -231,26 +261,92 @@ export default function ChartOfAccounts() {
     setImportSummary(prev => ({ ...prev, valid: rows.length }));
   };
 
-  const submitImport = () => {
+  const submitImport = async () => {
     if (excelRows.length === 0) return;
     setImportError(null);
-    const batch_id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    router.post(route('admin.accounts.bulkImport'), {
-      rows: excelRows,
-      batch_id: batch_id
-    }, {
-      onSuccess: () => {
-        setShowImport(false);
-        setExcelRows([]);
-        setInvalidRows([]);
-        setImportSummary({});
-        loadAccounts();
-      },
-      onError: (errors) => {
-        setImportError('Failed to import. Please check the file format or server logs.');
-        console.error(errors);
+    setImportLoading(true);
+    setImportProgress(0);
+
+    const totalRows = excelRows.length;
+    const batchSize = 50; // Process 50 rows at a time
+    const batches = [];
+    
+    for (let i = 0; i < totalRows; i += batchSize) {
+      batches.push(excelRows.slice(i, i + batchSize));
+    }
+
+    try {
+      for (let i = 0; i < batches.length; i++) {
+        await new Promise((resolve, reject) => {
+          router.post(route('admin.accounts.bulkImport'), {
+            rows: batches[i],
+          }, {
+            preserveScroll: true,
+            preserveState: true,
+            onSuccess: () => {
+              const progress = Math.min(Math.round(((i + 1) / batches.length) * 100), 100);
+              setImportProgress(progress);
+              resolve();
+            },
+            onError: (err) => {
+              reject(err);
+            }
+          });
+        });
       }
-    });
+      
+      // Final success handling (since the last batch success triggers this)
+      setShowImport(false);
+      setExcelRows([]);
+      setInvalidRows([]);
+      setImportSummary({});
+      setImportProgress(0);
+      loadAccounts();
+    } catch (err) {
+      setImportError('Failed to import. Some rows may not have been processed.');
+      console.error(err);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleExportExcel = () => {
+    try {
+      // Flatten the current visible tree for export
+      const dataToExport = flattenTree(visibleTree).map(account => ({
+        'Account Code': account.AccCode,
+        'Account Name': account.AccName,
+        'Type': account.AccType === 0 ? 'Main' : 'Sub',
+        'Parent Code': account.AccParent || '',
+        'Nature': account.Nature || '',
+        'Final': account.AccFinal ? 'Yes' : 'No',
+        'Status': account.AccStopped ? 'Stopped' : 'Active',
+        'Note': account.AccNote || ''
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Chart of Accounts");
+
+      // Apply some basic styling to columns
+      const wscols = [
+        { wch: 15 }, // Code
+        { wch: 30 }, // Name
+        { wch: 10 }, // Type
+        { wch: 15 }, // Parent
+        { wch: 15 }, // Nature
+        { wch: 10 }, // Final
+        { wch: 10 }, // Status
+        { wch: 40 }  // Note
+      ];
+      worksheet['!cols'] = wscols;
+
+      XLSX.writeFile(workbook, `ChartOfAccounts_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('تم تصدير البيانات بنجاح');
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('فشل عملية التصدير');
+    }
   };
 
   const renderImportModal = () => {
@@ -298,8 +394,14 @@ export default function ChartOfAccounts() {
                 </div>
 
                 {importLoading && (
-                  <div className="progress-bar">
-                    <div className="progress-bar__fill"></div>
+                  <div className="progress-bar-container">
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-bar__fill" 
+                        style={{ width: `${importProgress}%` }}
+                      ></div>
+                    </div>
+                    <div className="progress-text">جاري الاستيراد: {importProgress}%</div>
                   </div>
                 )}
 
@@ -890,14 +992,49 @@ export default function ChartOfAccounts() {
               </div>
             </div>
             <div className="actions">
-              <button
-                type="button"
-                className="btn-import"
-                onClick={() => setShowImport(true)}
-              >
-                <span className="material-icons-outlined">upload_file</span>
-                <span>Import Excel</span>
-              </button>
+              <div className="excel-dropdown-container" ref={excelMenuRef}>
+                <button
+                  type="button"
+                  className="btn-excel-main"
+                  onClick={() => setShowExcelMenu(!showExcelMenu)}
+                >
+                  <span className="material-icons-outlined">table_view</span>
+                  <span>Excel Options</span>
+                  <span className={`material-icons-outlined arrow ${showExcelMenu ? 'up' : ''}`}>expand_more</span>
+                </button>
+                {showExcelMenu && (
+                  <div className="excel-dropdown-menu">
+                    <button
+                      type="button"
+                      className="dropdown-item import"
+                      onClick={() => {
+                        setShowImport(true);
+                        setShowExcelMenu(false);
+                      }}
+                    >
+                      <span className="material-icons-outlined">upload_file</span>
+                      <div className="item-content">
+                        <span className="title">Import Excel</span>
+                        <span className="desc">Upload bulk accounts</span>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      className="dropdown-item export"
+                      onClick={() => {
+                        handleExportExcel();
+                        setShowExcelMenu(false);
+                      }}
+                    >
+                      <span className="material-icons-outlined">download</span>
+                      <div className="item-content">
+                        <span className="title">Export Excel</span>
+                        <span className="desc">Download all accounts</span>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 className="btn btn-primary"
@@ -921,6 +1058,7 @@ export default function ChartOfAccounts() {
           </div>
           {error && <div className="error-banner">{error}</div>}
           {renderImportModal()}
+          <ToastContainer position="top-right" autoClose={3000} />
           <div className="table-container">
             <table className="accounts-table">
               <thead>

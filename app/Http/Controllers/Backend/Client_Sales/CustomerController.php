@@ -15,6 +15,7 @@ use App\Models\Warehouses;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class CustomerController extends Controller
@@ -258,30 +259,154 @@ class CustomerController extends Controller
 
     public function bulkStore(Request $request)
     {
-        $data = $request->validate([
-            'customers' => 'required|array',
-            'customers.*.name_en' => 'required|string',
-            'customers.*.customer_code' => 'required|string|unique:customers,customer_code',
-        ]);
+        set_time_limit(300); // 5 minutes
+
+        $rows = $request->input('customers');
+        if (empty($rows)) {
+            return redirect()->back()->with('error', 'No valid rows to import.');
+        }
+
+        $created = 0;
+        $errors = [];
+
+        // Get Default Customer Group (or create one if none exists)
+        $defaultGroup = CustomerGroup::firstOrCreate(
+            ['code' => 'GRP-001'],
+            ['name_ar' => 'عام', 'name_en' => 'General', 'is_active' => true]
+        );
+        $defaultGroupId = $defaultGroup->id;
+
+        // Get Default Currency ID
+        $defaultCurrencyId = Currency::where('is_base', true)->value('id') 
+                          ?? Currency::where('code', 'SAR')->value('id') 
+                          ?? Currency::where('code', 'USD')->value('id') 
+                          ?? Currency::first()?->id 
+                          ?? 1;
+
+        // Pre-fetch related data for faster lookups
+        $currencies = Currency::pluck('id', 'code')->toArray();
+        $groups = CustomerGroup::pluck('id', 'code')->toArray();
+        $accounts = Account::pluck('AccID', 'AccCode')->toArray();
+
+        // Bulk duplicate checks
+        $customerCodes = collect($rows)->pluck('customer_code')->filter()->toArray();
+        $emails = collect($rows)->pluck('email')->filter()->toArray();
+
+        $existingCodes = [];
+        if (! empty($customerCodes)) {
+            $existingCodes = Customer::whereIn('customer_code', $customerCodes)
+                ->pluck('id', 'customer_code')
+                ->toArray();
+        }
+
+        $existingEmails = [];
+        if (! empty($emails)) {
+            $existingEmails = Customer::whereIn('email', $emails)
+                ->pluck('id', 'email')
+                ->toArray();
+        }
+
+        $insertData = [];
+        $now = now();
+        $user = Auth::user();
+        $userId = $user->id;
+        $companyId = $user->company_id ?? null;
+
+        foreach ($rows as $index => $row) {
+            $email = $row['email'] ?? null;
+            $code = $row['customer_code'] ?? null;
+
+            // Skip if code exists
+            if ($code && isset($existingCodes[$code])) {
+                $errors[] = 'Row '.($index + 1).": Customer Code '$code' already exists.";
+                continue;
+            }
+
+            // Skip if email exists
+            if ($email && isset($existingEmails[$email])) {
+                $errors[] = 'Row '.($index + 1).": Email '$email' already exists.";
+                continue;
+            }
+
+            if (empty($code)) {
+                $code = 'CUS-'.(10000 + $index + 1);
+            }
+
+            if (empty($email)) {
+                $email = 'customer'.($index + 1).'_@example.com';
+            }
+
+            // Prepare data
+            $data = [
+                'customer_code' => $code,
+                'name_ar' => $row['name_ar'] ?? ($row['name_en'] ?? 'New Customer'),
+                'name_en' => $row['name_en'] ?? null,
+                'customer_group_id' => $defaultGroupId,
+                'primary_phone' => $row['primary_phone'] ?? null,
+                'email' => $email,
+                'is_active' => isset($row['is_active']) ? (bool) $row['is_active'] : true,
+                'created_by' => $userId,
+                'company_id' => $companyId,
+                'password' => \Illuminate\Support\Facades\Hash::make(Str::random(12)),
+                'currency_id' => $defaultCurrencyId,
+                'account_id' => null,
+                'created_at' => $now,
+                'updated_at' => $now,
+                'credit_limit' => 0.00,
+                'current_balance' => 0.00,
+                'payment_terms' => 30,
+                'credit_days' => 30,
+                'customer_type' => 'individual',
+                'customer_class' => 'C',
+            ];
+
+            // Foreign Key Lookups
+            if (! empty($row['group_code']) && isset($groups[$row['group_code']])) {
+                $data['customer_group_id'] = $groups[$row['group_code']];
+            }
+
+            if (! empty($row['currency_code']) && isset($currencies[$row['currency_code']])) {
+                $data['currency_id'] = $currencies[$row['currency_code']];
+            }
+
+            if (! empty($row['account_code']) && isset($accounts[$row['account_code']])) {
+                $data['account_id'] = $accounts[$row['account_code']];
+            }
+
+            // Basic Validation
+            if (empty($data['name_ar'])) {
+                $errors[] = 'Row '.($index + 1).': Name (AR) or Name (EN) is required.';
+                continue;
+            }
+
+            $insertData[] = $data;
+            $created++;
+        }
+
+        if (empty($insertData)) {
+            return redirect()->back()->with('error', 'No customers imported. Errors: '.implode(' | ', array_slice($errors, 0, 10)).(count($errors) > 10 ? '...' : ''));
+        }
 
         DB::beginTransaction();
         try {
-            foreach ($request->customers as $customerData) {
-                $customerData['created_by'] = Auth::id();
-                // Set defaults
-                if (! isset($customerData['is_active'])) {
-                    $customerData['is_active'] = true;
-                }
-
-                Customer::create($customerData);
+            // Bulk Insert in Chunks
+            foreach (array_chunk($insertData, 500) as $chunk) {
+                Customer::insert($chunk);
             }
+
             DB::commit();
 
-            return redirect()->route('admin.client-sales.customers.index')->with('success', 'Customers imported successfully.');
+            $msg = "Successfully imported $created customers.";
+            if (count($errors) > 0) {
+                $msg .= ' Skipped '.count($errors).' rows due to errors.';
+                return redirect()->back()->with('warning', $msg);
+            }
+
+            return redirect()->route('admin.client-sales.customers.index')->with('success', $msg);
+
         } catch (\Exception $e) {
             DB::rollBack();
-
-            return redirect()->back()->with('error', 'Error importing customers: '.$e->getMessage());
+            return redirect()->back()->with('error', 'Server Error during database operation: '.$e->getMessage());
         }
     }
 }

@@ -1,155 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
+import { useForm, router, usePage } from '@inertiajs/react';
 
-const Profession = () => {
-    // Sample profession data
-    const initialProfessions = [
-        {
-            id: 1,
-            name: 'Software Engineer',
-            code: 'SE',
-            category: 'it',
-            description: 'Develops software applications and systems',
-            minSalary: 50000,
-            maxSalary: 120000,
-            experience: 3,
-            educationLevel: 'bachelor',
-            keySkills: ['Programming', 'Problem Solving', 'Teamwork'],
-            status: 'active',
-            employees: 8,
-            createdAt: '2024-01-15',
-            sortOrder: 1
-        },
-        {
-            id: 2,
-            name: 'Marketing Manager',
-            code: 'MM',
-            category: 'management',
-            description: 'Leads marketing team and develops strategies',
-            minSalary: 60000,
-            maxSalary: 110000,
-            experience: 5,
-            educationLevel: 'bachelor',
-            keySkills: ['Leadership', 'Strategy', 'Communication'],
-            status: 'active',
-            employees: 3,
-            createdAt: '2024-01-16',
-            sortOrder: 2
-        },
-        {
-            id: 3,
-            name: 'HR Specialist',
-            code: 'HRS',
-            category: 'hr',
-            description: 'Handles recruitment and employee relations',
-            minSalary: 40000,
-            maxSalary: 75000,
-            experience: 2,
-            educationLevel: 'bachelor',
-            keySkills: ['Recruitment', 'Communication', 'Compliance'],
-            status: 'active',
-            employees: 4,
-            createdAt: '2024-01-17',
-            sortOrder: 3
-        },
-        {
-            id: 4,
-            name: 'Financial Analyst',
-            code: 'FA',
-            category: 'finance',
-            description: 'Analyzes financial data and creates reports',
-            minSalary: 45000,
-            maxSalary: 85000,
-            experience: 3,
-            educationLevel: 'bachelor',
-            keySkills: ['Analysis', 'Excel', 'Reporting'],
-            status: 'active',
-            employees: 5,
-            createdAt: '2024-01-18',
-            sortOrder: 4
-        },
-        {
-            id: 5,
-            name: 'Sales Executive',
-            code: 'SLEX',
-            category: 'sales',
-            description: 'Generates sales and maintains client relationships',
-            minSalary: 35000,
-            maxSalary: 80000,
-            experience: 2,
-            educationLevel: 'high-school',
-            keySkills: ['Sales', 'Negotiation', 'Communication'],
-            status: 'active',
-            employees: 12,
-            createdAt: '2024-01-19',
-            sortOrder: 5
-        },
-        {
-            id: 6,
-            name: 'Customer Support',
-            code: 'CS',
-            category: 'customer-service',
-            description: 'Assists customers with product inquiries',
-            minSalary: 28000,
-            maxSalary: 45000,
-            experience: 1,
-            educationLevel: 'high-school',
-            keySkills: ['Communication', 'Problem Solving', 'Patience'],
-            status: 'active',
-            employees: 9,
-            createdAt: '2024-02-01',
-            sortOrder: 6
-        },
-        {
-            id: 7,
-            name: 'Graphic Designer',
-            code: 'GD',
-            category: 'creative',
-            description: 'Creates visual content and designs',
-            minSalary: 35000,
-            maxSalary: 65000,
-            experience: 2,
-            educationLevel: 'bachelor',
-            keySkills: ['Creativity', 'Adobe Suite', 'Design'],
-            status: 'active',
-            employees: 4,
-            createdAt: '2024-02-02',
-            sortOrder: 7
-        },
-        {
-            id: 8,
-            name: 'System Administrator',
-            code: 'SA',
-            category: 'it',
-            description: 'Manages IT infrastructure and systems',
-            minSalary: 50000,
-            maxSalary: 90000,
-            experience: 4,
-            educationLevel: 'bachelor',
-            keySkills: ['Networking', 'Security', 'Troubleshooting'],
-            status: 'inactive',
-            employees: 0,
-            createdAt: '2024-02-03',
-            sortOrder: 8
-        }
-    ];
+const Profession = ({ professions = [], departments = [] }) => {
+    const { props } = usePage();
+    const localization = props.localization;
+    const isArabic = localization?.current_locale === 'ar';
 
-    const categoryNames = {
-        'management': 'Management',
-        'technical': 'Technical',
-        'administrative': 'Administrative',
-        'creative': 'Creative',
-        'customer-service': 'Customer Service',
-        'sales': 'Sales',
-        'it': 'IT',
-        'finance': 'Finance',
-        'hr': 'HR',
-        'operations': 'Operations'
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
     };
 
-    const [professions, setProfessions] = useState(initialProfessions);
-    const [filteredProfessions, setFilteredProfessions] = useState(initialProfessions);
+    const getDepartmentName = (deptId) => {
+        const dept = departments.find(d => d.id === parseInt(deptId));
+        if (!dept) return deptId || '';
+        return isArabic ? dept.name_ar : dept.name_en;
+    };
+
+    const [filteredProfessions, setFilteredProfessions] = useState(professions);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentProfession, setCurrentProfession] = useState(null);
@@ -160,6 +33,21 @@ const Profession = () => {
         vacant: 0
     });
 
+    const { data, setData, post, put, processing, errors, reset } = useForm({
+        company_id: 1, // Default company_id
+        profession_name: '',
+        profession_code: '',
+        category: '',
+        description: '',
+        min_salary: 0,
+        max_salary: 0,
+        required_experience: 0,
+        education_level: 'Bachelor',
+        key_skills: '',
+        status: 'active',
+        sort_order: 0,
+    });
+
     useEffect(() => {
         updateStats();
         filterProfessions();
@@ -168,8 +56,8 @@ const Profession = () => {
     const updateStats = () => {
         const total = professions.length;
         const active = professions.filter(p => p.status === 'active').length;
-        const employees = professions.reduce((sum, p) => sum + p.employees, 0);
-        const vacant = professions.filter(p => p.employees === 0 && p.status === 'active').length;
+        const employees = professions.reduce((sum, p) => sum + (p.employees || 0), 0);
+        const vacant = professions.filter(p => (p.employees || 0) === 0 && p.status === 'active').length;
 
         setStats({ total, active, employees, vacant });
     };
@@ -181,9 +69,9 @@ const Profession = () => {
         }
         const lowerTerm = searchTerm.toLowerCase();
         const filtered = professions.filter(p => 
-            p.name.toLowerCase().includes(lowerTerm) ||
-            p.code.toLowerCase().includes(lowerTerm) ||
-            (categoryNames[p.category] || p.category).toLowerCase().includes(lowerTerm)
+            p.profession_name.toLowerCase().includes(lowerTerm) ||
+            p.profession_code.toLowerCase().includes(lowerTerm) ||
+            getDepartmentName(p.category).toLowerCase().includes(lowerTerm)
         );
         setFilteredProfessions(filtered);
     };
@@ -193,58 +81,57 @@ const Profession = () => {
     };
 
     const openModal = (prof = null) => {
-        setCurrentProfession(prof);
+        if (prof) {
+            setCurrentProfession(prof);
+            setData({
+                company_id: prof.company_id || 1,
+                profession_name: prof.profession_name,
+                profession_code: prof.profession_code,
+                category: prof.category || '',
+                description: prof.description || '',
+                min_salary: prof.min_salary || 0,
+                max_salary: prof.max_salary || 0,
+                required_experience: prof.required_experience || 0,
+                education_level: prof.education_level || 'Bachelor',
+                key_skills: prof.key_skills || '',
+                status: prof.status || 'active',
+                sort_order: prof.sort_order || 0,
+            });
+        } else {
+            setCurrentProfession(null);
+            reset();
+        }
         setIsModalOpen(true);
     };
 
     const closeModal = () => {
         setIsModalOpen(false);
         setCurrentProfession(null);
+        reset();
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
         
-        const keySkillsInput = formData.get('keySkills');
-        const keySkills = keySkillsInput ? keySkillsInput.split(',').map(skill => skill.trim()) : [];
-
-        const newProf = {
-            id: currentProfession ? currentProfession.id : Date.now(),
-            name: formData.get('name'),
-            code: formData.get('code').toUpperCase(),
-            category: formData.get('category'),
-            description: formData.get('description'),
-            minSalary: formData.get('minSalary') ? parseInt(formData.get('minSalary')) : null,
-            maxSalary: formData.get('maxSalary') ? parseInt(formData.get('maxSalary')) : null,
-            experience: formData.get('experience') ? parseInt(formData.get('experience')) : 0,
-            educationLevel: formData.get('educationLevel'),
-            keySkills: keySkills,
-            status: formData.get('status'),
-            sortOrder: parseInt(formData.get('sortOrder')) || 0,
-            employees: currentProfession ? currentProfession.employees : 0,
-            createdAt: currentProfession ? currentProfession.createdAt : new Date().toISOString().split('T')[0]
-        };
-
         if (currentProfession) {
-            setProfessions(professions.map(p => p.id === currentProfession.id ? newProf : p));
+            put(getLocalizedRoute('admin.professions.update', { professions: currentProfession.id }), {
+                onSuccess: () => closeModal(),
+            });
         } else {
-            setProfessions([...professions, newProf]);
+            post(getLocalizedRoute('admin.professions.store'), {
+                onSuccess: () => closeModal(),
+            });
         }
-        closeModal();
     };
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this profession?')) {
-            setProfessions(professions.filter(p => p.id !== id));
+            router.delete(getLocalizedRoute('admin.professions.destroy', { professions: id }));
         }
     };
 
-    const getCategoryColor = (category) => {
-        if (category === 'it') return 'var(--info-color)';
-        if (category === 'management') return 'var(--primary-color)';
-        if (category === 'sales') return 'var(--warning-color)';
-        return 'var(--success-color)';
+    const getCategoryColor = () => {
+        return 'var(--primary-color)';
     };
 
     return (
@@ -328,7 +215,7 @@ const Profession = () => {
                             <span className="material-icons-outlined">add</span>
                             <span>Add Profession</span>
                         </button>
-                        <button className="btn btn-outline" onClick={() => window.location.reload()}>
+                        <button className="btn btn-outline" onClick={() => router.get(getLocalizedRoute('admin.professions.index'))}>
                             <span className="material-icons-outlined">refresh</span>
                             <span>Refresh</span>
                         </button>
@@ -342,7 +229,7 @@ const Profession = () => {
                                 <th><input type="checkbox" /></th>
                                 <th>ID <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
                                 <th>PROFESSION <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>CATEGORY <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
+                                <th>CODE <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
                                 <th>EMPLOYEES <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
                                 <th>SALARY RANGE <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
                                 <th>STATUS <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
@@ -357,25 +244,25 @@ const Profession = () => {
                                     <td>{prof.id.toString().padStart(3, '0')}</td>
                                     <td>
                                         <div className="profession-info">
-                                            <div className="profession-icon" style={{ backgroundColor: getCategoryColor(prof.category) }}>
+                                            <div className="profession-icon" style={{ backgroundColor: getCategoryColor() }}>
                                                 <span className="material-icons-outlined">work</span>
                                             </div>
                                             <div className="profession-details">
-                                                <div className="profession-name">{prof.name}</div>
-                                                <div className="profession-category">{categoryNames[prof.category] || prof.category}</div>
+                                                <div className="profession-name">{prof.profession_name}</div>
+                                                <div className="profession-category">{getDepartmentName(prof.category)}</div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td><strong>{prof.code}</strong></td>
+                                    <td><strong>{prof.profession_code}</strong></td>
                                     <td>
                                         <div className="employee-count">
                                             <span className="material-icons-outlined" style={{ fontSize: '16px' }}>people</span>
-                                            {prof.employees}
+                                            {prof.employees || 0}
                                         </div>
                                     </td>
                                     <td>
                                         <div className="salary-range">
-                                            ${prof.minSalary ? prof.minSalary.toLocaleString() : 'N/A'} - ${prof.maxSalary ? prof.maxSalary.toLocaleString() : 'N/A'}
+                                            ${prof.min_salary ? parseFloat(prof.min_salary).toLocaleString() : '0'} - ${prof.max_salary ? parseFloat(prof.max_salary).toLocaleString() : '0'}
                                         </div>
                                     </td>
                                     <td>
@@ -383,7 +270,7 @@ const Profession = () => {
                                             {prof.status === 'active' ? 'Active' : 'Inactive'}
                                         </span>
                                     </td>
-                                    <td>{prof.createdAt}</td>
+                                    <td>{new Date(prof.created_at).toLocaleDateString()}</td>
                                     <td>
                                         <button className="icon-btn edit" onClick={() => openModal(prof)}>
                                             <span className="material-icons-outlined">edit</span>
@@ -433,89 +320,148 @@ const Profession = () => {
                         <div className="modal-body">
                             <div className="form-group">
                                 <label className="form-label">Profession Name *</label>
-                                <input type="text" className="form-control" name="name" placeholder="Enter profession name" required defaultValue={currentProfession?.name} />
+                                <input 
+                                    type="text" 
+                                    className={`form-control ${errors.profession_name ? 'is-invalid' : ''}`} 
+                                    value={data.profession_name} 
+                                    onChange={e => setData('profession_name', e.target.value)} 
+                                    placeholder="Enter profession name" 
+                                    required 
+                                />
+                                {errors.profession_name && <div className="invalid-feedback">{errors.profession_name}</div>}
                             </div>
 
                             <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label">Profession Code *</label>
-                                    <input type="text" className="form-control" name="code" placeholder="Enter profession code" required defaultValue={currentProfession?.code} />
+                                    <input 
+                                        type="text" 
+                                        className={`form-control ${errors.profession_code ? 'is-invalid' : ''}`} 
+                                        value={data.profession_code} 
+                                        onChange={e => setData('profession_code', e.target.value.toUpperCase())} 
+                                        placeholder="Enter profession code" 
+                                        required 
+                                    />
+                                    {errors.profession_code && <div className="invalid-feedback">{errors.profession_code}</div>}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Category</label>
-                                    <select className="form-control" name="category" defaultValue={currentProfession?.category || ''}>
-                                        <option value="">Select Category</option>
-                                        <option value="management">Management</option>
-                                        <option value="technical">Technical</option>
-                                        <option value="administrative">Administrative</option>
-                                        <option value="creative">Creative</option>
-                                        <option value="customer-service">Customer Service</option>
-                                        <option value="sales">Sales</option>
-                                        <option value="it">Information Technology</option>
-                                        <option value="finance">Finance</option>
-                                        <option value="hr">Human Resources</option>
-                                        <option value="operations">Operations</option>
+                                    <label className="form-label">Category (Department)</label>
+                                    <select 
+                                        className="form-control" 
+                                        value={data.category} 
+                                        onChange={e => setData('category', e.target.value)}
+                                    >
+                                        <option value="">Select Department</option>
+                                        {departments.map(dept => (
+                                            <option key={dept.id} value={dept.id}>
+                                                {isArabic ? dept.name_ar : dept.name_en}
+                                            </option>
+                                        ))}
                                     </select>
                                 </div>
                             </div>
 
                             <div className="form-group">
                                 <label className="form-label">Description</label>
-                                <textarea className="form-control form-textarea" name="description" placeholder="Enter profession description" defaultValue={currentProfession?.description}></textarea>
+                                <textarea 
+                                    className="form-control form-textarea" 
+                                    value={data.description} 
+                                    onChange={e => setData('description', e.target.value)} 
+                                    placeholder="Enter profession description"
+                                ></textarea>
                             </div>
 
                             <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label">Minimum Salary</label>
-                                    <input type="number" className="form-control" name="minSalary" placeholder="Enter minimum salary" defaultValue={currentProfession?.minSalary} />
+                                    <input 
+                                        type="number" 
+                                        className="form-control" 
+                                        value={data.min_salary} 
+                                        onChange={e => setData('min_salary', e.target.value)} 
+                                        placeholder="Enter minimum salary" 
+                                    />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Maximum Salary</label>
-                                    <input type="number" className="form-control" name="maxSalary" placeholder="Enter maximum salary" defaultValue={currentProfession?.maxSalary} />
+                                    <input 
+                                        type="number" 
+                                        className="form-control" 
+                                        value={data.max_salary} 
+                                        onChange={e => setData('max_salary', e.target.value)} 
+                                        placeholder="Enter maximum salary" 
+                                    />
                                 </div>
                             </div>
 
                             <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label">Required Experience (Years)</label>
-                                    <input type="number" className="form-control" name="experience" placeholder="Years of experience" min="0" defaultValue={currentProfession?.experience} />
+                                    <input 
+                                        type="number" 
+                                        className="form-control" 
+                                        value={data.required_experience} 
+                                        onChange={e => setData('required_experience', e.target.value)} 
+                                        placeholder="Years of experience" 
+                                        min="0" 
+                                    />
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Education Level</label>
-                                    <select className="form-control" name="educationLevel" defaultValue={currentProfession?.educationLevel || ''}>
-                                        <option value="">Select Education</option>
-                                        <option value="high-school">High School</option>
-                                        <option value="diploma">Diploma</option>
-                                        <option value="bachelor">Bachelor's Degree</option>
-                                        <option value="master">Master's Degree</option>
-                                        <option value="phd">PhD</option>
-                                        <option value="certification">Professional Certification</option>
+                                    <select 
+                                        className="form-control" 
+                                        value={data.education_level} 
+                                        onChange={e => setData('education_level', e.target.value)}
+                                    >
+                                        <option value="High School">High School</option>
+                                        <option value="Diploma">Diploma</option>
+                                        <option value="Bachelor">Bachelor's Degree</option>
+                                        <option value="Master">Master's Degree</option>
+                                        <option value="PhD">PhD</option>
                                     </select>
                                 </div>
                             </div>
 
                             <div className="form-group">
                                 <label className="form-label">Key Skills (comma separated)</label>
-                                <input type="text" className="form-control" name="keySkills" placeholder="e.g., Communication, Leadership, Project Management" defaultValue={currentProfession?.keySkills?.join(', ')} />
+                                <input 
+                                    type="text" 
+                                    className="form-control" 
+                                    value={data.key_skills} 
+                                    onChange={e => setData('key_skills', e.target.value)} 
+                                    placeholder="e.g., Communication, Leadership, Project Management" 
+                                />
                             </div>
 
                             <div className="form-row">
                                 <div className="form-group">
                                     <label className="form-label">Status</label>
-                                    <select className="form-control" name="status" defaultValue={currentProfession?.status || 'active'}>
+                                    <select 
+                                        className="form-control" 
+                                        value={data.status} 
+                                        onChange={e => setData('status', e.target.value)}
+                                    >
                                         <option value="active">Active</option>
                                         <option value="inactive">Inactive</option>
                                     </select>
                                 </div>
                                 <div className="form-group">
                                     <label className="form-label">Sort Order</label>
-                                    <input type="number" className="form-control" name="sortOrder" defaultValue={currentProfession?.sortOrder || 0} min="0" />
+                                    <input 
+                                        type="number" 
+                                        className="form-control" 
+                                        value={data.sort_order} 
+                                        onChange={e => setData('sort_order', e.target.value)} 
+                                        min="0" 
+                                    />
                                 </div>
                             </div>
                         </div>
                         <div className="modal-actions">
                             <button type="button" className="btn" onClick={closeModal}>Cancel</button>
-                            <button type="submit" className="btn btn-primary">Save Profession</button>
+                            <button type="submit" className="btn btn-primary" disabled={processing}>
+                                {processing ? 'Saving...' : 'Save Profession'}
+                            </button>
                         </div>
                     </form>
                 </div>

@@ -672,10 +672,17 @@ class SupplierController extends Controller
         );
         $defaultGroupId = $defaultGroup->id;
 
+        // Get Default Currency ID (Mandatory for some systems)
+        $defaultCurrencyId = Currency::where('is_base', true)->value('id') 
+                          ?? Currency::where('code', 'SAR')->value('id') 
+                          ?? Currency::where('code', 'USD')->value('id') 
+                          ?? Currency::first()?->id 
+                          ?? 1; // Last resort default to ID 1 as per schema
+
         // Pre-fetch related data for faster lookups
         $currencies = Currency::pluck('id', 'code')->toArray();
-        $accounts = Account::pluck('AccID', 'AccCode')->toArray();
         $groups = SupplierGroup::pluck('id', 'code')->toArray();
+        $accounts = Account::pluck('AccID', 'AccCode')->toArray();
 
         // Bulk duplicate checks
         $supplierCodes = collect($rows)->pluck('supplier_code')->filter()->toArray();
@@ -684,112 +691,137 @@ class SupplierController extends Controller
         $existingCodes = [];
         if (! empty($supplierCodes)) {
             $existingCodes = Supplier::whereIn('supplier_code', $supplierCodes)
-                ->pluck('supplier_code')
-                ->flip()
+                ->pluck('id', 'supplier_code')
                 ->toArray();
         }
 
         $existingEmails = [];
         if (! empty($emails)) {
             $existingEmails = Supplier::whereIn('email', $emails)
-                ->pluck('email')
-                ->flip()
+                ->pluck('id', 'email')
                 ->toArray();
         }
 
         $insertData = [];
+        $created = 0;
+        $errors = [];
         $now = now();
-        $userId = Auth::id();
+        $user = Auth::user();
+        $userId = $user->id;
+        $companyId = $user->company_id ?? null;
+
+        foreach ($rows as $index => $row) {
+            $email = $row['email'] ?? null;
+            $code = $row['supplier_code'] ?? null;
+
+            // Skip if code exists
+            if ($code && isset($existingCodes[$code])) {
+                $errors[] = 'Row '.($index + 1).": Supplier Code '$code' already exists.";
+
+                continue;
+            }
+
+            // Skip if email exists
+            if ($email && isset($existingEmails[$email])) {
+                $errors[] = 'Row '.($index + 1).": Email '$email' already exists.";
+
+                continue;
+            }
+
+            if (empty($code)) {
+                $code = 'SUP-'.(10000 + $index + 1);
+            }
+
+            if (empty($email)) {
+                $email = 'supplier'.($index + 1).'_@gamil.com';
+            }
+
+            // Prepare data
+            $data = [
+                'supplier_code' => $code,
+                'name_ar' => $row['name_ar'] ?? null,
+                'supplier_group_id' => $defaultGroupId,
+                'primary_phone' => $row['primary_phone'] ?? null,
+                'email' => $email,
+                'is_active' => isset($row['is_active']) ? (bool) $row['is_active'] : true,
+                'created_by' => $userId,
+                'company_id' => $companyId,
+                'password' => \Illuminate\Support\Facades\Hash::make(Str::random(12)), // Expensive hashing
+                'currency_id' => $defaultCurrencyId,
+                'account_id' => null,
+                'created_at' => $now,
+                'updated_at' => $now,
+                'credit_limit' => 0.00,
+                'current_balance' => 0.00,
+                'payment_terms' => 30,
+                'is_vendor' => 1,
+                'is_manufacturer' => 0,
+                'favorite' => 0,
+                'verification_status' => 'unverified',
+                'commission_rate' => 0.00,
+            ];
+
+            // Foreign Key Lookups (Memory-based)
+            if (! empty($row['group_code']) && isset($groups[$row['group_code']])) {
+                $data['supplier_group_id'] = $groups[$row['group_code']];
+            }
+
+            // Also check for 'currency_id' column in CSV if present
+            if (! empty($row['currency_id'])) {
+                $data['currency_id'] = $row['currency_id'];
+            } elseif (! empty($row['currency_code']) && isset($currencies[$row['currency_code']])) {
+                $data['currency_id'] = $currencies[$row['currency_code']];
+            }
+
+            // Also check for 'account_id' column in CSV if present
+            if (! empty($row['account_id'])) {
+                $data['account_id'] = $row['account_id'];
+            } elseif (! empty($row['account_code']) && isset($accounts[$row['account_code']])) {
+                $data['account_id'] = $accounts[$row['account_code']];
+            }
+
+            // Basic Validation
+            if (empty($data['supplier_code'])) {
+                $errors[] = 'Row '.($index + 1).': Supplier Code is required.';
+
+                continue;
+            }
+            if (empty($data['name_ar'])) {
+                $errors[] = 'Row '.($index + 1).': Name (AR) is required.';
+
+                continue;
+            }
+
+            $insertData[] = $data;
+            $created++;
+        }
+
+        if (empty($insertData)) {
+            return redirect()->back()->with('error', 'No suppliers imported. Errors: '.implode(' | ', array_slice($errors, 0, 10)).(count($errors) > 10 ? '...' : ''));
+        }
 
         DB::beginTransaction();
         try {
-            foreach ($rows as $index => $row) {
-                // Skip if supplier_code already exists
-                $code = $row['supplier_code'] ?? null;
-                if ($code && isset($existingCodes[$code])) {
-                    $errors[] = 'Row '.($index + 1).": Supplier Code '$code' already exists.";
-
-                    continue;
-                }
-
-                // Handle Telegram Duplication (Set to null if exists)
-                $telegram = ! empty($row['telegram']) ? $row['telegram'] : null;
-                if ($telegram && isset($existingTelegrams[$telegram])) {
-                    $telegram = null; // Clear telegram to avoid unique constraint violation
-                }
-
-                // Prepare data
-                $data = [
-                    'supplier_code' => $code,
-                    'name_ar' => $row['name_ar'] ?? null,
-                    'supplier_group_id' => $defaultGroupId,
-                    'primary_phone' => $row['primary_phone'] ?? null,
-                    'telegram' => $telegram,
-                    'is_active' => isset($row['is_active']) ? (bool) $row['is_active'] : true,
-                    'created_by' => $userId,
-                    'password' => \Illuminate\Support\Facades\Hash::make(Str::random(12)), // Manually hash for bulk insert
-                    'currency_id' => null,
-                    'account_id' => null,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
-
-                // Foreign Key Lookups (Memory-based)
-                if (! empty($row['group_code']) && isset($groups[$row['group_code']])) {
-                    $data['supplier_group_id'] = $groups[$row['group_code']];
-                }
-
-                if (! empty($row['currency_code']) && isset($currencies[$row['currency_code']])) {
-                    $data['currency_id'] = $currencies[$row['currency_code']];
-                }
-
-                if (! empty($row['account_code']) && isset($accounts[$row['account_code']])) {
-                    $data['account_id'] = $accounts[$row['account_code']];
-                }
-
-                // Basic Validation (Manual check to avoid Validator overhead)
-                if (empty($data['supplier_code'])) {
-                    $errors[] = 'Row '.($index + 1).': Supplier Code is required.';
-
-                    continue;
-                }
-                if (empty($data['name_ar'])) {
-                    $errors[] = 'Row '.($index + 1).': Name (AR) is required.';
-
-                    continue;
-                }
-
-                $insertData[] = $data;
-                $created++;
-            }
-
             // Bulk Insert in Chunks
-            if (! empty($insertData)) {
-                foreach (array_chunk($insertData, 500) as $chunk) {
-                    Supplier::insert($chunk);
-                }
+            foreach (array_chunk($insertData, 500) as $chunk) {
+                Supplier::insert($chunk);
             }
 
-            if ($created > 0) {
-                DB::commit();
-                $msg = "Successfully imported $created suppliers.";
-                if (count($errors) > 0) {
-                    $msg .= ' Skipped '.count($errors).' rows due to errors.';
+            DB::commit();
 
-                    return redirect()->back()->with('warning', $msg);
-                }
+            $msg = "Successfully imported $created suppliers.";
+            if (count($errors) > 0) {
+                $msg .= ' Skipped '.count($errors).' rows due to errors.';
 
-                return redirect()->back()->with('success', $msg);
-            } else {
-                DB::rollBack();
-
-                return redirect()->back()->with('error', 'No suppliers imported. Errors: '.implode(' | ', array_slice($errors, 0, 10)).(count($errors) > 10 ? '...' : ''));
+                return redirect()->back()->with('warning', $msg);
             }
+
+            return redirect()->back()->with('success', $msg);
 
         } catch (\Exception $e) {
             DB::rollBack();
 
-            return redirect()->back()->with('error', 'Server Error: '.$e->getMessage());
+            return redirect()->back()->with('error', 'Server Error during database operation: '.$e->getMessage());
         }
     }
 

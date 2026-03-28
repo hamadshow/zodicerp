@@ -4,39 +4,25 @@ import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 
 
-const Deductions = () => {
-  const initialDeductions = [
-    {
-      id: 1,
-      employee: 'John Doe',
-      type: 'Late Arrival',
-      amount: 50,
-      date: '2023-10-15',
-      reason: 'Arrived 1 hour late',
-      status: 'Approved'
-    },
-    {
-      id: 2,
-      employee: 'Jane Smith',
-      type: 'Equipment Damage',
-      amount: 150,
-      date: '2023-10-12',
-      reason: 'Damaged keyboard',
-      status: 'Pending'
-    },
-    {
-      id: 3,
-      employee: 'Michael Brown',
-      type: 'Loan Repayment',
-      amount: 200,
-      date: '2023-10-01',
-      reason: 'Monthly installment',
-      status: 'Approved'
-    }
-  ];
+const Deductions = ({ employees: propEmployees }) => {
+  const [dbEmployees, setDbEmployees] = useState([]);
 
-  const [deductions, setDeductions] = useState(initialDeductions);
-  const [filteredDeductions, setFilteredDeductions] = useState(initialDeductions);
+  useEffect(() => {
+    const propData = propEmployees?.data || propEmployees;
+    if (!propData || !Array.isArray(propData) || propData.length === 0) {
+      fetch('/api/employees')
+        .then(response => response.json())
+        .then(data => {
+          const employeeData = data.data || data;
+          setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
+        })
+        .catch(error => console.error('Error fetching employees:', error));
+    }
+  }, [propEmployees]);
+
+  const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
+  const [deductions, setDeductions] = useState([]);
+  const [filteredDeductions, setFilteredDeductions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentDeduction, setCurrentDeduction] = useState(null);
@@ -182,7 +168,10 @@ const Deductions = () => {
                     <div className="modal-body">
                         <div className="form-group">
                             <label className="form-label">Employee Name</label>
-                            <input type="text" className="form-control" name="employee" defaultValue={currentDeduction?.employee} required />
+                            <select className="form-control" name="employee" defaultValue={currentDeduction?.employee || ''} required>
+                                <option value="">Select Employee</option>
+                                {Array.isArray(employees) && employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+                            </select>
                         </div>
                         <div className="form-group">
                             <label className="form-label">Deduction Type</label>

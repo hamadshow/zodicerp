@@ -4,7 +4,24 @@ import '../../../../css/backend/main.scss';
 import AdminLayout from '../components/AdminLayout';
 
 
-const Reward = () => {
+const Reward = ({ employees: propEmployees }) => {
+  const [dbEmployees, setDbEmployees] = useState([]);
+
+  useEffect(() => {
+    const propData = propEmployees?.data || propEmployees;
+    if (!propData || !Array.isArray(propData) || propData.length === 0) {
+      fetch('/api/employees')
+        .then(response => response.json())
+        .then(data => {
+          const employeeData = data.data || data;
+          setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
+        })
+        .catch(error => console.error('Error fetching employees:', error));
+    }
+  }, [propEmployees]);
+
+  const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
+
   // State management
   const [rewards, setRewards] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -34,58 +51,6 @@ const Reward = () => {
   // Additional state for enhanced functionality
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
-
-  // Employee data
-  const employees = [
-    {
-      id: 1,
-      name: 'Ahmed Mohamed',
-      position: 'Software Engineer',
-      department: 'IT',
-    },
-    {
-      id: 2,
-      name: 'Sarah Johnson',
-      position: 'HR Manager',
-      department: 'Human Resources',
-    },
-    {
-      id: 3,
-      name: 'James Wilson',
-      position: 'Sales Director',
-      department: 'Sales',
-    },
-    {
-      id: 4,
-      name: 'Fatima Al-Mansour',
-      position: 'Marketing Specialist',
-      department: 'Marketing',
-    },
-    {
-      id: 5,
-      name: 'Mohammed Al-Farsi',
-      position: 'Financial Analyst',
-      department: 'Finance',
-    },
-    {
-      id: 6,
-      name: 'Priya Sharma',
-      position: 'Support Manager',
-      department: 'Customer Service',
-    },
-    {
-      id: 7,
-      name: 'Ali Khan',
-      position: 'Operations Manager',
-      department: 'Operations',
-    },
-    {
-      id: 8,
-      name: 'Marie Dubois',
-      position: 'Lead Engineer',
-      department: 'Engineering',
-    },
-  ];
 
   // Reward type configurations
   const rewardTypeConfig = {
@@ -215,147 +180,6 @@ const Reward = () => {
     { id: 'recent', label: 'Recent (30 days)' },
   ];
 
-  // Sample data (in production, this would come from an API)
-  const sampleRewards = [
-    {
-      id: 1,
-      employeeId: 1,
-      employeeName: 'Ahmed Mohamed',
-      position: 'Software Engineer',
-      rewardType: 'bonus',
-      rewardValue: 2500,
-      category: 'performance',
-      awardDate: '2024-01-15',
-      status: 'completed',
-      badge: 'star_performer',
-      reason: 'Outstanding Q4 performance, exceeded all targets by 25%',
-      awardedBy: 'CTO',
-      points: 100,
-      notes: 'Quarterly performance bonus',
-      createdAt: '2024-01-15',
-    },
-    {
-      id: 2,
-      employeeId: 2,
-      employeeName: 'Sarah Johnson',
-      position: 'HR Manager',
-      rewardType: 'award',
-      rewardValue: 0,
-      category: 'leadership',
-      awardDate: '2024-01-10',
-      status: 'active',
-      badge: 'leadership',
-      reason: 'Employee of the Month for exceptional HR initiatives',
-      awardedBy: 'CEO',
-      points: 150,
-      notes: '',
-      createdAt: '2024-01-10',
-    },
-    {
-      id: 3,
-      employeeId: 3,
-      employeeName: 'James Wilson',
-      position: 'Sales Director',
-      rewardType: 'bonus',
-      rewardValue: 5000,
-      category: 'sales',
-      awardDate: '2024-01-05',
-      status: 'completed',
-      badge: '',
-      reason: 'Record-breaking sales quarter, exceeded target by 40%',
-      awardedBy: 'Sales VP',
-      points: 200,
-      notes: 'Sales performance bonus',
-      createdAt: '2024-01-05',
-    },
-    {
-      id: 4,
-      employeeId: 4,
-      employeeName: 'Fatima Al-Mansour',
-      position: 'Marketing Specialist',
-      rewardType: 'gift',
-      rewardValue: 500,
-      category: 'innovation',
-      awardDate: '2023-12-20',
-      status: 'completed',
-      badge: 'innovation',
-      reason: 'Innovative social media campaign increased engagement by 300%',
-      awardedBy: 'Marketing Director',
-      points: 75,
-      notes: 'Amazon gift card',
-      createdAt: '2023-12-20',
-    },
-    {
-      id: 5,
-      employeeId: 5,
-      employeeName: 'Mohammed Al-Farsi',
-      position: 'Financial Analyst',
-      rewardType: 'recognition',
-      rewardValue: 0,
-      category: 'performance',
-      awardDate: '2023-12-15',
-      status: 'active',
-      badge: '',
-      reason: 'Exceptional work on annual financial reports',
-      awardedBy: 'Finance Director',
-      points: 50,
-      notes: 'Special recognition award',
-      createdAt: '2023-12-15',
-    },
-    {
-      id: 6,
-      employeeId: 6,
-      employeeName: 'Priya Sharma',
-      position: 'Support Manager',
-      rewardType: 'badge',
-      rewardValue: 0,
-      category: 'customer_service',
-      awardDate: '2023-12-10',
-      status: 'completed',
-      badge: 'team_player',
-      reason: 'Highest customer satisfaction score (98%)',
-      awardedBy: 'Customer Service Director',
-      points: 100,
-      notes: 'Team player badge awarded',
-      createdAt: '2023-12-10',
-    },
-    {
-      id: 7,
-      employeeId: 7,
-      employeeName: 'Ali Khan',
-      position: 'Operations Manager',
-      rewardType: 'promotion',
-      rewardValue: 0,
-      category: 'leadership',
-      awardDate: '2023-12-01',
-      status: 'active',
-      badge: 'leadership',
-      reason:
-        'Promoted to Senior Operations Manager for outstanding performance',
-      awardedBy: 'COO',
-      points: 250,
-      notes: 'Promotion effective January 2024',
-      createdAt: '2023-12-01',
-    },
-    {
-      id: 8,
-      employeeId: 8,
-      employeeName: 'Marie Dubois',
-      position: 'Lead Engineer',
-      rewardType: 'award',
-      rewardValue: 1000,
-      category: 'innovation',
-      awardDate: '2023-11-25',
-      status: 'completed',
-      badge: 'innovation',
-      reason: 'Patent filing for new algorithm development',
-      awardedBy: 'Engineering Director',
-      points: 150,
-      notes: 'Innovation award',
-      createdAt: '2023-11-25',
-    },
-  ];
-
   // Initialize component
   useEffect(() => {
     // Fetch data from Laravel backend
@@ -364,15 +188,13 @@ const Reward = () => {
         const response = await fetch('/api/rewards');
         if (response.ok) {
           const data = await response.json();
-          setRewards(data);
-        } else {
-          // Fallback to sample data if API call fails
-          setRewards(sampleRewards);
+          // Extract data array if paginated
+          const rewardsData = data.data || data;
+          setRewards(Array.isArray(rewardsData) ? rewardsData : []);
         }
       } catch (error) {
         console.error('Error fetching rewards:', error);
-        // Fallback to sample data if API call fails
-        setRewards(sampleRewards);
+        setRewards([]); // Fallback to empty array on error
       }
     };
 
@@ -392,15 +214,15 @@ const Reward = () => {
     setEditingReward(reward);
     if (reward) {
       setFormData({
-        employee: reward.employeeId.toString(),
-        rewardType: reward.rewardType,
-        rewardValue: reward.rewardValue,
-        category: reward.category,
-        awardDate: reward.awardDate,
-        rewardStatus: reward.status,
+        employee: reward.employee_id?.toString() || reward.employeeId?.toString() || '',
+        rewardType: reward.reward_type || reward.rewardType || '',
+        rewardValue: reward.reward_value || reward.rewardValue || '',
+        category: reward.category || '',
+        awardDate: reward.award_date || reward.awardDate || new Date().toISOString().split('T')[0],
+        rewardStatus: reward.status || 'pending',
         selectedBadge: reward.badge || '',
-        reason: reward.reason,
-        awardedBy: reward.awardedBy || '',
+        reason: reward.reason || '',
+        awardedBy: reward.awarded_by || reward.awardedBy || '',
         points: reward.points || '',
         notes: reward.notes || '',
       });
@@ -474,17 +296,17 @@ const Reward = () => {
         );
 
         const rewardData = {
-          employeeId: parseInt(formData.employee),
-          employeeName: employee.name,
-          position: employee.position,
-          rewardType: formData.rewardType,
-          rewardValue: parseFloat(formData.rewardValue) || 0,
+          employee_id: parseInt(formData.employee),
+          employee_name: employee?.name || 'Unknown',
+          position: employee?.position || '-',
+          reward_type: formData.rewardType,
+          reward_value: parseFloat(formData.rewardValue) || 0,
           category: formData.category,
-          awardDate: formData.awardDate,
+          award_date: formData.awardDate,
           status: formData.rewardStatus,
           badge: formData.selectedBadge,
           reason: formData.reason,
-          awardedBy: formData.awardedBy,
+          awarded_by: formData.awardedBy,
           points: parseInt(formData.points) || 0,
           notes: formData.notes,
         };
@@ -506,7 +328,7 @@ const Reward = () => {
               rewards.length > 0
                 ? Math.max(...rewards.map((r) => r.id)) + 1
                 : 1,
-            createdAt: new Date().toISOString().split('T')[0],
+            created_at: new Date().toISOString().split('T')[0],
           };
           setRewards((prev) => [...prev, newReward]);
           showToast('Reward added successfully!', 'success');
@@ -601,12 +423,19 @@ const Reward = () => {
   const filteredRewards = useMemo(() => {
     return rewards.filter((reward) => {
       const searchLower = searchTerm.toLowerCase();
+      const employeeName = reward.employee_name || reward.employeeName || '';
+      const position = reward.position || '';
+      const reason = reward.reason || '';
+      const category = reward.category || '';
+      const rewardType = reward.reward_type || reward.rewardType || '';
+      const awardDate = reward.award_date || reward.awardDate || '';
+
       const matchesSearch =
-        reward.employeeName.toLowerCase().includes(searchLower) ||
-        reward.position.toLowerCase().includes(searchLower) ||
-        reward.reason.toLowerCase().includes(searchLower) ||
-        reward.category.toLowerCase().includes(searchLower) ||
-        rewardTypeConfig[reward.rewardType]?.name
+        employeeName.toLowerCase().includes(searchLower) ||
+        position.toLowerCase().includes(searchLower) ||
+        reason.toLowerCase().includes(searchLower) ||
+        category.toLowerCase().includes(searchLower) ||
+        rewardTypeConfig[rewardType]?.name
           .toLowerCase()
           .includes(searchLower);
 
@@ -614,11 +443,11 @@ const Reward = () => {
       if (currentFilter === 'recent') {
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        return matchesSearch && new Date(reward.awardDate) >= thirtyDaysAgo;
+        return matchesSearch && new Date(awardDate) >= thirtyDaysAgo;
       }
       return (
         matchesSearch &&
-        (reward.rewardType === currentFilter || reward.status === currentFilter)
+        (rewardType === currentFilter || reward.status === currentFilter)
       );
     });
   }, [rewards, searchTerm, currentFilter, rewardTypeConfig]);
@@ -656,7 +485,11 @@ const Reward = () => {
   // Recent timeline
   const recentRewards = useMemo(() => {
     return [...rewards]
-      .sort((a, b) => new Date(b.awardDate) - new Date(a.awardDate))
+      .sort((a, b) => {
+        const dateA = a.award_date || a.awardDate || '';
+        const dateB = b.award_date || b.awardDate || '';
+        return new Date(dateB) - new Date(dateA);
+      })
       .slice(0, 8);
   }, [rewards]);
 
@@ -664,17 +497,19 @@ const Reward = () => {
   const leaderboard = useMemo(() => {
     return Object.values(
       rewards.reduce((acc, reward) => {
-        if (!acc[reward.employeeId]) {
-          acc[reward.employeeId] = {
-            id: reward.employeeId,
-            name: reward.employeeName,
-            position: reward.position,
+        const empId = reward.employee_id || reward.employeeId;
+        if (!empId) return acc;
+        if (!acc[empId]) {
+          acc[empId] = {
+            id: empId,
+            name: reward.employee_name || reward.employeeName || 'Unknown',
+            position: reward.position || '-',
             points: 0,
             rewards: 0,
           };
         }
-        acc[reward.employeeId].points += reward.points || 0;
-        acc[reward.employeeId].rewards += 1;
+        acc[empId].points += reward.points || 0;
+        acc[empId].rewards += 1;
         return acc;
       }, {})
     )
@@ -703,20 +538,25 @@ const Reward = () => {
     ];
     const csvRows = [
       headers.join(','),
-      ...rewards.map((reward) =>
-        [
+      ...rewards.map((reward) => {
+        const rewardType = reward.reward_type || reward.rewardType || '';
+        const employeeName = reward.employee_name || reward.employeeName || 'Unknown';
+        const awardDate = reward.award_date || reward.awardDate || '';
+        const reason = reward.reason || '';
+
+        return [
           reward.id,
-          `"${reward.employeeName}"`,
-          `"${reward.position}"`,
-          rewardTypeConfig[reward.rewardType]?.name || reward.rewardType,
-          reward.rewardValue,
-          reward.category,
-          reward.awardDate,
+          `"${employeeName}"`,
+          `"${reward.position || '-'}"`,
+          rewardTypeConfig[rewardType]?.name || rewardType,
+          reward.reward_value || reward.rewardValue || 0,
+          reward.category || '',
+          awardDate,
           reward.status,
-          `"${reward.reason.replace(/"/g, '""')}"`,
+          `"${reason.replace(/"/g, '""')}"`,
           reward.points || 0,
-        ].join(',')
-      ),
+        ].join(',');
+      }),
     ];
 
     const csvContent = csvRows.join('\n');
@@ -744,12 +584,12 @@ const Reward = () => {
   const stats = useMemo(() => {
     return {
       totalRewards: rewards.length,
-      totalValue: rewards.reduce((sum, r) => sum + r.rewardValue, 0),
+      totalValue: rewards.reduce((sum, r) => sum + (r.reward_value || r.rewardValue || 0), 0),
       topPerformers: [
         ...new Set(
           rewards
-            .filter((r) => r.rewardType === 'award' || r.badge)
-            .map((r) => r.employeeId)
+            .filter((r) => (r.reward_type || r.rewardType) === 'award' || r.badge)
+            .map((r) => r.employee_id || r.employeeId)
         ),
       ].length,
       badgesAwarded: rewards.filter((r) => r.badge).length,
@@ -901,7 +741,7 @@ const Reward = () => {
                 required
               >
                 <option value="">Select Employee</option>
-                {employees.map((emp) => (
+                {Array.isArray(employees) && employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.name} - {emp.position}
                   </option>
@@ -1100,43 +940,43 @@ const Reward = () => {
             <div className="detail-row">
               <span className="detail-label">Employee:</span>
               <span className="detail-value">
-                {selectedReward.employeeName}
+                {selectedReward.employee_name || selectedReward.employeeName || 'Unknown'}
               </span>
             </div>
             <div className="detail-row">
               <span className="detail-label">Position:</span>
-              <span className="detail-value">{selectedReward.position}</span>
+              <span className="detail-value">{selectedReward.position || '-'}</span>
             </div>
             <div className="detail-row">
               <span className="detail-label">Reward Type:</span>
               <span className="detail-value">
-                {rewardTypeConfig[selectedReward.rewardType]?.name ||
-                  selectedReward.rewardType}
+                {rewardTypeConfig[selectedReward.reward_type || selectedReward.rewardType]?.name ||
+                  (selectedReward.reward_type || selectedReward.rewardType)}
               </span>
             </div>
             <div className="detail-row">
               <span className="detail-label">Value:</span>
               <span className="detail-value">
-                {selectedReward.rewardValue > 0
-                  ? `$${selectedReward.rewardValue.toLocaleString()}`
+                {(selectedReward.reward_value || selectedReward.rewardValue) > 0
+                  ? `$${(selectedReward.reward_value || selectedReward.rewardValue).toLocaleString()}`
                   : 'N/A'}
               </span>
             </div>
             <div className="detail-row">
               <span className="detail-label">Category:</span>
               <span className="detail-value">
-                {selectedReward.category.replace('_', ' ')}
+                {(selectedReward.category || '').replace('_', ' ')}
               </span>
             </div>
             <div className="detail-row">
               <span className="detail-label">Award Date:</span>
-              <span className="detail-value">{selectedReward.awardDate}</span>
+              <span className="detail-value">{selectedReward.award_date || selectedReward.awardDate || ''}</span>
             </div>
             <div className="detail-row">
               <span className="detail-label">Status:</span>
               <span className="detail-value">
-                {selectedReward.status.charAt(0).toUpperCase() +
-                  selectedReward.status.slice(1)}
+                {(selectedReward.status || '').charAt(0).toUpperCase() +
+                  (selectedReward.status || '').slice(1)}
               </span>
             </div>
             {selectedReward.badge && (
@@ -1150,12 +990,12 @@ const Reward = () => {
             )}
             <div className="detail-row">
               <span className="detail-label">Reason:</span>
-              <span className="detail-value">{selectedReward.reason}</span>
+              <span className="detail-value">{selectedReward.reason || ''}</span>
             </div>
             <div className="detail-row">
               <span className="detail-label">Awarded By:</span>
               <span className="detail-value">
-                {selectedReward.awardedBy || 'N/A'}
+                {selectedReward.awarded_by || selectedReward.awardedBy || 'N/A'}
               </span>
             </div>
             <div className="detail-row">
@@ -1205,8 +1045,14 @@ const Reward = () => {
   );
 
   const RewardRow = ({ reward }) => {
-    const typeConfig = rewardTypeConfig[reward.rewardType] || {
-      name: reward.rewardType,
+    const rewardType = reward.reward_type || reward.rewardType || '';
+    const employeeName = reward.employee_name || reward.employeeName || 'Unknown';
+    const awardDate = reward.award_date || reward.awardDate || '';
+    const rewardValue = reward.reward_value || reward.rewardValue || 0;
+    const category = reward.category || '';
+
+    const typeConfig = rewardTypeConfig[rewardType] || {
+      name: rewardType,
       class: 'type-bonus',
       icon: 'stars',
     };
@@ -1233,8 +1079,8 @@ const Reward = () => {
               </span>
             </div>
             <div className="employee-details">
-              <div className="employee-name">{reward.employeeName}</div>
-              <div className="employee-position">{reward.position}</div>
+              <div className="employee-name">{employeeName}</div>
+              <div className="employee-position">{reward.position || '-'}</div>
             </div>
           </div>
         </td>
@@ -1259,9 +1105,9 @@ const Reward = () => {
           )}
         </td>
         <td>
-          {reward.rewardValue > 0 ? (
+          {rewardValue > 0 ? (
             <div className="reward-value">
-              ${reward.rewardValue.toLocaleString()}
+              ${rewardValue.toLocaleString()}
             </div>
           ) : (
             <div style={{ fontSize: '0.85rem', color: 'var(--gray-color)' }}>
@@ -1271,13 +1117,13 @@ const Reward = () => {
         </td>
         <td>
           <span style={{ fontSize: '0.85rem', textTransform: 'capitalize' }}>
-            {reward.category.replace('_', ' ')}
+            {category.replace('_', ' ')}
           </span>
         </td>
-        <td>{reward.awardDate}</td>
+        <td>{awardDate}</td>
         <td>
           <span className={`reward-status status-${reward.status}`}>
-            {reward.status.charAt(0).toUpperCase() + reward.status.slice(1)}
+            {(reward.status || '').charAt(0).toUpperCase() + (reward.status || '').slice(1)}
           </span>
         </td>
         <td>
@@ -1311,6 +1157,7 @@ const Reward = () => {
 
   const TimelineItem = ({ reward, isAward = false, index = 0 }) => {
     let typeConfig, bgColor, iconColor;
+    let awardDate = '', employeeName = '', reason = '';
 
     if (isAward) {
       // For leaderboard items
@@ -1323,8 +1170,13 @@ const Reward = () => {
       iconColor = index === 0 ? '#92400e' : '#475569';
     } else {
       // For reward timeline items
-      typeConfig = rewardTypeConfig[reward.rewardType] || {
-        name: reward.rewardType,
+      const rewardType = reward.reward_type || reward.rewardType || '';
+      awardDate = reward.award_date || reward.awardDate || '';
+      employeeName = reward.employee_name || reward.employeeName || 'Unknown';
+      reason = reward.reason || '';
+
+      typeConfig = rewardTypeConfig[rewardType] || {
+        name: rewardType,
         class: 'type-bonus',
         icon: 'stars',
       };
@@ -1348,7 +1200,7 @@ const Reward = () => {
     }
 
     return (
-      <div key={reward.id || reward.id} className="timeline-item">
+      <div key={reward.id || index} className="timeline-item">
         <div
           className="timeline-icon"
           style={{ backgroundColor: bgColor, color: iconColor }}
@@ -1373,7 +1225,7 @@ const Reward = () => {
                   reward.name
                 ) : (
                   <>
-                    <strong>{reward.employeeName}</strong> received{' '}
+                    <strong>{employeeName}</strong> received{' '}
                     {typeConfig.name.toLowerCase()}
                   </>
                 )}
@@ -1381,7 +1233,7 @@ const Reward = () => {
               <div className="timeline-date">
                 {isAward
                   ? reward.position
-                  : `${formatDate(reward.awardDate)} • ${reward.reason.substring(0, 60)}${reward.reason.length > 60 ? '...' : ''}`}
+                  : `${formatDate(awardDate)} • ${reason.substring(0, 60)}${reason.length > 60 ? '...' : ''}`}
               </div>
             </div>
             {isAward && (

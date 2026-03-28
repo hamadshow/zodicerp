@@ -31,6 +31,7 @@ use App\Http\Controllers\Home\HomeController;
 // Alias to avoid conflict if needed
 use App\Http\Controllers\Suppliers\Auth\SupplierAuthController; // Check usage, seems to be dashboard controller
 // Other Controllers
+use App\Models\Employee;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -293,47 +294,70 @@ Route::group([
         })->name('hr.dashboard');
         Route::resource('employees', \App\Http\Controllers\Backend\HumanResource\EmployeeController::class);
         Route::resource('nationalities', \App\Http\Controllers\Backend\HumanResource\NationalityController::class);
-        Route::get('departments', function () {
-            return Inertia::render('Backend/02_human_resource/Departments');
-        })->name('departments.index');
-        Route::get('profession', function () {
-            return Inertia::render('Backend/02_human_resource/Profession');
-        })->name('profession.index');
+        Route::resource('departments', \App\Http\Controllers\Backend\HumanResource\DepartmentController::class);
+        Route::resource('professions', \App\Http\Controllers\Backend\HumanResource\ProfessionController::class);
         Route::get('attendance', function () {
-            return Inertia::render('Backend/02_human_resource/Attendance');
+            $employees = Employee::select('id', 'name', 'position', 'department')->get();
+            return Inertia::render('Backend/02_human_resource/Attendance', [
+                'employees' => $employees
+            ]);
         })->name('attendance.index');
         Route::get('payroll-advance', function () {
-            return Inertia::render('Backend/02_human_resource/Payroll-Advance');
+            $employees = Employee::select('id', 'name', 'position', 'department')->get();
+            return Inertia::render('Backend/02_human_resource/Payroll-Advance', [
+                'employees' => $employees
+            ]);
         })->name('payroll-advance.index');
         Route::get('deductions', function () {
-            return Inertia::render('Backend/02_human_resource/Deductions');
+            $employees = Employee::select('id', 'name', 'position', 'department')->get();
+            return Inertia::render('Backend/02_human_resource/Deductions', [
+                'employees' => $employees
+            ]);
         })->name('deductions.index');
         Route::get('vacations', function () {
-            return Inertia::render('Backend/02_human_resource/Vacations');
+            $employees = Employee::select('id', 'name', 'position', 'department')->get();
+            return Inertia::render('Backend/02_human_resource/Vacations', [
+                'employees' => $employees
+            ]);
         })->name('vacations.index');
         Route::get('reward', function () {
-            return Inertia::render('Backend/02_human_resource/Reward');
+            $employees = Employee::select('id', 'name', 'position', 'department')->get();
+            return Inertia::render('Backend/02_human_resource/Reward', [
+                'employees' => $employees
+            ]);
         })->name('reward.index');
         Route::get('overtime', function () {
-            return Inertia::render('Backend/02_human_resource/OverTime');
+            $employees = Employee::select('id', 'name', 'position', 'department')->get();
+            return Inertia::render('Backend/02_human_resource/OverTime', [
+                'employees' => $employees
+            ]);
         })->name('overtime.index');
         Route::get('end-of-service', function () {
-            return Inertia::render('Backend/02_human_resource/End-of-service');
+            $employees = Employee::select('id', 'name', 'position', 'department')->get();
+            return Inertia::render('Backend/02_human_resource/End-of-service', [
+                'employees' => $employees
+            ]);
         })->name('end-of-service.index');
         Route::get('salary-receipt', function () {
-            return Inertia::render('Backend/02_human_resource/Salary-Receipt');
+            $employees = Employee::select('id', 'name', 'position', 'department')->get();
+            return Inertia::render('Backend/02_human_resource/Salary-Receipt', [
+                'employees' => $employees
+            ]);
         })->name('salary-receipt.index');
         Route::get('permissions', function () {
             return Inertia::render('Backend/02_human_resource/Permissions');
         })->name('permissions.index');
         Route::get('traffic-violations', function () {
-            return Inertia::render('Backend/02_human_resource/Traffic-Violations');
+            $employees = Employee::select('id', 'name', 'position', 'department')->get();
+            return Inertia::render('Backend/02_human_resource/Traffic-Violations', [
+                'employees' => $employees
+            ]);
         })->name('traffic-violations.index');
 
         // 4. Assets (الأصول الثابتة)
         Route::prefix('assets')->name('assets.')->group(function () {
             Route::resource('categories', \App\Http\Controllers\Backend\Assets\AssetCategoryController::class);
-            Route::resource('attributes', \App\Http\Controllers\Backend\Assets\AssetAttributeController::class);
+            Route::resource('asset-attributes', \App\Http\Controllers\Backend\Assets\AssetAttributeController::class);
             Route::resource('register', \App\Http\Controllers\Backend\Assets\AssetController::class);
             Route::get('movements', function () {
                 return Inertia::render('Backend/ComingSoon', ['title' => 'Asset Movements']);
@@ -361,6 +385,8 @@ Route::group([
                 return Inertia::render('Backend/ComingSoon', ['title' => 'Purchase Dashboard']);
             })->name('dashboard');
             Route::resource('supplier-groups', \App\Http\Controllers\Backend\Purchases\SupplierGroupController::class);
+            Route::post('suppliers/bulk-import', [\App\Http\Controllers\Backend\Purchases\SupplierController::class, 'bulkImport'])->name('suppliers.bulkImport');
+            Route::post('suppliers/{supplier}/toggle-favorite', [\App\Http\Controllers\Backend\Purchases\SupplierController::class, 'toggleFavorite'])->name('suppliers.toggleFavorite');
             Route::resource('suppliers', \App\Http\Controllers\Backend\Purchases\SupplierController::class);
             Route::resource('quotations', \App\Http\Controllers\Backend\Purchases\PurchaseQuotationController::class);
             Route::resource('orders', \App\Http\Controllers\Backend\Purchases\PurchaseOrderController::class);
@@ -444,6 +470,9 @@ Route::group([
         });
 
         // 8. Accounting & Business (المحاسبة)
+        Route::prefix('accounts')->name('accounts.')->group(function () {
+            Route::post('bulk-import', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'bulkImport'])->name('bulkImport');
+        });
         Route::get('chart-of-accounts', function () {
             return Inertia::render('Backend/07-Accounting/ChartOfAccounts');
         })->name('chart-of-accounts');

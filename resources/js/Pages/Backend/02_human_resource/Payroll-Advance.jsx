@@ -2,36 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 
-const PayrollAdvance = () => {
-  const initialAdvances = [
-    {
-      id: 1,
-      employee: 'John Doe',
-      amount: 1000,
-      date: '2023-10-15',
-      repaymentPlan: '3 months',
-      status: 'Approved'
-    },
-    {
-      id: 2,
-      employee: 'Jane Smith',
-      amount: 500,
-      date: '2023-10-20',
-      repaymentPlan: '1 month',
-      status: 'Pending'
-    },
-    {
-      id: 3,
-      employee: 'Michael Brown',
-      amount: 2000,
-      date: '2023-10-10',
-      repaymentPlan: '6 months',
-      status: 'Approved'
-    }
-  ];
+const PayrollAdvance = ({ employees: propEmployees }) => {
+  const [dbEmployees, setDbEmployees] = useState([]);
 
-  const [advances, setAdvances] = useState(initialAdvances);
-  const [filteredAdvances, setFilteredAdvances] = useState(initialAdvances);
+  useEffect(() => {
+    const propData = propEmployees?.data || propEmployees;
+    if (!propData || !Array.isArray(propData) || propData.length === 0) {
+      fetch('/api/employees')
+        .then(response => response.json())
+        .then(data => {
+          const employeeData = data.data || data;
+          setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
+        })
+        .catch(error => console.error('Error fetching employees:', error));
+    }
+  }, [propEmployees]);
+
+  const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
+  const [advances, setAdvances] = useState([]);
+  const [filteredAdvances, setFilteredAdvances] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentAdvance, setCurrentAdvance] = useState(null);
@@ -173,7 +162,10 @@ const PayrollAdvance = () => {
                     <div className="modal-body">
                         <div className="form-group">
                             <label className="form-label">Employee Name</label>
-                            <input type="text" className="form-control" name="employee" defaultValue={currentAdvance?.employee} required />
+                            <select className="form-control" name="employee" defaultValue={currentAdvance?.employee || ''} required>
+                                <option value="">Select Employee</option>
+                                {Array.isArray(employees) && employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+                            </select>
                         </div>
                         <div className="form-group">
                             <label className="form-label">Amount ($)</label>

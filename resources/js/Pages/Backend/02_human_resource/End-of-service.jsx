@@ -3,39 +3,25 @@ import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 
-const EndOfService = () => {
-  const initialEos = [
-    {
-      id: 1,
-      employee: 'John Doe',
-      type: 'Resignation',
-      date: '2023-11-30',
-      reason: 'Moving to another city',
-      amount: 5000,
-      status: 'Processed'
-    },
-    {
-      id: 2,
-      employee: 'Jane Smith',
-      type: 'Termination',
-      date: '2023-10-15',
-      reason: 'Performance issues',
-      amount: 2500,
-      status: 'Pending'
-    },
-    {
-      id: 3,
-      employee: 'Michael Brown',
-      type: 'Contract End',
-      date: '2023-12-31',
-      reason: 'Contract expired',
-      amount: 4000,
-      status: 'Pending'
-    }
-  ];
+const EndOfService = ({ employees: propEmployees }) => {
+  const [dbEmployees, setDbEmployees] = useState([]);
 
-  const [eosList, setEosList] = useState(initialEos);
-  const [filteredEos, setFilteredEos] = useState(initialEos);
+  useEffect(() => {
+    const propData = propEmployees?.data || propEmployees;
+    if (!propData || !Array.isArray(propData) || propData.length === 0) {
+      fetch('/api/employees')
+        .then(response => response.json())
+        .then(data => {
+          const employeeData = data.data || data;
+          setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
+        })
+        .catch(error => console.error('Error fetching employees:', error));
+    }
+  }, [propEmployees]);
+
+  const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
+  const [eosList, setEosList] = useState([]);
+  const [filteredEos, setFilteredEos] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentEos, setCurrentEos] = useState(null);
@@ -181,7 +167,10 @@ const EndOfService = () => {
                     <div className="modal-body">
                         <div className="form-group">
                             <label className="form-label">Employee Name</label>
-                            <input type="text" className="form-control" name="employee" defaultValue={currentEos?.employee} required />
+                            <select className="form-control" name="employee" defaultValue={currentEos?.employee || ''} required>
+                                <option value="">Select Employee</option>
+                                {Array.isArray(employees) && employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+                            </select>
                         </div>
                         <div className="form-group">
                             <label className="form-label">Type</label>

@@ -2,8 +2,10 @@
 
 namespace App\Models\Assets;
 
+use App\Models\Employee;
 use App\Models\User;
 use App\Models\Warehouses;
+use App\Models\HumanResources\Department;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -58,7 +60,7 @@ class AssetMovement extends Model
 
     public function fromEmployee()
     {
-        return $this->belongsTo(User::class, 'from_employee_id');
+        return $this->belongsTo(Employee::class, 'from_employee_id');
     }
 
     // To Relationships
@@ -74,7 +76,7 @@ class AssetMovement extends Model
 
     public function toEmployee()
     {
-        return $this->belongsTo(User::class, 'to_employee_id');
+        return $this->belongsTo(Employee::class, 'to_employee_id');
     }
 
     // System User Relationships

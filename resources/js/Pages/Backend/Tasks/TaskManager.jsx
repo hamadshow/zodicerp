@@ -24,13 +24,13 @@ const resolveMediaUrl = (value) => {
   return `/media-files/${relativePath}`;
 };
 
-const TaskManager = () => {
+const TaskManager = ({ employees: propEmployees }) => {
   // State management
   const [tasks, setTasks] = useState([]);
   const [categories, setCategories] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [statuses, setStatuses] = useState([]);
-  const [employees, setEmployees] = useState([]);
+  const [employees, setEmployees] = useState(propEmployees || []);
   const [modalOpen, setModalOpen] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
@@ -161,12 +161,14 @@ const TaskManager = () => {
         console.error('Statuses response is not JSON');
       }
 
-      const employeesRes = await apiService.get('/employees', { params: { per_page: 1000 } });
-      if (isJsonResponse(employeesRes)) {
-        const employeesData = employeesRes.data;
-        setEmployees(employeesData.data || employeesData);
-      } else {
-        console.error('Employees response is not JSON');
+      if (employees.length === 0) {
+        const employeesRes = await apiService.get('/employees', { params: { per_page: 1000 } });
+        if (isJsonResponse(employeesRes)) {
+          const employeesData = employeesRes.data;
+          setEmployees(employeesData.data || employeesData);
+        } else {
+          console.error('Employees response is not JSON');
+        }
       }
 
       const statsRes = await apiService.get('/tasks/statistics');
@@ -657,7 +659,7 @@ const TaskManager = () => {
         </td>
         <td>
           {task.assignments && task.assignments.length > 0
-            ? task.assignments.map((a) => a.user?.name).join(', ')
+            ? task.assignments.map((a) => a.employee?.name).join(', ')
             : 'Unassigned'}
         </td>
         <td>{formatDate(task.due_date)}</td>

@@ -19,7 +19,7 @@ class TaskController extends Controller
 
     public function index(Request $request)
     {
-        $query = Task::with(['category', 'priority', 'status', 'creator', 'assignments.user']);
+        $query = Task::with(['category', 'priority', 'status', 'creator', 'assignments.employee']);
 
         // Search functionality
         if ($request->has('search') && ! empty($request->search)) {
@@ -59,12 +59,15 @@ class TaskController extends Controller
         $perPage = $request->get('per_page', 10);
         $tasks = $query->paginate($perPage);
 
+        $employees = \App\Models\Employee::select('id', 'name', 'position', 'department')->get();
+
         if ($request->wantsJson()) {
             return response()->json($tasks);
         }
 
         return Inertia::render('Backend/Tasks/TaskManager', [
             'tasks' => $tasks,
+            'employees' => $employees,
         ]);
     }
 
@@ -80,12 +83,22 @@ class TaskController extends Controller
             'due_date' => $request->due_date,
         ]);
 
-        return response()->json($task->load(['category', 'priority', 'status', 'creator']), 201);
+        if ($request->has('assigned_users')) {
+            foreach ($request->assigned_users as $userId) {
+                \App\Models\Tasks\TaskAssignment::create([
+                    'task_id' => $task->id,
+                    'user_id' => $userId,
+                    'assigned_at' => now(),
+                ]);
+            }
+        }
+
+        return response()->json($task->load(['category', 'priority', 'status', 'creator', 'assignments.employee']), 201);
     }
 
     public function show(Task $task)
     {
-        return $task->load(['category', 'priority', 'status', 'creator', 'assignments.user', 'comments.user', 'attachments']);
+        return $task->load(['category', 'priority', 'status', 'creator', 'assignments.employee', 'comments.user', 'attachments']);
     }
 
     public function update(UpdateTaskRequest $request, Task $task)
@@ -97,7 +110,18 @@ class TaskController extends Controller
 
         $task->update($request->validated());
 
-        return response()->json($task->load(['category', 'priority', 'status', 'creator']));
+        if ($request->has('assigned_users')) {
+            \App\Models\Tasks\TaskAssignment::where('task_id', $task->id)->delete();
+            foreach ($request->assigned_users as $userId) {
+                \App\Models\Tasks\TaskAssignment::create([
+                    'task_id' => $task->id,
+                    'user_id' => $userId,
+                    'assigned_at' => now(),
+                ]);
+            }
+        }
+
+        return response()->json($task->load(['category', 'priority', 'status', 'creator', 'assignments.employee']));
     }
 
     public function destroy(Task $task)

@@ -212,7 +212,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
     // --- IMPORT SYSTEM LOGIC ---
     const downloadTemplate = () => {
         const headers = ['supplier_code', 'name_ar', 'group_code', 'primary_phone', 'email', 'currency_code', 'account_code', 'is_active'];
-        const sample = ['SUP-10001', 'مورد 1', 'GRP-001', '01000000001', 'supplier1@example.com', 'EGP', '2101', '1'];
+        const sample = ['SUP-10001', 'مورد 1', 'GRP-001', '01000000001', 'supplier1@example.com', 'SAR', '2101', '1'];
         const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Template");

@@ -75,7 +75,7 @@ const AdminLayout = ({
       submenuItems: [
         { icon: 'dashboard', label: 'HR Dashboard', href: getLocalizedRoute('admin.hr.dashboard') },
         { icon: 'group', label: 'Departments', href: getLocalizedRoute('admin.departments.index') },
-        { icon: 'work', label: 'Profession', href: getLocalizedRoute('admin.profession.index') },
+        { icon: 'work', label: 'Profession', href: getLocalizedRoute('admin.professions.index') },
         canViewNationalities && {
           icon: 'public',
           label: 'Nationalities',
@@ -197,7 +197,7 @@ const AdminLayout = ({
       hasSubmenu: true,
       submenuItems: [
         { icon: 'category', label: 'Asset Categories', href: getLocalizedRoute('admin.assets.categories.index') },
-        { icon: 'tune', label: 'Asset Attributes', href: getLocalizedRoute('admin.assets.attributes.index') },
+        { icon: 'tune', label: 'Asset Attributes', href: getLocalizedRoute('admin.assets.asset-attributes.index') },
         { icon: 'web_asset', label: 'Assets Register', href: getLocalizedRoute('admin.assets.register.index') },
         { icon: 'swap_horiz', label: 'Asset Movements', href: getLocalizedRoute('admin.assets.movements.index') },
         { icon: 'trending_up', label: 'Asset Revaluation', href: getLocalizedRoute('admin.assets.revaluation.index') },

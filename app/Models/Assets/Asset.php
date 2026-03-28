@@ -4,6 +4,7 @@ namespace App\Models\Assets;
 
 use App\Models\Account;
 use App\Models\Currency;
+use App\Models\Employee;
 use App\Models\ItemUnit;
 use App\Models\User;
 use App\Models\Vendor_Purchases\PurchaseTax;
@@ -103,7 +104,7 @@ class Asset extends Model
 
     public function employee()
     {
-        return $this->belongsTo(User::class, 'employee_id');
+        return $this->belongsTo(Employee::class, 'employee_id');
     }
 
     public function inventoryAccount()

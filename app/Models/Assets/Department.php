@@ -2,7 +2,7 @@
 
 namespace App\Models\Assets;
 
-use App\Models\User;
+use App\Models\Employee;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -19,6 +19,7 @@ class Department extends Model
         'description',
         'manager_id',
         'is_active',
+        'company_id',
     ];
 
     protected $casts = [
@@ -27,6 +28,6 @@ class Department extends Model
 
     public function manager()
     {
-        return $this->belongsTo(User::class, 'manager_id');
+        return $this->belongsTo(Employee::class, 'manager_id');
     }
 }

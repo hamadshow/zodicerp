@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Backend\Assets;
 use App\Http\Controllers\Controller;
 use App\Models\Assets\Asset;
 use App\Models\Assets\AssetCategory;
+use App\Models\Employee;
 use App\Models\ItemUnit;
 use App\Models\User;
 use App\Models\Warehouses;
@@ -40,6 +41,9 @@ class AssetController extends Controller
             if ($request->has('category_id') && $request->category_id) {
                 $query->where('category_id', $request->category_id);
             }
+            if ($request->has('employee_id') && $request->employee_id) {
+                $query->where('employee_id', $request->employee_id);
+            }
 
             $assets = $query->orderBy('asset_number', 'desc')->paginate(20)->withQueryString();
 
@@ -47,6 +51,7 @@ class AssetController extends Controller
             $categories = AssetCategory::select('id', 'name_en as name', 'parent_id')->orderBy('name_en')->get();
             $warehouses = Warehouses::select('id', 'name')->get(); // Assuming Warehouse has name
             $units = ItemUnit::select('id', 'name')->get();
+            $employees = Employee::select('id', 'name')->get();
 
             if ($request->wantsJson()) {
                 return response()->json([
@@ -54,6 +59,7 @@ class AssetController extends Controller
                     'categories' => $categories,
                     'warehouses' => $warehouses,
                     'units' => $units,
+                    'employees' => $employees,
                 ]);
             }
 
@@ -62,7 +68,8 @@ class AssetController extends Controller
                 'categories' => $categories,
                 'warehouses' => $warehouses,
                 'units' => $units,
-                'filters' => $request->only(['search', 'status', 'category_id']),
+                'employees' => $employees,
+                'filters' => $request->only(['search', 'status', 'category_id', 'employee_id']),
             ]);
         } catch (Exception $e) {
             Log::error('Error retrieving assets: '.$e->getMessage(), [
@@ -85,7 +92,7 @@ class AssetController extends Controller
         $categories = AssetCategory::select('id', 'name_en as name', 'parent_id')->orderBy('name_en')->get();
         $warehouses = Warehouses::select('id', 'name')->get();
         $units = ItemUnit::select('id', 'name')->get();
-        $employees = User::select('id', 'username')->get();
+        $employees = Employee::select('id', 'name')->get();
 
         return Inertia::render('Backend/08-Assets/Assets', [
             'asset' => null,
@@ -101,7 +108,7 @@ class AssetController extends Controller
         $categories = AssetCategory::select('id', 'name_en as name', 'parent_id')->orderBy('name_en')->get();
         $warehouses = Warehouses::select('id', 'name')->get();
         $units = ItemUnit::select('id', 'name')->get();
-        $employees = User::select('id', 'username')->get();
+        $employees = Employee::select('id', 'name')->get();
 
         return Inertia::render('Backend/08-Assets/Assets', [
             'asset' => $asset,
@@ -166,7 +173,10 @@ class AssetController extends Controller
 
             DB::commit();
 
-            return redirect()->route('admin.assets.index')
+            return redirect()->route('admin.assets.register.index', [
+                'country' => $request->segment(1) ?? session('country_code', 'sa'),
+                'lang' => $request->segment(2) ?? session('locale', config('app.locale', 'en'))
+            ])
                 ->with('success', 'Asset created successfully.');
 
         } catch (Exception $e) {
@@ -210,7 +220,10 @@ class AssetController extends Controller
 
             DB::commit();
 
-            return redirect()->route('admin.assets.index')
+            return redirect()->route('admin.assets.register.index', [
+                'country' => $request->segment(1) ?? session('country_code', 'sa'),
+                'lang' => $request->segment(2) ?? session('locale', config('app.locale', 'en'))
+            ])
                 ->with('success', 'Asset updated successfully.');
 
         } catch (Exception $e) {
@@ -229,7 +242,10 @@ class AssetController extends Controller
 
             $asset->delete();
 
-            return redirect()->route('admin.assets.index')
+            return redirect()->route('admin.assets.register.index', [
+                'country' => request()->segment(1) ?? session('country_code', 'sa'),
+                'lang' => request()->segment(2) ?? session('locale', config('app.locale', 'en'))
+            ])
                 ->with('success', 'Asset deleted successfully.');
         } catch (Exception $e) {
             return back()->withErrors(['error' => 'Failed to delete asset.']);

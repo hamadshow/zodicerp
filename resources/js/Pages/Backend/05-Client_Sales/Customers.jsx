@@ -145,7 +145,7 @@ export default function Customers({ customers, groups, countries, cities, curren
     // --- IMPORT SYSTEM LOGIC ---
     const downloadTemplate = () => {
         const headers = ['customer_code', 'name_ar', 'name_en', 'group_code', 'primary_phone', 'email', 'currency_code', 'account_code', 'is_active'];
-        const sample = ['CUS-10001', 'عميل 1', 'Customer 1', 'GRP-001', '01000000001', 'cust1@example.com', 'EGP', '2101', '1'];
+        const sample = ['CUS-10001', 'عميل 1', 'Customer 1', 'GRP-001', '01000000001', 'cust1@example.com', 'SAR', '2101', '1'];
         const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Template");

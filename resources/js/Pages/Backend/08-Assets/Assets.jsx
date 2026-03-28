@@ -81,11 +81,22 @@ const CategoryTreeItem = ({ category, selectedIds, onToggle, level = 0 }) => {
 // List Component
 // ==========================================
 
-const AssetsList = ({ assets, warehouses, categories, filters = {} }) => {
-    const { flash } = usePage().props;
+const AssetsList = ({ assets, warehouses, categories, employees, filters = {} }) => {
+    const { props } = usePage();
+    const { flash, localization } = props;
+    
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const safeAssets = assets || { data: [], total: 0, from: 0, to: 0, links: [] };
     const safeWarehouses = Array.isArray(warehouses) ? warehouses : [];
     const safeCategories = Array.isArray(categories) ? categories : [];
+    const safeEmployees = Array.isArray(employees) ? employees : [];
     
     // Filter States
     const [filterParams, setFilterParams] = useState({
@@ -93,6 +104,7 @@ const AssetsList = ({ assets, warehouses, categories, filters = {} }) => {
         status: filters.status || '',
         warehouse_id: filters.warehouse_id || '',
         category_id: filters.category_id || '',
+        employee_id: filters.employee_id || '',
     });
 
     const handleFilterChange = (e) => {
@@ -101,30 +113,30 @@ const AssetsList = ({ assets, warehouses, categories, filters = {} }) => {
     };
 
     const applyFilters = () => {
-        router.get(route('admin.assets.index'), filterParams, { preserveState: true });
+        router.get(getLocalizedRoute('admin.assets.register.index'), filterParams, { preserveState: true });
     };
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this asset?')) {
-            router.delete(route('admin.assets.destroy', id));
+            router.delete(getLocalizedRoute('admin.assets.register.destroy', { register: id }));
         }
     };
 
     return (
-        <AdminLayout activeMenu="Inventory">
+        <AdminLayout activeMenu="Fixed Assets">
             <Head title="Assets" />
             
             <div className="assets-page">
                 <div className="content-area">
                 <div className="page-header-section">
                     <div className="breadcrumb">
-                        <Link href={route('admin.dashboard')}>Dashboard</Link>
+                        <Link href={getLocalizedRoute('admin.dashboard')}>Dashboard</Link>
                         <span>/</span>
-                        <span>Inventory</span>
+                        <span>Fixed Assets</span>
                         <span>/</span>
-                        <span className="current">Assets</span>
+                        <span className="current">Assets Register</span>
                     </div>
-                    <h1 className="page-title">Assets</h1>
+                    <h1 className="page-title">Assets Register</h1>
                 </div>
 
                 {flash.success && (
@@ -194,7 +206,7 @@ const AssetsList = ({ assets, warehouses, categories, filters = {} }) => {
                                     <span className="material-icons-outlined">search</span>
                                 </button>
                             </div>
-                            <Link className="btn btn-primary" href="/admin/assets/create">
+                            <Link className="btn btn-primary" href={getLocalizedRoute('admin.assets.register.create')}>
                                 <span className="material-icons-outlined">add</span>
                                 Add Asset
                             </Link>
@@ -209,6 +221,10 @@ const AssetsList = ({ assets, warehouses, categories, filters = {} }) => {
                         <select name="warehouse_id" className="form-control filter-select" value={filterParams.warehouse_id} onChange={handleFilterChange}>
                             <option value="">All Warehouses</option>
                             {safeWarehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+                        </select>
+                        <select name="employee_id" className="form-control filter-select" value={filterParams.employee_id} onChange={handleFilterChange}>
+                            <option value="">All Employees</option>
+                            {safeEmployees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
                         <select name="status" className="form-control filter-select" value={filterParams.status} onChange={handleFilterChange}>
                             <option value="">All Status</option>
@@ -229,6 +245,7 @@ const AssetsList = ({ assets, warehouses, categories, filters = {} }) => {
                                     <th>Serial</th>
                                     <th>Category</th>
                                     <th>Warehouse</th>
+                                    <th>Employee</th>
                                     <th>Unit Cost</th>
                                     <th>Status</th>
                                     <th>Actions</th>
@@ -257,6 +274,7 @@ const AssetsList = ({ assets, warehouses, categories, filters = {} }) => {
                                             <td>{asset.serial_number || '-'}</td>
                                             <td>{asset.category?.name || '-'}</td>
                                             <td>{asset.warehouse?.name || '-'}</td>
+                                            <td>{asset.employee?.name || '-'}</td>
                                             <td>${asset.unit_cost || '0.00'}</td>
                                             <td>
                                                 <span className={`status-badge status-${asset.status}`}>
@@ -265,13 +283,13 @@ const AssetsList = ({ assets, warehouses, categories, filters = {} }) => {
                                             </td>
                                             <td>
                                                 <div className="actions-cell">
-                                                    <button
+                                                    <Link
                                                         className="icon-btn edit"
-                                                        onClick={() => router.get(`/admin/assets/${asset.id}/edit`)}
+                                                        href={getLocalizedRoute('admin.assets.register.edit', { register: asset.id })}
                                                         title="Edit"
                                                     >
                                                         <span className="material-icons-outlined">edit</span>
-                                                    </button>
+                                                    </Link>
                                                     <button className="icon-btn delete" onClick={() => handleDelete(asset.id)} title="Delete">
                                                         <span className="material-icons-outlined">delete</span>
                                                     </button>
@@ -319,7 +337,23 @@ const AssetsList = ({ assets, warehouses, categories, filters = {} }) => {
 // ==========================================
 
 const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
+    const { props } = usePage();
+    const { localization } = props;
     const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
+    
+    // Safety guards for props
+    const safeCategories = Array.isArray(categories) ? categories : [];
+    const safeWarehouses = Array.isArray(warehouses) ? warehouses : [];
+    const safeUnits = Array.isArray(units) ? units : [];
+    const safeEmployees = Array.isArray(employees) ? employees : [];
+    
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
     
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         name_en: '',
@@ -412,12 +446,12 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
     const submit = (e) => {
         e.preventDefault();
         if (asset) {
-            router.post(route('admin.assets.update', asset.id), {
+            router.post(getLocalizedRoute('admin.assets.register.update', { register: asset.id }), {
                 _method: 'put',
                 ...data
             });
         } else {
-            post(route('admin.assets.store'));
+            post(getLocalizedRoute('admin.assets.register.store'));
         }
     };
 
@@ -432,7 +466,7 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                             {asset ? `Edit Asset: ${data.name_en}` : "Create New Asset"}
                         </h1>
                         <div className="assets-ce-actions">
-                            <Link href="/admin/assets" className="btn btn-outline">Cancel</Link>
+                            <Link href={getLocalizedRoute('admin.assets.register.index')} className="btn btn-outline">Cancel</Link>
                             <button type="submit" className="btn btn-primary" disabled={processing}>
                                 {processing ? 'Saving...' : (asset ? 'Update Asset' : 'Save Asset')}
                             </button>
@@ -491,7 +525,7 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                                                 onChange={e => setData('category_id', e.target.value)}
                                             >
                                                 <option value="">Select Category</option>
-                                                {categories && categories.map(c => (
+                                                {safeCategories.map(c => (
                                                     <option key={c.id} value={c.id}>{c.name}</option>
                                                 ))}
                                             </select>
@@ -505,7 +539,7 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                                                 onChange={e => setData('warehouse_id', e.target.value)}
                                             >
                                                 <option value="">Select Warehouse</option>
-                                                {warehouses && warehouses.map(w => (
+                                                {safeWarehouses.map(w => (
                                                     <option key={w.id} value={w.id}>{w.name}</option>
                                                 ))}
                                             </select>
@@ -521,7 +555,7 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                                                 onChange={e => setData('unit_id', e.target.value)}
                                             >
                                                 <option value="">Select Unit</option>
-                                                {units && units.map(u => (
+                                                {safeUnits.map(u => (
                                                     <option key={u.id} value={u.id}>{u.name}</option>
                                                 ))}
                                             </select>
@@ -535,7 +569,7 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                                                 onChange={e => setData('employee_id', e.target.value)}
                                             >
                                                 <option value="">Select Employee</option>
-                                                {employees && employees.map(e => (
+                                                {safeEmployees.map(e => (
                                                     <option key={e.id} value={e.id}>{e.name}</option>
                                                 ))}
                                             </select>

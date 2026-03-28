@@ -23,156 +23,27 @@ const Toast = ({ toasts, removeToast }) => {
   );
 };
 
-const TrafficViolations = () => {
+const TrafficViolations = ({ employees: propEmployees }) => {
+  const [dbEmployees, setDbEmployees] = useState([]);
+
+  useEffect(() => {
+    const propData = propEmployees?.data || propEmployees;
+    if (!propData || !Array.isArray(propData) || propData.length === 0) {
+      fetch('/api/employees')
+        .then(response => response.json())
+        .then(data => {
+          const employeeData = data.data || data;
+          setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
+        })
+        .catch(error => console.error('Error fetching employees:', error));
+    }
+  }, [propEmployees]);
+
+  const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
   // State for modal visibility
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingViolationId, setEditingViolationId] = useState(null);
-  const [violations, setViolations] = useState([
-    {
-      id: 1,
-      vehiclePlate: 'ABC-123',
-      vehicleType: 'car',
-      driverName: 'Ahmed Mohamed',
-      driverLicense: 'DL-7890123',
-      violationType: 'speeding',
-      severity: 'high',
-      violationDate: '2024-01-15T14:30:00',
-      fineAmount: 150,
-      location: 'Main Street, Downtown',
-      officerId: 'OFF-456',
-      status: 'pending',
-      points: 4,
-      description: 'Exceeded speed limit by 25 km/h in school zone',
-      evidenceNotes: 'Radar gun reading: 75 km/h in 50 km/h zone',
-      createdAt: '2024-01-15',
-    },
-    {
-      id: 2,
-      vehiclePlate: 'XYZ-789',
-      vehicleType: 'truck',
-      driverName: 'Sarah Johnson',
-      driverLicense: 'DL-4567890',
-      violationType: 'red-light',
-      severity: 'high',
-      violationDate: '2024-01-14T09:15:00',
-      fineAmount: 200,
-      location: 'Central Intersection',
-      officerId: 'OFF-123',
-      status: 'paid',
-      points: 6,
-      description: 'Ran red light at busy intersection',
-      evidenceNotes: 'Traffic camera footage available',
-      createdAt: '2024-01-14',
-    },
-    {
-      id: 3,
-      vehiclePlate: 'DEF-456',
-      vehicleType: 'motorcycle',
-      driverName: 'James Wilson',
-      driverLicense: 'DL-1234567',
-      violationType: 'parking',
-      severity: 'low',
-      violationDate: '2024-01-13T16:45:00',
-      fineAmount: 75,
-      location: 'No Parking Zone, Market St.',
-      officerId: 'OFF-789',
-      status: 'paid',
-      points: 1,
-      description: 'Illegal parking in no parking zone',
-      evidenceNotes: 'Photo evidence taken',
-      createdAt: '2024-01-13',
-    },
-    {
-      id: 4,
-      vehiclePlate: 'GHI-789',
-      vehicleType: 'car',
-      driverName: 'Fatima Al-Mansour',
-      driverLicense: 'DL-8901234',
-      violationType: 'seatbelt',
-      severity: 'medium',
-      violationDate: '2024-01-12T11:20:00',
-      fineAmount: 100,
-      location: 'Highway 1, Exit 5',
-      officerId: 'OFF-234',
-      status: 'disputed',
-      points: 2,
-      description: 'Driver not wearing seatbelt',
-      evidenceNotes: 'Driver claims medical exemption',
-      createdAt: '2024-01-12',
-    },
-    {
-      id: 5,
-      vehiclePlate: 'JKL-012',
-      vehicleType: 'bus',
-      driverName: 'Mohammed Al-Farsi',
-      driverLicense: 'DL-5678901',
-      violationType: 'license',
-      severity: 'high',
-      violationDate: '2024-01-11T08:45:00',
-      fineAmount: 300,
-      location: 'Bus Terminal',
-      officerId: 'OFF-567',
-      status: 'pending',
-      points: 8,
-      description: 'Expired commercial license',
-      evidenceNotes: 'License expired 3 months ago',
-      createdAt: '2024-01-11',
-    },
-    {
-      id: 6,
-      vehiclePlate: 'MNO-345',
-      vehicleType: 'car',
-      driverName: 'Priya Sharma',
-      driverLicense: 'DL-2345678',
-      violationType: 'phone',
-      severity: 'medium',
-      violationDate: '2024-01-10T17:30:00',
-      fineAmount: 125,
-      location: 'City Center Roundabout',
-      officerId: 'OFF-890',
-      status: 'paid',
-      points: 3,
-      description: 'Using mobile phone while driving',
-      evidenceNotes: 'Clear visual confirmation',
-      createdAt: '2024-01-10',
-    },
-    {
-      id: 7,
-      vehiclePlate: 'PQR-678',
-      vehicleType: 'van',
-      driverName: 'Ali Khan',
-      driverLicense: 'DL-9012345',
-      violationType: 'dui',
-      severity: 'high',
-      violationDate: '2024-01-09T22:15:00',
-      fineAmount: 500,
-      location: 'Nightclub District',
-      officerId: 'OFF-345',
-      status: 'pending',
-      points: 12,
-      description: 'Driving under influence',
-      evidenceNotes: 'Breathalyzer test positive',
-      createdAt: '2024-01-09',
-    },
-    {
-      id: 8,
-      vehiclePlate: 'STU-901',
-      vehicleType: 'taxi',
-      driverName: 'Marie Dubois',
-      driverLicense: 'DL-6789012',
-      violationType: 'insurance',
-      severity: 'medium',
-      violationDate: '2024-01-08T13:10:00',
-      fineAmount: 250,
-      location: 'Airport Taxi Stand',
-      officerId: 'OFF-678',
-      status: 'cancelled',
-      points: 4,
-      description: 'No valid insurance proof',
-      evidenceNotes: 'Insurance found valid upon review',
-      createdAt: '2024-01-08',
-    },
-  ]);
+  const [violations, setViolations] = useState([]);
 
   // State for form data
   const [formData, setFormData] = useState({
@@ -1007,15 +878,16 @@ const TrafficViolations = () => {
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Driver Name *</label>
-                    <input
-                      type="text"
+                    <select
                       className="form-control"
                       name="driverName"
                       value={formData.driverName}
                       onChange={handleInputChange}
-                      placeholder="Enter driver name"
                       required
-                    />
+                    >
+                      <option value="">Select Employee</option>
+                      {Array.isArray(employees) && employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+                    </select>
                   </div>
                   <div className="form-group">
                     <label className="form-label">Driver License</label>

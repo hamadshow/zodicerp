@@ -1,8 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 
 const AssetAttributesList = ({ attributes = [] }) => {
+    const { props } = usePage();
+    const { localization } = props;
+    
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [filteredAttributes, setFilteredAttributes] = useState(attributes);
     const [searchTerm, setSearchTerm] = useState('');
     const [stats, setStats] = useState({
@@ -38,7 +49,7 @@ const AssetAttributesList = ({ attributes = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this attribute?')) {
-            router.delete(route('admin.assets.asset-attributes.destroy', id));
+            router.delete(getLocalizedRoute('admin.assets.asset-attributes.destroy', { 'asset_attribute': id }));
         }
     };
 
@@ -46,7 +57,7 @@ const AssetAttributesList = ({ attributes = [] }) => {
         <>
             <Head title="Asset Attributes - ZodicERP" />
             <div className="breadcrumb">
-                <Link href={route('admin.dashboard')}>Dashboard</Link>
+                <Link href={getLocalizedRoute('admin.dashboard')}>Dashboard</Link>
                 <span>/</span>
                 <a href="#">Fixed Assets</a>
                 <span>/</span>
@@ -100,7 +111,7 @@ const AssetAttributesList = ({ attributes = [] }) => {
                         </div>
                     </div>
                     <div className="actions">
-                        <Link href={route('admin.assets.asset-attributes.create')} className="btn btn-primary">
+                        <Link href={getLocalizedRoute('admin.assets.asset-attributes.create')} className="btn btn-primary">
                             <span className="material-icons-outlined">add</span>
                             <span>Add Attribute</span>
                         </Link>
@@ -142,7 +153,7 @@ const AssetAttributesList = ({ attributes = [] }) => {
                                             </span>
                                         </td>
                                         <td>
-                                            <Link href={route('admin.assets.asset-attributes.edit', attr.id)} className="icon-btn edit">
+                                            <Link href={getLocalizedRoute('admin.assets.asset-attributes.edit', { 'asset_attribute': attr.id })} className="icon-btn edit">
                                                 <span className="material-icons-outlined">edit</span>
                                             </Link>
                                             <button className="icon-btn delete" onClick={() => handleDelete(attr.id)}>
@@ -165,6 +176,17 @@ const AssetAttributesList = ({ attributes = [] }) => {
 };
 
 const AssetAttributesForm = ({ attribute = null }) => {
+    const { props } = usePage();
+    const { localization } = props;
+    
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const isEdit = !!attribute;
 
     const { data, setData, post, put, processing, errors } = useForm({
@@ -178,9 +200,9 @@ const AssetAttributesForm = ({ attribute = null }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (isEdit) {
-            put(route('admin.assets.asset-attributes.update', attribute.id));
+            put(getLocalizedRoute('admin.assets.asset-attributes.update', { 'asset_attribute': attribute.id }));
         } else {
-            post(route('admin.assets.asset-attributes.store'));
+            post(getLocalizedRoute('admin.assets.asset-attributes.store'));
         }
     };
 
@@ -191,11 +213,11 @@ const AssetAttributesForm = ({ attribute = null }) => {
             <Head title={`${pageTitle} - ZodicERP`} />
             <div className="products-ce-page">
                 <div className="breadcrumb">
-                    <Link href={route('admin.dashboard')}>Dashboard</Link>
+                    <Link href={getLocalizedRoute('admin.dashboard')}>Dashboard</Link>
                     <span>/</span>
                     <a href="#">Fixed Assets</a>
                     <span>/</span>
-                    <Link href={route('admin.assets.asset-attributes.index')}>Asset Attributes</Link>
+                    <Link href={getLocalizedRoute('admin.assets.asset-attributes.index')}>Asset Attributes</Link>
                     <span>/</span>
                     <span>{pageTitle}</span>
                 </div>

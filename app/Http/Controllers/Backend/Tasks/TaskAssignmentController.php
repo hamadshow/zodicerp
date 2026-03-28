@@ -18,7 +18,7 @@ class TaskAssignmentController extends Controller
 
     public function index()
     {
-        return TaskAssignment::with(['task', 'user'])->get();
+        return TaskAssignment::with(['task', 'employee'])->get();
     }
 
     public function store(StoreTaskAssignmentRequest $request)
@@ -40,12 +40,12 @@ class TaskAssignmentController extends Controller
 
         $assignment = TaskAssignment::create($data);
 
-        return response()->json($assignment->load(['task', 'user']), 201);
+        return response()->json($assignment->load(['task', 'employee']), 201);
     }
 
     public function show(TaskAssignment $assignment)
     {
-        return $assignment->load(['task', 'user']);
+        return $assignment->load(['task', 'employee']);
     }
 
     public function update(UpdateTaskAssignmentRequest $request, TaskAssignment $assignment)
@@ -56,7 +56,7 @@ class TaskAssignmentController extends Controller
 
         $assignment->update($request->validated());
 
-        return response()->json($assignment->load(['task', 'user']));
+        return response()->json($assignment->load(['task', 'employee']));
     }
 
     public function destroy(TaskAssignment $assignment)

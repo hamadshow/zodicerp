@@ -2,7 +2,7 @@
 
 namespace App\Models\Tasks;
 
-use App\Models\User;
+use App\Models\Employee;
 use Illuminate\Database\Eloquent\Model;
 
 class TaskAssignment extends Model
@@ -14,8 +14,8 @@ class TaskAssignment extends Model
         return $this->belongsTo(Task::class);
     }
 
-    public function user()
+    public function employee()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Employee::class, 'user_id');
     }
 }

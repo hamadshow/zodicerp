@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 
@@ -20,139 +20,31 @@ const STATUS_NAMES = {
   cancelled: 'Cancelled',
 };
 
-const initialReceipts = [
-  {
-    id: 1,
-    receiptNo: 'SLR-2024-12-001',
-    employeeId: 'EMP-001',
-    employeeName: 'Ahmed Mohamed',
-    position: 'Software Engineer',
-    department: 'it',
-    period: 'December 2024',
-    grossSalary: 6000,
-    deductions: 1300,
-    netSalary: 4700,
-    paymentDate: '2024-12-31',
-    status: 'paid',
-    paymentMethod: 'Bank Transfer',
-    bankAccount: '**** 1234',
-  },
-  {
-    id: 2,
-    receiptNo: 'SLR-2024-12-002',
-    employeeId: 'EMP-002',
-    employeeName: 'Sarah Johnson',
-    position: 'HR Manager',
-    department: 'hr',
-    period: 'December 2024',
-    grossSalary: 7500,
-    deductions: 1500,
-    netSalary: 6000,
-    paymentDate: '2024-12-31',
-    status: 'paid',
-    paymentMethod: 'Bank Transfer',
-    bankAccount: '**** 5678',
-  },
-  {
-    id: 3,
-    receiptNo: 'SLR-2024-12-003',
-    employeeId: 'EMP-003',
-    employeeName: 'James Wilson',
-    position: 'Sales Director',
-    department: 'sales',
-    period: 'December 2024',
-    grossSalary: 9000,
-    deductions: 1800,
-    netSalary: 7200,
-    paymentDate: '2024-12-31',
-    status: 'paid',
-    paymentMethod: 'Bank Transfer',
-    bankAccount: '**** 9012',
-  },
-  {
-    id: 4,
-    receiptNo: 'SLR-2024-12-004',
-    employeeId: 'EMP-004',
-    employeeName: 'Fatima Al-Mansour',
-    position: 'Marketing Specialist',
-    department: 'marketing',
-    period: 'December 2024',
-    grossSalary: 5500,
-    deductions: 1100,
-    netSalary: 4400,
-    paymentDate: '2024-12-31',
-    status: 'pending',
-    paymentMethod: 'Bank Transfer',
-    bankAccount: '**** 3456',
-  },
-  {
-    id: 5,
-    receiptNo: 'SLR-2024-12-005',
-    employeeId: 'EMP-005',
-    employeeName: 'Mohammed Al-Farsi',
-    position: 'Financial Analyst',
-    department: 'finance',
-    period: 'December 2024',
-    grossSalary: 6500,
-    deductions: 1300,
-    netSalary: 5200,
-    paymentDate: '2024-12-31',
-    status: 'processing',
-    paymentMethod: 'Cash',
-    bankAccount: 'N/A',
-  },
-  {
-    id: 6,
-    receiptNo: 'SLR-2024-12-006',
-    employeeId: 'EMP-006',
-    employeeName: 'Priya Sharma',
-    position: 'Support Manager',
-    department: 'customer-service',
-    period: 'December 2024',
-    grossSalary: 5000,
-    deductions: 1000,
-    netSalary: 4000,
-    paymentDate: '2024-12-31',
-    status: 'cancelled',
-    paymentMethod: 'Bank Transfer',
-    bankAccount: '**** 7890',
-  },
-  {
-    id: 7,
-    receiptNo: 'SLR-2024-12-007',
-    employeeId: 'EMP-007',
-    employeeName: 'Ali Khan',
-    position: 'Operations Manager',
-    department: 'operations',
-    period: 'December 2024',
-    grossSalary: 7000,
-    deductions: 1400,
-    netSalary: 5600,
-    paymentDate: '2024-12-31',
-    status: 'paid',
-    paymentMethod: 'Bank Transfer',
-    bankAccount: '**** 2345',
-  },
-  {
-    id: 8,
-    receiptNo: 'SLR-2024-12-008',
-    employeeId: 'EMP-008',
-    employeeName: 'Marie Dubois',
-    position: 'Lead Engineer',
-    department: 'engineering',
-    period: 'December 2024',
-    grossSalary: 8500,
-    deductions: 1700,
-    netSalary: 6800,
-    paymentDate: '2024-12-31',
-    status: 'pending',
-    paymentMethod: 'Bank Transfer',
-    bankAccount: '**** 6789',
-  },
-];
+export default function SalaryReceipts({ employees: propEmployees }) {
+  const [receipts, setReceipts] = useState([]);
+  const [dbEmployees, setDbEmployees] = useState([]);
 
-export default function SalaryReceipt() {
-  const [receipts, setReceipts] = useState(initialReceipts);
+  useEffect(() => {
+    const propData = propEmployees?.data || propEmployees;
+    if (!propData || !Array.isArray(propData) || propData.length === 0) {
+      fetch('/api/employees')
+        .then(response => response.json())
+        .then(data => {
+          const employeeData = data.data || data;
+          setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
+        })
+        .catch(error => console.error('Error fetching employees:', error));
+    }
+  }, [propEmployees]);
+
+  const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
+
+  useEffect(() => {
+    fetch('/api/salary-receipts')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setReceipts(data))
+      .catch(() => setReceipts([]));
+  }, []);
   const [selectedIds, setSelectedIds] = useState([]);
   const [bulkAction, setBulkAction] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -161,6 +53,7 @@ export default function SalaryReceipt() {
     endDate: '',
     department: '',
     status: '',
+    employee: '',
   });
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
@@ -178,6 +71,7 @@ export default function SalaryReceipt() {
       const matchesDepartment =
         !filters.department || r.department === filters.department;
       const matchesStatus = !filters.status || r.status === filters.status;
+      const matchesEmployee = !filters.employee || r.employeeName === filters.employee;
 
       const matchesStart =
         !filters.startDate || r.paymentDate >= filters.startDate;
@@ -187,6 +81,7 @@ export default function SalaryReceipt() {
         matchesSearch &&
         matchesDepartment &&
         matchesStatus &&
+        matchesEmployee &&
         matchesStart &&
         matchesEnd
       );
@@ -365,6 +260,23 @@ export default function SalaryReceipt() {
                   setFilters((p) => ({ ...p, endDate: e.target.value }))
                 }
               />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Employee</label>
+              <select
+                className="form-control"
+                value={filters.employee}
+                onChange={(e) =>
+                  setFilters((p) => ({ ...p, employee: e.target.value }))
+                }
+              >
+                <option value="">All Employees</option>
+                {employees.map((e) => (
+                  <option key={e.id} value={e.name}>
+                    {e.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="form-group">
               <label className="form-label">Department</label>

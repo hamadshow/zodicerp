@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import '../../../../css/backend/main.scss';
 
 const Permissions = () => {
   // Permission Templates
@@ -27,7 +28,8 @@ const Permissions = () => {
     },
     tools: { import_export: true },
     newsletters: { delete: true, payments: true, settings: true, payment_logs: true },
-    sliders: { create: true, edit: true, delete: true }
+    sliders: { create: true, edit: true, delete: true },
+    hr: { employees: true, departments: true, professions: true, attendance: true, payroll: true, rewards: true }
   });
 
   const getEditorPermissions = () => ({
@@ -37,7 +39,8 @@ const Permissions = () => {
     faq: { view: true, categories: true },
     location: { countries: true, states: true, cities: true },
     system: { analytics: true, activity_logs: true },
-    sliders: { create: true, edit: true, delete: false }
+    sliders: { create: true, edit: true, delete: false },
+    hr: { employees: true, departments: true, professions: true, attendance: true }
   });
 
   const getManagerPermissions = () => ({
@@ -187,7 +190,7 @@ const Permissions = () => {
   const [expandedSections, setExpandedSections] = useState({
     ask: true, cms: false, ecommerce: false, faq: false, location: false,
     marketplace: false, system: false, settings: false, tools: false,
-    newsletters: false, sliders: false
+    newsletters: false, sliders: false, hr: false
   });
   
   // Form State
@@ -664,6 +667,26 @@ const Permissions = () => {
                                   />
                                   <label htmlFor="selectAllPermissions"><strong>All Permissions</strong></label>
                               </div>
+                          </div>
+
+                          {/* HR Permissions */}
+                          <div className="permission-section">
+                              <h4 onClick={() => toggleSection('hr')}>
+                                  <span>Human Resources</span>
+                                  <span className="material-icons-outlined">
+                                    {expandedSections.hr ? 'expand_less' : 'expand_more'}
+                                  </span>
+                              </h4>
+                              {expandedSections.hr && (
+                                <div className="permission-grid">
+                                    <PermissionCheckbox category="hr" permission="employees" label="Employees" />
+                                    <PermissionCheckbox category="hr" permission="departments" label="Departments" />
+                                    <PermissionCheckbox category="hr" permission="professions" label="Professions" />
+                                    <PermissionCheckbox category="hr" permission="attendance" label="Attendance" />
+                                    <PermissionCheckbox category="hr" permission="payroll" label="Payroll" />
+                                    <PermissionCheckbox category="hr" permission="rewards" label="Rewards" />
+                                </div>
+                              )}
                           </div>
 
                           {/* Ask Permissions */}

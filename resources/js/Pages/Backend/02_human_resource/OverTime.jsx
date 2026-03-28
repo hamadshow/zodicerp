@@ -3,42 +3,25 @@ import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 
-const OverTime = () => {
-  const initialOvertime = [
-    {
-      id: 1,
-      employee: 'John Doe',
-      date: '2023-10-15',
-      hours: 2.5,
-      rate: 1.5,
-      amount: 75,
-      reason: 'Urgent project deadline',
-      status: 'Approved'
-    },
-    {
-      id: 2,
-      employee: 'Jane Smith',
-      date: '2023-10-12',
-      hours: 4,
-      rate: 1.5,
-      amount: 120,
-      reason: 'Weekend shift',
-      status: 'Pending'
-    },
-    {
-      id: 3,
-      employee: 'Michael Brown',
-      date: '2023-10-10',
-      hours: 1,
-      rate: 1.5,
-      amount: 30,
-      reason: 'Late meeting',
-      status: 'Approved'
-    }
-  ];
+const OverTime = ({ employees: propEmployees }) => {
+  const [dbEmployees, setDbEmployees] = useState([]);
 
-  const [overtimeList, setOvertimeList] = useState(initialOvertime);
-  const [filteredOvertime, setFilteredOvertime] = useState(initialOvertime);
+  useEffect(() => {
+    const propData = propEmployees?.data || propEmployees;
+    if (!propData || !Array.isArray(propData) || propData.length === 0) {
+      fetch('/api/employees')
+        .then(response => response.json())
+        .then(data => {
+          const employeeData = data.data || data;
+          setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
+        })
+        .catch(error => console.error('Error fetching employees:', error));
+    }
+  }, [propEmployees]);
+
+  const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
+  const [overtimeList, setOvertimeList] = useState([]);
+  const [filteredOvertime, setFilteredOvertime] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentOvertime, setCurrentOvertime] = useState(null);
@@ -195,7 +178,10 @@ const OverTime = () => {
                     <div className="modal-body">
                         <div className="form-group">
                             <label className="form-label">Employee Name</label>
-                            <input type="text" className="form-control" name="employee" defaultValue={currentOvertime?.employee} required />
+                            <select className="form-control" name="employee" defaultValue={currentOvertime?.employee || ''} required>
+                                <option value="">Select Employee</option>
+                                {Array.isArray(employees) && employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+                            </select>
                         </div>
                         <div className="form-group">
                             <label className="form-label">Date</label>

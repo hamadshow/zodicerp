@@ -3,132 +3,43 @@ import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 
 
-export default function Attendance() {
-  const [attendanceRecords, setAttendanceRecords] = useState([
-    {
-      id: 1,
-      employeeId: 1,
-      employeeName: 'Ahmed Mohamed',
-      employeeCode: 'IT001',
-      department: 'IT Department',
-      date: '2025-12-18',
-      timeIn: '08:55',
-      timeOut: '17:05',
-      status: 'present',
-      overtime: 0.5,
-      notes: '',
-      workHours: 8.2,
-    },
-    {
-      id: 2,
-      employeeId: 2,
-      employeeName: 'Sarah Johnson',
-      employeeCode: 'HR001',
-      department: 'Human Resources',
-      date: '2025-12-18',
-      timeIn: '09:00',
-      timeOut: '17:00',
-      status: 'present',
-      overtime: 0,
-      notes: '',
-      workHours: 8,
-    },
-    {
-      id: 3,
-      employeeId: 3,
-      employeeName: 'James Wilson',
-      employeeCode: 'SAL001',
-      department: 'Sales',
-      date: '2025-12-18',
-      timeIn: '09:30',
-      timeOut: '17:00',
-      status: 'late',
-      overtime: 0,
-      notes: 'Traffic delay',
-      workHours: 7.5,
-    },
-    {
-      id: 4,
-      employeeId: 4,
-      employeeName: 'Fatima Al-Mansour',
-      employeeCode: 'MKT001',
-      department: 'Marketing',
-      date: '2025-12-18',
-      timeIn: '09:00',
-      timeOut: '13:00',
-      status: 'half-day',
-      overtime: 0,
-      notes: 'Medical appointment',
-      workHours: 4,
-    },
-    {
-      id: 5,
-      employeeId: 5,
-      employeeName: 'Mohammed Al-Farsi',
-      employeeCode: 'FIN001',
-      department: 'Finance',
-      date: '2025-12-18',
-      timeIn: null,
-      timeOut: null,
-      status: 'absent',
-      overtime: 0,
-      notes: 'Sick leave',
-      workHours: 0,
-    },
-    {
-      id: 6,
-      employeeId: 6,
-      employeeName: 'Priya Sharma',
-      employeeCode: 'CS001',
-      department: 'Customer Service',
-      date: '2025-12-18',
-      timeIn: null,
-      timeOut: null,
-      status: 'leave',
-      overtime: 0,
-      notes: 'Annual leave',
-      workHours: 0,
-    },
-    {
-      id: 7,
-      employeeId: 7,
-      employeeName: 'Ali Khan',
-      employeeCode: 'OPS001',
-      department: 'Operations',
-      date: '2025-12-18',
-      timeIn: '08:45',
-      timeOut: '18:30',
-      status: 'present',
-      overtime: 1.5,
-      notes: 'Project deadline',
-      workHours: 9.75,
-    },
-    {
-      id: 8,
-      employeeId: 8,
-      employeeName: 'Marie Dubois',
-      employeeCode: 'ENG001',
-      department: 'Engineering',
-      date: '2025-12-18',
-      timeIn: '09:15',
-      timeOut: '17:00',
-      status: 'late',
-      overtime: 0,
-      notes: '',
-      workHours: 7.75,
-    },
-  ]);
+export default function Attendance({ employees: propEmployees }) {
+  const [dbEmployees, setDbEmployees] = useState([]);
 
-  const employees = {
-    1: { name: 'Ahmed Mohamed', code: 'IT001', department: 'IT Department' },
-    2: { name: 'Sarah Johnson', code: 'HR001', department: 'Human Resources' },
-    3: { name: 'James Wilson', code: 'SAL001', department: 'Sales' },
-    4: { name: 'Fatima Al-Mansour', code: 'MKT001', department: 'Marketing' },
-    5: { name: 'Mohammed Al-Farsi', code: 'FIN001', department: 'Finance' },
-    6: { name: 'Priya Sharma', code: 'CS001', department: 'Customer Service' },
-    7: { name: 'Ali Khan', code: 'OPS001', department: 'Operations' },
-    8: { name: 'Marie Dubois', code: 'ENG001', department: 'Engineering' },
-  };
+  useEffect(() => {
+    const propData = propEmployees?.data || propEmployees;
+    if (!propData || !Array.isArray(propData) || propData.length === 0) {
+      fetch('/api/employees')
+        .then(response => response.json())
+        .then(data => {
+          const employeeData = data.data || data;
+          setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
+        })
+        .catch(error => console.error('Error fetching employees:', error));
+    }
+  }, [propEmployees]);
+
+  const employeesData = Array.isArray(propEmployees?.data) && propEmployees.data.length > 0 
+    ? propEmployees.data 
+    : (Array.isArray(propEmployees) && propEmployees.length > 0 
+      ? propEmployees 
+      : (Array.isArray(dbEmployees) ? dbEmployees : []));
+
+  const employees = Array.isArray(employeesData) 
+    ? employeesData.reduce((acc, emp) => {
+        acc[emp.id] = { name: emp.name, code: emp.position || 'EMP', department: emp.department || '-' };
+        return acc;
+    }, {}) 
+    : {};
+
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
+
+  useEffect(() => {
+    fetch('/api/attendance')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setAttendanceRecords(data))
+      .catch(() => setAttendanceRecords([]));
+  }, []);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);

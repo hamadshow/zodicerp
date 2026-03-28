@@ -20,6 +20,8 @@ class StoreTaskRequest extends FormRequest
             'priority_id' => 'required|exists:task_priorities,id',
             'status_id' => 'required|exists:task_statuses,id',
             'due_date' => 'nullable|date',
+            'assigned_users' => 'nullable|array',
+            'assigned_users.*' => 'exists:employees,id',
         ];
     }
 }
