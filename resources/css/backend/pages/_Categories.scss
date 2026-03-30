@@ -220,3 +220,297 @@ $category-sidebar-width: 350px;
         border-right: 1px solid #e2e8f0;
     }
 }
+
+/* Excel Dropdown & Import Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+
+    &.active {
+        opacity: 1;
+        visibility: visible;
+    }
+}
+
+.modal {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.excel-dropdown-container {
+    position: relative;
+    display: inline-block;
+
+    .excel-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background-color: #107c10 !important;
+        color: white !important;
+        border: none !important;
+        
+        &:hover {
+            background-color: #0d630d !important;
+        }
+
+        .material-icons-outlined {
+            font-size: 20px;
+        }
+    }
+
+    .excel-dropdown-menu {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        width: 220px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        padding: 8px;
+        z-index: 1000;
+        border: 1px solid #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        @include rtl {
+            right: auto;
+            left: 0;
+        }
+
+        .excel-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            padding: 8px 12px;
+            border: none;
+            background: transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            color: #475569;
+            font-size: 14px;
+            transition: all 0.2s;
+
+            &:hover {
+                background-color: #f1f5f9;
+                color: #1e293b;
+            }
+
+            .material-icons-outlined {
+                font-size: 18px;
+                color: #64748b;
+            }
+        }
+    }
+}
+
+.import-modal {
+    width: 800px !important;
+    max-width: 95vw;
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid #e2e8f0;
+
+        .modal-title {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #94a3b8;
+            &:hover { color: #475569; }
+        }
+    }
+
+    .modal-body {
+        padding: 20px;
+    }
+
+    .drop-zone {
+        border: 2px dashed #cbd5e1;
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        background: #f8fafc;
+        transition: all 0.2s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+
+        &:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
+        p { margin: 0; font-weight: 500; }
+        span { font-size: 12px; color: #64748b; }
+
+        .btn-template {
+            margin-top: 8px;
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            &:hover { background: #f1f5f9; }
+        }
+    }
+
+    .import-preview-container {
+        .preview-stats {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+
+            .stat-badge {
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-size: 12px;
+                font-weight: 600;
+
+                &.total { background: #f1f5f9; color: #475569; }
+                &.valid { background: #dcfce7; color: #166534; }
+                &.invalid { background: #fee2e2; color: #991b1b; }
+            }
+
+            .btn-reset {
+                margin-left: auto;
+                background: none;
+                border: 1px solid #cbd5e1;
+                border-radius: 4px;
+                padding: 4px 8px;
+                font-size: 12px;
+                cursor: pointer;
+                &:hover { background: #f1f5f9; }
+            }
+        }
+
+        .progress-bar-container {
+            margin: 16px 0;
+            .progress-bar {
+                height: 8px;
+                background: #e2e8f0;
+                border-radius: 4px;
+                overflow: hidden;
+                .progress-bar__fill {
+                    height: 100%;
+                    background: #3b82f6;
+                    transition: width 0.3s;
+                }
+            }
+            .progress-text {
+                font-size: 12px;
+                margin-top: 4px;
+                text-align: center;
+                color: #64748b;
+            }
+        }
+
+        .import-tables {
+            max-height: 400px;
+            overflow-y: auto;
+            
+            .import-section {
+                margin-bottom: 24px;
+                h4 { font-size: 14px; margin-bottom: 8px; }
+                
+                .preview-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 13px;
+                    th, td {
+                        padding: 8px 12px;
+                        border: 1px solid #e2e8f0;
+                        text-align: left;
+                    }
+                    th { background: #f8fafc; font-weight: 600; }
+                    
+                    .btn-remove {
+                        background: none;
+                        border: none;
+                        color: #ef4444;
+                        cursor: pointer;
+                        font-size: 18px;
+                    }
+
+                    .invalid-row { background: #fff1f2; }
+                    .row-error {
+                        display: block;
+                        color: #ef4444;
+                        font-size: 11px;
+                    }
+                }
+            }
+        }
+    }
+
+    .import-instructions {
+        margin-top: 20px;
+        padding: 16px;
+        background: #f8fafc;
+        border-radius: 8px;
+        h4 { font-size: 14px; margin-bottom: 8px; margin-top: 0; }
+        ul {
+            margin: 0;
+            padding-left: 20px;
+            li { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+        }
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        padding: 16px 20px;
+        border-top: 1px solid #e2e8f0;
+        
+        .btn-cancel {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            padding: 8px 16px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            &:disabled { opacity: 0.5; cursor: not-allowed; }
+        }
+    }
+}

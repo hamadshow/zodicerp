@@ -33,7 +33,7 @@ class JournalController extends Controller
 
     public function index(Request $request)
     {
-        $query = JournalEntry::orderByDesc('date')->orderByDesc('id');
+        $query = JournalEntry::query();
 
         if ($request->filled('search')) {
             $search = $request->string('search')->toString();
@@ -43,6 +43,24 @@ class JournalController extends Controller
                     ->orWhere('reference', 'like', '%'.$search.'%')
                     ->orWhere('description', 'like', '%'.$search.'%');
             });
+        }
+
+        if ($request->filled('sort_column') && $request->filled('sort_direction')) {
+            $column = $request->string('sort_column')->toString();
+            $direction = $request->string('sort_direction')->toString() === 'asc' ? 'asc' : 'desc';
+            
+            // Handle virtual columns or renamed columns if necessary
+            if ($column === 'total_amount') {
+                $query->orderBy('total_amount', $direction);
+            } else {
+                $query->orderBy($column, $direction);
+            }
+        } else {
+            $query->orderByDesc('date')->orderByDesc('id');
+        }
+
+        if ($request->boolean('with_lines')) {
+            $query->with('lines');
         }
 
         $journals = $query->get();
@@ -363,6 +381,145 @@ class JournalController extends Controller
                 'message' => 'Journal entry deleted successfully.',
             ]);
         });
+    }
+
+    public function bulkImport(Request $request)
+    {
+        // Increase execution time for large imports
+        set_time_limit(300);
+
+        $rows = $request->input('rows', []);
+
+        if (empty($rows)) {
+            return response()->json(['success' => false, 'message' => 'لا توجد بيانات للاستيراد'], 400);
+        }
+
+        // Group rows by entry_code
+        $grouped = [];
+        $accountKeys = [];
+        foreach ($rows as $row) {
+            if (isset($row['account_id'])) {
+                $accountKeys[] = (string) $row['account_id'];
+            }
+        }
+
+        // Resolve all account IDs/Codes in one query
+        $accountKeys = array_values(array_unique(array_filter($accountKeys)));
+        $resolvedAccounts = [];
+        if (!empty($accountKeys)) {
+            $accounts = DB::table('accounts')
+                ->whereIn('AccID', $accountKeys)
+                ->orWhereIn('AccCode', $accountKeys)
+                ->get(['AccID', 'AccCode']);
+            
+            foreach ($accounts as $acc) {
+                $resolvedAccounts[(string)$acc->AccID] = $acc->AccID;
+                $resolvedAccounts[(string)$acc->AccCode] = $acc->AccID;
+            }
+        }
+
+        foreach ($rows as $row) {
+            $code = $row['entry_code'] ?? 'manual';
+            
+            // Initialize group if not exists
+            if (!isset($grouped[$code])) {
+                $grouped[$code] = [
+                    'header' => [
+                        'entry_type' => $row['entry_type'] ?? 'Manual',
+                        'reference' => $row['reference'] ?? null,
+                        'date' => $row['date'] ?? now()->format('Y-m-d'),
+                        'description' => $row['header_description'] ?? null,
+                        'status' => $row['status'] ?? 'UnPost',
+                    ],
+                    'lines' => []
+                ];
+            }
+
+            $rawAccId = isset($row['account_id']) ? (string)$row['account_id'] : null;
+            $resolvedAccId = $resolvedAccounts[$rawAccId] ?? null;
+
+            if ($rawAccId && !$resolvedAccId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "فشل الاستيراد: الحساب {$rawAccId} غير موجود",
+                ], 422);
+            }
+
+            $grouped[$code]['lines'][] = [
+                'account_id' => $resolvedAccId,
+                'debit' => (float) ($row['debit'] ?? 0),
+                'credit' => (float) ($row['credit'] ?? 0),
+                'description' => $row['line_description'] ?? null,
+                'related_id_name' => $row['related_id_name'] ?? null,
+            ];
+        }
+
+        try {
+            DB::transaction(function () use ($grouped) {
+                foreach ($grouped as $code => $data) {
+                    $header = $data['header'];
+                    $lines = $data['lines'];
+
+                    // Skip if no lines
+                    if (empty($lines)) continue;
+
+                    // Validation: Postable Accounts and Balanced Entry
+                    $this->ensureAccountsPostable($lines);
+                    
+                    // Calculate total and verify balance
+                    $totalDebit = 0;
+                    $totalCredit = 0;
+                    foreach ($lines as $line) {
+                        $totalDebit += (float) ($line['debit'] ?? 0);
+                        $totalCredit += (float) ($line['credit'] ?? 0);
+                    }
+
+                    if (abs($totalDebit - $totalCredit) > 0.01) {
+                        throw new \Exception("Entry {$code} is not balanced. Total Debit: {$totalDebit}, Total Credit: {$totalCredit}");
+                    }
+
+                    $total = $totalDebit;
+
+                    // Create or Update Header
+                    $journalEntry = JournalEntry::updateOrCreate(
+                        ['entry_code' => $code],
+                        [
+                            'entry_type' => $header['entry_type'],
+                            'reference' => $header['reference'],
+                            'date' => $header['date'],
+                            'description' => $header['description'],
+                            'total_amount' => $total,
+                            'status' => $header['status'],
+                        ]
+                    );
+
+                    // Delete existing lines if updating
+                    JournalEntryLine::where('journal_entry_code', $code)->delete();
+
+                    // Create Lines
+                    foreach ($lines as $line) {
+                        JournalEntryLine::create([
+                            'journal_entry_code' => $code,
+                            'account_id' => $line['account_id'],
+                            'debit' => $line['debit'],
+                            'credit' => $line['credit'],
+                            'description' => $line['description'],
+                            'related_id_name' => $line['related_id_name'] ?? null,
+                        ]);
+                    }
+                }
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم استيراد ' . count($grouped) . ' قيد بنجاح',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'فشل الاستيراد: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function generalLedger(Request $request)

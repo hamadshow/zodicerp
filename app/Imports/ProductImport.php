@@ -4,6 +4,7 @@ namespace App\Imports;
 
 use App\Models\Brands;
 use App\Models\Categories;
+use App\Models\ItemUnit;
 use App\Models\Products;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -36,6 +37,22 @@ class ProductImport implements ToModel, WithBatchInserts, WithChunkReading, With
         // Let's do a check.
 
         $product = Products::withTrashed()->where('product_code', $code)->first();
+
+        // Handle Unit
+        $unitId = null;
+        if (! empty($row['unit'])) {
+            $unitName = trim((string) $row['unit']);
+            $unit = ItemUnit::query()->where('name', $unitName)->where('company_id', $this->companyId)->first();
+            if (! $unit) {
+                $unit = ItemUnit::create([
+                    'name' => $unitName,
+                    'unit_type' => 1, // Main unit
+                    'active' => true,
+                    'company_id' => $this->companyId,
+                ]);
+            }
+            $unitId = $unit->id;
+        }
 
         // Handle Brand
         $brandId = null;
@@ -85,7 +102,7 @@ class ProductImport implements ToModel, WithBatchInserts, WithChunkReading, With
             'sale_price' => ! empty($row['sale_price']) ? (float) $row['sale_price'] : null,
             'cost_price' => ! empty($row['cost_price']) ? (float) $row['cost_price'] : 0,
             'quantity' => ! empty($row['quantity']) ? (int) $row['quantity'] : 0,
-            'unit' => $row['unit'] ?? 'piece',
+            'unit_id' => $unitId,
             'status' => $row['status'] ?? 'active',
             'brand_id' => $brandId,
             'is_featured' => strtolower($row['is_featured'] ?? '') === 'yes',

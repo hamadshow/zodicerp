@@ -50,7 +50,7 @@ class AssetController extends Controller
             // Data for dropdowns
             $categories = AssetCategory::select('id', 'name_en as name', 'parent_id')->orderBy('name_en')->get();
             $warehouses = Warehouses::select('id', 'name')->get(); // Assuming Warehouse has name
-            $units = ItemUnit::select('id', 'name')->get();
+            $units = ItemUnit::select('id', 'name')->where('unit_type', 1)->get();
             $employees = Employee::select('id', 'name')->get();
 
             if ($request->wantsJson()) {
@@ -91,7 +91,7 @@ class AssetController extends Controller
     {
         $categories = AssetCategory::select('id', 'name_en as name', 'parent_id')->orderBy('name_en')->get();
         $warehouses = Warehouses::select('id', 'name')->get();
-        $units = ItemUnit::select('id', 'name')->get();
+        $units = ItemUnit::select('id', 'name')->where('unit_type', 1)->get();
         $employees = Employee::select('id', 'name')->get();
 
         return Inertia::render('Backend/08-Assets/Assets', [

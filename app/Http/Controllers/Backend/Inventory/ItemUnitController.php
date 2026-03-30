@@ -242,4 +242,60 @@ class ItemUnitController extends Controller
             return redirect()->back()->with('error', 'Error deleting item unit: '.$e->getMessage());
         }
     }
+
+    public function bulkImport(Request $request)
+    {
+        try {
+            $request->validate([
+                'rows' => 'required|array',
+            ]);
+
+            $rows = $request->rows;
+            $companyId = Auth::user()?->company_id;
+            $userId = Auth::id();
+
+            DB::transaction(function () use ($rows, $companyId, $userId): void {
+                foreach ($rows as $row) {
+                    $unitType = (int) ($row['unit_type'] ?? 1);
+                    $isBaseUnit = ($unitType === 1);
+                    
+                    $baseUnitId = null;
+                    if (!$isBaseUnit && !empty($row['base_unit_name'])) {
+                        $baseUnit = ItemUnit::where('name', $row['base_unit_name'])->first();
+                        $baseUnitId = $baseUnit?->id;
+                    }
+
+                    $unit = ItemUnit::updateOrCreate(
+                        ['name' => $row['name'], 'company_id' => $companyId],
+                        [
+                            'unit_type' => $unitType,
+                            'base_unit' => $baseUnitId,
+                            'conversion_factor' => $isBaseUnit ? 1 : ($row['conversion_factor'] ?? 1),
+                            'active' => (bool) ($row['active'] ?? true),
+                            'created_by' => $userId,
+                            'updated_by' => $userId,
+                        ]
+                    );
+
+                    if (!$isBaseUnit && $baseUnitId) {
+                        ItemUnitConversion::updateOrCreate(
+                            [
+                                'from_unit_id' => $unit->id,
+                                'to_unit_id' => $baseUnitId,
+                                'company_id' => $companyId,
+                            ],
+                            [
+                                'conversion_factor' => $row['conversion_factor'] ?? 1,
+                                'is_active' => true,
+                            ]
+                        );
+                    }
+                }
+            });
+
+            return redirect()->back()->with('success', 'Imported successfully.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Import failed: ' . $e->getMessage());
+        }
+    }
 }

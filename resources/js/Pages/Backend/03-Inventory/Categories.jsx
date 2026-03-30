@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Head, router, useForm, Link } from '@inertiajs/react';
+import { Head, router, useForm, Link, usePage } from '@inertiajs/react';
+import * as XLSX from 'xlsx';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import AdminLayout from '../components/AdminLayout';
 import IconPicker from '../../../Components/IconPicker';
 import MediaPickerModal from '../Media/MediaPickerModal';
@@ -149,14 +152,25 @@ const CategoryItem = ({ category, level = 0, selectedId, onSelect, onDelete, onD
 
 // --- Main Component ---
 const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = [] }) => {
+    const { props } = usePage();
     const [categoryTree, setCategoryTree] = useState([]);
     const [treeVersion, setTreeVersion] = useState(0);
     const [selectedCategory, setSelectedCategory] = useState(null); // null means "Create New" mode or nothing selected
     const [isCreating, setIsCreating] = useState(true); // explicit flag for Create Mode
     const [showMediaPicker, setShowMediaPicker] = useState(false); // Media Picker Modal State
     const [duplicateOrderError, setDuplicateOrderError] = useState(null);
-    const [importing, setImporting] = useState(false);
     const fileInputRef = useRef(null);
+
+    // Import System State
+    const [showImport, setShowImport] = useState(false);
+    const [excelRows, setExcelRows] = useState([]);
+    const [invalidRows, setInvalidRows] = useState([]);
+    const [importSummary, setImportSummary] = useState({});
+    const [importLoading, setImportLoading] = useState(false);
+    const [importProgress, setImportProgress] = useState(0);
+    const [importError, setImportError] = useState(null);
+    const [showExcelMenu, setShowExcelMenu] = useState(false);
+    const excelMenuRef = useRef(null);
 
     // Form handling using Inertia's useForm
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
@@ -171,6 +185,29 @@ const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = []
         is_default: false,
         order: 0,
     });
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (excelMenuRef.current && !excelMenuRef.current.contains(event.target)) {
+                setShowExcelMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (props.flash?.success) {
+            toast.success(props.flash.success);
+            setShowImport(false);
+            setExcelRows([]);
+            setInvalidRows([]);
+            setImportSummary({});
+        }
+        if (props.flash?.error) {
+            toast.error(props.flash.error);
+        }
+    }, [props.flash]);
 
     // Helper to build tree
     const buildTree = React.useCallback((cats) => {
@@ -441,55 +478,399 @@ const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = []
         }, []);
     };
 
-    const handleExport = () => {
-        window.location.href = route('admin.inventory.categories.export');
+    const downloadTemplate = () => {
+        const headers = ['name', 'slug', 'parent_name', 'description', 'status', 'order', 'is_featured', 'is_default', 'icon'];
+        const sample = ['Electronics', 'electronics', '', 'All electronic items', 'active', '1', '1', '0', 'devices'];
+        const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template");
+        XLSX.writeFile(wb, "categories_template.xlsx");
     };
 
-    const handleImport = (e) => {
-        const file = e.target.files[0];
+    const handleFileUpload = (file) => {
         if (!file) return;
+        setImportLoading(true);
+        setImportError(null);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                processExcelData(jsonData);
+            } catch (err) {
+                setImportError(err?.message || 'Error reading file');
+                setImportLoading(false);
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
 
-        const formData = new FormData();
-        formData.append('file', file);
+    const handleFileDrop = (e) => {
+        e.preventDefault();
+        setImportError(null);
+        const file = e.dataTransfer.files[0];
+        if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+            handleFileUpload(file);
+        } else {
+            setImportError('Please upload a valid Excel file (.xlsx, .xls)');
+        }
+    };
 
-        router.post(route('admin.inventory.categories.import'), formData, {
-            preserveScroll: true,
-            onStart: () => setImporting(true),
-            onFinish: () => {
-                setImporting(false);
-                if (fileInputRef.current) fileInputRef.current.value = '';
-            },
-            onSuccess: () => {
-                // Flash messages handle the success alert via the Layout or directly
-                alert('Import successful!');
-                // We could refresh the data or the tree here if needed
-                router.reload({ only: ['categories', 'categoryTree', 'parents'] });
-            },
-            onError: (err) => {
-                console.error('Import error:', err);
-                alert(err.error || 'Failed to import categories.');
+    const processExcelData = (rows) => {
+        if (rows.length < 2) {
+            setImportError('File is empty or missing headers');
+            setImportLoading(false);
+            return;
+        }
+
+        const headers = rows[0].map(h => String(h).trim().toLowerCase());
+        const dataRows = rows.slice(1);
+        const valid = [];
+        const invalid = [];
+
+        // Column mapping
+        const map = {
+            'name': headers.indexOf('name'),
+            'slug': headers.indexOf('slug'),
+            'parent_name': headers.indexOf('parent_name'),
+            'description': headers.indexOf('description'),
+            'status': headers.indexOf('status'),
+            'order': headers.indexOf('order'),
+            'is_featured': headers.indexOf('is_featured'),
+            'is_default': headers.indexOf('is_default'),
+            'icon': headers.indexOf('icon'),
+        };
+
+        dataRows.forEach((row) => {
+            const getVal = (key) => {
+                const colIdx = map[key];
+                return colIdx !== -1 && row[colIdx] !== undefined ? String(row[colIdx]).trim() : '';
+            };
+
+            const item = {
+                name: getVal('name'),
+                slug: getVal('slug'),
+                parent_name: getVal('parent_name'),
+                description: getVal('description'),
+                status: getVal('status') || 'active',
+                order: getVal('order') || '0',
+                is_featured: getVal('is_featured') === '1',
+                is_default: getVal('is_default') === '1',
+                icon: getVal('icon'),
+                _errors: []
+            };
+
+            // Client-side Validation
+            if (!item.name) item._errors.push('Name is required');
+            
+            // Check duplicates in current batch
+            if (valid.find(v => v.name === item.name && item.name)) {
+                item._errors.push('Duplicate Name in file');
+            }
+
+            if (item._errors.length > 0) {
+                invalid.push(item);
+            } else {
+                valid.push(item);
             }
         });
+
+        setExcelRows(valid);
+        setInvalidRows(invalid);
+        setImportSummary({
+            total: dataRows.length,
+            valid: valid.length,
+            invalid: invalid.length
+        });
+        setImportLoading(false);
+    };
+
+    const removeImportRow = (index) => {
+        const rows = [...excelRows];
+        rows.splice(index, 1);
+        setExcelRows(rows);
+        setImportSummary(prev => ({ ...prev, valid: rows.length }));
+    };
+
+    const submitImport = async () => {
+        if (excelRows.length === 0) return;
+        setImportError(null);
+        setImportLoading(true);
+        setImportProgress(0);
+
+        const totalRows = excelRows.length;
+        const batchSize = 50; // Process 50 rows at a time
+        const batches = [];
+        
+        for (let i = 0; i < totalRows; i += batchSize) {
+            batches.push(excelRows.slice(i, i + batchSize));
+        }
+
+        try {
+            for (let i = 0; i < batches.length; i++) {
+                await new Promise((resolve, reject) => {
+                    router.post(route('admin.inventory.categories.bulkImport'), {
+                        rows: batches[i],
+                    }, {
+                        preserveScroll: true,
+                        preserveState: true,
+                        onSuccess: () => {
+                            const progress = Math.min(Math.round(((i + 1) / batches.length) * 100), 100);
+                            setImportProgress(progress);
+                            resolve();
+                        },
+                        onError: (err) => {
+                            reject(err);
+                        }
+                    });
+                });
+            }
+            
+            setShowImport(false);
+            setExcelRows([]);
+            setInvalidRows([]);
+            setImportSummary({});
+            setImportProgress(0);
+            router.reload({ only: ['categories', 'categoryTree', 'parents'] });
+        } catch (err) {
+            setImportError('Failed to import. Some rows may not have been processed.');
+            console.error(err);
+        } finally {
+            setImportLoading(false);
+        }
+    };
+
+    const handleExportExcel = () => {
+        try {
+            const dataToExport = categories.map(cat => ({
+                'Name': cat.name,
+                'Slug': cat.slug,
+                'Parent ID': cat.parent_id || '',
+                'Description': cat.description || '',
+                'Status': cat.status || 'active',
+                'Order': cat.order || 0,
+                'Featured': cat.is_featured ? 'Yes' : 'No',
+                'Default': cat.is_default ? 'Yes' : 'No',
+                'Icon': cat.icon || ''
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Categories");
+
+            const wscols = [
+                { wch: 30 }, // Name
+                { wch: 30 }, // Slug
+                { wch: 10 }, // Parent
+                { wch: 40 }, // Description
+                { wch: 10 }, // Status
+                { wch: 10 }, // Order
+                { wch: 10 }, // Featured
+                { wch: 10 }, // Default
+                { wch: 20 }  // Icon
+            ];
+            worksheet['!cols'] = wscols;
+
+            XLSX.writeFile(workbook, `Categories_${new Date().toISOString().split('T')[0]}.xlsx`);
+            toast.success('تم تصدير البيانات بنجاح');
+        } catch (err) {
+            console.error('Export failed:', err);
+            toast.error('فشل عملية التصدير');
+        }
+    };
+
+    const renderImportModal = () => {
+        if (!showImport) return null;
+
+        return (
+            <div className="modal-overlay active" onClick={() => !importLoading && setShowImport(false)}>
+                <div className="modal import-modal" onClick={e => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h3 className="modal-title">Import Categories from Excel</h3>
+                        <button className="modal-close" onClick={() => setShowImport(false)}>&times;</button>
+                    </div>
+
+                    <div className="modal-body">
+                        {!excelRows.length && !invalidRows.length ? (
+                            <div 
+                                className="drop-zone"
+                                onDragOver={e => e.preventDefault()}
+                                onDrop={handleFileDrop}
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    onChange={e => handleFileUpload(e.target.files[0])} 
+                                    accept=".xlsx, .xls"
+                                    style={{ display: 'none' }}
+                                />
+                                <i className="material-icons-outlined" style={{ fontSize: '48px', color: '#3b82f6' }}>cloud_upload</i>
+                                <p>Click to upload or drag and drop</p>
+                                <span>Excel files only (.xlsx, .xls)</span>
+                                <button className="btn-template" onClick={(e) => { e.stopPropagation(); downloadTemplate(); }}>
+                                    Download Template
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="import-preview-container">
+                                <div className="preview-stats">
+                                    <span className="stat-badge total">Total: {importSummary.total}</span>
+                                    <span className="stat-badge valid">Valid: {importSummary.valid}</span>
+                                    <span className="stat-badge invalid">Invalid: {importSummary.invalid}</span>
+                                    <button className="btn-reset" onClick={() => { setExcelRows([]); setInvalidRows([]); }}>
+                                        Upload Different File
+                                    </button>
+                                </div>
+
+                                {importLoading && (
+                                    <div className="progress-bar-container">
+                                        <div className="progress-bar">
+                                            <div 
+                                                className="progress-bar__fill" 
+                                                style={{ width: `${importProgress}%` }}
+                                            ></div>
+                                        </div>
+                                        <div className="progress-text">جاري الاستيراد: {importProgress}%</div>
+                                    </div>
+                                )}
+
+                                <div className="import-tables">
+                                    {excelRows.length > 0 && (
+                                        <div className="import-section">
+                                            <h4>Valid Rows ({excelRows.length})</h4>
+                                            <div className="table-responsive">
+                                                <table className="data-table preview-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                            <th>Slug</th>
+                                                            <th>Parent</th>
+                                                            <th>Status</th>
+                                                            <th></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {excelRows.map((row, idx) => (
+                                                            <tr key={idx}>
+                                                                <td>{row.name}</td>
+                                                                <td>{row.slug}</td>
+                                                                <td>{row.parent_name || '-'}</td>
+                                                                <td>{row.status}</td>
+                                                                <td>
+                                                                    <button className="btn-remove" onClick={() => removeImportRow(idx)}>&times;</button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {invalidRows.length > 0 && (
+                                        <div className="import-section invalid">
+                                            <h4>Invalid Rows ({invalidRows.length})</h4>
+                                            <div className="table-responsive">
+                                                <table className="data-table preview-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                            <th>Errors</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {invalidRows.map((row, idx) => (
+                                                            <tr key={idx} className="invalid-row">
+                                                                <td>{row.name || '-'}</td>
+                                                                <td>
+                                                                    {row._errors.map((err, i) => (
+                                                                        <span key={i} className="row-error">{err}</span>
+                                                                    ))}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {importError && (
+                            <div className="alert alert--error" style={{ marginTop: '20px' }}>
+                                {importError}
+                            </div>
+                        )}
+
+                        <div className="import-instructions">
+                            <h4>Instructions:</h4>
+                            <ul>
+                                <li>Download the template to ensure correct column mapping.</li>
+                                <li><b>name:</b> Required.</li>
+                                <li><b>slug:</b> Optional. Auto-generated from name if empty.</li>
+                                <li><b>parent_name:</b> Optional. Must match an existing category name.</li>
+                                <li><b>status:</b> active or inactive.</li>
+                                <li><b>order:</b> Numeric value for sorting.</li>
+                                <li><b>is_featured:</b> 1 for yes, 0 for no.</li>
+                                <li><b>is_default:</b> 1 for yes, 0 for no.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="modal-actions">
+                        <button className="btn-cancel" onClick={() => setShowImport(false)}>Cancel</button>
+                        <button 
+                            className="btn-primary" 
+                            onClick={submitImport}
+                            disabled={excelRows.length === 0 || importLoading}
+                        >
+                            {importLoading ? 'Importing...' : `Import ${excelRows.length} Categories`}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
         <AdminLayout activeMenu="Inventory">
             <Head title="Categories Management" />
-            
+            <ToastContainer position="top-right" autoClose={3000} />
+            {renderImportModal()}
+
             <div className="categories-actions-header">
-                <button className="btn btn-outline" onClick={handleExport}>
-                    <span className="material-icons-outlined">download</span> Export
-                </button>
-                <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    style={{ display: 'none' }} 
-                    accept=".xlsx, .xls, .csv" 
-                    onChange={handleImport} 
-                />
-                <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-                    <span className="material-icons-outlined">upload</span> {importing ? 'Importing...' : 'Import'}
-                </button>
+                <div className="excel-dropdown-container" ref={excelMenuRef}>
+                    <button 
+                        className="btn btn-outline excel-btn" 
+                        onClick={() => setShowExcelMenu(!showExcelMenu)}
+                    >
+                        <i className="material-icons-outlined">grid_on</i>
+                        <span>Excel</span>
+                        <i className="material-icons-outlined">expand_more</i>
+                    </button>
+                    
+                    {showExcelMenu && (
+                        <div className="excel-dropdown-menu">
+                            <button className="excel-menu-item" onClick={() => { setShowExcelMenu(false); setShowImport(true); }}>
+                                <i className="material-icons-outlined">upload</i>
+                                <span>Import from Excel</span>
+                            </button>
+                            <button className="excel-menu-item" onClick={() => { setShowExcelMenu(false); handleExportExcel(); }}>
+                                <i className="material-icons-outlined">download</i>
+                                <span>Export to Excel</span>
+                            </button>
+                            <button className="excel-menu-item" onClick={() => { setShowExcelMenu(false); downloadTemplate(); }}>
+                                <i className="material-icons-outlined">description</i>
+                                <span>Download Template</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="categories-layout">

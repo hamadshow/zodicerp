@@ -47,7 +47,7 @@ class PurchaseQuotationController extends Controller
             ->get();
         $products = Products::select('id', 'name as name_en', 'name as name_ar', 'sku', 'sale_price', 'cost_per_item as purchase_price')
             ->get();
-        $units = ItemUnit::select('id', 'name as name_en', 'name as name_ar')->get();
+        $units = ItemUnit::select('id', 'name as name_en', 'name as name_ar')->where('unit_type', 1)->get();
         $warehouses = Warehouses::select('id', 'name as name_en', 'name as name_ar')->get();
 
         // Mock data for terms (should be replaced with actual models later)

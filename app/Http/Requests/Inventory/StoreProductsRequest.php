@@ -50,6 +50,7 @@ class StoreProductsRequest extends FormRequest
             // Relations
             'parent_id' => ['nullable', 'exists:products,id'],
             'brand_id' => ['nullable', 'exists:brands,id'],
+            'unit_id' => ['nullable', 'exists:item_units,id'],
             'category_ids' => ['nullable', 'array'],
             'category_ids.*' => ['integer', 'exists:categories,id'],
             'supplier_code' => ['nullable', 'string', 'max:50'],

@@ -295,3 +295,426 @@
 .searchable-combobox-hidden-select {
   display: none;
 }
+
+/* Excel & Import Styles */
+.excel-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.btn-excel-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #107c10; // Excel Green
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+  &:hover {
+    background-color: #0d630d;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+  }
+
+  .arrow {
+    font-size: 1.2rem;
+    transition: transform 0.2s ease;
+    &.up {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+.excel-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 240px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  z-index: 1100;
+  border: 1px solid #e2e8f0;
+  animation: dropdownSlide 0.2s ease-out;
+
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s;
+
+    .material-icons-outlined {
+      font-size: 1.5rem;
+      color: #64748b;
+    }
+
+    .item-content {
+      display: flex;
+      flex-direction: column;
+      
+      .title {
+        font-weight: 600;
+        color: #1e293b;
+        font-size: 0.9rem;
+      }
+      
+      .desc {
+        font-size: 0.75rem;
+        color: #94a3b8;
+      }
+    }
+
+    &:hover {
+      background-color: #f8fafc;
+      
+      &.import .material-icons-outlined { color: #3b82f6; }
+      &.export .material-icons-outlined { color: #107c10; }
+    }
+  }
+}
+
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.btn-import {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background-color: #10b981;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.btn-import:hover {
+  background-color: #059669;
+}
+
+.btn-template {
+  margin-top: 15px;
+  padding: 6px 12px;
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  color: #475569;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-template:hover {
+  background-color: #e2e8f0;
+}
+
+.btn-reset {
+  padding: 4px 10px;
+  background: none;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  color: #64748b;
+  font-size: 0.75rem;
+  cursor: pointer;
+  margin-left: auto;
+}
+
+.btn-remove {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 5px;
+}
+
+.btn-cancel {
+  padding: 8px 16px;
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.import-modal {
+  width: 900px !important;
+}
+
+.import-preview-container {
+  margin-bottom: 20px;
+}
+
+.import-section {
+  margin-top: 20px;
+}
+
+.import-section h4 {
+  margin-bottom: 10px;
+  color: #1e293b;
+  font-size: 1rem;
+}
+
+.import-section.invalid h4 {
+  color: #ef4444;
+}
+
+.preview-table {
+  font-size: 0.85rem;
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.preview-table th,
+.preview-table td {
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.preview-table th {
+  background-color: #f8fafc;
+}
+
+/* Modal Styles scoped for Journal */
+.journal-page-container .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1050;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+
+.journal-page-container .modal {
+    background: white;
+    padding: 0;
+    width: 800px;
+    max-width: calc(100% - 32px);
+    max-height: 90vh;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+}
+
+.journal-page-container .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.journal-page-container .modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 !important;
+}
+
+.journal-page-container .modal-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+    padding: 4px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.journal-page-container .modal-close:hover {
+    background-color: #f1f5f9;
+    color: #334155;
+}
+
+.journal-page-container .modal-body {
+    padding: 24px;
+    overflow-y: auto;
+    max-height: calc(90vh - 140px);
+}
+
+.journal-page-container .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 20px 24px;
+    border-top: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+}
+
+.journal-page-container .drop-zone {
+    border: 2px dashed #cbd5e1;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    margin-bottom: 20px;
+    color: #64748b;
+    background-color: #f8fafc;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.journal-page-container .drop-zone:hover {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+
+.journal-page-container .drop-zone p {
+    margin: 0;
+}
+
+.journal-page-container .preview-stats {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.journal-page-container .stat-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.journal-page-container .stat-badge.total {
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+.journal-page-container .stat-badge.valid {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.journal-page-container .stat-badge.invalid {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.progress-bar-container {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background-color: #e2e8f0;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar__fill {
+  height: 100%;
+  background-color: #3b82f6;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.9rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.journal-page-container .import-preview {
+    margin-top: 20px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.journal-page-container .row-error {
+    display: block;
+    color: #ef4444;
+    font-size: 0.75rem;
+    margin-top: 2px;
+}
+
+.journal-page-container .invalid-row {
+    background-color: #fff1f2;
+}
+
+.journal-page-container .import-instructions {
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 24px;
+}
+
+.journal-page-container .import-instructions h4 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: #1e293b;
+    font-size: 0.9rem;
+}
+
+.journal-page-container .import-instructions ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #64748b;
+    font-size: 0.85rem;
+}
+
+.journal-page-container .import-instructions li {
+    margin-bottom: 6px;
+}
+
+.alert {
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border: 1px solid transparent;
+  font-size: 0.95rem;
+}
+
+.alert--error {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.alert--success {
+  background-color: #dcfce7;
+  color: #166534;
+  border-color: #bbf7d0;
+}

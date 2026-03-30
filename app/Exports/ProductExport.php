@@ -19,7 +19,7 @@ class ProductExport implements FromCollection, WithHeadings, WithMapping
     public function collection()
     {
         // Eager load relationships for performance
-        return Products::with(['categories', 'brand'])
+        return Products::with(['categories', 'brand', 'unit'])
             ->whereNull('parent_id') // Export only parent products for now? Or all? User said "products table", usually main products.
             // Let's export all for completeness, or maybe just main ones.
             // If we export variants, we need to handle parent_id.
@@ -59,9 +59,9 @@ class ProductExport implements FromCollection, WithHeadings, WithMapping
             $product->description,
             $product->price,
             $product->sale_price,
-            $product->cost_price,
+            $product->cost_per_item,
             $product->quantity,
-            $product->unit,
+            $product->unit ? $product->unit->name : '',
             $product->status,
             $product->brand ? $product->brand->name : '',
             $product->categories->pluck('name')->implode(', '),

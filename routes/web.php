@@ -441,19 +441,19 @@ Route::group([
 
         Route::prefix('inventory')->name('inventory.')->group(function () {
             Route::get('products/export', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'export'])->name('products.export');
-            Route::post('products/import/preview', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'previewImport'])->name('products.import.preview');
-            Route::post('products/import/confirm', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'confirmImport'])->name('products.import.confirm');
-            Route::post('products/import', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'import'])->name('products.import');
             Route::get('opening-stock', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'index'])->name('opening-stock.index');
             Route::post('opening-stock', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'store'])->name('opening-stock.store');
             Route::get('opening-stock/{id}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'show'])->name('opening-stock.show');
             Route::delete('opening-stock/{id}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'destroy'])->name('opening-stock.destroy');
+            Route::post('products/bulk-import', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'bulkImport'])->name('products.bulkImport');
             Route::resource('products', \App\Http\Controllers\Backend\Inventory\ProductsController::class);
             Route::get('categories/export', [\App\Http\Controllers\Backend\Inventory\CategoriesController::class, 'export'])->name('categories.export');
             Route::post('categories/import', [\App\Http\Controllers\Backend\Inventory\CategoriesController::class, 'import'])->name('categories.import');
+            Route::post('categories/bulk-import', [\App\Http\Controllers\Backend\Inventory\CategoriesController::class, 'bulkImport'])->name('categories.bulkImport');
             Route::resource('categories', \App\Http\Controllers\Backend\Inventory\CategoriesController::class);
             Route::resource('brands', \App\Http\Controllers\Backend\Inventory\BrandsController::class);
             Route::resource('warehouses', \App\Http\Controllers\Backend\Inventory\WarehousesController::class);
+            Route::post('item-units/bulk-import', [\App\Http\Controllers\Backend\Inventory\ItemUnitController::class, 'bulkImport'])->name('item-units.bulkImport');
             Route::resource('item-units', \App\Http\Controllers\Backend\Inventory\ItemUnitController::class);
             Route::resource('item-attributes', \App\Http\Controllers\Backend\Inventory\ItemAttributeController::class);
             Route::get('product-collections/get-products', [\App\Http\Controllers\Backend\Inventory\ProductCollectionController::class, 'getProducts'])->name('product-collections.get-products');

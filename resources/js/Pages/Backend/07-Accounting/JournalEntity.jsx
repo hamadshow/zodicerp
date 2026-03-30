@@ -1,5 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Head } from '@inertiajs/react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
+import { Head, usePage } from '@inertiajs/react';
+import * as XLSX from 'xlsx';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import AdminLayout from '../components/AdminLayout';
@@ -8,6 +11,7 @@ import SearchableComboBox from '../components/SearchableComboBox';
 import { apiService } from '../../../services/api';
 
 export default function JournalEntity() {
+  const { props } = usePage();
   const [mode, setMode] = useState('list');
   const [selectedCode, setSelectedCode] = useState(null);
   const [journals, setJournals] = useState([]);
@@ -16,6 +20,289 @@ export default function JournalEntity() {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState({ column: '', direction: '' });
   const readOnly = mode === 'view';
+
+  // Import System State
+  const [showImport, setShowImport] = useState(false);
+  const [excelRows, setExcelRows] = useState([]);
+  const [invalidRows, setInvalidRows] = useState([]);
+  const [importSummary, setImportSummary] = useState({});
+  const [importLoading, setImportLoading] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
+  const [importError, setImportError] = useState(null);
+  const [showExcelMenu, setShowExcelMenu] = useState(false);
+  const fileInputRef = useRef(null);
+  const excelMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (excelMenuRef.current && !excelMenuRef.current.contains(event.target)) {
+        setShowExcelMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (props.flash?.error) {
+      toast.error(props.flash.error);
+    }
+  }, [props.flash]);
+
+  const downloadTemplate = () => {
+    const headers = [
+      'entry_code', 'date', 'reference', 'header_description', 'status', 'entry_type',
+      'account_id', 'debit', 'credit', 'line_description', 'related_id_name'
+    ];
+    const sample = [
+      'QID-10001', '2024-03-30', 'REF-001', 'Header Description', 'UnPost', 'Manual',
+      '1', '100', '0', 'Line 1 Description', 'Supplier-01'
+    ];
+    const sample2 = [
+      'QID-10001', '2024-03-30', 'REF-001', 'Header Description', 'UnPost', 'Manual',
+      '2', '0', '100', 'Line 2 Description', ''
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers, sample, sample2]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Journal Template");
+    XLSX.writeFile(wb, "journal_entries_template.xlsx");
+  };
+
+  const handleFileUpload = (file) => {
+    if (!file) return;
+    setImportLoading(true);
+    setImportError(null);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+        processExcelData(jsonData);
+      } catch (err) {
+        setImportError(err?.message || 'Error reading file');
+        setImportLoading(false);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    setImportError(null);
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+      handleFileUpload(file);
+    } else {
+      setImportError('Please upload a valid Excel file (.xlsx, .xls)');
+    }
+  };
+
+  const processExcelData = (rows) => {
+    if (rows.length < 2) {
+      setImportError('File is empty or missing headers');
+      setImportLoading(false);
+      return;
+    }
+
+    const headers = rows[0].map(h => String(h).trim().toLowerCase());
+    const dataRows = rows.slice(1);
+    const valid = [];
+    const invalid = [];
+
+    // Column mapping
+    const map = {
+      'entry_code': headers.indexOf('entry_code'),
+      'date': headers.indexOf('date'),
+      'reference': headers.indexOf('reference'),
+      'header_description': headers.indexOf('header_description'),
+      'status': headers.indexOf('status'),
+      'entry_type': headers.indexOf('entry_type'),
+      'account_id': headers.indexOf('account_id'),
+      'debit': headers.indexOf('debit'),
+      'credit': headers.indexOf('credit'),
+      'line_description': headers.indexOf('line_description'),
+      'related_id_name': headers.indexOf('related_id_name'),
+    };
+
+    dataRows.forEach((row) => {
+      const getVal = (key) => {
+        const colIdx = map[key];
+        return colIdx !== -1 && row[colIdx] !== undefined ? String(row[colIdx]).trim() : '';
+      };
+
+      const item = {
+        entry_code: getVal('entry_code'),
+        date: getVal('date'),
+        reference: getVal('reference'),
+        header_description: getVal('header_description'),
+        status: getVal('status'),
+        entry_type: getVal('entry_type'),
+        account_id: getVal('account_id'),
+        debit: getVal('debit'),
+        credit: getVal('credit'),
+        line_description: getVal('line_description'),
+        related_id_name: getVal('related_id_name'),
+        _errors: []
+      };
+
+      // Client-side Validation
+      if (!item.entry_code) item._errors.push('Entry Code is required');
+      if (!item.account_id) item._errors.push('Account ID is required');
+      
+      if (item._errors.length > 0) {
+        invalid.push(item);
+      } else {
+        valid.push(item);
+      }
+    });
+
+    setExcelRows(valid);
+    setInvalidRows(invalid);
+    setImportSummary({
+      total: dataRows.length,
+      valid: valid.length,
+      invalid: invalid.length
+    });
+    setImportLoading(false);
+  };
+
+  const removeImportRow = (index) => {
+    const rows = [...excelRows];
+    rows.splice(index, 1);
+    setExcelRows(rows);
+    setImportSummary(prev => ({ ...prev, valid: rows.length }));
+  };
+
+  const submitImport = async () => {
+    if (excelRows.length === 0) return;
+    setImportError(null);
+    setImportLoading(true);
+    setImportProgress(0);
+
+    // Group rows by entry_code to ensure full journal entries are sent together
+    const grouped = {};
+    excelRows.forEach(row => {
+      const code = row.entry_code || 'manual';
+      if (!grouped[code]) grouped[code] = [];
+      grouped[code].push(row);
+    });
+
+    const journalEntries = Object.values(grouped);
+    const batchSize = 20; // Fewer entries per batch since each has multiple lines
+    const batches = [];
+    
+    for (let i = 0; i < journalEntries.length; i += batchSize) {
+      // Flatten the batch of journal entries back into a single array of rows
+      const batchRows = journalEntries.slice(i, i + batchSize).flat();
+      batches.push(batchRows);
+    }
+
+    try {
+      for (let i = 0; i < batches.length; i++) {
+        const response = await apiService.post('/journals/bulk-import', {
+          rows: batches[i],
+        });
+        
+        if (response.data && response.data.success) {
+          const progress = Math.min(Math.round(((i + 1) / batches.length) * 100), 100);
+          setImportProgress(progress);
+        } else {
+          throw new Error(response.data?.message || 'Import failed in one of the batches');
+        }
+      }
+      
+      setShowImport(false);
+      setExcelRows([]);
+      setInvalidRows([]);
+      setImportSummary({});
+      setImportProgress(0);
+      loadJournals();
+      toast.success('Data imported successfully');
+    } catch (err) {
+      setImportError(err.message || 'Failed to import. Some rows may not have been processed.');
+      console.error(err);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.get('/journals', {
+        with_lines: true,
+        search,
+        sort_column: sort.column || undefined,
+        sort_direction: sort.direction || undefined,
+      });
+      const journalsWithLines = Array.isArray(response.data) ? response.data : [];
+      
+      const dataToExport = [];
+      journalsWithLines.forEach(journal => {
+        if (journal.lines && journal.lines.length > 0) {
+          journal.lines.forEach(line => {
+            dataToExport.push({
+              'entry_code': journal.entry_code,
+              'date': journal.date ? String(journal.date).split('T')[0] : '',
+              'reference': journal.reference || '',
+              'header_description': journal.description || '',
+              'status': journal.status,
+              'entry_type': journal.entry_type || 'Manual',
+              'account_id': line.account_id,
+              'debit': line.debit,
+              'credit': line.credit,
+              'line_description': line.description || '',
+              'related_id_name': line.related_id_name || ''
+            });
+          });
+        } else {
+          // Export at least the header if no lines (though shouldn't happen)
+          dataToExport.push({
+            'entry_code': journal.entry_code,
+            'date': journal.date ? String(journal.date).split('T')[0] : '',
+            'reference': journal.reference || '',
+            'header_description': journal.description || '',
+            'status': journal.status,
+            'entry_type': journal.entry_type || 'Manual',
+            'account_id': '',
+            'debit': 0,
+            'credit': 0,
+            'line_description': '',
+            'related_id_name': ''
+          });
+        }
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Journal Entries");
+
+      const wscols = [
+        { wch: 15 }, // entry_code
+        { wch: 15 }, // date
+        { wch: 15 }, // reference
+        { wch: 30 }, // header_description
+        { wch: 10 }, // status
+        { wch: 10 }, // entry_type
+        { wch: 15 }, // account_id
+        { wch: 10 }, // debit
+        { wch: 10 }, // credit
+        { wch: 30 }, // line_description
+        { wch: 20 }  // related_id_name
+      ];
+      worksheet['!cols'] = wscols;
+
+      XLSX.writeFile(workbook, `JournalEntries_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast.success('تم تصدير البيانات بنجاح');
+    } catch (err) {
+      console.error('Export failed:', err);
+      toast.error('فشل عملية التصدير');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const emptyLine = () => ({
     account_id: '',
@@ -349,11 +636,169 @@ export default function JournalEntity() {
     }
   };
 
+  const renderImportModal = () => {
+    if (!showImport) return null;
+
+    return (
+      <div className="modal-overlay active" onClick={() => !importLoading && setShowImport(false)}>
+        <div className="modal import-modal" onClick={e => e.stopPropagation()}>
+          <div className="modal-header">
+            <h3 className="modal-title">Import Journal Entries from Excel</h3>
+            <button className="modal-close" onClick={() => setShowImport(false)}>&times;</button>
+          </div>
+
+          <div className="modal-body">
+            {!excelRows.length && !invalidRows.length ? (
+              <div 
+                className="drop-zone"
+                onDragOver={e => e.preventDefault()}
+                onDrop={handleFileDrop}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={e => handleFileUpload(e.target.files[0])} 
+                  accept=".xlsx, .xls"
+                  style={{ display: 'none' }}
+                />
+                <i className="material-icons-outlined" style={{ fontSize: '48px', color: '#3b82f6' }}>cloud_upload</i>
+                <p>Click to upload or drag and drop</p>
+                <span>Excel files only (.xlsx, .xls)</span>
+                <button className="btn btn-outline" onClick={(e) => { e.stopPropagation(); downloadTemplate(); }} style={{ marginTop: '10px' }}>
+                  Download Template
+                </button>
+              </div>
+            ) : (
+              <div className="import-preview-container">
+                <div className="preview-stats">
+                  <span className="stat-badge total">Total: {importSummary.total}</span>
+                  <span className="stat-badge valid">Valid: {importSummary.valid}</span>
+                  <span className="stat-badge invalid">Invalid: {importSummary.invalid}</span>
+                  <button className="btn btn-outline btn-sm" onClick={() => { setExcelRows([]); setInvalidRows([]); }}>
+                    Upload Different File
+                  </button>
+                </div>
+
+                {importLoading && (
+                  <div className="progress-bar-container">
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-bar__fill" 
+                        style={{ width: `${importProgress}%` }}
+                      ></div>
+                    </div>
+                    <div className="progress-text">Importing: {importProgress}%</div>
+                  </div>
+                )}
+
+                <div className="import-tables">
+                  {excelRows.length > 0 && (
+                    <div className="import-section">
+                      <h4>Valid Rows ({excelRows.length})</h4>
+                      <div className="table-responsive">
+                        <table className="data-table preview-table">
+                          <thead>
+                            <tr>
+                              <th>Code</th>
+                              <th>Date</th>
+                              <th>Account</th>
+                              <th>Debit</th>
+                              <th>Credit</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {excelRows.map((row, idx) => (
+                              <tr key={idx}>
+                                <td>{row.entry_code}</td>
+                                <td>{row.date}</td>
+                                <td>{row.account_id}</td>
+                                <td>{row.debit}</td>
+                                <td>{row.credit}</td>
+                                <td>
+                                  <button className="btn-remove" onClick={() => removeImportRow(idx)}>&times;</button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {invalidRows.length > 0 && (
+                    <div className="import-section invalid">
+                      <h4>Invalid Rows ({invalidRows.length})</h4>
+                      <div className="table-responsive">
+                        <table className="data-table preview-table">
+                          <thead>
+                            <tr>
+                              <th>Code</th>
+                              <th>Account</th>
+                              <th>Errors</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {invalidRows.map((row, idx) => (
+                              <tr key={idx} className="invalid-row">
+                                <td>{row.entry_code || '-'}</td>
+                                <td>{row.account_id || '-'}</td>
+                                <td>
+                                  {row._errors.map((err, i) => (
+                                    <span key={i} className="row-error">{err}</span>
+                                  ))}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {importError && (
+              <div className="alert alert--error" style={{ marginTop: '20px', color: 'red' }}>
+                {importError}
+              </div>
+            )}
+
+            <div className="import-instructions">
+              <h4>Instructions:</h4>
+              <ul style={{ fontSize: '0.9rem', color: '#666' }}>
+                <li>Download the template to ensure correct column mapping.</li>
+                <li><b>entry_code:</b> Required. Use same code to group lines into one journal entry.</li>
+                <li><b>account_id:</b> Required. Account ID or Code.</li>
+                <li><b>debit/credit:</b> Numbers. Each entry must be balanced (Total Debit = Total Credit).</li>
+                <li><b>date:</b> YYYY-MM-DD format.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="modal-actions">
+            <button className="btn btn-outline" onClick={() => setShowImport(false)}>Cancel</button>
+            <button 
+              className="btn btn-primary" 
+              onClick={submitImport}
+              disabled={excelRows.length === 0 || importLoading}
+            >
+              {importLoading ? 'Importing...' : `Import ${excelRows.length} Rows`}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <AdminLayout activeMenu="Journal Entries">
-      <Head title="Journal Entries - ZodicERP" />
-      {mode === 'list' && (
-        <div className="journal-page">
+      <div className="journal-page-container">
+        <Head title="Journal Entries - ZodicERP" />
+        {mode === 'list' && (
+          <div className="journal-page">
           <div className="breadcrumb">
             <a href="#">Dashboard</a>
             <span>/</span>
@@ -370,6 +815,37 @@ export default function JournalEntity() {
               </p>
             </div>
             <div className="journal-header-right">
+              <div className="excel-dropdown-container" ref={excelMenuRef}>
+                <button 
+                  type="button" 
+                  className="btn-excel-main"
+                  onClick={() => setShowExcelMenu(!showExcelMenu)}
+                >
+                  <i className="material-icons-outlined">file_download</i>
+                  <span>Excel</span>
+                  <i className={`material-icons-outlined arrow ${showExcelMenu ? 'up' : ''}`}>expand_more</i>
+                </button>
+                
+                {showExcelMenu && (
+                  <div className="excel-dropdown-menu">
+                    <button type="button" className="dropdown-item import" onClick={() => { setShowImport(true); setShowExcelMenu(false); }}>
+                      <i className="material-icons-outlined">upload_file</i>
+                      <div className="item-content">
+                        <span className="title">Import from Excel</span>
+                        <span className="desc">Bulk upload journal entries</span>
+                      </div>
+                    </button>
+                    <button type="button" className="dropdown-item export" onClick={() => { handleExportExcel(); setShowExcelMenu(false); }}>
+                      <i className="material-icons-outlined">download</i>
+                      <div className="item-content">
+                        <span className="title">Export to Excel</span>
+                        <span className="desc">Download all entries</span>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button
                 type="button"
                 className="btn btn-primary"
@@ -902,6 +1378,9 @@ export default function JournalEntity() {
           </form>
         </div>
       )}
+      {renderImportModal()}
+      <ToastContainer position="bottom-right" />
+      </div>
     </AdminLayout>
   );
 }

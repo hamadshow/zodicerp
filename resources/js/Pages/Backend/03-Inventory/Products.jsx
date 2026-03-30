@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
-// import { Inertia } from '@inertiajs/inertia';
+import * as XLSX from 'xlsx';
+import axios from 'axios';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 import MediaPickerModal from '../Media/MediaPickerModal';
@@ -86,13 +89,14 @@ const CategoryTreeItem = ({ category, selectedIds, onToggle, level = 0, search =
 // List Component
 // ==========================================
 
-const ProductsList = ({ products, brands, categories, filters = {} }) => {
+const ProductsList = ({ products, brands, categories, units, filters = {} }) => {
     const { flash } = usePage().props;
     const safeProducts = (products && Array.isArray(products.data)) 
         ? products 
         : (Array.isArray(products) ? { data: products, total: products.length, from: 1, to: products.length, links: [] } : { data: [], total: 0, from: 0, to: 0, links: [] });
     const safeBrands = Array.isArray(brands) ? brands : [];
     const safeCategories = Array.isArray(categories) ? categories : [];
+    const safeUnits = Array.isArray(units) ? units : [];
     
     // Filter States
     const [filterParams, setFilterParams] = useState({
@@ -100,10 +104,45 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
         status: filters.status || '',
         brand_id: filters.brand_id || '',
         category_id: filters.category_id || '',
+        unit_id: filters.unit_id || '',
     });
 
-    const [importing, setImporting] = useState(false);
     const fileInputRef = useRef(null);
+
+    // Import System State
+    const [showImport, setShowImport] = useState(false);
+    const [excelRows, setExcelRows] = useState([]);
+    const [invalidRows, setInvalidRows] = useState([]);
+    const [importSummary, setImportSummary] = useState({});
+    const [importLoading, setImportLoading] = useState(false);
+    const [importProgress, setImportProgress] = useState(0);
+    const [importError, setImportError] = useState(null);
+    const [showExcelMenu, setShowExcelMenu] = useState(false);
+    const excelMenuRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (excelMenuRef.current && !excelMenuRef.current.contains(event.target)) {
+                setShowExcelMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (flash?.success) {
+            toast.success(flash.success);
+            setShowImport(false);
+            setExcelRows([]);
+            setInvalidRows([]);
+            setImportSummary({});
+            setImportProgress(0);
+        }
+        if (flash?.error) {
+            toast.error(flash.error);
+        }
+    }, [flash]);
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
@@ -120,124 +159,409 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
         }
     };
 
-    const handleExport = () => {
-        window.location.href = route('admin.inventory.products.export');
+    const downloadTemplate = () => {
+        const headers = ['product_code', 'name', 'sku', 'barcode', 'price', 'sale_price', 'cost_price', 'quantity', 'brand', 'categories', 'unit', 'description', 'status', 'order', 'is_featured', 'is_default'];
+        const sample = ['PRD-0001', 'Sample Product', 'SKU-001', '123456789', '100', '90', '70', '50', 'Brand Name', 'Category1, Category2', 'Each', 'Product description here', 'active', '1', '1', '0'];
+        const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template");
+        XLSX.writeFile(wb, "products_template.xlsx");
     };
 
-    // Import Preview States
-    const [previewRows, setPreviewRows] = useState([]);
-    const [previewErrors, setPreviewErrors] = useState([]);
-    const [previewTotal, setPreviewTotal] = useState(0);
-    const [previewShown, setPreviewShown] = useState(0);
-    const [previewToken, setPreviewToken] = useState(null);
-    const [showPreviewModal, setShowPreviewModal] = useState(false);
-    const previewHeaders = useMemo(() => {
-        if (previewRows.length === 0) return [];
-        return Object.keys(previewRows[0] || {}).filter((k) => k !== '__row');
-    }, [previewRows]);
-    const previewErrorsByRow = useMemo(() => {
-        const map = new Map();
-        (previewErrors || []).forEach((e) => {
-            if (e && typeof e.row === 'number') map.set(e.row, e.messages || {});
-        });
-        return map;
-    }, [previewErrors]);
-
-    const handleImportFileSelect = (e) => {
-        const file = e.target.files[0];
+    const handleFileUpload = (file) => {
         if (!file) return;
-        
-        const formData = new FormData();
-        formData.append('file', file);
-
-        // Call preview endpoint using axios or Inertia manual visit (but we want JSON response)
-        // Inertia visits are for page navigations usually. For JSON data, axios is better, 
-        // but to keep consistency and auth, we can use axios.
-        // Assuming axios is available globally or imported.
-        // If not, let's use fetch or Inertia with a custom onFinish that checks props? 
-        // Actually, Inertia is not ideal for just fetching JSON data without page reload/component update.
-        // Let's use axios if available. Typically Laravel Breeze/Inertia setup has window.axios.
-        
-        setImporting(true);
-        
-        const axios = window.axios; 
-        
-        axios.post(route('admin.inventory.products.import.preview'), formData, {
-            headers: {
-                'Content-Type': 'multipart/form-data'
+        setImportLoading(true);
+        setImportError(null);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                processExcelData(jsonData);
+            } catch (err) {
+                setImportError(err?.message || 'Error reading file');
+                setImportLoading(false);
             }
-        })
-        .then(response => {
-            setPreviewRows(response.data.rows || []);
-            setPreviewErrors(response.data.errors || []);
-            setPreviewTotal(response.data.total || 0);
-            setPreviewShown(response.data.shown || (response.data.rows || []).length || 0);
-            setPreviewToken(response.data.token || null);
-            setShowPreviewModal(true);
-        })
-        .catch(error => {
-            const payload = error?.response?.data;
-            const status = error?.response?.status;
-            if (status === 422 && payload && (payload.rows || payload.errors)) {
-                setPreviewRows(payload.rows || []);
-                setPreviewErrors(payload.errors || []);
-                setPreviewTotal(payload.total || 0);
-                setPreviewShown(payload.shown || (payload.rows || []).length || 0);
-                setPreviewToken(payload.token || null);
-                setShowPreviewModal(true);
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    const handleFileDrop = (e) => {
+        e.preventDefault();
+        setImportError(null);
+        const file = e.dataTransfer.files[0];
+        if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+            handleFileUpload(file);
+        } else {
+            setImportError('Please upload a valid Excel file (.xlsx, .xls)');
+        }
+    };
+
+    const processExcelData = (rows) => {
+        if (rows.length < 2) {
+            setImportError('File is empty or missing headers');
+            setImportLoading(false);
+            return;
+        }
+
+        const headers = rows[0].map(h => String(h).trim().toLowerCase());
+        const dataRows = rows.slice(1);
+        const valid = [];
+        const invalid = [];
+
+        // Column mapping
+        const map = {
+            'name': headers.findIndex(h => h === 'name' || h === 'product name'),
+            'sku': headers.indexOf('sku'),
+            'barcode': headers.indexOf('barcode'),
+            'price': headers.indexOf('price'),
+            'sale_price': headers.findIndex(h => h === 'sale_price' || h === 'sale price'),
+            'cost_price': headers.findIndex(h => h === 'cost_price' || h === 'cost price'),
+            'quantity': headers.indexOf('quantity'),
+            'brand': headers.indexOf('brand'),
+            'unit': headers.indexOf('unit'),
+            'categories': headers.indexOf('categories'),
+            'description': headers.indexOf('description'),
+            'status': headers.indexOf('status'),
+            'order': headers.indexOf('order'),
+            'is_featured': headers.findIndex(h => h === 'is_featured' || h === 'is featured'),
+            'is_default': headers.findIndex(h => h === 'is_default' || h === 'is default'),
+            'product_code': headers.findIndex(h => h === 'product_code' || h === 'product code'),
+        };
+
+        dataRows.forEach((row) => {
+            const getVal = (key) => {
+                const colIdx = map[key];
+                return colIdx !== -1 && row[colIdx] !== undefined ? String(row[colIdx]).trim() : '';
+            };
+
+            const item = {
+                name: getVal('name'),
+                product_code: getVal('product_code'),
+                sku: getVal('sku'),
+                barcode: getVal('barcode'),
+                price: getVal('price'),
+                sale_price: getVal('sale_price'),
+                cost_price: getVal('cost_price'),
+                quantity: getVal('quantity'),
+                brand: getVal('brand'),
+                unit: getVal('unit'),
+                categories: getVal('categories'),
+                description: getVal('description'),
+                status: getVal('status') || 'active',
+                order: getVal('order') || '0',
+                is_featured: getVal('is_featured') === '1' || getVal('is_featured') === 'yes',
+                is_default: getVal('is_default') === '1' || getVal('is_default') === 'yes',
+                _errors: []
+            };
+
+            if (!item.name) {
+                item._errors.push('Name is required');
+            }
+
+            // Check duplicates in current batch
+            if (valid.find(v => v.name === item.name && item.name)) {
+                item._errors.push('Duplicate Name in file');
+            }
+
+            if (item._errors.length > 0) {
+                invalid.push(item);
+            } else {
+                valid.push(item);
+            }
+        });
+
+        setExcelRows(valid);
+        setInvalidRows(invalid);
+        setImportSummary({
+            total: dataRows.length,
+            valid: valid.length,
+            invalid: invalid.length
+        });
+        setImportLoading(false);
+    };
+
+    const removeImportRow = (index) => {
+        const rows = [...excelRows];
+        rows.splice(index, 1);
+        setExcelRows(rows);
+        setImportSummary(prev => ({ ...prev, valid: rows.length }));
+    };
+
+    const submitImport = async () => {
+        if (excelRows.length === 0) return;
+        setImportError(null);
+        setImportLoading(true);
+        setImportProgress(0);
+
+        const totalRows = excelRows.length;
+        const batchSize = 50;
+        const batches = [];
+        
+        for (let i = 0; i < totalRows; i += batchSize) {
+            batches.push(excelRows.slice(i, i + batchSize));
+        }
+
+        try {
+            for (let i = 0; i < batches.length; i++) {
+                // استخدام axios لضمان استمرار الحلقة دون تداخل مع دورة حياة Inertia
+                await axios.post(route('admin.inventory.products.bulkImport'), {
+                    rows: batches[i],
+                });
+                
+                const progress = Math.min(Math.round(((i + 1) / batches.length) * 100), 100);
+                setImportProgress(progress);
+            }
+            
+            toast.success('تم استيراد جميع المنتجات بنجاح');
+            setShowImport(false);
+            setExcelRows([]);
+            setInvalidRows([]);
+            setImportSummary({});
+            setImportProgress(0);
+            router.reload({ only: ['products'] });
+        } catch (err) {
+            setImportError('فشل الاستيراد. قد لا تكون بعض الصفوف قد تمت معالجتها: ' + (err.response?.data?.message || err.message));
+            console.error(err);
+        } finally {
+            setImportLoading(false);
+        }
+    };
+
+    const handleExportExcel = () => {
+        try {
+            // التحقق من وجود بيانات للتصدير
+            if (!safeProducts.data || safeProducts.data.length === 0) {
+                toast.warning('لا توجد بيانات لتصديرها');
                 return;
             }
-            console.error('Preview error:', error);
-            alert(payload?.error || payload?.message || 'Failed to preview file.');
-            cancelImport();
-        })
-        .finally(() => {
-            setImporting(false);
-        });
+
+            const dataToExport = safeProducts.data.map(product => ({
+                'Product Code': product.product_code || '',
+                'Name': product.name || '',
+                'SKU': product.sku || '',
+                'Barcode': product.barcode || '',
+                'Price': product.price || '0',
+                'Sale Price': product.sale_price || '0',
+                'Cost Price': product.cost_price || '0',
+                'Quantity': product.quantity || '0',
+                'Brand': product.brand?.name || '',
+                'Unit': product.unit?.name || '',
+                'Status': product.status || 'active',
+                'Description': product.description || ''
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
+
+            // تحسين عرض الأعمدة
+            const wscols = [
+                { wch: 15 }, // Product Code
+                { wch: 30 }, // Name
+                { wch: 15 }, // SKU
+                { wch: 15 }, // Barcode
+                { wch: 10 }, // Price
+                { wch: 10 }, // Sale Price
+                { wch: 10 }, // Cost Price
+                { wch: 10 }, // Quantity
+                { wch: 15 }, // Brand
+                { wch: 10 }, // Unit
+                { wch: 10 }, // Status
+                { wch: 40 }  // Description
+            ];
+            worksheet['!cols'] = wscols;
+
+            XLSX.writeFile(workbook, `Products_${new Date().toISOString().split('T')[0]}.xlsx`);
+            toast.success('تم تصدير البيانات بنجاح');
+            setShowExcelMenu(false);
+        } catch (err) {
+            console.error('Export failed:', err);
+            toast.error('فشل عملية التصدير');
+        }
     };
 
-    const confirmImport = () => {
-        if (!previewToken) return;
+    const renderImportModal = () => {
+        if (!showImport) return null;
+        return (
+            <div className="modal-overlay active" onClick={() => !importLoading && setShowImport(false)}>
+                <div className="modal import-modal" onClick={e => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h3 className="modal-title">Import Products from Excel</h3>
+                        <button className="modal-close" onClick={() => setShowImport(false)}>&times;</button>
+                    </div>
+                    <div className="modal-body">
+                        {!excelRows.length && !invalidRows.length ? (
+                            <div 
+                                className={`import-dropzone ${importLoading ? 'loading' : ''}`}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDrop={handleFileDrop}
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    className="hidden" 
+                                    accept=".xlsx, .xls"
+                                    onChange={(e) => handleFileUpload(e.target.files[0])}
+                                />
+                                <span className="material-icons-outlined drop-icon">cloud_upload</span>
+                                <p>Drag and drop Excel file or click to browse</p>
+                                <span className="file-hint">Only .xlsx and .xls files are supported</span>
+                                {importLoading && <div className="loader"></div>}
+                            </div>
+                        ) : (
+                            <div className="import-preview">
+                                <div className="summary-cards">
+                                    <div className="summary-card total">
+                                        <span className="label">Total Rows</span>
+                                        <span className="value">{importSummary.total}</span>
+                                    </div>
+                                    <div className="summary-card valid">
+                                        <span className="label">Valid</span>
+                                        <span className="value">{importSummary.valid}</span>
+                                    </div>
+                                    <div className="summary-card invalid">
+                                        <span className="label">Invalid</span>
+                                        <span className="value">{importSummary.invalid}</span>
+                                    </div>
+                                    <button className="btn btn-outline ml-auto" onClick={() => { setExcelRows([]); setInvalidRows([]); }}>
+                                        Upload Different File
+                                    </button>
+                                </div>
 
-        setImporting(true);
-        const axios = window.axios;
-        axios.post(route('admin.inventory.products.import.confirm'), { token: previewToken })
-            .then((response) => {
-                alert(response?.data?.message || 'Import completed.');
-                cancelImport();
-                router.reload({ preserveScroll: true });
-            })
-            .catch((error) => {
-                const payload = error?.response?.data;
-                const status = error?.response?.status;
-                if (status === 422 && payload && (payload.rows || payload.errors)) {
-                    setPreviewRows(payload.rows || []);
-                    setPreviewErrors(payload.errors || []);
-                    setPreviewTotal(payload.total || 0);
-                    setPreviewShown(payload.shown || (payload.rows || []).length || 0);
-                    return;
-                }
-                console.error('Import error:', error);
-                alert(payload?.error || payload?.message || 'Failed to import products.');
-            })
-            .finally(() => {
-                setImporting(false);
-            });
-    };
+                                {importLoading && (
+                                    <div className="import-progress-wrapper mt-3">
+                                        <div className="progress-info d-flex justify-content-between mb-2">
+                                            <span className="progress-label">جاري استيراد المنتجات...</span>
+                                            <span className="progress-percentage">{importProgress}%</span>
+                                        </div>
+                                        <div className="custom-progress-bar" style={{
+                                            height: '10px',
+                                            backgroundColor: '#e2e8f0',
+                                            borderRadius: '5px',
+                                            overflow: 'hidden',
+                                            width: '100%'
+                                        }}>
+                                            <div 
+                                                className="progress-fill" 
+                                                style={{ 
+                                                    width: `${importProgress}%`,
+                                                    height: '100%',
+                                                    backgroundColor: '#3b82f6',
+                                                    transition: 'width 0.3s ease',
+                                                    boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)'
+                                                }}
+                                            ></div>
+                                        </div>
+                                        <div className="progress-subtext text-muted mt-1 small">
+                                            يرجى عدم إغلاق النافذة حتى اكتمال العملية
+                                        </div>
+                                    </div>
+                                )}
 
-    const cancelImport = () => {
-        setShowPreviewModal(false);
-        setPreviewRows([]);
-        setPreviewErrors([]);
-        setPreviewTotal(0);
-        setPreviewShown(0);
-        setPreviewToken(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
+                                {excelRows.length > 0 && (
+                                    <div className="import-section mt-4">
+                                        <h4>Valid Rows ({excelRows.length})</h4>
+                                        <div className="table-mini-container">
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th>SKU</th>
+                                                        <th>Unit</th>
+                                                        <th>Price</th>
+                                                        <th></th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {excelRows.slice(0, 50).map((row, i) => (
+                                                        <tr key={i}>
+                                                            <td>{row.name}</td>
+                                                            <td>{row.sku || '-'}</td>
+                                                            <td>{row.unit || '-'}</td>
+                                                            <td>{row.price || '-'}</td>
+                                                            <td>
+                                                                <button className="btn-remove" onClick={() => removeImportRow(i)}>&times;</button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                            {excelRows.length > 50 && <p className="text-muted mt-2">... and {excelRows.length - 50} more rows</p>}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {invalidRows.length > 0 && (
+                                    <div className="invalid-rows-section mt-4">
+                                        <h4>Invalid Rows (Will be skipped)</h4>
+                                        <div className="table-mini-container">
+                                            <table>
+                                                <thead>
+                                                    <tr>
+                                                        <th>Name</th>
+                                                        <th>Errors</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {invalidRows.map((row, i) => (
+                                                        <tr key={i}>
+                                                            <td>{row.name || 'Empty'}</td>
+                                                            <td className="text-danger">
+                                                                {row._errors.map((err, idx) => (
+                                                                    <div key={idx}>{err}</div>
+                                                                ))}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        {importError && <div className="alert alert-danger mt-3">{importError}</div>}
+
+                        <div className="import-instructions mt-4">
+                            <h4>Instructions:</h4>
+                            <ul>
+                                <li>Download the template to ensure correct column mapping.</li>
+                                <li><b>name:</b> Required.</li>
+                                <li><b>sku:</b> Product SKU (Stock Keeping Unit).</li>
+                                <li><b>price:</b> Selling price.</li>
+                                <li><b>status:</b> active or inactive.</li>
+                                <li><b>brand:</b> Optional. Must match an existing brand name.</li>
+                                <li><b>categories:</b> Optional. Comma-separated category names.</li>
+                                <li><b>unit:</b> Optional. Must match an existing unit name.</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div className="modal-actions">
+                        <button className="btn-cancel" onClick={() => setShowImport(false)} disabled={importLoading}>Cancel</button>
+                        {excelRows.length > 0 && (
+                            <button 
+                                className="btn-primary" 
+                                onClick={submitImport}
+                                disabled={importLoading}
+                            >
+                                {importLoading ? 'Importing...' : `Import ${excelRows.length} Products`}
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
         <AdminLayout activeMenu="Inventory">
             <Head title="Products" />
+            <ToastContainer position="top-right" autoClose={3000} />
+            {renderImportModal()}
             
             <div className="products-page">
                 <div className="content-area">
@@ -319,19 +643,35 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                     <span className="material-icons-outlined">search</span>
                                 </button>
                             </div>
-                            <button className="btn btn-outline" onClick={handleExport}>
-                                <span className="material-icons-outlined">download</span> Export
-                            </button>
-                            <input 
-                                type="file" 
-                                ref={fileInputRef} 
-                                style={{ display: 'none' }} 
-                                accept=".xlsx, .xls, .csv" 
-                                onChange={handleImportFileSelect} 
-                            />
-                            <button className="btn btn-outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-                                <span className="material-icons-outlined">upload</span> {importing ? 'Importing...' : 'Import'}
-                            </button>
+                            
+                            <div className="excel-dropdown-container" ref={excelMenuRef}>
+                                <button 
+                                    className="btn btn-outline excel-btn"
+                                    onClick={() => setShowExcelMenu(!showExcelMenu)}
+                                >
+                                    <i className="material-icons-outlined">grid_on</i>
+                                    <span>Excel</span>
+                                    <i className="material-icons-outlined">expand_more</i>
+                                </button>
+                                
+                                {showExcelMenu && (
+                                    <div className="excel-dropdown-menu">
+                                        <button className="excel-menu-item" onClick={() => { setShowExcelMenu(false); setShowImport(true); }}>
+                                            <i className="material-icons-outlined">upload</i>
+                                            <span>Import from Excel</span>
+                                        </button>
+                                        <button className="excel-menu-item" onClick={() => { setShowExcelMenu(false); handleExportExcel(); }}>
+                                            <i className="material-icons-outlined">download</i>
+                                            <span>Export to Excel</span>
+                                        </button>
+                                        <button className="excel-menu-item" onClick={() => { setShowExcelMenu(false); downloadTemplate(); }}>
+                                            <i className="material-icons-outlined">description</i>
+                                            <span>Download Template</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+
                             <Link className="btn btn-primary" href={route('admin.inventory.products.create')}>
                                 <span className="material-icons-outlined">add</span>
                                 Add Product
@@ -345,10 +685,16 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                             {safeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                         <select name="brand_id" className="form-control filter-select" value={filterParams.brand_id} onChange={handleFilterChange}>
-                            <option value="">All Brands</option>
-                            {safeBrands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </select>
-                        <select name="status" className="form-control filter-select" value={filterParams.status} onChange={handleFilterChange}>
+                                        <option value="">All Brands</option>
+                                        {safeBrands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                                    </select>
+
+                                    <select name="unit_id" className="form-control filter-select" value={filterParams.unit_id} onChange={handleFilterChange}>
+                                        <option value="">All Units</option>
+                                        {safeUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                    </select>
+
+                                    <select name="status" className="form-control filter-select" value={filterParams.status} onChange={handleFilterChange}>
                             <option value="">All Status</option>
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
@@ -365,6 +711,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                     <th>SKU</th>
                                     <th>Category</th>
                                     <th>Brand</th>
+                                    <th>Unit</th>
                                     <th>Price</th>
                                     <th>Stock</th>
                                     <th>Status</th>
@@ -393,6 +740,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                             <td>{product.sku || '-'}</td>
                                             <td>{(product.categories && product.categories.length > 0 ? product.categories[0].name : null) || '-'}</td>
                                             <td>{product.brand?.name || '-'}</td>
+                                            <td>{product.unit?.name || '-'}</td>
                                             <td>${product.price || '0.00'}</td>
                                             <td>
                                                 <span className={`status-badge ${product.quantity > 0 ? 'status-active' : 'status-error'}`}>
@@ -422,7 +770,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="8" className="empty-state">No products found.</td>
+                                        <td colSpan="9" className="empty-state">No products found.</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -449,98 +797,6 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                         </div>
                     )}
                 </div>
-
-                {showPreviewModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-                        <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col" style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1000, width: '90%', maxHeight: '90vh', background: 'white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', borderRadius: '8px', display: 'flex', flexDirection: 'column'}}>
-                            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-                                <h3 className="text-xl font-bold">Import Preview</h3>
-                                <button onClick={cancelImport} className="text-gray-500 hover:text-gray-700">
-                                    <span className="material-icons-outlined">close</span>
-                                </button>
-                            </div>
-                            
-                            <div className="p-4 overflow-auto flex-1">
-                                <p className="mb-4 text-sm text-gray-600">
-                                    Showing {previewShown} of {previewTotal} rows.
-                                </p>
-                                {previewErrors.length > 0 && (
-                                    <div className="mb-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                                        {previewErrors.length} rows have validation errors. Fix the file and re-upload, or proceed only after correcting the errors.
-                                    </div>
-                                )}
-                                
-                                <div className="border rounded-lg overflow-auto" style={{maxHeight: '60vh'}}>
-                                    <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50 sticky top-0">
-                                            <tr>
-                                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border border-gray-200">
-                                                    #
-                                                </th>
-                                                {previewHeaders.map((header, idx) => (
-                                                    <th key={idx} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border border-gray-200">
-                                                        {header}
-                                                    </th>
-                                                ))}
-                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-50 border border-gray-200">
-                                                    Errors
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
-                                            {previewRows.map((row, rowIdx) => {
-                                                const rowNumber = row?.__row ?? rowIdx + 1;
-                                                const rowErrors = previewErrorsByRow.get(rowNumber);
-                                                const hasErrors = rowErrors && Object.keys(rowErrors).length > 0;
-                                                const rowBg = hasErrors ? 'bg-red-50' : (rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50');
-                                                return (
-                                                <tr key={rowIdx} className={rowBg}>
-                                                    <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 border border-gray-200">
-                                                        {rowNumber}
-                                                    </td>
-                                                    {previewHeaders.map((header, cellIdx) => (
-                                                        <td key={cellIdx} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 border border-gray-200">
-                                                            {row?.[header] ?? ''}
-                                                        </td>
-                                                    ))}
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm border border-gray-200">
-                                                        {hasErrors ? (
-                                                            <span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">
-                                                                {Object.keys(rowErrors).length} fields
-                                                            </span>
-                                                        ) : (
-                                                            <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                                                                OK
-                                                            </span>
-                                                        )}
-                                                    </td>
-                                                </tr>
-                                            )})}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            
-                            <div className="p-4 border-t border-gray-200 flex justify-end gap-3 bg-gray-50">
-                                <button 
-                                    className="btn btn-outline"
-                                    onClick={cancelImport}
-                                    disabled={importing}
-                                >
-                                    Cancel
-                                </button>
-                                <button 
-                                    className="btn btn-primary"
-                                    onClick={confirmImport}
-                                    disabled={importing || previewErrors.length > 0}
-                                >
-                                    {importing && <span className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></span>}
-                                    Confirm Import
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </div>
     </AdminLayout>
@@ -551,7 +807,7 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
 // Form Component (Create/Edit)
 // ==========================================
 
-const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppliers = [] }) => {
+const ProductsForm = ({ product, categories, brands, units = [], itemAttributes = [], suppliers = [] }) => {
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         name: '',
         parent_id: '',
@@ -562,6 +818,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
         sku: '',
         barcode: '',
         brand_id: '',
+        unit_id: '',
         category_ids: [],
         product_type: 'simple',
         supplier_code: '',
@@ -1037,6 +1294,7 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                 description: product.description || '',
                 content: product.content || '',
                 brand_id: product.brand_id || '',
+                unit_id: product.unit_id || '',
                 category_ids: initialCategoryIds,
                 sku: product.sku || '',
                 barcode: product.barcode || '',
@@ -1908,6 +2166,21 @@ const ProductsForm = ({ product, categories, brands, itemAttributes = [], suppli
                                                     <option key={b.id} value={b.id}>{b.name}</option>
                                                 ))}
                                             </select>
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">Unit</label>
+                                            <select
+                                                className="form-control"
+                                                value={data.unit_id}
+                                                onChange={e => setData('unit_id', e.target.value)}
+                                            >
+                                                <option value="">Select Unit</option>
+                                                {units && units.map(u => (
+                                                    <option key={u.id} value={u.id}>{u.name}</option>
+                                                ))}
+                                            </select>
+                                            {errors.unit_id && <div className="error-msg">{errors.unit_id}</div>}
                                         </div>
                                         
                                         <div className="form-group categories-section">

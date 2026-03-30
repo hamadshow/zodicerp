@@ -17,6 +17,63 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class CategoriesController extends Controller
 {
+    public function bulkImport(Request $request)
+    {
+        set_time_limit(300);
+
+        $companyId = $request->user()?->company_id;
+        if (! $companyId) {
+            return back()->withErrors(['error' => 'Company not set for this user.']);
+        }
+
+        $rows = $request->input('rows', []);
+        if (empty($rows)) {
+            return redirect()->back()->with('error', 'No data to import');
+        }
+
+        try {
+            DB::transaction(function () use ($rows, $companyId) {
+                foreach ($rows as $row) {
+                    // Normalize parent_id: if name is provided, try to find it
+                    $parentId = 0;
+                    if (! empty($row['parent_name'])) {
+                        $parent = Categories::where('name', $row['parent_name'])->first();
+                        $parentId = $parent ? $parent->id : 0;
+                    } elseif (! empty($row['parent_id'])) {
+                        $parentId = (int) $row['parent_id'];
+                    }
+
+                    $slug = ! empty($row['slug']) ? $row['slug'] : \Illuminate\Support\Str::slug($row['name']);
+                    
+                    // Generate category_code if not provided
+                    $categoryCode = ! empty($row['category_code']) ? $row['category_code'] : null;
+                    if (! $categoryCode) {
+                        $lastCategory = Categories::withTrashed()->orderBy('id', 'desc')->first();
+                        $categoryCode = $lastCategory ? (intval($lastCategory->category_code) + 1) : 1001;
+                    }
+
+                    Categories::updateOrCreate(
+                        ['name' => $row['name'], 'parent_id' => $parentId],
+                        [
+                            'category_code' => $categoryCode,
+                            'slug' => $slug,
+                            'description' => $row['description'] ?? null,
+                            'status' => $row['status'] ?? 'active',
+                            'order' => (int) ($row['order'] ?? 0),
+                            'is_featured' => (bool) ($row['is_featured'] ?? false),
+                            'is_default' => (bool) ($row['is_default'] ?? false),
+                            'icon' => $row['icon'] ?? null,
+                        ]
+                    );
+                }
+            });
+
+            return redirect()->back()->with('success', 'Categories imported successfully');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error during bulk import: '.$e->getMessage());
+        }
+    }
+
     public function export(Request $request)
     {
         $companyId = $request->user()?->company_id;

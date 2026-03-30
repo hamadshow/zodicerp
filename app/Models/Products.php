@@ -28,6 +28,7 @@ class Products extends Model
         'barcode',
         'parent_id',
         'brand_id',
+        'unit_id',
         'supplier_code',
         'order',
         'views',
@@ -122,6 +123,11 @@ class Products extends Model
     public function brand()
     {
         return $this->belongsTo(Brands::class, 'brand_id');
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(\App\Models\ItemUnit::class, 'unit_id');
     }
 
     public function categories()

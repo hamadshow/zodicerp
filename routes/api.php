@@ -212,6 +212,7 @@ Route::middleware('web')->group(function () {
     Route::get('journals/next-code', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'nextCode']);
     Route::get('journals', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'index']);
     Route::post('journals', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'store']);
+    Route::post('journals/bulk-import', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'bulkImport'])->name('admin.journals.bulkImport');
     Route::get('journals/{entryCode}', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'show']);
     Route::put('journals/{entryCode}', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'update']);
     Route::delete('journals/{entryCode}', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'destroy']);

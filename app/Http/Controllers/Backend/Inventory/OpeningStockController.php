@@ -38,6 +38,7 @@ class OpeningStockController extends Controller
         $units = ItemUnit::query()
             ->select(['id', 'name'])
             ->where('active', true)
+            ->where('unit_type', 1)
             ->orderBy('id')
             ->get();
 

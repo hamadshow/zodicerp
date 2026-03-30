@@ -988,3 +988,41 @@
         color: #dc2626;
     }
 }
+
+/* Filter Bar - Forced Single Line */
+.filter-bar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 12px;
+    align-items: center;
+    padding: 16px 24px;
+    background: #f8fafc;
+    border-bottom: 1px solid $border-color;
+    overflow-x: auto; // Allow scrolling if it's too wide instead of wrapping
+
+    .filter-select {
+        flex: 1;
+        min-width: 150px; // Minimum width for readability
+        height: 38px;
+        padding: 8px 12px;
+        border: 1px solid $border-color;
+        border-radius: $radius-md;
+        font-size: $font-size-sm;
+        background: $white;
+
+        &:focus {
+            outline: none;
+            border-color: $primary-color;
+            box-shadow: 0 0 0 3px rgba($primary-color, 0.1);
+        }
+    }
+
+    .btn {
+        white-space: nowrap !important;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 20px;
+    }
+}
