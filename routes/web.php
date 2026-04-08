@@ -481,8 +481,21 @@ Route::group([
         })->name('journal-entries');
         Route::get('financial-reports', [FinancialReportController::class, 'index'])->name('financial-reports.index');
         Route::get('financial-reports/coa', [FinancialReportController::class, 'coaReport'])->name('financial-reports.coa');
+        Route::get('financial-reports/general-ledger', [FinancialReportController::class, 'generalLedger'])->name('financial-reports.general-ledger');
+        Route::get('financial-reports/trial-balance', [FinancialReportController::class, 'trialBalance'])->name('financial-reports.trial-balance');
+        Route::get('financial-reports/journal', [FinancialReportController::class, 'journalReport'])->name('financial-reports.journal');
+        Route::get('financial-reports/balance-sheet', [FinancialReportController::class, 'balanceSheet'])->name('financial-reports.balance-sheet');
+        Route::get('financial-reports/balance-sheet-comparison', [FinancialReportController::class, 'balanceSheetComparison'])->name('financial-reports.balance-sheet-comparison');
+        Route::get('financial-reports/balance-sheet-detail', [FinancialReportController::class, 'balanceSheetDetail'])->name('financial-reports.balance-sheet-detail');
+        Route::get('financial-reports/profit-loss', [FinancialReportController::class, 'profitLoss'])->name('financial-reports.profit-loss');
+        Route::get('financial-reports/profit-loss-class', [FinancialReportController::class, 'profitLossByClass'])->name('financial-reports.profit-loss-class');
+        Route::get('financial-reports/profit-loss-customer', [FinancialReportController::class, 'profitLossByCustomer'])->name('financial-reports.profit-loss-customer');
+        Route::get('financial-reports/profit-loss-month', [FinancialReportController::class, 'profitLossByMonth'])->name('financial-reports.profit-loss-month');
+        Route::get('financial-reports/profit-loss-comparison', [FinancialReportController::class, 'profitLossComparison'])->name('financial-reports.profit-loss-comparison');
+        Route::get('financial-reports/profit-loss-detail', [FinancialReportController::class, 'profitLossDetail'])->name('financial-reports.profit-loss-detail');
         Route::get('financial-reports/inventory-valuation-summary', [FinancialReportController::class, 'inventoryValuationSummary'])->name('financial-reports.inventory-valuation-summary');
         Route::get('financial-reports/inventory-valuation-summary/export', [FinancialReportController::class, 'exportInventoryValuationSummary'])->name('financial-reports.inventory-valuation-summary.export');
+        Route::get('financial-reports/cash-flow', [FinancialReportController::class, 'cashFlow'])->name('financial-reports.cash-flow');
 
         // 9. Cash & Banks (النقدية والبنوك)
         Route::resource('banks', \App\Http\Controllers\Backend\Cash\BankController::class);

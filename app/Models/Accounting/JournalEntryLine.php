@@ -32,6 +32,13 @@ class JournalEntryLine extends Model
         'account_id' => 'integer',
     ];
 
+    protected $appends = ['account_name'];
+
+    public function getAccountNameAttribute()
+    {
+        return $this->account ? $this->account->AccName : null;
+    }
+
     public function journalEntry()
     {
         return $this->belongsTo(JournalEntry::class, 'journal_entry_code', 'entry_code');

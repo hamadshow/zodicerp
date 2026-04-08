@@ -210,6 +210,7 @@ Route::middleware('web')->group(function () {
 
     // Journal Routes
     Route::get('journals/next-code', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'nextCode']);
+    Route::get('journals/export', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'export'])->name('journals.export');
     Route::get('journals', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'index']);
     Route::post('journals', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'store']);
     Route::post('journals/bulk-import', [\App\Http\Controllers\Backend\Accounting\JournalController::class, 'bulkImport'])->name('admin.journals.bulkImport');
@@ -220,6 +221,18 @@ Route::middleware('web')->group(function () {
     // Financial Reports Routes
     Route::get('financial-reports', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getData']);
     Route::get('financial-reports/inventory-valuation-summary', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getInventoryValuationSummaryData']);
+    Route::get('reports/general-ledger', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getGeneralLedgerData']);
+    Route::get('reports/trial-balance', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getTrialBalanceData']);
+    Route::get('reports/balance-sheet', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getBalanceSheetData']);
+    Route::get('reports/profit-loss', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossData']);
+    Route::get('reports/profit-loss-class', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossByClassData']);
+    Route::get('reports/profit-loss-customer', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossByCustomerData']);
+    Route::get('reports/profit-loss-month', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossByMonthData']);
+    Route::get('reports/profit-loss-comparison', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossComparisonData']);
+    Route::get('reports/profit-loss-detail', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossDetailData']);
+    Route::get('reports/cash-flow', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getCashFlowData']);
+    Route::post('reports/post-journal', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'postJournalToPostings']);
+    Route::post('reports/unpost-journal', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'unpostJournalFromPostings']);
     Route::post('reports/favorite', [\App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'toggleFavorite']);
 
     // Branch Routes

@@ -16,11 +16,9 @@ use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -226,7 +224,7 @@ class ProductsController extends Controller
         }
     }
 
-    public function create(Request $request)
+    public function create()
     {
         $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
         $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
@@ -269,7 +267,7 @@ class ProductsController extends Controller
         ]);
     }
 
-    public function edit(Products $product, Request $request)
+    public function edit(Products $product)
     {
         $product->load(['categories', 'unit', 'variations.items', 'variations.product']);
 

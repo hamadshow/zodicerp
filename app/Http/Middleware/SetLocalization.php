@@ -36,10 +36,10 @@ class SetLocalization
             return redirect()->to($url);
         }
 
-        $supportedLocales = \App\Models\Language::pluck('lang_code')->toArray();
-        if (empty($supportedLocales)) {
-            $supportedLocales = ['en', 'ar'];
-        }
+        $supportedLocales = \Illuminate\Support\Facades\Cache::remember('supported_locales', 86400, function () {
+            $locales = \App\Models\Language::pluck('lang_code')->toArray();
+            return empty($locales) ? ['en', 'ar'] : $locales;
+        });
 
         $appDefaultLocale = (string) config('app.locale', 'en');
         if (! in_array($appDefaultLocale, $supportedLocales)) {
@@ -49,14 +49,18 @@ class SetLocalization
         // Handle Country
         $country = null;
         if ($countryCode && strlen($countryCode) === 2) {
-            $country = Country::where('code', strtoupper($countryCode))->where('status', 'active')->first();
+            $country = \Illuminate\Support\Facades\Cache::remember("country.{$countryCode}", 86400, function () use ($countryCode) {
+                return Country::where('code', strtoupper($countryCode))->where('status', 'active')->first();
+            });
         }
 
         if (! $country && ! Session::has('country_code')) {
             // Auto-detect country based on IP if not specified in URL and not in session
             $detectedCountryCode = $this->detectCountryCode($request->ip());
             if ($detectedCountryCode) {
-                $country = Country::where('code', strtoupper($detectedCountryCode))->where('status', 'active')->first();
+                $country = \Illuminate\Support\Facades\Cache::remember("country.{$detectedCountryCode}", 86400, function () use ($detectedCountryCode) {
+                    return Country::where('code', strtoupper($detectedCountryCode))->where('status', 'active')->first();
+                });
             }
         }
 
@@ -65,7 +69,9 @@ class SetLocalization
             Session::put('country_code', strtolower($country->code));
         } else {
             // Default country if not specified or invalid
-            $defaultCountry = Country::where('code', 'SA')->first() ?: Country::where('status', 'active')->first();
+            $defaultCountry = \Illuminate\Support\Facades\Cache::remember('country.default', 86400, function () {
+                return Country::where('code', 'SA')->first() ?: Country::where('status', 'active')->first();
+            });
             if ($defaultCountry) {
                 Config::set('app.country', $defaultCountry);
                 Session::put('country_code', strtolower($defaultCountry->code));

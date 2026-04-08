@@ -4,9 +4,8 @@ import { router } from '@inertiajs/react';
 // Create axios instance
 const api = axios.create({
   baseURL: '/api', // Laravel API base URL
-  timeout: 30000,
+  timeout: 120000, // Increased timeout to 2 minutes for large imports
   headers: {
-    'Content-Type': 'application/json',
     Accept: 'application/json',
   },
   withCredentials: true, // Include credentials (cookies) for session-based auth
@@ -80,11 +79,11 @@ api.interceptors.response.use(
 // API methods
 export const apiService = {
   // Generic CRUD methods
-  get: (url, params = {}) => api.get(url, { params }),
-  post: (url, data = {}) => api.post(url, data),
-  put: (url, data = {}) => api.put(url, data),
-  patch: (url, data = {}) => api.patch(url, data),
-  delete: (url) => api.delete(url),
+  get: (url, params = {}, config = {}) => api.get(url, { ...config, params }),
+  post: (url, data = {}, config = {}) => api.post(url, data, config),
+  put: (url, data = {}, config = {}) => api.put(url, data, config),
+  patch: (url, data = {}, config = {}) => api.patch(url, data, config),
+  delete: (url, config = {}) => api.delete(url, config),
 
   // Specific API endpoints
   // Example: Users

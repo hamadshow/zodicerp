@@ -7,8 +7,14 @@ use App\Http\Requests\Accounting\StoreJournalRequest;
 use App\Http\Requests\Accounting\UpdateJournalRequest;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
+use App\Imports\JournalImport;
+use App\Exports\JournalExport;
+use App\Services\Accounting\JournalImportService;
+use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class JournalController extends Controller
 {
@@ -31,6 +37,14 @@ class JournalController extends Controller
         return response()->json(['next_code' => $prefix.$nextNumber]);
     }
 
+    /**
+     * Export all journals to Excel.
+     */
+    public function export()
+    {
+        return Excel::download(new JournalExport, 'journals_export_' . now()->format('Y-m-d_His') . '.xlsx');
+    }
+
     public function index(Request $request)
     {
         $query = JournalEntry::query();
@@ -42,6 +56,33 @@ class JournalController extends Controller
                     ->orWhere('entry_type', 'like', '%'.$search.'%')
                     ->orWhere('reference', 'like', '%'.$search.'%')
                     ->orWhere('description', 'like', '%'.$search.'%');
+            });
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('date', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('date', '<=', $request->date_to);
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $status = $request->status;
+            // Map 'posted'/'unposted' to database values if needed, e.g. 'Post'/'UnPost'
+            if ($status === 'posted') $status = 'Post';
+            if ($status === 'unposted') $status = 'UnPost';
+            $query->where('status', $status);
+        }
+
+        if ($request->filled('balance_status') && $request->balance_status !== 'all') {
+            $isBalanced = $request->balance_status === 'balanced';
+            $query->whereExists(function ($q) use ($isBalanced) {
+                $q->select(DB::raw(1))
+                    ->from('journal_entry_lines')
+                    ->whereColumn('journal_entry_lines.journal_entry_code', 'journal_entries.entry_code')
+                    ->groupBy('journal_entry_code')
+                    ->havingRaw('ABS(SUM(debit) - SUM(credit)) ' . ($isBalanced ? '<' : '>=') . ' 0.001');
             });
         }
 
@@ -60,10 +101,18 @@ class JournalController extends Controller
         }
 
         if ($request->boolean('with_lines')) {
-            $query->with('lines');
+            $query->with(['lines.account:AccID,AccCode,AccName']);
         }
+        
+        $query->withSum('lines as total_debit', 'debit')
+              ->withSum('lines as total_credit', 'credit');
 
-        $journals = $query->get();
+        if ($request->boolean('all')) {
+            $journals = $query->get();
+        } else {
+            $perPage = $request->integer('per_page', 10);
+            $journals = $query->paginate($perPage);
+        }
 
         return response()->json($journals);
     }
@@ -383,141 +432,55 @@ class JournalController extends Controller
         });
     }
 
-    public function bulkImport(Request $request)
+    public function bulkImport(Request $request, JournalImportService $importService)
     {
         // Increase execution time for large imports
-        set_time_limit(300);
+        set_time_limit(600);
+        ini_set('memory_limit', '1024M');
 
-        $rows = $request->input('rows', []);
+        Log::info('Bulk Import Request Received', [
+            'has_file' => $request->hasFile('file'),
+            'rows_count' => count($request->input('rows', [])),
+        ]);
 
-        if (empty($rows)) {
-            return response()->json(['success' => false, 'message' => 'لا توجد بيانات للاستيراد'], 400);
-        }
-
-        // Group rows by entry_code
-        $grouped = [];
-        $accountKeys = [];
-        foreach ($rows as $row) {
-            if (isset($row['account_id'])) {
-                $accountKeys[] = (string) $row['account_id'];
-            }
-        }
-
-        // Resolve all account IDs/Codes in one query
-        $accountKeys = array_values(array_unique(array_filter($accountKeys)));
-        $resolvedAccounts = [];
-        if (!empty($accountKeys)) {
-            $accounts = DB::table('accounts')
-                ->whereIn('AccID', $accountKeys)
-                ->orWhereIn('AccCode', $accountKeys)
-                ->get(['AccID', 'AccCode']);
-            
-            foreach ($accounts as $acc) {
-                $resolvedAccounts[(string)$acc->AccID] = $acc->AccID;
-                $resolvedAccounts[(string)$acc->AccCode] = $acc->AccID;
-            }
-        }
-
-        foreach ($rows as $row) {
-            $code = $row['entry_code'] ?? 'manual';
-            
-            // Initialize group if not exists
-            if (!isset($grouped[$code])) {
-                $grouped[$code] = [
-                    'header' => [
-                        'entry_type' => $row['entry_type'] ?? 'Manual',
-                        'reference' => $row['reference'] ?? null,
-                        'date' => $row['date'] ?? now()->format('Y-m-d'),
-                        'description' => $row['header_description'] ?? null,
-                        'status' => $row['status'] ?? 'UnPost',
-                    ],
-                    'lines' => []
-                ];
-            }
-
-            $rawAccId = isset($row['account_id']) ? (string)$row['account_id'] : null;
-            $resolvedAccId = $resolvedAccounts[$rawAccId] ?? null;
-
-            if ($rawAccId && !$resolvedAccId) {
+        // Scenario 1: File-based import (Excel/CSV)
+        if ($request->hasFile('file')) {
+            try {
+                // Since JournalImport implements ShouldQueue, this will be handled in background
+                Excel::import(new JournalImport, $request->file('file'));
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'The file has been uploaded and is being processed in the background. You will see the results shortly.',
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Excel Import Error: ' . $e->getMessage());
                 return response()->json([
                     'success' => false,
-                    'message' => "فشل الاستيراد: الحساب {$rawAccId} غير موجود",
-                ], 422);
+                    'message' => 'Excel import failed: ' . $e->getMessage(),
+                ], 500);
             }
+        }
 
-            $grouped[$code]['lines'][] = [
-                'account_id' => $resolvedAccId,
-                'debit' => (float) ($row['debit'] ?? 0),
-                'credit' => (float) ($row['credit'] ?? 0),
-                'description' => $row['line_description'] ?? null,
-                'related_id_name' => $row['related_id_name'] ?? null,
-            ];
+        // Scenario 2: JSON/Array-based import (from DataGridView)
+        $rows = $request->input('rows', []);
+        if (empty($rows)) {
+            return response()->json(['success' => false, 'message' => 'No data to import'], 400);
         }
 
         try {
-            DB::transaction(function () use ($grouped) {
-                foreach ($grouped as $code => $data) {
-                    $header = $data['header'];
-                    $lines = $data['lines'];
-
-                    // Skip if no lines
-                    if (empty($lines)) continue;
-
-                    // Validation: Postable Accounts and Balanced Entry
-                    $this->ensureAccountsPostable($lines);
-                    
-                    // Calculate total and verify balance
-                    $totalDebit = 0;
-                    $totalCredit = 0;
-                    foreach ($lines as $line) {
-                        $totalDebit += (float) ($line['debit'] ?? 0);
-                        $totalCredit += (float) ($line['credit'] ?? 0);
-                    }
-
-                    if (abs($totalDebit - $totalCredit) > 0.01) {
-                        throw new \Exception("Entry {$code} is not balanced. Total Debit: {$totalDebit}, Total Credit: {$totalCredit}");
-                    }
-
-                    $total = $totalDebit;
-
-                    // Create or Update Header
-                    $journalEntry = JournalEntry::updateOrCreate(
-                        ['entry_code' => $code],
-                        [
-                            'entry_type' => $header['entry_type'],
-                            'reference' => $header['reference'],
-                            'date' => $header['date'],
-                            'description' => $header['description'],
-                            'total_amount' => $total,
-                            'status' => $header['status'],
-                        ]
-                    );
-
-                    // Delete existing lines if updating
-                    JournalEntryLine::where('journal_entry_code', $code)->delete();
-
-                    // Create Lines
-                    foreach ($lines as $line) {
-                        JournalEntryLine::create([
-                            'journal_entry_code' => $code,
-                            'account_id' => $line['account_id'],
-                            'debit' => $line['debit'],
-                            'credit' => $line['credit'],
-                            'description' => $line['description'],
-                            'related_id_name' => $line['related_id_name'] ?? null,
-                        ]);
-                    }
-                }
-            });
-
+            $summary = $importService->importRows($rows);
+            
             return response()->json([
-                'success' => true,
-                'message' => 'تم استيراد ' . count($grouped) . ' قيد بنجاح',
+                'success' => $summary['imported'] > 0 || $summary['total'] === 0,
+                'message' => "Processed {$summary['total']} entries. {$summary['imported']} success, {$summary['failed']} failed.",
+                'summary' => $summary
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('Bulk Import Error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
-                'message' => 'فشل الاستيراد: ' . $e->getMessage(),
+                'message' => 'Bulk import failed: ' . $e->getMessage(),
             ], 500);
         }
     }

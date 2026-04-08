@@ -25,6 +25,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\DB::listen(function ($query) {
+            \Illuminate\Support\Facades\Log::info("SQL Query: [{$query->time}ms] {$query->sql}", [
+                'bindings' => $query->bindings,
+            ]);
+        });
+
         Vite::prefetch(concurrency: 3);
         $this->loadMigrationsFrom([
             database_path('migrations/Assets'),
@@ -67,7 +73,9 @@ class AppServiceProvider extends ServiceProvider
                 return $tableSupportsCompanyId[$table];
             }
 
-            $tableSupportsCompanyId[$table] = Schema::hasColumn($table, 'company_id');
+            $tableSupportsCompanyId[$table] = \Illuminate\Support\Facades\Cache::rememberForever("schema.has_column.{$table}.company_id", function () use ($table) {
+                return Schema::hasColumn($table, 'company_id');
+            });
 
             return $tableSupportsCompanyId[$table];
         };

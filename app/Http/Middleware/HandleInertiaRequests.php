@@ -19,7 +19,7 @@ class HandleInertiaRequests extends Middleware
         $locale = App::getLocale();
         $fallbackLocale = config('app.fallback_locale');
 
-        return Cache::remember("inertia.translations.{$locale}", 600, function () use ($locale, $fallbackLocale) {
+        return Cache::remember("inertia.translations.{$locale}", 86400, function () use ($locale, $fallbackLocale) {
             $safeLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $locale);
             $safeFallbackLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $fallbackLocale);
 
@@ -60,28 +60,27 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $isAdminRoute = $request->is('*/admin/*') || $request->is('*/admin');
         $skipTranslations = $request->path() === '' || $request->is('Home');
 
-        $cart = $request->session()->get('cart', []);
-        $cartVersion = (int) $request->session()->get('cart_version', 0);
         $cartCount = 0;
-        if (is_array($cart)) {
-            foreach ($cart as $item) {
-                if ((int) ($item['quantity'] ?? 0) > 0) {
-                    $cartCount += 1;
+        $cartVersion = 0;
+
+        if (! $isAdminRoute) {
+            $cart = $request->session()->get('cart', []);
+            $cartVersion = (int) $request->session()->get('cart_version', 0);
+            if (is_array($cart)) {
+                foreach ($cart as $item) {
+                    if ((int) ($item['quantity'] ?? 0) > 0) {
+                        $cartCount += 1;
+                    }
                 }
             }
         }
 
         $user = $request->user();
-        $customer = $request->user('customer');
-        $supplier = $request->user('supplier');
-
-        // \Illuminate\Support\Facades\Log::info('Inertia Share Auth:', [
-        //     'user' => $user ? $user->id : null,
-        //     'customer' => $customer ? $customer->id : null,
-        //     'supplier' => $supplier ? $supplier->id : null,
-        // ]);
+        $customer = $isAdminRoute ? null : $request->user('customer');
+        $supplier = $isAdminRoute ? null : $request->user('supplier');
 
         return [
             ...parent::share($request),
@@ -98,7 +97,7 @@ class HandleInertiaRequests extends Middleware
                 'currency_code' => session('currency_code'),
                 'active_languages' => Cache::remember(
                     'inertia.active_languages',
-                    600,
+                    86400,
                     fn () => Language::orderBy('lang_order', 'asc')->get()
                 ),
                 'translations' => $skipTranslations ? [] : $this->getTranslations(),

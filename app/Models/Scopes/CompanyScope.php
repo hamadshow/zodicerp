@@ -23,7 +23,9 @@ class CompanyScope implements Scope
             return self::$tableSupportsCompanyId[$table];
         }
 
-        self::$tableSupportsCompanyId[$table] = Schema::hasColumn($table, 'company_id');
+        self::$tableSupportsCompanyId[$table] = \Illuminate\Support\Facades\Cache::rememberForever("schema.has_column.{$table}.company_id", function () use ($table) {
+            return Schema::hasColumn($table, 'company_id');
+        });
 
         return self::$tableSupportsCompanyId[$table];
     }

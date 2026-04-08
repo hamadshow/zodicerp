@@ -177,6 +177,188 @@ export default function FinancialReports({ activeReport }) {
           console.error('Ziggy route generation failed for COA:', e);
         }
       }
+
+      if (report.report_key === 'general-ledger') {
+        try {
+          const url = route('admin.financial-reports.general-ledger', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated GL URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for GL:', e);
+        }
+      }
+
+      if (report.report_key === 'trial-balance') {
+        try {
+          const url = route('admin.financial-reports.trial-balance', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Trial Balance URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Trial Balance:', e);
+        }
+      }
+
+      if (report.report_key === 'journal') {
+        try {
+          const url = route('admin.financial-reports.journal', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Journal URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Journal:', e);
+        }
+      }
+
+      if (report.report_key === 'balance-sheet') {
+        try {
+          const url = route('admin.financial-reports.balance-sheet', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Balance Sheet URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Balance Sheet:', e);
+        }
+      }
+
+      if (report.report_key === 'balance-sheet-comparison') {
+        try {
+          const url = route('admin.financial-reports.balance-sheet-comparison', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Balance Sheet Comparison URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Balance Sheet Comparison:', e);
+        }
+      }
+
+      if (report.report_key === 'balance-sheet-detail') {
+        try {
+          const url = route('admin.financial-reports.balance-sheet-detail', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Balance Sheet Detail URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Balance Sheet Detail:', e);
+        }
+      }
+
+      if (report.report_key === 'profit-loss') {
+        try {
+          const url = route('admin.financial-reports.profit-loss', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Profit & Loss URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Profit & Loss:', e);
+        }
+      }
+
+      if (report.report_key === 'profit-loss-class') {
+        try {
+          const url = route('admin.financial-reports.profit-loss-class', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Profit & Loss by Class URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Profit & Loss by Class:', e);
+        }
+      }
+
+      if (report.report_key === 'profit-loss-customer') {
+        try {
+          const url = route('admin.financial-reports.profit-loss-customer', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Profit & Loss by Customer URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Profit & Loss by Customer:', e);
+        }
+      }
+
+      if (report.report_key === 'profit-loss-month') {
+        try {
+          const url = route('admin.financial-reports.profit-loss-month', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Profit & Loss by Month URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Profit & Loss by Month:', e);
+        }
+      }
+
+      if (report.report_key === 'profit-loss-comparison') {
+        try {
+          const url = route('admin.financial-reports.profit-loss-comparison', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Profit & Loss Comparison URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Profit & Loss Comparison:', e);
+        }
+      }
+
+      if (report.report_key === 'profit-loss-detail') {
+        try {
+          const url = route('admin.financial-reports.profit-loss-detail', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Profit & Loss Detail URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Profit & Loss Detail:', e);
+        }
+      }
+
+      if (report.report_key === 'inventory-valuation-summary') {
+        try {
+          const url = route('admin.financial-reports.inventory-valuation-summary', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Inventory Valuation Summary URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Inventory Valuation Summary:', e);
+        }
+      }
+
+      if (report.report_key === 'cash-flow') {
+        try {
+          const url = route('admin.financial-reports.cash-flow', {
+            country: route().params.country || 'sa',
+            lang: route().params.lang || 'en'
+          });
+          console.log('Generated Cash Flow Statement URL:', url);
+          return url;
+        } catch (e) {
+          console.error('Ziggy route generation failed for Cash Flow Statement:', e);
+        }
+      }
       
       if (report.route && report.route !== '#') {
         try {
@@ -191,16 +373,6 @@ export default function FinancialReports({ activeReport }) {
 
       // Fallback to Ziggy if available and we have a route name in the report object
       // or try to construct it from the key
-      try {
-        if (report.report_key === 'inventory-valuation-summary') {
-          return route('admin.financial-reports.inventory-valuation-summary', {
-            country: route().params.country || 'sa',
-            lang: route().params.lang || 'en'
-          });
-        }
-      } catch (e) {
-        console.error('Route generation fallback failed:', e);
-      }
       
       return '#';
     };

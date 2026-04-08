@@ -641,6 +641,11 @@ class SupplierController extends Controller
             'currencies' => Currency::all(),
             'warehouses' => Warehouses::all(), // Assuming model name is Warehouses
             'accounts' => Account::where('AccStopped', false)->get(),
+            'localization' => [
+                'country_code' => session('country_code', 'sa'),
+                'current_locale' => app()->getLocale(),
+                'is_rtl' => app()->getLocale() === 'ar',
+            ],
         ]);
     }
 
@@ -709,6 +714,8 @@ class SupplierController extends Controller
         $user = Auth::user();
         $userId = $user->id;
         $companyId = $user->company_id ?? null;
+        $defaultPassword = \Illuminate\Support\Facades\Hash::make('password123'); // Default password for imported suppliers
+        $baseCount = Supplier::count();
 
         foreach ($rows as $index => $row) {
             $email = $row['email'] ?? null;
@@ -729,11 +736,11 @@ class SupplierController extends Controller
             }
 
             if (empty($code)) {
-                $code = 'SUP-'.(10000 + $index + 1);
+                $code = 'VEN-'.(10000 + $index + 1 + $baseCount);
             }
 
             if (empty($email)) {
-                $email = 'supplier'.($index + 1).'_@gamil.com';
+                $email = 'supplier_'.Str::random(5).'_'.($index + 1).'_'.time().'@gmail.com';
             }
 
             // Prepare data
@@ -746,7 +753,7 @@ class SupplierController extends Controller
                 'is_active' => isset($row['is_active']) ? (bool) $row['is_active'] : true,
                 'created_by' => $userId,
                 'company_id' => $companyId,
-                'password' => \Illuminate\Support\Facades\Hash::make(Str::random(12)), // Expensive hashing
+                'password' => $defaultPassword,
                 'currency_id' => $defaultCurrencyId,
                 'account_id' => null,
                 'created_at' => $now,
@@ -816,7 +823,7 @@ class SupplierController extends Controller
                 return redirect()->back()->with('warning', $msg);
             }
 
-            return redirect()->back()->with('success', $msg);
+            return redirect()->route('admin.purchases.suppliers.index')->with('success', $msg);
 
         } catch (\Exception $e) {
             DB::rollBack();
@@ -832,14 +839,16 @@ class SupplierController extends Controller
             $data = $request->validated();
             unset($data['password_confirmation']);
 
-            // Auto-generate supplier code
-            $latest = Supplier::latest('id')->first();
-            if ($latest && preg_match('/^VEN-(\d+)$/', $latest->supplier_code, $matches)) {
-                $nextId = intval($matches[1]) + 1;
-            } else {
-                $nextId = 10001;
+            // Auto-generate supplier code if not provided
+            if (empty($data['supplier_code'])) {
+                $latest = Supplier::latest('id')->first();
+                if ($latest && preg_match('/^VEN-(\d+)$/', $latest->supplier_code, $matches)) {
+                    $nextId = intval($matches[1]) + 1;
+                } else {
+                    $nextId = 10001;
+                }
+                $data['supplier_code'] = 'VEN-'.$nextId;
             }
-            $data['supplier_code'] = 'VEN-'.$nextId;
 
             $data['created_by'] = Auth::id();
             if (empty($data['password'])) {

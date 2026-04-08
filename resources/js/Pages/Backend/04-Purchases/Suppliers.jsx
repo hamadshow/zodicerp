@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Head, useForm, usePage, router } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import AdminLayout from '../components/AdminLayout';
+import '../../../../css/backend/main.scss';
 import Pagination from '../components/Pagination';
 
 export default function Suppliers({ suppliers, groups, countries, cities, currencies, accounts, filters }) {
@@ -10,24 +13,59 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
     const [search, setSearch] = useState(filters?.search || '');
     const [accountOpen, setAccountOpen] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [errorMessage, setErrorMessage] = useState(null);
     const accountDropdownRef = useRef(null);
 
-    const handleSearch = (e) => {
-        e.preventDefault();
-        router.get(route('admin.purchases.suppliers.index'), { search }, { preserveState: true });
-    };
-    
+    const { props } = usePage();
+    const localization = props.localization;
+
     // Import System State
     const [showImport, setShowImport] = useState(false);
     const [excelRows, setExcelRows] = useState([]);
     const [invalidRows, setInvalidRows] = useState([]);
     const [importSummary, setImportSummary] = useState({});
     const [importLoading, setImportLoading] = useState(false);
+    const [importProgress, setImportProgress] = useState(0);
     const [importError, setImportError] = useState(null);
-    const [errorMessage, setErrorMessage] = useState(null);
+    const [showExcelMenu, setShowExcelMenu] = useState(false);
     const fileInputRef = useRef(null);
+    const excelMenuRef = useRef(null);
 
-    const { props } = usePage();
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+          });
+    };
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        router.get(getLocalizedRoute('admin.purchases.suppliers.index'), { search }, { preserveState: true });
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (excelMenuRef.current && !excelMenuRef.current.contains(event.target)) {
+                setShowExcelMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        if (props.flash?.success) {
+            toast.success(props.flash.success);
+            setShowImport(false);
+            setExcelRows([]);
+            setInvalidRows([]);
+            setImportSummary({});
+        }
+        if (props.flash?.error) {
+            toast.error(props.flash.error);
+        }
+    }, [props.flash]);
     const flash = (props && props.flash) ? props.flash : {};
 
     // Helper to get nested errors
@@ -151,14 +189,14 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this supplier?')) {
-            destroy(route('admin.purchases.suppliers.destroy', { supplier: id }), {
+            destroy(getLocalizedRoute('admin.purchases.suppliers.destroy', { supplier: id }), {
                 onError: () => setErrorMessage("Failed to delete supplier.")
             });
         }
     };
 
     const handleToggleFavorite = (supplier) => {
-        router.post(route('admin.purchases.suppliers.toggleFavorite', { supplier: supplier.id }), {}, {
+        router.post(getLocalizedRoute('admin.purchases.suppliers.toggleFavorite', { supplier: supplier.id }), {}, {
             preserveScroll: true,
             preserveState: true,
             onError: () => setErrorMessage("Failed to update favorite status.")
@@ -178,13 +216,13 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         };
 
         if (mode === 'create') {
-            post(route('admin.purchases.suppliers.store'), {
+            post(getLocalizedRoute('admin.purchases.suppliers.store'), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
                 onError: handleError,
             });
         } else {
-            put(route('admin.purchases.suppliers.update', { supplier: data.id }), {
+            put(getLocalizedRoute('admin.purchases.suppliers.update', { supplier: data.id }), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
                 onError: handleError,
@@ -209,10 +247,10 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         setData(field, list);
     };
 
-    // --- IMPORT SYSTEM LOGIC ---
+    // --- IMPORT & EXPORT SYSTEM LOGIC ---
     const downloadTemplate = () => {
         const headers = ['supplier_code', 'name_ar', 'group_code', 'primary_phone', 'email', 'currency_code', 'account_code', 'is_active'];
-        const sample = ['SUP-10001', 'مورد 1', 'GRP-001', '01000000001', 'supplier1@example.com', 'SAR', '2101', '1'];
+        const sample = ['VEN-10001', 'مورد 1', 'GRP-001', '01000000001', 'supplier1@example.com', 'SAR', '2101', '1'];
         const ws = XLSX.utils.aoa_to_sheet([headers, sample]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Template");
@@ -294,11 +332,8 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
             // Client-side Validation
             if (!item.name_ar) item._errors.push('Name is required');
-            // if (item.telegram && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.telegram)) item._errors.push('Invalid telegram format');
             
             // Validate Group Code (Optional: if provided, check if it exists in props.groups)
-            // Assuming groups have 'code' field. If not, we might need to skip this check or use name.
-            // Let's assume groups prop has { id, code, name_en } structure.
             if (item.group_code && groups && groups.length > 0) {
                 const groupExists = groups.some(g => g.code === item.group_code);
                 if (!groupExists) item._errors.push('Group Code not found');
@@ -333,37 +368,271 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         setImportSummary(prev => ({ ...prev, valid: rows.length }));
     };
 
-    const submitImport = () => {
+    const submitImport = async () => {
         if (excelRows.length === 0) return;
         setImportError(null);
-        const batch_id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-        router.post(route('admin.purchases.suppliers.bulkImport'), {
-            rows: excelRows,
-            batch_id: batch_id
-        }, {
-            onSuccess: () => {
-                setShowImport(false);
-                setExcelRows([]);
-                setInvalidRows([]);
-                setImportSummary({});
-                // Optional: Force reload or show success message via flash
-            },
-            onError: (errors) => {
-                setImportError('Failed to import. Please check the file format or server logs.');
-                console.error(errors);
+        setImportLoading(true);
+        setImportProgress(0);
+
+        const totalRows = excelRows.length;
+        const batchSize = 50;
+        const batches = [];
+        
+        for (let i = 0; i < totalRows; i += batchSize) {
+            batches.push(excelRows.slice(i, i + batchSize));
+        }
+
+        try {
+            const batch_id = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            for (let i = 0; i < batches.length; i++) {
+                await new Promise((resolve, reject) => {
+                    router.post(getLocalizedRoute('admin.purchases.suppliers.bulkImport'), {
+                        rows: batches[i],
+                        batch_id: batch_id
+                    }, {
+                        preserveScroll: true,
+                        preserveState: true,
+                        onSuccess: () => {
+                            const progress = Math.min(Math.round(((i + 1) / batches.length) * 100), 100);
+                            setImportProgress(progress);
+                            resolve();
+                        },
+                        onError: (err) => {
+                            reject(err);
+                        }
+                    });
+                });
             }
-        });
+            
+            toast.success('تم استيراد البيانات بنجاح');
+            setShowImport(false);
+            setExcelRows([]);
+            setInvalidRows([]);
+            setImportSummary({});
+            setImportProgress(0);
+        } catch (err) {
+            setImportError('Failed to import. Some rows may not have been processed.');
+            console.error(err);
+        } finally {
+            setImportLoading(false);
+        }
+    };
+
+    const handleExportExcel = () => {
+        try {
+            const dataToExport = suppliers.data.map(supplier => ({
+                'Supplier Code': supplier.supplier_code,
+                'Name (AR)': supplier.name_ar,
+                'Group': supplier.group?.name_en || '',
+                'Phone': supplier.primary_phone || '',
+                'Email': supplier.email || '',
+                'Status': supplier.is_active ? 'Active' : 'Inactive',
+                'Tax Number': supplier.tax_number || ''
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Suppliers");
+
+            const wscols = [
+                { wch: 15 }, // Code
+                { wch: 30 }, // Name
+                { wch: 20 }, // Group
+                { wch: 15 }, // Phone
+                { wch: 25 }, // Email
+                { wch: 10 }, // Status
+                { wch: 15 }  // Tax
+            ];
+            worksheet['!cols'] = wscols;
+
+            XLSX.writeFile(workbook, `Suppliers_${new Date().toISOString().split('T')[0]}.xlsx`);
+            toast.success('تم تصدير البيانات بنجاح');
+        } catch (err) {
+            console.error('Export failed:', err);
+            toast.error('فشل عملية التصدير');
+        }
+    };
+
+    const renderImportModal = () => {
+        if (!showImport) return null;
+
+        return (
+            <div className="modal-overlay active" onClick={() => !importLoading && setShowImport(false)}>
+                <div className="modal import-modal" onClick={e => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h3 className="modal-title">Import Suppliers from Excel</h3>
+                        <button className="modal-close" onClick={() => setShowImport(false)}>
+                            <span className="material-icons-outlined">close</span>
+                        </button>
+                    </div>
+
+                    <div className="modal-body">
+                        {!excelRows.length && !invalidRows.length ? (
+                            <div 
+                                className="drop-zone"
+                                onDragOver={e => e.preventDefault()}
+                                onDrop={handleFileDrop}
+                                onClick={() => fileInputRef.current?.click()}
+                            >
+                                <input 
+                                    type="file" 
+                                    ref={fileInputRef} 
+                                    onChange={e => handleFileUpload(e.target.files[0])} 
+                                    accept=".xlsx, .xls"
+                                    style={{ display: 'none' }}
+                                />
+                                <span className="material-icons-outlined" style={{ fontSize: '48px', color: '#3b82f6', marginBottom: '10px' }}>cloud_upload</span>
+                                <p>Click to upload or drag and drop</p>
+                                <span>Excel files only (.xlsx, .xls)</span>
+                                <button className="btn-template" onClick={(e) => { e.stopPropagation(); downloadTemplate(); }}>
+                                    <span className="material-icons-outlined" style={{ verticalAlign: 'middle', marginRight: '5px' }}>download</span>
+                                    Download Template
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="import-preview-container">
+                                <div className="preview-stats">
+                                    <span className="stat-badge total">Total: {importSummary.total}</span>
+                                    <span className="stat-badge valid">Valid: {importSummary.valid}</span>
+                                    <span className="stat-badge invalid">Invalid: {importSummary.invalid}</span>
+                                    <button className="btn-reset" onClick={() => { setExcelRows([]); setInvalidRows([]); }}>
+                                        Upload Different File
+                                    </button>
+                                </div>
+
+                                {importLoading && (
+                                    <div className="progress-bar-container">
+                                        <div className="progress-bar">
+                                            <div 
+                                                className="progress-bar__fill" 
+                                                style={{ width: `${importProgress}%` }}
+                                            ></div>
+                                        </div>
+                                        <div className="progress-text">جاري الاستيراد: {importProgress}%</div>
+                                    </div>
+                                )}
+
+                                <div className="import-tables">
+                                    {excelRows.length > 0 && (
+                                        <div className="import-section">
+                                            <h4>Valid Rows ({excelRows.length})</h4>
+                                            <div className="table-responsive">
+                                                <table className="data-table preview-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Code</th>
+                                                            <th>Name</th>
+                                                            <th>Phone</th>
+                                                            <th>Email</th>
+                                                            <th></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {excelRows.map((row, idx) => (
+                                                            <tr key={idx}>
+                                                                <td>{row.supplier_code}</td>
+                                                                <td>{row.name_ar}</td>
+                                                                <td>{row.primary_phone || '-'}</td>
+                                                                <td>{row.email || '-'}</td>
+                                                                <td>
+                                                                    <button className="btn-icon delete" onClick={() => removeImportRow(idx)}>
+                                                                        <span className="material-icons-outlined">delete</span>
+                                                                    </button>
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {invalidRows.length > 0 && (
+                                        <div className="import-section invalid">
+                                            <h4>Invalid Rows ({invalidRows.length})</h4>
+                                            <div className="table-responsive">
+                                                <table className="data-table preview-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                            <th>Errors</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {invalidRows.map((row, idx) => (
+                                                            <tr key={idx} className="invalid-row">
+                                                                <td>{row.name_ar || '-'}</td>
+                                                                <td>
+                                                                    {row._errors.map((err, i) => (
+                                                                        <span key={i} className="row-error">{err}</span>
+                                                                    ))}
+                                                                </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {importError && (
+                            <div className="alert alert--error" style={{ marginTop: '20px' }}>
+                                {importError}
+                            </div>
+                        )}
+
+                        <div className="import-instructions">
+                            <h4>Instructions:</h4>
+                            <ul>
+                                <li>Download the template to ensure correct column mapping.</li>
+                                <li><b>name_ar:</b> Required.</li>
+                                <li><b>group_code:</b> Must match an existing supplier group code.</li>
+                                <li><b>is_active:</b> 1 for Active, 0 for Inactive.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div className="modal-actions">
+                        <button className="btn-cancel" onClick={() => setShowImport(false)}>Cancel</button>
+                        <button 
+                            className="btn-primary" 
+                            onClick={submitImport}
+                            disabled={excelRows.length === 0 || importLoading}
+                        >
+                            {importLoading ? 'Importing...' : `Import ${excelRows.length} Suppliers`}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
     };
 
     return (
         <AdminLayout>
             <Head title="Suppliers Management" />
+            <ToastContainer position="top-right" autoClose={3000} />
+            {renderImportModal()}
             
             <div className="suppliers-container">
-
-
                 <div className="page-header">
-                    <h1 className="header-title">Suppliers Management</h1>
+                    <div className="header-title-container">
+                        {mode !== 'list' && (
+                            <button 
+                                className="btn-back" 
+                                onClick={() => setMode('list')}
+                                title="Back to List"
+                            >
+                                <span className="material-icons-outlined mirror-rtl">arrow_back</span>
+                            </button>
+                        )}
+                        <h1 className="header-title">
+                            {mode === 'list' ? 'Suppliers Management' : 
+                             mode === 'create' ? 'Add New Supplier' : 'Edit Supplier'}
+                        </h1>
+                    </div>
                     {mode === 'list' && (
                         <div className="suppliers-actions">
                             <form onSubmit={handleSearch} className="search-form">
@@ -375,11 +644,51 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     onChange={(e) => setSearch(e.target.value)}
                                 />
                             </form>
-                             <button className="btn-import" onClick={() => setShowImport(true)}>
-                                <i className="icon-upload"></i> Import Excel
-                            </button>
+                            <div className="excel-dropdown-container" ref={excelMenuRef}>
+                                <button 
+                                    className="btn-excel-main" 
+                                    onClick={() => setShowExcelMenu(!showExcelMenu)}
+                                >
+                                    <span className="material-icons-outlined">table_view</span>
+                                    <span>Excel Options</span>
+                                    <span className={`material-icons-outlined arrow ${showExcelMenu ? 'up' : ''}`}>expand_more</span>
+                                </button>
+                                {showExcelMenu && (
+                                    <div className="excel-dropdown-menu">
+                                        <button
+                                            type="button"
+                                            className="dropdown-item import"
+                                            onClick={() => {
+                                                setShowImport(true);
+                                                setShowExcelMenu(false);
+                                            }}
+                                        >
+                                            <span className="material-icons-outlined">upload_file</span>
+                                            <div className="item-content">
+                                                <span className="title">Import Excel</span>
+                                                <span className="desc">Upload bulk suppliers</span>
+                                            </div>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="dropdown-item export"
+                                            onClick={() => {
+                                                handleExportExcel();
+                                                setShowExcelMenu(false);
+                                            }}
+                                        >
+                                            <span className="material-icons-outlined">download</span>
+                                            <div className="item-content">
+                                                <span className="title">Export Excel</span>
+                                                <span className="desc">Download all suppliers</span>
+                                            </div>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                             <button className="btn-add" onClick={handleCreate}>
-                                + Add Supplier
+                                <span className="material-icons-outlined">person_add</span>
+                                <span>Add Supplier</span>
                             </button>
                         </div>
                     )}
@@ -456,13 +765,15 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                 onClick={() => handleToggleFavorite(supplier)}
                                                 title={supplier.favorite ? "Unfavorite" : "Favorite"}
                                             >
-                                                {supplier.favorite ? '★' : '☆'}
+                                                <span className="material-icons-outlined">
+                                                    {supplier.favorite ? 'star' : 'star_border'}
+                                                </span>
                                             </button>
                                             <button className="btn-icon edit" onClick={() => handleEdit(supplier)} title="Edit">
-                                                <i className="fas fa-edit"></i>
+                                                <span className="material-icons-outlined">edit</span>
                                             </button>
                                             <button className="btn-icon delete" onClick={() => handleDelete(supplier.id)} title="Delete">
-                                                <i className="fas fa-trash"></i>
+                                                <span className="material-icons-outlined">delete</span>
                                             </button>
                                             </div>
                                         </td>
@@ -481,8 +792,8 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                             totalPages={suppliers.last_page}
                             totalRecords={suppliers.total}
                             recordsPerPage={suppliers.per_page}
-                            onPageChange={(page) => router.get(route('admin.purchases.suppliers.index'), { page, per_page: suppliers.per_page }, { preserveState: true })}
-                            onRecordsPerPageChange={(perPage) => router.get(route('admin.purchases.suppliers.index'), { page: 1, per_page: perPage }, { preserveState: true })}
+                            onPageChange={(page) => router.get(getLocalizedRoute('admin.purchases.suppliers.index'), { search, page, per_page: suppliers.per_page }, { preserveState: true })}
+                            onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.purchases.suppliers.index'), { search, page: 1, per_page: perPage }, { preserveState: true })}
                         />
                     </div>
                 ) : (
@@ -1003,130 +1314,6 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                     </form>
                 )}
             </div>
-            {/* IMPORT MODAL */}
-            {showImport && (
-                <div className="modal-overlay active">
-                    <div className="modal">
-                        <div className="modal-header">
-                            <h3 className="modal-title">Import Suppliers from Excel</h3>
-                            <button className="modal-close" onClick={() => setShowImport(false)}>&times;</button>
-                        </div>
-                        <div className="modal-body">
-                            {importError && (
-                                <div className="alert alert--error">
-                                    {importError}
-                                </div>
-                            )}
-                            {!importSummary.total ? (
-                                <>
-                                    <div 
-                                        className="drop-zone"
-                                        onDragOver={e => e.preventDefault()}
-                                        onDrop={handleFileDrop}
-                                        onClick={() => fileInputRef.current.click()}
-                                    >
-                                        <p>Drag & Drop your Excel file here or click to browse</p>
-                                        <input 
-                                            type="file" 
-                                            hidden 
-                                            ref={fileInputRef} 
-                                            accept=".xlsx, .xls"
-                                            onChange={e => handleFileUpload(e.target.files[0])}
-                                        />
-                                    </div>
-                                    <div className="text-center">
-                                        <button className="btn-secondary" onClick={downloadTemplate}>
-                                            Download Template
-                                        </button>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className="preview-stats">
-                                        <span className="stat-badge total">Total: {importSummary.total}</span>
-                                        <span className="stat-badge valid">Valid: {importSummary.valid}</span>
-                                        {importSummary.invalid > 0 && (
-                                            <span className="stat-badge invalid">Invalid: {importSummary.invalid}</span>
-                                        )}
-                                    </div>
-
-                                    {importLoading && (
-                                        <div className="progress-bar">
-                                            <div className="progress-bar__fill"></div>
-                                        </div>
-                                    )}
-
-                                    <div className="table-responsive import-preview">
-                                        <table className="data-table">
-                                            <thead>
-                                                <tr>
-                                                    <th>Code</th>
-                                                    <th>Name</th>
-                                                    <th>Email</th>
-                                                    <th>Status</th>
-                                                    <th>Errors</th>
-                                                    <th>Action</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {/* Invalid Rows First */}
-                                                {invalidRows.map((row, i) => (
-                                                    <tr key={`inv-${i}`} className="invalid-row">
-                                                        <td>{row.supplier_code}</td>
-                                                        <td>{row.name_ar}</td>
-                                                        <td>{row.email}</td>
-                                                        <td>-</td>
-                                                        <td>
-                                                            {row._errors.map((e, idx) => (
-                                                                <span key={idx} className="row-error">{e}</span>
-                                                            ))}
-                                                        </td>
-                                                        <td>Skipped</td>
-                                                    </tr>
-                                                ))}
-                                                {/* Valid Rows */}
-                                                {excelRows.map((row, i) => (
-                                                    <tr key={`val-${i}`}>
-                                                        <td>{row.supplier_code}</td>
-                                                        <td>{row.name_ar}</td>
-                                                        <td>{row.email}</td>
-                                                        <td>{row.is_active ? 'Active' : 'Inactive'}</td>
-                                                        <td>-</td>
-                                                        <td>
-                                                            <button className="btn-icon delete" onClick={() => removeImportRow(i)} title="Remove">
-                                                                <i className="fas fa-times"></i>
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                        <div className="modal-actions">
-                            <button className="btn-secondary" onClick={() => {
-                                setShowImport(false);
-                                setExcelRows([]);
-                                setInvalidRows([]);
-                                setImportSummary({});
-                            }}>
-                                Cancel
-                            </button>
-                            {importSummary.valid > 0 && (
-                                <button 
-                                    className="btn-primary" 
-                                    onClick={submitImport}
-                                    disabled={importLoading}
-                                >
-                                    {importLoading ? 'Importing...' : `Import ${importSummary.valid} Suppliers`}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
         </AdminLayout>
     );
 }
