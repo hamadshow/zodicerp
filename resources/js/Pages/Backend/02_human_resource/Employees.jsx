@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 import { apiService } from '../../../services/api';
@@ -24,9 +24,25 @@ const resolveMediaUrl = (value) => {
   return `/media-files/${relativePath}`;
 };
 
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  try {
+    const datePart = dateString.split('T')[0];
+    const parts = datePart.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+  } catch {
+    // Ignore errors and fallback
+  }
+  return dateString;
+};
+
 const EmployeesManagement = () => {
   // Admin layout state - Removed redundant state
-
+  const page = usePage();
+  const localization = page?.props?.localization;
+  const isArabic = localization?.current_locale === 'ar';
 
   // State management
   const [employees, setEmployees] = useState([]);
@@ -59,6 +75,9 @@ const EmployeesManagement = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [toast, setToast] = useState(null);
+  const [departments, setDepartments] = useState([]);
+  const [professions, setProfessions] = useState([]);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
 
   // Department and nationality mappings
   const departmentNames = {
@@ -116,6 +135,53 @@ const EmployeesManagement = () => {
     fetchEmployees();
   }, []);
 
+  useEffect(() => {
+    apiService
+      .get('/departments')
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
+        setDepartments(data);
+      })
+      .catch(() => setDepartments([]));
+  }, []);
+
+  useEffect(() => {
+    if (!showForm) return;
+    if (!formData.department || selectedDepartmentId) return;
+    const match = departments.find(
+      (d) => (isArabic ? d.name_ar : d.name_en) === formData.department
+    );
+    if (match) {
+      const id = String(match.id);
+      setSelectedDepartmentId(id);
+      apiService
+        .get('/professions', { department_id: id })
+        .then((res) => {
+          const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
+          setProfessions(data);
+        })
+        .catch(() => setProfessions([]));
+    }
+  }, [departments, showForm, formData.department, selectedDepartmentId, isArabic]);
+
+  const handleDepartmentSelect = async (e) => {
+    const deptId = e.target.value;
+    setSelectedDepartmentId(deptId);
+    const dept = departments.find((d) => String(d.id) === String(deptId));
+    const deptName = dept ? (isArabic ? dept.name_ar : dept.name_en) : '';
+    setFormData((prev) => ({ ...prev, department: deptName, position: '' }));
+    if (deptId) {
+      try {
+        const res = await apiService.get('/professions', { department_id: deptId });
+        const data = Array.isArray(res.data) ? res.data : res.data?.data || [];
+        setProfessions(data);
+      } catch {
+        setProfessions([]);
+      }
+    } else {
+      setProfessions([]);
+    }
+  };
   // Update submenu state initialization - Removed
 
   // Reset current page when search term changes
@@ -164,7 +230,7 @@ const EmployeesManagement = () => {
         role: employee.role || 'employee',
         department: employee.department,
         position: employee.position,
-        hire_date: employee.hire_date,
+        hire_date: employee.hire_date ? employee.hire_date.split('T')[0] : '',
         salary: employee.salary || '',
         nationality: employee.nationality || '',
         status: employee.status,
@@ -256,8 +322,17 @@ const EmployeesManagement = () => {
       return;
     }
 
-    if (!editingEmployee && !formData.password) {
-      showToast('Password is required for new employees', 'error');
+    if (!editingEmployee) {
+      if (!formData.password) {
+        showToast('Password is required for new employees', 'error');
+        return;
+      }
+      if (formData.password.length < 8) {
+        showToast('Password must be at least 8 characters', 'error');
+        return;
+      }
+    } else if (formData.password && formData.password.length < 8) {
+      showToast('Password must be at least 8 characters', 'error');
       return;
     }
 
@@ -283,17 +358,9 @@ const EmployeesManagement = () => {
       let response;
       if (editingEmployee) {
         submitData.append('_method', 'PUT');
-        response = await apiService.post(`/employees/${editingEmployee.id}`, submitData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
+        response = await apiService.post(`/employees/${editingEmployee.id}`, submitData);
       } else {
-        response = await apiService.post('/employees', submitData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
+        response = await apiService.post('/employees', submitData);
       }
 
       const result = response.data;
@@ -306,7 +373,19 @@ const EmployeesManagement = () => {
         showToast('Error saving employee', 'error');
       }
     } catch (error) {
-      showToast('Error saving employee', 'error');
+      const status = error?.response?.status;
+      if (status === 422) {
+        const errs = error?.response?.data?.errors || {};
+        const msg =
+          (Array.isArray(errs.password) && errs.password[0]) ||
+          (Array.isArray(errs.email) && errs.email[0]) ||
+          (Array.isArray(errs.first_name) && errs.first_name[0]) ||
+          (Array.isArray(errs.last_name) && errs.last_name[0]) ||
+          'Validation error';
+        showToast(msg, 'error');
+      } else {
+        showToast('Error saving employee', 'error');
+      }
       console.error('Error saving employee:', error);
     }
   };
@@ -533,6 +612,9 @@ const EmployeesManagement = () => {
                     onChange={handleInputChange}
                     required
                   >
+                    {!['admin', 'supplier', 'customer', 'employee'].includes(formData.role) && formData.role && (
+                      <option value={formData.role}>{formData.role}</option>
+                    )}
                     <option value="employee">Employee</option>
                     <option value="admin">Admin</option>
                     <option value="supplier">Supplier</option>
@@ -547,32 +629,35 @@ const EmployeesManagement = () => {
                   <select
                     className="form-control"
                     id="department"
-                    value={formData.department}
-                    onChange={handleInputChange}
+                    value={selectedDepartmentId}
+                    onChange={handleDepartmentSelect}
                     required
                   >
                     <option value="">Select Department</option>
-                    <option value="it">IT Department</option>
-                    <option value="hr">Human Resources</option>
-                    <option value="sales">Sales</option>
-                    <option value="marketing">Marketing</option>
-                    <option value="finance">Finance</option>
-                    <option value="operations">Operations</option>
-                    <option value="customer-service">Customer Service</option>
-                    <option value="engineering">Engineering</option>
+                    {departments.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {isArabic ? d.name_ar : d.name_en}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Position *</label>
-                  <input
-                    type="text"
+                  <select
                     className="form-control"
                     id="position"
                     value={formData.position}
                     onChange={handleInputChange}
-                    placeholder="Enter job position"
                     required
-                  />
+                    disabled={professions.length === 0}
+                  >
+                    <option value="">Select Position</option>
+                    {professions.map((p) => (
+                      <option key={p.id} value={p.profession_name}>
+                        {p.profession_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -796,7 +881,7 @@ const EmployeesManagement = () => {
                   <div className="detail-row">
                     <span className="detail-label">Hire Date:</span>
                     <span className="detail-value">
-                      {viewingEmployee.hire_date}
+                      {formatDate(viewingEmployee.hire_date)}
                     </span>
                   </div>
                   <div className="detail-row">
@@ -1102,7 +1187,7 @@ const EmployeesManagement = () => {
                               : 'Terminated'}
                       </span>
                     </td>
-                    <td>{emp.hire_date}</td>
+                    <td>{formatDate(emp.hire_date)}</td>
                     <td>
                       <button
                         className="icon-btn edit"

@@ -185,19 +185,19 @@ export default function SalesQuotations({
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this quotation?')) {
-            destroy(route('admin.client_sales.quotations.destroy', { quotation: id }));
+            destroy(route('admin.client-sales.quotations.destroy', { quotation: id }));
         }
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (mode === 'create') {
-            post(route('admin.client_sales.quotations.store'), {
+            post(route('admin.client-sales.quotations.store'), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
             });
         } else {
-            put(route('admin.client_sales.quotations.update', { quotation: data.id }), {
+            put(route('admin.client-sales.quotations.update', { quotation: data.id }), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
             });

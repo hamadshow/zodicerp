@@ -1,18 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
+import { apiService } from '../../../services/api';
 
 
 const Deductions = ({ employees: propEmployees }) => {
   const [dbEmployees, setDbEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const propData = propEmployees?.data || propEmployees;
     if (!propData || !Array.isArray(propData) || propData.length === 0) {
-      fetch('/api/employees')
-        .then(response => response.json())
-        .then(data => {
+      apiService.get('/employees')
+        .then(response => {
+          const data = response.data;
           const employeeData = data.data || data;
           setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
         })
@@ -22,22 +24,64 @@ const Deductions = ({ employees: propEmployees }) => {
 
   const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
   const [deductions, setDeductions] = useState([]);
-  const [filteredDeductions, setFilteredDeductions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentDeduction, setCurrentDeduction] = useState(null);
+  const [formData, setFormData] = useState({
+    employee_id: '',
+    type: 'Late Arrival',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    reason: '',
+    status: 'Pending'
+  });
+
+  const fetchDeductions = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await apiService.get('/deductions');
+      setDeductions(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Error fetching deductions:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
+    fetchDeductions();
+  }, [fetchDeductions]);
+
+  const filteredDeductions = useMemo(() => {
     const lowerSearch = searchTerm.toLowerCase();
-    const filtered = deductions.filter(d => 
-      d.employee.toLowerCase().includes(lowerSearch) ||
-      d.type.toLowerCase().includes(lowerSearch)
+    return deductions.filter(d => 
+      (d.employee_name || '').toLowerCase().includes(lowerSearch) ||
+      (d.type || '').toLowerCase().includes(lowerSearch) ||
+      (d.reason || '').toLowerCase().includes(lowerSearch)
     );
-    setFilteredDeductions(filtered);
   }, [searchTerm, deductions]);
 
   const openModal = (deduction = null) => {
     setCurrentDeduction(deduction);
+    if (deduction) {
+      setFormData({
+        employee_id: deduction.employee_id,
+        type: deduction.type,
+        amount: deduction.amount,
+        date: deduction.date,
+        reason: deduction.reason,
+        status: deduction.status
+      });
+    } else {
+      setFormData({
+        employee_id: '',
+        type: 'Late Arrival',
+        amount: '',
+        date: new Date().toISOString().split('T')[0],
+        reason: '',
+        status: 'Pending'
+      });
+    }
     setIsModalOpen(true);
   };
 
@@ -46,30 +90,35 @@ const Deductions = ({ employees: propEmployees }) => {
     setCurrentDeduction(null);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const newDeduction = {
-      id: currentDeduction ? currentDeduction.id : Date.now(),
-      employee: formData.get('employee'),
-      type: formData.get('type'),
-      amount: parseFloat(formData.get('amount')),
-      date: formData.get('date'),
-      reason: formData.get('reason'),
-      status: formData.get('status')
-    };
-
-    if (currentDeduction) {
-      setDeductions(deductions.map(d => d.id === currentDeduction.id ? newDeduction : d));
-    } else {
-      setDeductions([...deductions, newDeduction]);
-    }
-    closeModal();
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleDelete = (id) => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (currentDeduction) {
+        await apiService.put(`/deductions/${currentDeduction.id}`, formData);
+      } else {
+        await apiService.post('/deductions', formData);
+      }
+      fetchDeductions();
+      closeModal();
+    } catch (error) {
+      console.error('Error saving deduction:', error);
+      alert('Error saving deduction. Please check the fields and try again.');
+    }
+  };
+
+  const handleDelete = async (id) => {
     if (confirm('Are you sure you want to delete this deduction?')) {
-      setDeductions(deductions.filter(d => d.id !== id));
+      try {
+        await apiService.delete(`/deductions/${id}`);
+        fetchDeductions();
+      } catch (error) {
+        console.error('Error deleting deduction:', error);
+      }
     }
   };
 
@@ -120,17 +169,19 @@ const Deductions = ({ employees: propEmployees }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {filteredDeductions.map(deduction => (
+                        {loading ? (
+                          <tr><td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Loading...</td></tr>
+                        ) : filteredDeductions.map(deduction => (
                           <tr key={deduction.id}>
                               <td>
-                                  <div style={{ fontWeight: 600 }}>{deduction.employee}</div>
+                                  <div style={{ fontWeight: 600 }}>{deduction.employee_name}</div>
                               </td>
                               <td>{deduction.type}</td>
-                              <td>${deduction.amount.toFixed(2)}</td>
+                              <td>${(deduction.amount || 0).toFixed(2)}</td>
                               <td>{deduction.date}</td>
                               <td>{deduction.reason}</td>
                               <td>
-                                  <span className={`status-badge status-${deduction.status.toLowerCase()}`}>
+                                  <span className={`status-badge status-${(deduction.status || '').toLowerCase()}`}>
                                       {deduction.status}
                                   </span>
                               </td>
@@ -144,7 +195,7 @@ const Deductions = ({ employees: propEmployees }) => {
                               </td>
                           </tr>
                         ))}
-                        {filteredDeductions.length === 0 && (
+                        {!loading && filteredDeductions.length === 0 && (
                           <tr>
                             <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>No deductions found</td>
                           </tr>
@@ -156,7 +207,7 @@ const Deductions = ({ employees: propEmployees }) => {
       </div>
 
       {isModalOpen && (
-        <div className="modal-overlay" onClick={(e) => { if(e.target === e.currentTarget) closeModal(); }}>
+        <div className="modal-overlay active" onClick={(e) => { if(e.target === e.currentTarget) closeModal(); }}>
             <div className="modal">
                 <div className="modal-header">
                     <h3 className="modal-title">{currentDeduction ? 'Edit Deduction' : 'Add New Deduction'}</h3>
@@ -168,39 +219,77 @@ const Deductions = ({ employees: propEmployees }) => {
                     <div className="modal-body">
                         <div className="form-group">
                             <label className="form-label">Employee Name</label>
-                            <select className="form-control" name="employee" defaultValue={currentDeduction?.employee || ''} required>
+                            <select 
+                              className="form-control" 
+                              name="employee_id" 
+                              value={formData.employee_id} 
+                              onChange={handleInputChange}
+                              required
+                            >
                                 <option value="">Select Employee</option>
-                                {Array.isArray(employees) && employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+                                {Array.isArray(employees) && employees.map(e => (
+                                  <option key={e.id} value={e.id}>{e.name}</option>
+                                ))}
                             </select>
                         </div>
                         <div className="form-group">
                             <label className="form-label">Deduction Type</label>
-                            <select className="form-control" name="type" defaultValue={currentDeduction?.type || 'Late Arrival'}>
-                                <option>Late Arrival</option>
-                                <option>Absent</option>
-                                <option>Equipment Damage</option>
-                                <option>Loan Repayment</option>
-                                <option>Other</option>
+                            <select 
+                              className="form-control" 
+                              name="type" 
+                              value={formData.type}
+                              onChange={handleInputChange}
+                            >
+                                <option value="Late Arrival">Late Arrival</option>
+                                <option value="Absent">Absent</option>
+                                <option value="Equipment Damage">Equipment Damage</option>
+                                <option value="Loan Repayment">Loan Repayment</option>
+                                <option value="Other">Other</option>
                             </select>
                         </div>
                         <div className="form-group">
                             <label className="form-label">Amount ($)</label>
-                            <input type="number" className="form-control" name="amount" defaultValue={currentDeduction?.amount} required step="0.01" />
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              name="amount" 
+                              value={formData.amount}
+                              onChange={handleInputChange}
+                              required 
+                              step="0.01" 
+                            />
                         </div>
                         <div className="form-group">
                             <label className="form-label">Date</label>
-                            <input type="date" className="form-control" name="date" defaultValue={currentDeduction?.date} required />
+                            <input 
+                              type="date" 
+                              className="form-control" 
+                              name="date" 
+                              value={formData.date}
+                              onChange={handleInputChange}
+                              required 
+                            />
                         </div>
                         <div className="form-group">
                             <label className="form-label">Reason</label>
-                            <textarea className="form-control form-textarea" name="reason" defaultValue={currentDeduction?.reason}></textarea>
+                            <textarea 
+                              className="form-control form-textarea" 
+                              name="reason" 
+                              value={formData.reason}
+                              onChange={handleInputChange}
+                            ></textarea>
                         </div>
                         <div className="form-group">
                             <label className="form-label">Status</label>
-                            <select className="form-control" name="status" defaultValue={currentDeduction?.status || 'Pending'}>
-                                <option>Pending</option>
-                                <option>Approved</option>
-                                <option>Rejected</option>
+                            <select 
+                              className="form-control" 
+                              name="status" 
+                              value={formData.status}
+                              onChange={handleInputChange}
+                            >
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Rejected">Rejected</option>
                             </select>
                         </div>
                     </div>

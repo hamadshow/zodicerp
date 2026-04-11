@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 
 // Recursive Brand Item Component
@@ -96,6 +96,17 @@ const BrandItem = ({ brand, level = 0, onEdit, onDelete, onDrop, onDragStart }) 
 };
 
 const Brands = ({ brands = [], parents = [] }) => {
+    const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [brandTree, setBrandTree] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -190,11 +201,11 @@ const Brands = ({ brands = [], parents = [] }) => {
         };
 
         if (currentBrand) {
-            router.put(route('admin.inventory.brands.update', currentBrand.id), data, {
+            router.put(getLocalizedRoute('admin.inventory.brands.update', { brand: currentBrand.id }), data, {
                 onSuccess: () => closeModal(),
             });
         } else {
-            router.post(route('admin.inventory.brands.store'), data, {
+            router.post(getLocalizedRoute('admin.inventory.brands.store'), data, {
                 onSuccess: () => closeModal(),
             });
         }
@@ -202,7 +213,7 @@ const Brands = ({ brands = [], parents = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this brand?')) {
-            router.delete(route('admin.inventory.brands.destroy', id));
+            router.delete(getLocalizedRoute('admin.inventory.brands.destroy', { brand: id }));
         }
     };
 
@@ -229,7 +240,7 @@ const Brands = ({ brands = [], parents = [] }) => {
         // Prevent moving to self or own child (circular reference check needed ideally)
         if (String(brand.parent_id) === String(newParentId)) return; // No change
 
-        router.put(route('admin.inventory.brands.update', draggedId), {
+        router.put(getLocalizedRoute('admin.inventory.brands.update', { brand: draggedId }), {
             ...brand,
             parent_id: newParentId
         }, {

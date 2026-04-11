@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 
-
 const Currencies = ({ currencies = [] }) => {
+    const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [filteredCurrencies, setFilteredCurrencies] = useState(currencies);
     const [searchTerm, setSearchTerm] = useState('');
     const [view, setView] = useState('list');
@@ -129,11 +139,11 @@ const Currencies = ({ currencies = [] }) => {
         };
 
         if (view === 'edit' && currentCurrency) {
-            router.put(route('admin.currencies.update', currentCurrency.id), data, {
+            router.put(getLocalizedRoute('admin.currencies.update', { currency: currentCurrency.id }), data, {
                 onSuccess: () => closeEditor(),
             });
         } else {
-            router.post(route('admin.currencies.store'), data, {
+            router.post(getLocalizedRoute('admin.currencies.store'), data, {
                 onSuccess: () => closeEditor(),
             });
         }
@@ -149,7 +159,7 @@ const Currencies = ({ currencies = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this currency?')) {
-            router.delete(route('admin.currencies.destroy', id));
+            router.delete(getLocalizedRoute('admin.currencies.destroy', { currency: id }));
         }
     };
 

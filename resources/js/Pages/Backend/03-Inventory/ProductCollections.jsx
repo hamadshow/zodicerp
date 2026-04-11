@@ -5,6 +5,17 @@ import SearchableComboBox from '../components/SearchableComboBox';
 import '../../../../css/backend/main.scss';
 
 const ProductCollectionsList = ({ collections = [] }) => {
+    const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [filteredCollections, setFilteredCollections] = useState(collections);
     const [searchTerm, setSearchTerm] = useState('');
     const [stats, setStats] = useState({
@@ -51,7 +62,7 @@ const ProductCollectionsList = ({ collections = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this collection?')) {
-            router.delete(route('admin.inventory.product-collections.destroy', id));
+            router.delete(getLocalizedRoute('admin.inventory.product-collections.destroy', { product_collection: id }));
         }
     };
 
@@ -60,7 +71,7 @@ const ProductCollectionsList = ({ collections = [] }) => {
             <Head title="Product Collections - ZodicERP" />
             
             <div className="breadcrumb">
-                <Link href={route('admin.dashboard')}>Dashboard</Link>
+                <Link href={getLocalizedRoute('admin.dashboard')}>Dashboard</Link>
                 <span>/</span>
                 <a href="#">Inventory</a>
                 <span>/</span>
@@ -125,7 +136,7 @@ const ProductCollectionsList = ({ collections = [] }) => {
                         </div>
                     </div>
                     <div className="actions">
-                        <Link href={route('admin.inventory.product-collections.create')} className="btn btn-primary">
+                        <Link href={getLocalizedRoute('admin.inventory.product-collections.create')} className="btn btn-primary">
                             <span className="material-icons-outlined">add</span>
                             <span>Add Collection</span>
                         </Link>
@@ -176,7 +187,7 @@ const ProductCollectionsList = ({ collections = [] }) => {
                                             )}
                                         </td>
                                         <td>
-                                            <Link href={route('admin.inventory.product-collections.edit', collection.id)} className="icon-btn edit">
+                                            <Link href={getLocalizedRoute('admin.inventory.product-collections.edit', { product_collection: collection.id })} className="icon-btn edit">
                                                 <span className="material-icons-outlined">edit</span>
                                             </Link>
                                             <button className="icon-btn delete" onClick={() => handleDelete(collection.id)}>
@@ -289,9 +300,9 @@ const ProductCollectionsForm = ({ collection = null }) => {
         e.preventDefault();
         
         if (isEdit) {
-            put(route('admin.inventory.product-collections.update', collection.id));
+            put(getLocalizedRoute('admin.inventory.product-collections.update', { product_collection: collection.id }));
         } else {
-            post(route('admin.inventory.product-collections.store'));
+            post(getLocalizedRoute('admin.inventory.product-collections.store'));
         }
     };
 
@@ -302,11 +313,11 @@ const ProductCollectionsForm = ({ collection = null }) => {
             <Head title={`${pageTitle} - ZodicERP`} />
             <div className="products-ce-page">
                 <div className="breadcrumb">
-                    <Link href={route('admin.dashboard')}>Dashboard</Link>
+                    <Link href={getLocalizedRoute('admin.dashboard')}>Dashboard</Link>
                     <span>/</span>
                     <a href="#">Inventory</a>
                     <span>/</span>
-                    <Link href={route('admin.inventory.product-collections.index')}>Product Collections</Link>
+                    <Link href={getLocalizedRoute('admin.inventory.product-collections.index')}>Product Collections</Link>
                     <span>/</span>
                     <span>{pageTitle}</span>
                 </div>
@@ -563,9 +574,9 @@ const ProductCollectionsForm = ({ collection = null }) => {
                                                 <span>{isEdit ? 'Update' : 'Save'}</span>
                                             </button>
                                         </div>
-                                        <div className="mt-3">
-                                            <Link href={route('admin.inventory.product-collections.index')} className="btn btn-outline btn-block text-center">
-                                                Cancel
+                                        <div className="products-ce-actions">
+                                            <Link href={getLocalizedRoute('admin.inventory.product-collections.index')} className="btn btn-outline btn-block text-center">
+                                                Back to List
                                             </Link>
                                         </div>
                                     </div>

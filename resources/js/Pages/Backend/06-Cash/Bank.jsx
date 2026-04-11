@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 
@@ -50,6 +50,17 @@ const FilterTab = ({ id, label, isActive, onClick }) => (
 // --- Modals ---
 
 const AddEditBankModal = ({ isOpen, onClose, bank, isEditing, currencies }) => {
+    const { props } = usePage();
+    const localization = props.localization;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const { data, setData, post, processing, errors, reset } = useForm({
         bank_code: '',
         name: '',
@@ -84,14 +95,14 @@ const AddEditBankModal = ({ isOpen, onClose, bank, isEditing, currencies }) => {
         e.preventDefault();
         if (isEditing) {
             // Use router.post with _method: put for file upload support in Inertia
-            router.post(route('admin.banks.update', bank.id), {
+            router.post(getLocalizedRoute('admin.banks.update', { bank: bank.id }), {
                 _method: 'put',
                 ...data,
             }, {
                 onSuccess: onClose,
             });
         } else {
-            post(route('admin.banks.store'), {
+            post(getLocalizedRoute('admin.banks.store'), {
                 onSuccess: onClose,
             });
         }
@@ -237,6 +248,17 @@ const AddEditBankModal = ({ isOpen, onClose, bank, isEditing, currencies }) => {
 };
 
 const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAccounts, onSuccess, currencies }) => {
+    const { props } = usePage();
+    const localization = props.localization;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const { data, setData, post, put, processing, errors, reset } = useForm({
         bank_id: bankId,
         account_name: '',
@@ -282,9 +304,9 @@ const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAc
         };
 
         if (isEditing) {
-            put(route('admin.banks.accounts.update', account.id), options);
+            put(getLocalizedRoute('admin.banks.accounts.update', { bankAccount: account.id }), options);
         } else {
-            post(route('admin.banks.accounts.store'), options);
+            post(getLocalizedRoute('admin.banks.accounts.store'), options);
         }
     };
 
@@ -432,6 +454,17 @@ const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAc
 };
 
 const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
+    const { props } = usePage();
+    const localization = props.localization;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [accountModalOpen, setAccountModalOpen] = useState(false);
@@ -441,7 +474,7 @@ const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
         if (!bank) return;
         setLoading(true);
         try {
-            const response = await fetch(route('admin.banks.accounts.index', bank.id));
+            const response = await fetch(getLocalizedRoute('admin.banks.accounts.index', { bank: bank.id }));
             if (response.ok) {
                 const data = await response.json();
                 setAccounts(data);
@@ -471,7 +504,7 @@ const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
 
     const handleDeleteAccount = (id) => {
         if (confirm('Are you sure you want to delete this account?')) {
-            router.delete(route('admin.banks.accounts.destroy', id), {
+            router.delete(getLocalizedRoute('admin.banks.accounts.destroy', { bankAccount: id }), {
                 onSuccess: () => fetchAccounts(),
                 preserveScroll: true,
             });
@@ -620,6 +653,17 @@ const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
 // --- Main Page Component ---
 
 const Bank = ({ banks, filters, glAccounts, currencies }) => {
+    const { props } = usePage();
+    const localization = props.localization;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
     const [addEditModalOpen, setAddEditModalOpen] = useState(false);
@@ -631,7 +675,7 @@ const Bank = ({ banks, filters, glAccounts, currencies }) => {
     useEffect(() => {
         const timer = setTimeout(() => {
             if (searchTerm !== (filters.search || '')) {
-                router.get(route('admin.banks.index'), {
+                router.get(getLocalizedRoute('admin.banks.index'), {
                     search: searchTerm,
                     status: statusFilter === 'all' ? null : statusFilter
                 }, {
@@ -647,7 +691,7 @@ const Bank = ({ banks, filters, glAccounts, currencies }) => {
     // Handle filter change
     const handleFilterChange = (status) => {
         setStatusFilter(status);
-        router.get(route('admin.banks.index'), {
+        router.get(getLocalizedRoute('admin.banks.index'), {
             search: searchTerm,
             status: status === 'all' ? null : status
         }, {
@@ -673,7 +717,7 @@ const Bank = ({ banks, filters, glAccounts, currencies }) => {
 
     const handleDelete = (bank) => {
         if (confirm('Are you sure you want to delete this bank? All associated accounts will also be deleted.')) {
-            router.delete(route('admin.banks.destroy', bank.id));
+            router.delete(getLocalizedRoute('admin.banks.destroy', { bank: bank.id }));
         }
     };
 
@@ -683,7 +727,7 @@ const Bank = ({ banks, filters, glAccounts, currencies }) => {
             
             <div className="bank-page">
                 <div className="breadcrumb mb-6 text-sm text-gray-500">
-                    <span className="cursor-pointer hover:text-blue-600" onClick={() => router.visit(route('admin.dashboard'))}>Dashboard</span>
+                    <span className="cursor-pointer hover:text-blue-600" onClick={() => router.visit(getLocalizedRoute('admin.dashboard'))}>Dashboard</span>
                     <span className="mx-2">/</span>
                     <span>Cash & Banks</span>
                     <span className="mx-2">/</span>

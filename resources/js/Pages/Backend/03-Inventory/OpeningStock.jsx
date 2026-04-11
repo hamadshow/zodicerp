@@ -22,14 +22,19 @@ export default function OpeningStock({
     viewing = false,
     openingStock = null 
 }) {
-    const page = usePage();
-    const { errors, flash, auth } = page.props;
+    const { props } = usePage();
+    const { errors, flash, auth, localization } = props;
 
-    const pathname = window.location.pathname;
-    const pathParts = pathname.split('/');
-    const country = pathParts[1] || 'sar';
-    const lang = pathParts[2] || 'ar';
-    const isRtl = lang === 'ar';
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
+    const isRtl = localization?.current_locale === 'ar';
+    const lang = localization?.current_locale || 'ar';
 
     const [showForm, setShowForm] = useState(initialShowForm);
     const [movementDate, setMovementDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -207,7 +212,7 @@ export default function OpeningStock({
 
         setIsSaving(true);
         router.post(
-            route('admin.inventory.opening-stock.store', { country, lang }),
+            getLocalizedRoute('admin.inventory.opening-stock.store'),
             {
                 movement_date: movementDate || null,
                 warehouse_id: Number(warehouseId),
@@ -228,7 +233,7 @@ export default function OpeningStock({
 
     const handleBackToList = () => {
         if (viewing) {
-            router.get(route('admin.inventory.opening-stock.index', { country, lang }));
+            router.get(getLocalizedRoute('admin.inventory.opening-stock.index'));
         } else {
             setShowForm(false);
         }
@@ -244,7 +249,7 @@ export default function OpeningStock({
 
     const handleDelete = (id) => {
         if (confirm(isRtl ? 'هل أنت متأكد من حذف هذا السجل؟' : 'Are you sure you want to delete this record?')) {
-            router.delete(route('admin.inventory.opening-stock.destroy', { country, lang, id }), {
+            router.delete(getLocalizedRoute('admin.inventory.opening-stock.destroy', { openingStock: id }), {
                 onSuccess: () => {
                     // Flash success message is already handled by Inertia and displayed in the layout
                 }
@@ -261,7 +266,7 @@ export default function OpeningStock({
             <div className="opening-stock-page" dir={isRtl ? "rtl" : "ltr"} lang={lang}>
                 <div className="page-header-section">
                     <div className="breadcrumb">
-                        <a href={route('admin.inventory.products.index', { country, lang })}>{t("المخزن", "Inventory")}</a>
+                        <a href={getLocalizedRoute('admin.inventory.products.index')}>{t("المخزن", "Inventory")}</a>
                         <span>/</span>
                         {showForm ? (
                             <>
@@ -673,7 +678,7 @@ export default function OpeningStock({
                                                     <td>
                                                         <div className="opening-stock-actions">
                                                             <Link 
-                                                                href={route('admin.inventory.opening-stock.show', { country, lang, id: stock.id })}
+                                                                href={getLocalizedRoute('admin.inventory.opening-stock.show', { openingStock: stock.id })}
                                                                 className="icon-btn"
                                                                 title={t("عرض التفاصيل", "View Details")}
                                                             >

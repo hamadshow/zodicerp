@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Backend\HumanResource\EmployeeController;
+use App\Http\Controllers\Backend\HumanResource\AttendanceController;
 use App\Http\Controllers\Backend\Location\LocationController;
 use App\Http\Controllers\Backend\Tasks\TaskAssignmentController;
 use App\Http\Controllers\Backend\Tasks\TaskAttachmentController;
@@ -14,6 +15,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Assets\Department;
+use App\Models\Backend\HumanResource\Profession;
 
 /*
 |--------------------------------------------------------------------------
@@ -44,6 +47,25 @@ Route::middleware('web')->group(function () {
     Route::delete('employees/{employee}', [EmployeeController::class, 'destroy']);
     Route::post('employees/bulk-delete', [EmployeeController::class, 'bulkDelete']);
     Route::post('employees/bulk-update-status', [EmployeeController::class, 'bulkUpdateStatus']);
+
+    // Attendance Routes
+    Route::apiResource('attendance', AttendanceController::class);
+
+    // Payroll Advance Routes
+    Route::apiResource('payroll-advances', \App\Http\Controllers\Backend\HumanResource\PayrollAdvanceController::class);
+
+    // Reward Routes
+    Route::apiResource('rewards', \App\Http\Controllers\Backend\HumanResource\RewardController::class);
+
+    // Deduction Routes
+    Route::apiResource('deductions', \App\Http\Controllers\Backend\HumanResource\DeductionController::class);
+
+    // Traffic Violation Routes
+    Route::apiResource('traffic-violations', \App\Http\Controllers\Backend\HumanResource\TrafficViolationController::class);
+
+    // Salary Receipt Routes
+    Route::post('salary-receipts/calculate', [\App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'calculate']);
+    Route::apiResource('salary-receipts', \App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class);
 
     // Users Routes (separated from employees endpoints)
     Route::get('users', function (Request $request) {
@@ -242,6 +264,21 @@ Route::middleware('web')->group(function () {
     Route::get('countries', [LocationController::class, 'getCountries']);
     Route::get('cities', [LocationController::class, 'getCities']);
     Route::get('areas', [LocationController::class, 'getAreas']);
+
+    Route::get('departments', function () {
+        return Department::where('is_active', true)
+            ->select('id', 'name_en', 'name_ar')
+            ->orderBy('name_en')
+            ->get();
+    });
+
+    Route::get('professions', function (Request $request) {
+        $query = Profession::query()->select('id', 'profession_name', 'profession_code', 'category', 'status');
+        if ($request->filled('department_id')) {
+            $query->where('category', (int) $request->input('department_id'));
+        }
+        return $query->orderBy('profession_name')->get();
+    });
 
     // Dashboard Statistics and Activity
     Route::get('/dashboard/stats', function () {

@@ -144,7 +144,7 @@ const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
 };
 
 // --- Form Section Component (Used for Create & Edit) ---
-const FormSection = ({ mode, initialData, parentGroups, accounts = [], onBack, onSuccess }) => {
+const FormSection = ({ mode, initialData, parentGroups, accounts = [], onBack, onSuccess, getLocalizedRoute }) => {
     const isEdit = mode === 'edit';
     const { auth } = usePage().props;
     const isRtl = auth?.user?.lang === 'ar' || document.dir === 'rtl';
@@ -156,26 +156,26 @@ const FormSection = ({ mode, initialData, parentGroups, accounts = [], onBack, o
         name_en: initialData?.name_en || '',
         parent_id: initialData?.parent_id || '',
         account_id: initialData?.account_id || '',
-        payment_terms: initialData?.payment_terms || 30,
-        default_credit_limit: initialData?.default_credit_limit || 0,
+        is_active: initialData?.is_active ?? '1',
+        payment_terms: initialData?.payment_terms || '0',
+        default_credit_limit: initialData?.default_credit_limit || '0',
         notes: initialData?.notes || '',
-        is_active: initialData ? (initialData.is_active ? '1' : '0') : '1',
     });
 
     const handleSubmit = (e) => {
         e.preventDefault();
         const options = {
-            preserveScroll: true,
             onSuccess: () => {
                 reset();
                 onSuccess();
             },
+            preserveScroll: true
         };
 
         if (isEdit) {
-            put(route('admin.purchases.supplier-groups.update', initialData.id), options);
+            put(getLocalizedRoute('admin.purchases.supplier-groups.update', { supplier_group: initialData.id }), options);
         } else {
-            post(route('admin.purchases.supplier-groups.store'), options);
+            post(getLocalizedRoute('admin.purchases.supplier-groups.store'), options);
         }
     };
 
@@ -320,9 +320,19 @@ const FormSection = ({ mode, initialData, parentGroups, accounts = [], onBack, o
 
 // --- Main Container Component ---
 const SupplierGroups = ({ groups = [], parentGroups = [], accounts = [] }) => {
+    const { props } = usePage();
+    const { localization, flash, auth } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [mode, setMode] = useState('view'); // 'view' | 'create' | 'edit'
     const [selectedGroup, setSelectedGroup] = useState(null);
-    const { flash, auth } = usePage().props;
     const isRtl = auth?.user?.lang === 'ar' || document.dir === 'rtl';
     const t = (ar, en) => isRtl ? ar : en;
 
@@ -358,7 +368,7 @@ const SupplierGroups = ({ groups = [], parentGroups = [], accounts = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm(t('هل أنت متأكد من حذف هذه المجموعة؟', 'Are you sure you want to delete this group?'))) {
-            router.delete(route('admin.purchases.supplier-groups.destroy', id), {
+            router.delete(getLocalizedRoute('admin.purchases.supplier-groups.destroy', { supplier_group: id }), {
                 preserveScroll: true
             });
         }
@@ -401,6 +411,7 @@ const SupplierGroups = ({ groups = [], parentGroups = [], accounts = [] }) => {
                         accounts={accounts}
                         onBack={handleBackClick} 
                         onSuccess={handleSuccess}
+                        getLocalizedRoute={getLocalizedRoute}
                     />
                 )}
 
@@ -412,6 +423,7 @@ const SupplierGroups = ({ groups = [], parentGroups = [], accounts = [] }) => {
                         accounts={accounts}
                         onBack={handleBackClick} 
                         onSuccess={handleSuccess}
+                        getLocalizedRoute={getLocalizedRoute}
                     />
                 )}
             </div>

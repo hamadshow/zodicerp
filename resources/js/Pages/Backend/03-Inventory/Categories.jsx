@@ -153,6 +153,16 @@ const CategoryItem = ({ category, level = 0, selectedId, onSelect, onDelete, onD
 // --- Main Component ---
 const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = [] }) => {
     const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [categoryTree, setCategoryTree] = useState([]);
     const [treeVersion, setTreeVersion] = useState(0);
     const [selectedCategory, setSelectedCategory] = useState(null); // null means "Create New" mode or nothing selected
@@ -350,12 +360,12 @@ const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = []
         };
 
         if (isCreating) {
-            post(route('admin.inventory.categories.store'), options);
+            post(getLocalizedRoute('admin.inventory.categories.store'), options);
         } else if (selectedCategory) {
             // Use router.post with _method: 'PUT' for file uploads if needed, 
             // but Inertia's put usually handles it unless files are involved. 
             // Laravel requires POST with _method=PUT for FormData with files.
-            router.post(route('admin.inventory.categories.update', selectedCategory.id), {
+            router.post(getLocalizedRoute('admin.inventory.categories.update', { category: selectedCategory.id }), {
                 _method: 'PUT',
                 ...data
             }, options);
@@ -364,7 +374,7 @@ const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = []
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this category?')) {
-            router.delete(route('admin.inventory.categories.destroy', id), {
+            router.delete(getLocalizedRoute('admin.inventory.categories.destroy', { category: id }), {
                 onSuccess: () => {
                     if (selectedCategory?.id === id) {
                         handleCreateNew();
@@ -392,7 +402,7 @@ const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = []
         const category = categories.find(c => String(c.id) === String(draggedId));
         if (!category || String(category.parent_id) === String(newParentId)) return;
         
-        router.put(route('admin.inventory.categories.update', draggedId), {
+        router.put(getLocalizedRoute('admin.inventory.categories.update', { category: draggedId }), {
             ...category,
             parent_id: newParentId
         }, { preserveScroll: true });
@@ -611,7 +621,7 @@ const Categories = ({ categories = [], categoryTree: categoryTreeFromServer = []
         try {
             for (let i = 0; i < batches.length; i++) {
                 await new Promise((resolve, reject) => {
-                    router.post(route('admin.inventory.categories.bulkImport'), {
+                    router.post(getLocalizedRoute('admin.inventory.categories.bulkImport'), {
                         rows: batches[i],
                     }, {
                         preserveScroll: true,

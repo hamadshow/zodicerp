@@ -7,8 +7,16 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
     const [mode, setMode] = useState('list'); // list, create, edit
     const [activeTab, setActiveTab] = useState('general');
     const { props } = usePage();
-    const flash = (props && props.flash) ? props.flash : {};
+    const { localization, flash } = props;
     const { errors } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
 
     const productOptions = useMemo(() => {
         return (products || []).map(p => ({
@@ -117,7 +125,7 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this invoice?')) {
-            destroy(route('admin.purchases.invoices.destroy', { invoice: id }));
+            destroy(getLocalizedRoute('admin.purchases.invoices.destroy', { invoice: id }));
         }
     };
 
@@ -134,13 +142,13 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
         };
 
         if (mode === 'create') {
-            post(route('admin.purchases.invoices.store'), {
+            post(getLocalizedRoute('admin.purchases.invoices.store'), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
                 onError: handleError,
             });
         } else {
-            put(route('admin.purchases.invoices.update', { invoice: data.id }), {
+            put(getLocalizedRoute('admin.purchases.invoices.update', { invoice: data.id }), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
                 onError: handleError,

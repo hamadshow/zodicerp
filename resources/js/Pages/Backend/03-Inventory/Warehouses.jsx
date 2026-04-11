@@ -377,6 +377,17 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
 
 // --- Main Container Component ---
 const Warehouses = ({ warehouses = [], branches = [] }) => {
+    const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [mode, setMode] = useState('view'); // 'view' | 'create' | 'edit'
     const [selectedWarehouse, setSelectedWarehouse] = useState(null);
     const { flash } = usePage().props;
@@ -405,7 +416,7 @@ const Warehouses = ({ warehouses = [], branches = [] }) => {
 
     const handleFormSubmit = (data) => {
         if (mode === 'edit' && selectedWarehouse) {
-            router.put(route('admin.inventory.warehouses.update', selectedWarehouse.id), data, {
+            router.put(getLocalizedRoute('admin.inventory.warehouses.update', { warehouse: selectedWarehouse.id }), data, {
                 preserveScroll: true,
                 onSuccess: () => {
                     setMode('view');
@@ -413,7 +424,7 @@ const Warehouses = ({ warehouses = [], branches = [] }) => {
                 }
             });
         } else {
-            router.post(route('admin.inventory.warehouses.store'), data, {
+            router.post(getLocalizedRoute('admin.inventory.warehouses.store'), data, {
                 preserveScroll: true,
                 onSuccess: () => {
                     setMode('view');
@@ -425,7 +436,7 @@ const Warehouses = ({ warehouses = [], branches = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this warehouse?')) {
-            router.delete(route('admin.inventory.warehouses.destroy', id), {
+            router.delete(getLocalizedRoute('admin.inventory.warehouses.destroy', { warehouse: id }), {
                 preserveScroll: true
             });
         }

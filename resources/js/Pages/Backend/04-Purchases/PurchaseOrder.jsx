@@ -10,8 +10,16 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
     const invoiceRef = useRef(null);
     const printRef = useRef(null);
     const { props } = usePage();
-    const flash = (props && props.flash) ? props.flash : {};
+    const { localization, flash } = props;
     const { errors } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
 
     const productOptions = useMemo(() => {
         return (products || []).map(p => ({
@@ -134,19 +142,19 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this order?')) {
-            destroy(route('admin.purchases.orders.destroy', { order: id }));
+            destroy(getLocalizedRoute('admin.purchases.orders.destroy', { order: id }));
         }
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
         if (mode === 'create') {
-            post(route('admin.purchases.orders.store'), {
+            post(getLocalizedRoute('admin.purchases.orders.store'), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
             });
         } else {
-            put(route('admin.purchases.orders.update', { order: data.id }), {
+            put(getLocalizedRoute('admin.purchases.orders.update', { order: data.id }), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
             });

@@ -10,8 +10,16 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
     const invoiceRef = useRef(null);
     const printRef = useRef(null);
     const { props } = usePage();
-    const flash = (props && props.flash) ? props.flash : {};
+    const { localization, flash } = props;
     const { errors } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
 
     const orderOptions = useMemo(() => {
         return (orders || []).map(o => ({
@@ -145,20 +153,19 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this invoice?')) {
-            destroy(route('admin.client-sales.invoices.destroy', { invoice: id }));
+            destroy(getLocalizedRoute('admin.client-sales.invoices.destroy', { invoice: id }));
         }
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        
         if (mode === 'create') {
-            post(route('admin.client-sales.invoices.store'), {
+            post(getLocalizedRoute('admin.client-sales.invoices.store'), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
             });
         } else {
-            put(route('admin.client-sales.invoices.update', { invoice: data.id }), {
+            put(getLocalizedRoute('admin.client-sales.invoices.update', { invoice: data.id }), {
                 preserveScroll: true,
                 onSuccess: () => setMode('list'),
             });

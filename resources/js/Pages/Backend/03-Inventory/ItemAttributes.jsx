@@ -1,8 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 
 const ItemAttributesList = ({ attributes = [] }) => {
+    const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [filteredAttributes, setFilteredAttributes] = useState(attributes);
     const [searchTerm, setSearchTerm] = useState('');
     const [stats, setStats] = useState({
@@ -38,7 +49,7 @@ const ItemAttributesList = ({ attributes = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this attribute?')) {
-            router.delete(route('admin.inventory.item-attributes.destroy', id));
+            router.delete(getLocalizedRoute('admin.inventory.item-attributes.destroy', { item_attribute: id }));
         }
     };
 
@@ -46,7 +57,7 @@ const ItemAttributesList = ({ attributes = [] }) => {
         <>
             <Head title="Item Attributes - ZodicERP" />
             <div className="breadcrumb">
-                <a href="#">Dashboard</a>
+                <Link href={getLocalizedRoute('admin.dashboard')}>Dashboard</Link>
                 <span>/</span>
                 <a href="#">Inventory</a>
                 <span>/</span>
@@ -109,7 +120,7 @@ const ItemAttributesList = ({ attributes = [] }) => {
                         </div>
                     </div>
                     <div className="actions">
-                        <Link href={route('admin.inventory.item-attributes.create')} className="btn btn-primary">
+                        <Link href={getLocalizedRoute('admin.inventory.item-attributes.create')} className="btn btn-primary">
                             <span className="material-icons-outlined">add</span>
                             <span>Add Attribute</span>
                         </Link>
@@ -151,7 +162,7 @@ const ItemAttributesList = ({ attributes = [] }) => {
                                             </span>
                                         </td>
                                         <td>
-                                            <Link href={route('admin.inventory.item-attributes.edit', attr.id)} className="icon-btn edit">
+                                            <Link href={getLocalizedRoute('admin.inventory.item-attributes.edit', { item_attribute: attr.id })} className="icon-btn edit">
                                                 <span className="material-icons-outlined">edit</span>
                                             </Link>
                                             <button className="icon-btn delete" onClick={() => handleDelete(attr.id)}>
@@ -174,8 +185,18 @@ const ItemAttributesList = ({ attributes = [] }) => {
 };
 
 const ItemAttributesForm = ({ attribute = null }) => {
-    const isEdit = !!attribute;
+    const { props } = usePage();
+    const { localization } = props;
 
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
+    const isEdit = !!attribute;
     const { data, setData, post, put, processing, errors } = useForm({
         title: attribute?.title || '',
         display_layout: attribute?.display_layout || 'dropdown',
@@ -191,9 +212,9 @@ const ItemAttributesForm = ({ attribute = null }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (isEdit) {
-            put(route('admin.inventory.item-attributes.update', attribute.id));
+            put(getLocalizedRoute('admin.inventory.item-attributes.update', { item_attribute: attribute.id }));
         } else {
-            post(route('admin.inventory.item-attributes.store'));
+            post(getLocalizedRoute('admin.inventory.item-attributes.store'));
         }
     };
 
@@ -238,11 +259,11 @@ const ItemAttributesForm = ({ attribute = null }) => {
             <Head title={`${pageTitle} - ZodicERP`} />
             <div className="products-ce-page">
                 <div className="breadcrumb">
-                    <Link href={route('admin.dashboard')}>Dashboard</Link>
+                    <Link href={getLocalizedRoute('admin.dashboard')}>Dashboard</Link>
                     <span>/</span>
                     <a href="#">Inventory</a>
                     <span>/</span>
-                    <Link href={route('admin.inventory.item-attributes.index')}>Item Attributes</Link>
+                    <Link href={getLocalizedRoute('admin.inventory.item-attributes.index')}>Item Attributes</Link>
                     <span>/</span>
                     <span>{pageTitle}</span>
                 </div>
@@ -377,7 +398,7 @@ const ItemAttributesForm = ({ attribute = null }) => {
                                             </button>
                                         </div>
                                         <div className="mt-3">
-                                            <Link href={route('admin.inventory.item-attributes.index')} className="btn btn-outline btn-block text-center">
+                                            <Link href={getLocalizedRoute('admin.inventory.item-attributes.index')} className="btn btn-outline btn-block text-center">
                                                 Cancel
                                             </Link>
                                         </div>

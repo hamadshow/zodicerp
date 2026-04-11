@@ -78,10 +78,10 @@ class TaxTypeController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, TaxType $taxType)
+    public function update(Request $request, TaxType $type)
     {
         $validated = $request->validate([
-            'code' => 'required|string|unique:tax_types,code,'.$taxType->id,
+            'code' => 'required|string|unique:tax_types,code,'.$type->id,
             'name_ar' => 'required|string',
             'name_en' => 'required|string',
             'tax_category' => 'required|in:sales,purchase,income,withholding,excise,customs,property,other',
@@ -97,7 +97,7 @@ class TaxTypeController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        $taxType->update($validated);
+        $type->update($validated);
 
         return redirect()->back()->with('success', 'Tax Type updated successfully.');
     }
@@ -105,9 +105,9 @@ class TaxTypeController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(TaxType $taxType)
+    public function destroy(TaxType $type)
     {
-        $taxType->delete();
+        $type->delete();
 
         return redirect()->back()->with('success', 'Tax Type deleted successfully.');
     }

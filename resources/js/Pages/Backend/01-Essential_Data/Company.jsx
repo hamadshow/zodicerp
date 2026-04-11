@@ -1,10 +1,9 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import AdminLayout from '../components/AdminLayout';
 import MediaPickerModal from '../Media/MediaPickerModal';
 import '../../../../css/backend/main.scss';
-
 
 const resolveMediaUrl = (value) => {
     if (!value) {
@@ -26,6 +25,17 @@ const resolveMediaUrl = (value) => {
 };
 
 const CompanyForm = ({ company }) => {
+    const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const isEdit = !!company;
     const [activeTab, setActiveTab] = useState('basic');
 
@@ -215,12 +225,12 @@ const CompanyForm = ({ company }) => {
         }
 
         if (isEdit) {
-            router.post(route('admin.companies.update', company.id), {
+            router.post(getLocalizedRoute('admin.companies.update', { company: company.id }), {
                 ...data,
                 _method: 'put',
             });
         } else {
-            post(route('admin.companies.store'));
+            post(getLocalizedRoute('admin.companies.store'));
         }
     };
 
@@ -288,7 +298,7 @@ const CompanyForm = ({ company }) => {
                         </h1>
                         <div className="tasks-actions">
                             <Link
-                                href={route('admin.companies.index')}
+                                href={getLocalizedRoute('admin.companies.index')}
                                 className="btn btn-outline no-underline"
                             >
                                 <span className="material-icons-outlined">arrow_back</span>
@@ -503,7 +513,7 @@ const CompanyForm = ({ company }) => {
                             <button
                                 type="button"
                                 className="btn btn-outline"
-                                onClick={() => router.visit(route('admin.companies.index'))}
+                                onClick={() => router.visit(getLocalizedRoute('admin.companies.index'))}
                             >
                                 Cancel
                             </button>
@@ -540,6 +550,17 @@ const CompanyForm = ({ company }) => {
 };
 
 const Company = ({ companies, company, canCreateCompany }) => {
+    const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     if (company || route().current('admin.companies.create') || route().current('admin.companies.edit')) {
         return <CompanyForm company={company} />;
     }
@@ -547,7 +568,7 @@ const Company = ({ companies, company, canCreateCompany }) => {
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this company?')) {
-            router.delete(route('admin.companies.destroy', id));
+            router.delete(getLocalizedRoute('admin.companies.destroy', { company: id }));
         }
     };
 
@@ -677,7 +698,7 @@ const Company = ({ companies, company, canCreateCompany }) => {
                         <div className="tasks-actions">
                             {canCreateCompany ? (
                                 <Link
-                                    href={route('admin.companies.create')}
+                                    href={getLocalizedRoute('admin.companies.create')}
                                     className="btn btn-primary no-underline"
                                 >
                                     <span className="material-icons-outlined">add_business</span>
@@ -691,7 +712,7 @@ const Company = ({ companies, company, canCreateCompany }) => {
                         <table>
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>#</th>
                                     <th>COMPANY NAME</th>
                                     <th>CODE</th>
                                     <th>TYPE</th>
@@ -701,9 +722,9 @@ const Company = ({ companies, company, canCreateCompany }) => {
                             </thead>
                             <tbody>
                                 {filteredCompanies.length > 0 ? (
-                                    filteredCompanies.map((company) => (
+                                    filteredCompanies.map((company, index) => (
                                         <tr key={company.id}>
-                                            <td>#{company.id}</td>
+                                            <td>{index + 1}</td>
                                             <td>{company.company_name}</td>
                                             <td>{company.company_code || '-'}</td>
                                             <td className="capitalize">{company.company_type || '-'}</td>
@@ -717,7 +738,7 @@ const Company = ({ companies, company, canCreateCompany }) => {
                                                     title="Edit"
                                                     onClick={() =>
                                                         router.get(
-                                                            route('admin.companies.edit', company.id)
+                                                            getLocalizedRoute('admin.companies.edit', { company: company.id })
                                                         )
                                                     }
                                                 >

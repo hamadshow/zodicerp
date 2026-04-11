@@ -90,7 +90,17 @@ const CategoryTreeItem = ({ category, selectedIds, onToggle, level = 0, search =
 // ==========================================
 
 const ProductsList = ({ products, brands, categories, units, filters = {} }) => {
-    const { flash } = usePage().props;
+    const { props } = usePage();
+    const { flash, localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const safeProducts = (products && Array.isArray(products.data)) 
         ? products 
         : (Array.isArray(products) ? { data: products, total: products.length, from: 1, to: products.length, links: [] } : { data: [], total: 0, from: 0, to: 0, links: [] });
@@ -150,12 +160,12 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
     };
 
     const applyFilters = () => {
-        router.get(route('admin.inventory.products.index'), filterParams, { preserveState: true });
+        router.get(getLocalizedRoute('admin.inventory.products.index'), filterParams, { preserveState: true });
     };
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this product?')) {
-            router.delete(route('admin.inventory.products.destroy', id));
+            router.delete(getLocalizedRoute('admin.inventory.products.destroy', { product: id }));
         }
     };
 
@@ -307,7 +317,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
         try {
             for (let i = 0; i < batches.length; i++) {
                 // استخدام axios لضمان استمرار الحلقة دون تداخل مع دورة حياة Inertia
-                await axios.post(route('admin.inventory.products.bulkImport'), {
+                await axios.post(getLocalizedRoute('admin.inventory.products.bulkImport'), {
                     rows: batches[i],
                 });
                 
@@ -332,51 +342,14 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
 
     const handleExportExcel = () => {
         try {
-            // التحقق من وجود بيانات للتصدير
-            if (!safeProducts.data || safeProducts.data.length === 0) {
-                toast.warning('لا توجد بيانات لتصديرها');
-                return;
+            // التحقق من وجود مسار التصدير
+            if (typeof route === 'function') {
+                window.location.href = getLocalizedRoute('admin.inventory.products.export');
+                toast.info('جاري بدء عملية تصدير جميع المنتجات...');
+                setShowExcelMenu(false);
+            } else {
+                toast.error('لا يمكن العثور على مسار التصدير');
             }
-
-            const dataToExport = safeProducts.data.map(product => ({
-                'Product Code': product.product_code || '',
-                'Name': product.name || '',
-                'SKU': product.sku || '',
-                'Barcode': product.barcode || '',
-                'Price': product.price || '0',
-                'Sale Price': product.sale_price || '0',
-                'Cost Price': product.cost_price || '0',
-                'Quantity': product.quantity || '0',
-                'Brand': product.brand?.name || '',
-                'Unit': product.unit?.name || '',
-                'Status': product.status || 'active',
-                'Description': product.description || ''
-            }));
-
-            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Products");
-
-            // تحسين عرض الأعمدة
-            const wscols = [
-                { wch: 15 }, // Product Code
-                { wch: 30 }, // Name
-                { wch: 15 }, // SKU
-                { wch: 15 }, // Barcode
-                { wch: 10 }, // Price
-                { wch: 10 }, // Sale Price
-                { wch: 10 }, // Cost Price
-                { wch: 10 }, // Quantity
-                { wch: 15 }, // Brand
-                { wch: 10 }, // Unit
-                { wch: 10 }, // Status
-                { wch: 40 }  // Description
-            ];
-            worksheet['!cols'] = wscols;
-
-            XLSX.writeFile(workbook, `Products_${new Date().toISOString().split('T')[0]}.xlsx`);
-            toast.success('تم تصدير البيانات بنجاح');
-            setShowExcelMenu(false);
         } catch (err) {
             console.error('Export failed:', err);
             toast.error('فشل عملية التصدير');
@@ -567,7 +540,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                 <div className="content-area">
                 <div className="page-header-section">
                     <div className="breadcrumb">
-                        <Link href={route('admin.dashboard')}>Dashboard</Link>
+                        <Link href={getLocalizedRoute('admin.dashboard')}>Dashboard</Link>
                         <span>/</span>
                         <span>Inventory</span>
                         <span>/</span>
@@ -672,7 +645,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                                 )}
                             </div>
 
-                            <Link className="btn btn-primary" href={route('admin.inventory.products.create')}>
+                            <Link className="btn btn-primary" href={getLocalizedRoute('admin.inventory.products.create')}>
                                 <span className="material-icons-outlined">add</span>
                                 Add Product
                             </Link>
@@ -756,7 +729,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                                                 <div className="actions-cell">
                                                     <button
                                                         className="icon-btn edit"
-                                                        onClick={() => router.get(route('admin.inventory.products.edit', product.id))}
+                                                        onClick={() => router.get(getLocalizedRoute('admin.inventory.products.edit', { product: product.id }))}
                                                         title="Edit"
                                                     >
                                                         <span className="material-icons-outlined">edit</span>
@@ -808,6 +781,17 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
 // ==========================================
 
 const ProductsForm = ({ product, categories, brands, units = [], itemAttributes = [], suppliers = [] }) => {
+    const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         name: '',
         parent_id: '',
@@ -1468,9 +1452,9 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         };
 
         if (product) {
-            post(route('admin.inventory.products.update', product.id), options);
+            post(getLocalizedRoute('admin.inventory.products.update', { product: product.id }), options);
         } else {
-            post(route('admin.inventory.products.store'), options);
+            post(getLocalizedRoute('admin.inventory.products.store'), options);
         }
     };
 
@@ -1486,11 +1470,11 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
             <Head title={`${pageTitle} - ZodicERP`} />
             <div className="products-ce-page">
                 <div className="breadcrumb">
-                    <Link href={route('admin.dashboard')}>Dashboard</Link>
+                    <Link href={getLocalizedRoute('admin.dashboard')}>Dashboard</Link>
                     <span>/</span>
                     <span>Inventory</span>
                     <span>/</span>
-                    <Link href={route('admin.inventory.products.index')}>
+                    <Link href={getLocalizedRoute('admin.inventory.products.index')}>
                         Products
                     </Link>
                     <span>/</span>
@@ -1503,7 +1487,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                             <h3 className="products-ce-title">{pageTitle}</h3>
                             <div className="products-ce-actions">
                                 <Link
-                                    href={route('admin.inventory.products.index')}
+                                    href={getLocalizedRoute('admin.inventory.products.index')}
                                     className="btn btn-outline-danger"
                                 >
                                     Back to List
@@ -2246,7 +2230,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                             </div>
                                             <div className="category-actions mt-2">
                                                 <Link 
-                                                    href={route('admin.inventory.categories.create')} 
+                                                    href={getLocalizedRoute('admin.inventory.categories.create')} 
                                                     className="add-new-category-link"
                                                 >
                                                     <span className="material-icons-outlined">add</span>

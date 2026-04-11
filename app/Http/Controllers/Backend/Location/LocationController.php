@@ -64,16 +64,16 @@ class LocationController extends Controller
         return redirect()->back()->with('success', 'Country created successfully');
     }
 
-    public function updateCountry(UpdateCountryRequest $request, Country $countryRecord)
+    public function updateCountry(UpdateCountryRequest $request, Country $country)
     {
-        $countryRecord->update($request->validated());
+        $country->update($request->validated());
 
         return redirect()->back()->with('success', 'Country updated successfully');
     }
 
-    public function destroyCountry(Country $countryRecord)
+    public function destroyCountry(Country $country)
     {
-        $countryRecord->delete();
+        $country->delete();
 
         return redirect()->back()->with('success', 'Country deleted successfully');
     }

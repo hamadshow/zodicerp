@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import AdminLayout from '../components/AdminLayout';
+import { apiService } from '../../../services/api';
 
 // Toast component
 const Toast = ({ toasts, removeToast }) => {
@@ -25,13 +26,14 @@ const Toast = ({ toasts, removeToast }) => {
 
 const TrafficViolations = ({ employees: propEmployees }) => {
   const [dbEmployees, setDbEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const propData = propEmployees?.data || propEmployees;
     if (!propData || !Array.isArray(propData) || propData.length === 0) {
-      fetch('/api/employees')
-        .then(response => response.json())
-        .then(data => {
+      apiService.get('/employees')
+        .then(response => {
+          const data = response.data;
           const employeeData = data.data || data;
           setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
         })
@@ -47,9 +49,9 @@ const TrafficViolations = ({ employees: propEmployees }) => {
 
   // State for form data
   const [formData, setFormData] = useState({
+    employee_id: '',
     vehiclePlate: '',
     vehicleType: '',
-    driverName: '',
     driverLicense: '',
     violationType: '',
     severity: 'medium',
@@ -104,6 +106,19 @@ const TrafficViolations = ({ employees: propEmployees }) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
+  const fetchViolations = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await apiService.get('/traffic-violations');
+      setViolations(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Error fetching violations:', error);
+      showToast('Error loading violations data', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Vehicle type names mapping
   const vehicleTypeNames = {
     car: 'Car',
@@ -131,7 +146,9 @@ const TrafficViolations = ({ employees: propEmployees }) => {
 
     setStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
     setEndDate(today.toISOString().split('T')[0]);
-  }, []);
+    
+    fetchViolations();
+  }, [fetchViolations]);
 
   // Calculate statistics
   const totalViolations = violations.length;
@@ -139,7 +156,7 @@ const TrafficViolations = ({ employees: propEmployees }) => {
     (v) => v.status === 'pending'
   ).length;
   const highSeverity = violations.filter((v) => v.severity === 'high').length;
-  const totalFines = violations.reduce((sum, v) => sum + v.fineAmount, 0);
+  const totalFines = violations.reduce((sum, v) => sum + (v.fineAmount || 0), 0);
 
   // Handle form input changes
   const handleInputChange = (e) => {
@@ -154,9 +171,9 @@ const TrafficViolations = ({ employees: propEmployees }) => {
   const openAddModal = () => {
     setEditingViolationId(null);
     setFormData({
+      employee_id: '',
       vehiclePlate: '',
       vehicleType: '',
-      driverName: '',
       driverLicense: '',
       violationType: '',
       severity: 'medium',
@@ -176,9 +193,9 @@ const TrafficViolations = ({ employees: propEmployees }) => {
   const openEditModal = (violation) => {
     setEditingViolationId(violation.id);
     setFormData({
+      employee_id: violation.employee_id,
       vehiclePlate: violation.vehiclePlate,
       vehicleType: violation.vehicleType,
-      driverName: violation.driverName,
       driverLicense: violation.driverLicense || '',
       violationType: violation.violationType,
       severity: violation.severity,
@@ -200,10 +217,10 @@ const TrafficViolations = ({ employees: propEmployees }) => {
   };
 
   // Save violation (add or update)
-  const saveViolation = () => {
+  const saveViolation = async () => {
     if (
       !formData.vehiclePlate ||
-      !formData.driverName ||
+      !formData.employee_id ||
       !formData.violationType ||
       !formData.location
     ) {
@@ -214,46 +231,56 @@ const TrafficViolations = ({ employees: propEmployees }) => {
       return;
     }
 
-    if (editingViolationId) {
-      // Update existing violation
-      setViolations((prev) =>
-        prev.map((v) =>
-          v.id === editingViolationId
-            ? { ...formData, id: editingViolationId }
-            : v
-        )
-      );
-      showToast('Violation updated successfully!', 'success');
-    } else {
-      // Add new violation
-      const newId =
-        violations.length > 0
-          ? Math.max(...violations.map((v) => v.id)) + 1
-          : 1;
-      setViolations((prev) => [...prev, { ...formData, id: newId }]);
-      showToast('Violation added successfully!', 'success');
+    try {
+      if (editingViolationId) {
+        await apiService.put(`/traffic-violations/${editingViolationId}`, formData);
+        showToast('Violation updated successfully!', 'success');
+      } else {
+        await apiService.post('/traffic-violations', formData);
+        showToast('Violation added successfully!', 'success');
+      }
+      fetchViolations();
+      closeModal();
+    } catch (error) {
+      console.error('Error saving violation:', error);
+      showToast('Error saving violation record', 'error');
     }
-
-    closeModal();
   };
 
   // Delete violation
-  const deleteViolation = (id) => {
+  const deleteViolation = async (id) => {
     if (
       window.confirm(
         'Are you sure you want to delete this violation record? This action cannot be undone.'
       )
     ) {
-      setViolations((prev) => prev.filter((v) => v.id !== id));
-      showToast('Violation deleted successfully!', 'success');
+      try {
+        await apiService.delete(`/traffic-violations/${id}`);
+        showToast('Violation deleted successfully!', 'success');
+        fetchViolations();
+      } catch (error) {
+        console.error('Error deleting violation:', error);
+        showToast('Error deleting violation record', 'error');
+      }
     }
   };
 
   // Mark violation as paid
-  const markAsPaid = (id) => {
-    setViolations((prev) =>
-      prev.map((v) => (v.id === id ? { ...v, status: 'paid' } : v))
-    );
+  const markAsPaid = async (id) => {
+    const violation = violations.find(v => v.id === id);
+    if (!violation) return;
+
+    try {
+      await apiService.put(`/traffic-violations/${id}`, {
+        ...violation,
+        status: 'paid'
+      });
+      showToast('Violation marked as paid!', 'success');
+      fetchViolations();
+    } catch (error) {
+      console.error('Error marking as paid:', error);
+      showToast('Error updating status', 'error');
+    }
   };
 
   // View violation details
@@ -275,7 +302,7 @@ const TrafficViolations = ({ employees: propEmployees }) => {
         `Severity: ${violation.severity}\n` +
         `Date & Time: ${formattedDate}\n` +
         `Location: ${violation.location}\n` +
-        `Fine: $${violation.fineAmount.toLocaleString()}\n` +
+        `Fine: $${(violation.fineAmount || 0).toLocaleString()}\n` +
         `Points Deducted: ${violation.points}\n` +
         `Status: ${statusNames[violation.status]}\n` +
         `Officer ID: ${violation.officerId || 'N/A'}\n\n` +
@@ -288,39 +315,46 @@ const TrafficViolations = ({ employees: propEmployees }) => {
   };
 
   // Handle bulk action
-  const handleBulkAction = () => {
+  const handleBulkAction = async () => {
     if (selectedViolations.length === 0) {
       showToast('Please select at least one violation.', 'error');
       return;
     }
 
-    if (bulkAction.startsWith('mark-')) {
-      const newStatus = bulkAction.replace('mark-', '');
-      setViolations((prev) =>
-        prev.map((v) =>
-          selectedViolations.includes(v.id) ? { ...v, status: newStatus } : v
-        )
-      );
-      showToast(
-        `${selectedViolations.length} violation(s) marked as ${newStatus}!`,
-        'success'
-      );
-    } else if (bulkAction === 'delete') {
-      if (
-        window.confirm(
-          `Are you sure you want to delete ${selectedViolations.length} selected violation(s)?`
-        )
-      ) {
-        setViolations((prev) =>
-          prev.filter((v) => !selectedViolations.includes(v.id))
-        );
+    try {
+      if (bulkAction.startsWith('mark-')) {
+        const newStatus = bulkAction.replace('mark-', '');
+        for (const id of selectedViolations) {
+          const v = violations.find(v => v.id === id);
+          if (v) {
+            await apiService.put(`/traffic-violations/${id}`, { ...v, status: newStatus });
+          }
+        }
         showToast(
-          `${selectedViolations.length} violation(s) deleted!`,
+          `${selectedViolations.length} violation(s) marked as ${newStatus}!`,
           'success'
         );
-      } else {
-        return;
+      } else if (bulkAction === 'delete') {
+        if (
+          window.confirm(
+            `Are you sure you want to delete ${selectedViolations.length} selected violation(s)?`
+          )
+        ) {
+          for (const id of selectedViolations) {
+            await apiService.delete(`/traffic-violations/${id}`);
+          }
+          showToast(
+            `${selectedViolations.length} violation(s) deleted!`,
+            'success'
+          );
+        } else {
+          return;
+        }
       }
+      fetchViolations();
+    } catch (error) {
+      console.error('Error performing bulk action:', error);
+      showToast('Error during bulk action', 'error');
     }
 
     setSelectedViolations([]);
@@ -682,7 +716,20 @@ const TrafficViolations = ({ employees: propEmployees }) => {
                 </tr>
               </thead>
               <tbody>
-                {filteredViolations.map((violation) => {
+                {loading ? (
+                  <tr>
+                    <td colSpan="11" style={{ textAlign: 'center', padding: '40px' }}>
+                      Loading violations...
+                    </td>
+                  </tr>
+                ) : filteredViolations.length === 0 ? (
+                  <tr>
+                    <td colSpan="11" style={{ textAlign: 'center', padding: '40px' }}>
+                      No violations found
+                    </td>
+                  </tr>
+                ) : (
+                  filteredViolations.map((violation) => {
                   const violationDate = new Date(violation.violationDate);
                   const formattedDate =
                     violationDate.toLocaleDateString() +
@@ -722,19 +769,19 @@ const TrafficViolations = ({ employees: propEmployees }) => {
                           </div>
                         </div>
                       </td>
-                      <td>
-                        <div style={{ fontWeight: 500 }}>
-                          {violation.driverName}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '0.8rem',
-                            color: 'var(--gray-color)',
-                          }}
-                        >
-                          {violation.driverLicense || 'No license'}
-                        </div>
-                      </td>
+                  <td>
+                    <div style={{ fontWeight: 500 }}>
+                      {violation.driverName}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.8rem',
+                        color: 'var(--gray-color)',
+                      }}
+                    >
+                      {violation.driverLicense || 'No license'}
+                    </div>
+                  </td>
                       <td>
                         {renderViolationTypeBadge(violation.violationType)}
                       </td>
@@ -789,7 +836,8 @@ const TrafficViolations = ({ employees: propEmployees }) => {
                       </td>
                     </tr>
                   );
-                })}
+                })
+              )}
               </tbody>
             </table>
           </div>
@@ -880,13 +928,13 @@ const TrafficViolations = ({ employees: propEmployees }) => {
                     <label className="form-label">Driver Name *</label>
                     <select
                       className="form-control"
-                      name="driverName"
-                      value={formData.driverName}
+                      name="employee_id"
+                      value={formData.employee_id}
                       onChange={handleInputChange}
                       required
                     >
                       <option value="">Select Employee</option>
-                      {Array.isArray(employees) && employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+                      {Array.isArray(employees) && employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                     </select>
                   </div>
                   <div className="form-group">

@@ -443,8 +443,8 @@ Route::group([
             Route::get('products/export', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'export'])->name('products.export');
             Route::get('opening-stock', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'index'])->name('opening-stock.index');
             Route::post('opening-stock', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'store'])->name('opening-stock.store');
-            Route::get('opening-stock/{id}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'show'])->name('opening-stock.show');
-            Route::delete('opening-stock/{id}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'destroy'])->name('opening-stock.destroy');
+            Route::get('opening-stock/{openingStock}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'show'])->name('opening-stock.show');
+            Route::delete('opening-stock/{openingStock}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'destroy'])->name('opening-stock.destroy');
             Route::post('products/bulk-import', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'bulkImport'])->name('products.bulkImport');
             Route::resource('products', \App\Http\Controllers\Backend\Inventory\ProductsController::class);
             Route::get('categories/export', [\App\Http\Controllers\Backend\Inventory\CategoriesController::class, 'export'])->name('categories.export');
@@ -562,8 +562,8 @@ Route::group([
         Route::prefix('location')->name('location.')->group(function () {
             Route::get('/', [LocationController::class, 'index'])->name('index');
             Route::post('/countries', [LocationController::class, 'storeCountry'])->name('countries.store');
-            Route::put('/countries/{countryRecord}', [LocationController::class, 'updateCountry'])->name('countries.update');
-            Route::delete('/countries/{countryRecord}', [LocationController::class, 'destroyCountry'])->name('countries.destroy');
+            Route::put('/countries/{country}', [LocationController::class, 'updateCountry'])->name('countries.update');
+            Route::delete('/countries/{country}', [LocationController::class, 'destroyCountry'])->name('countries.destroy');
 
             Route::post('/cities', [LocationController::class, 'storeCity'])->name('cities.store');
             Route::put('/cities/{city}', [LocationController::class, 'updateCity'])->name('cities.update');

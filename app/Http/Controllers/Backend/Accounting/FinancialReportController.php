@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class FinancialReportController extends Controller
 {
@@ -58,7 +57,7 @@ class FinancialReportController extends Controller
 
         $favoriteIds = $favoritesQuery->pluck('report_id')->all();
 
-        $payload = $reports->map(function (FinancialReport $report) use ($favoriteIds) {
+        $payload = $reports->map(function (FinancialReport $report) use ($favoriteIds, $request) {
             $route = null;
 
             if ($report->route_name && $report->route_name !== '#') {
@@ -69,7 +68,7 @@ class FinancialReportController extends Controller
                         'lang' => $request->route('lang') ?? session('locale', 'en'),
                     ];
                     $route = route($report->route_name, $params);
-                } catch (\Throwable $e) {
+                } catch (\Throwable) {
                     $route = null;
                 }
             }
@@ -119,7 +118,7 @@ class FinancialReportController extends Controller
 
         $favorites = $favoritesQuery->get()
             ->filter(fn (UserFavoriteReport $favorite) => $favorite->report !== null)
-            ->map(function (UserFavoriteReport $favorite) {
+            ->map(function (UserFavoriteReport $favorite) use ($request) {
                 $report = $favorite->report;
 
                 $route = null;
@@ -131,7 +130,7 @@ class FinancialReportController extends Controller
                             'lang' => $request->route('lang') ?? session('locale', 'en'),
                         ];
                         $route = route($report->route_name, $params);
-                    } catch (\Throwable $e) {
+                    } catch (\Throwable) {
                         $route = null;
                     }
                 }

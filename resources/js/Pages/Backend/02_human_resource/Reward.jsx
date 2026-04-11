@@ -2,17 +2,19 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Head } from '@inertiajs/react';
 import '../../../../css/backend/main.scss';
 import AdminLayout from '../components/AdminLayout';
+import { apiService } from '../../../services/api';
 
 
 const Reward = ({ employees: propEmployees }) => {
   const [dbEmployees, setDbEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const propData = propEmployees?.data || propEmployees;
     if (!propData || !Array.isArray(propData) || propData.length === 0) {
-      fetch('/api/employees')
-        .then(response => response.json())
-        .then(data => {
+      apiService.get('/employees')
+        .then(response => {
+          const data = response.data;
           const employeeData = data.data || data;
           setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
         })
@@ -54,26 +56,15 @@ const Reward = ({ employees: propEmployees }) => {
 
   // Reward type configurations
   const rewardTypeConfig = {
-    bonus: {
-      name: 'Performance Bonus',
+    monetary: {
+      name: 'Monetary Bonus',
       class: 'type-bonus',
       icon: 'attach_money',
     },
-    award: {
-      name: 'Employee Award',
+    points: {
+      name: 'Reward Points',
       class: 'type-award',
       icon: 'emoji_events',
-    },
-    gift: { name: 'Gift Card', class: 'type-gift', icon: 'card_giftcard' },
-    recognition: {
-      name: 'Special Recognition',
-      class: 'type-recognition',
-      icon: 'stars',
-    },
-    promotion: {
-      name: 'Promotion',
-      class: 'type-promotion',
-      icon: 'trending_up',
     },
     badge: {
       name: 'Achievement Badge',
@@ -85,6 +76,7 @@ const Reward = ({ employees: propEmployees }) => {
       class: 'type-recognition',
       icon: 'description',
     },
+    gift: { name: 'Gift Card', class: 'type-gift', icon: 'card_giftcard' },
   };
 
   // Reward templates for quick selection
@@ -92,8 +84,8 @@ const Reward = ({ employees: propEmployees }) => {
     {
       id: 'excellent_performance',
       name: 'Excellent Performance',
-      rewardType: 'bonus',
-      rewardValue: 1000,
+      rewardType: 'monetary',
+      rewardValue: '1000 EGP',
       category: 'performance',
       reason: 'Outstanding work performance and exceeding targets',
       points: 100,
@@ -101,8 +93,8 @@ const Reward = ({ employees: propEmployees }) => {
     {
       id: 'employee_of_month',
       name: 'Employee of the Month',
-      rewardType: 'award',
-      rewardValue: 0,
+      rewardType: 'points',
+      rewardValue: '0',
       category: 'leadership',
       reason: 'Employee of the month recognition for exceptional work',
       points: 150,
@@ -110,8 +102,8 @@ const Reward = ({ employees: propEmployees }) => {
     {
       id: 'innovation_award',
       name: 'Innovation Award',
-      rewardType: 'award',
-      rewardValue: 500,
+      rewardType: 'certificate',
+      rewardValue: '500 EGP',
       category: 'innovation',
       reason: 'Creative solution that improved efficiency',
       points: 75,
@@ -120,7 +112,7 @@ const Reward = ({ employees: propEmployees }) => {
       id: 'teamwork_excellence',
       name: 'Teamwork Excellence',
       rewardType: 'badge',
-      rewardValue: 0,
+      rewardValue: '0',
       category: 'teamwork',
       reason: 'Outstanding teamwork and collaboration',
       points: 50,
@@ -173,35 +165,33 @@ const Reward = ({ employees: propEmployees }) => {
   // Filter tabs
   const filterTabs = [
     { id: 'all', label: 'All Rewards' },
-    { id: 'bonus', label: 'Bonuses' },
-    { id: 'award', label: 'Awards' },
+    { id: 'monetary', label: 'Monetary' },
+    { id: 'points', label: 'Points' },
     { id: 'badge', label: 'Badges' },
     { id: 'pending', label: 'Pending' },
+    { id: 'delivered', label: 'Delivered' },
     { id: 'recent', label: 'Recent (30 days)' },
   ];
 
   // Initialize component
   useEffect(() => {
-    // Fetch data from Laravel backend
-    const fetchRewards = async () => {
-      try {
-        const response = await fetch('/api/rewards');
-        if (response.ok) {
-          const data = await response.json();
-          // Extract data array if paginated
-          const rewardsData = data.data || data;
-          setRewards(Array.isArray(rewardsData) ? rewardsData : []);
-        }
-      } catch (error) {
-        console.error('Error fetching rewards:', error);
-        setRewards([]); // Fallback to empty array on error
-      }
-    };
-
     fetchRewards();
   }, []);
 
-  // Calculate stats (moved to useMemo below)
+  const fetchRewards = async () => {
+    setLoading(true);
+    try {
+      const response = await apiService.get('/rewards');
+      const rewardsData = response.data.data || response.data;
+      setRewards(Array.isArray(rewardsData) ? rewardsData : []);
+    } catch (error) {
+      console.error('Error fetching rewards:', error);
+      showToast('Error loading rewards data', 'error');
+      setRewards([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Toast notification
   const showToast = (message, type = 'info') => {
@@ -291,14 +281,8 @@ const Reward = ({ employees: propEmployees }) => {
       }
 
       try {
-        const employee = employees.find(
-          (e) => e.id === parseInt(formData.employee)
-        );
-
         const rewardData = {
           employee_id: parseInt(formData.employee),
-          employee_name: employee?.name || 'Unknown',
-          position: employee?.position || '-',
           reward_type: formData.rewardType,
           reward_value: parseFloat(formData.rewardValue) || 0,
           category: formData.category,
@@ -313,63 +297,64 @@ const Reward = ({ employees: propEmployees }) => {
 
         if (editingReward) {
           // Update existing reward
-          const updatedRewards = rewards.map((reward) =>
-            reward.id === editingReward.id
-              ? { ...reward, ...rewardData, id: editingReward.id }
-              : reward
-          );
-          setRewards(updatedRewards);
+          await apiService.put(`/rewards/${editingReward.id}`, rewardData);
           showToast('Reward updated successfully!', 'success');
         } else {
           // Add new reward
-          const newReward = {
-            ...rewardData,
-            id:
-              rewards.length > 0
-                ? Math.max(...rewards.map((r) => r.id)) + 1
-                : 1,
-            created_at: new Date().toISOString().split('T')[0],
-          };
-          setRewards((prev) => [...prev, newReward]);
+          await apiService.post('/rewards', rewardData);
           showToast('Reward added successfully!', 'success');
         }
 
+        fetchRewards(); // Refresh list from server
         closeModal();
       } catch (error) {
         showToast('Error saving reward. Please try again.', 'error');
         console.error('Error saving reward:', error);
       }
     },
-    [formData, editingReward, employees, rewards, closeModal]
+    [formData, editingReward, employees, closeModal]
   );
 
   // Reward operations
-  const deleteReward = useCallback((id) => {
+  const deleteReward = useCallback(async (id) => {
     if (
       window.confirm(
         'Are you sure you want to delete this reward? This action cannot be undone.'
       )
     ) {
-      setRewards((prev) => prev.filter((reward) => reward.id !== id));
-      showToast('Reward deleted successfully!', 'success');
+      try {
+        await apiService.delete(`/rewards/${id}`);
+        showToast('Reward deleted successfully!', 'success');
+        fetchRewards();
+      } catch (error) {
+        console.error('Error deleting reward:', error);
+        showToast('Error deleting reward.', 'error');
+      }
     }
   }, []);
 
-  const approveReward = useCallback((id) => {
-    setRewards((prev) =>
-      prev.map((reward) => {
-        if (reward.id === id) {
-          if (reward.status === 'pending') {
-            return { ...reward, status: 'active' };
-          } else if (reward.status === 'active') {
-            return { ...reward, status: 'completed' };
-          }
-        }
-        return reward;
-      })
-    );
-    showToast('Reward status updated!', 'success');
-  }, []);
+  const approveReward = useCallback(async (id) => {
+    const reward = rewards.find(r => r.id === id);
+    if (!reward) return;
+
+    let nextStatus = reward.status;
+    if (reward.status === 'pending') {
+      nextStatus = 'approved';
+    } else if (reward.status === 'approved') {
+      nextStatus = 'delivered';
+    }
+
+    if (nextStatus === reward.status) return;
+
+    try {
+      await apiService.put(`/rewards/${id}`, { ...reward, status: nextStatus });
+      showToast('Reward status updated!', 'success');
+      fetchRewards();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      showToast('Error updating status.', 'error');
+    }
+  }, [rewards]);
 
   const handleCheckboxChange = useCallback((id, checked) => {
     if (checked) {
@@ -380,7 +365,7 @@ const Reward = ({ employees: propEmployees }) => {
   }, []);
 
   const applyBulkAction = useCallback(
-    (action) => {
+    async (action) => {
       if (selectedIds.length === 0) {
         showToast('Please select at least one reward.', 'warning');
         return;
@@ -392,29 +377,45 @@ const Reward = ({ employees: propEmployees }) => {
             `Are you sure you want to delete ${selectedIds.length} selected reward(s)?`
           )
         ) {
-          setRewards((prev) =>
-            prev.filter((reward) => !selectedIds.includes(reward.id))
-          );
-          setSelectedIds([]);
-          showToast(`${selectedIds.length} reward(s) deleted!`, 'success');
+          try {
+            // Sequential delete for now, ideally bulk delete endpoint
+            for (const id of selectedIds) {
+              await apiService.delete(`/rewards/${id}`);
+            }
+            setSelectedIds([]);
+            showToast(`${selectedIds.length} reward(s) deleted!`, 'success');
+            fetchRewards();
+          } catch (error) {
+            console.error('Error bulk deleting:', error);
+            showToast('Error during bulk deletion.', 'error');
+          }
         }
         return;
       }
 
-      setRewards((prev) =>
-        prev.map((reward) => {
-          if (selectedIds.includes(reward.id)) {
-            if (action === 'approve' && reward.status === 'pending') {
-              return { ...reward, status: 'active' };
-            } else if (action === 'complete' && reward.status === 'active') {
-              return { ...reward, status: 'completed' };
-            }
+      try {
+        for (const id of selectedIds) {
+          const reward = rewards.find(r => r.id === id);
+          if (!reward) continue;
+
+          let nextStatus = reward.status;
+          if (action === 'approve' && reward.status === 'pending') {
+            nextStatus = 'approved';
+          } else if (action === 'complete' && reward.status === 'approved') {
+            nextStatus = 'delivered';
           }
-          return reward;
-        })
-      );
-      setSelectedIds([]);
-      showToast(`${selectedIds.length} reward(s) updated!`, 'success');
+
+          if (nextStatus !== reward.status) {
+            await apiService.put(`/rewards/${id}`, { ...reward, status: nextStatus });
+          }
+        }
+        setSelectedIds([]);
+        showToast(`${selectedIds.length} reward(s) updated!`, 'success');
+        fetchRewards();
+      } catch (error) {
+        console.error('Error bulk updating:', error);
+        showToast('Error during bulk update.', 'error');
+      }
     },
     [selectedIds, rewards]
   );
@@ -435,9 +436,7 @@ const Reward = ({ employees: propEmployees }) => {
         position.toLowerCase().includes(searchLower) ||
         reason.toLowerCase().includes(searchLower) ||
         category.toLowerCase().includes(searchLower) ||
-        rewardTypeConfig[rewardType]?.name
-          .toLowerCase()
-          .includes(searchLower);
+        (rewardTypeConfig[rewardType]?.name || rewardType || '').toLowerCase().includes(searchLower);
 
       if (currentFilter === 'all') return matchesSearch;
       if (currentFilter === 'recent') {
@@ -760,13 +759,11 @@ const Reward = ({ employees: propEmployees }) => {
                   required
                 >
                   <option value="">Select Type</option>
-                  <option value="bonus">Performance Bonus</option>
-                  <option value="award">Employee of the Month</option>
-                  <option value="gift">Gift Card</option>
-                  <option value="recognition">Special Recognition</option>
-                  <option value="promotion">Promotion</option>
+                  <option value="monetary">Monetary Bonus</option>
+                  <option value="points">Reward Points</option>
                   <option value="badge">Achievement Badge</option>
-                  <option value="certificate">Certificate of Excellence</option>
+                  <option value="certificate">Certificate</option>
+                  <option value="gift">Gift Card</option>
                 </select>
               </div>
               <div className="form-group">
@@ -805,8 +802,8 @@ const Reward = ({ employees: propEmployees }) => {
                   onChange={handleInputChange}
                 >
                   <option value="pending">Pending</option>
-                  <option value="active">Active</option>
-                  <option value="completed">Completed</option>
+                  <option value="approved">Approved</option>
+                  <option value="delivered">Delivered</option>
                   <option value="cancelled">Cancelled</option>
                 </select>
               </div>
@@ -1656,7 +1653,13 @@ const Reward = ({ employees: propEmployees }) => {
                 </tr>
               </thead>
               <tbody>
-                {paginatedRewards.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan="9" style={{ textAlign: 'center', padding: '40px' }}>
+                      Loading rewards...
+                    </td>
+                  </tr>
+                ) : paginatedRewards.length === 0 ? (
                   <tr>
                     <td
                       colSpan="9"

@@ -112,6 +112,16 @@ const ItemUnitItem = ({ unit, treeVersion, level = 0, selectedId, onSelect, onDe
 // --- Main Component ---
 const ItemUnits = ({ units = [], parents = [] }) => {
     const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [unitTree, setUnitTree] = useState([]);
     const [treeVersion, setTreeVersion] = useState(0);
     const [selectedUnit, setSelectedUnit] = useState(null); // null means "Create New" mode or nothing selected
@@ -228,15 +238,15 @@ const ItemUnits = ({ units = [], parents = [] }) => {
         };
 
         if (isCreating) {
-            post(route('admin.inventory.item-units.store'), options);
+            post(getLocalizedRoute('admin.inventory.item-units.store'), options);
         } else if (selectedUnit) {
-            put(route('admin.inventory.item-units.update', selectedUnit.id), options);
+            put(getLocalizedRoute('admin.inventory.item-units.update', { item_unit: selectedUnit.id }), options);
         }
     };
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this unit?')) {
-            router.delete(route('admin.inventory.item-units.destroy', id), {
+            router.delete(getLocalizedRoute('admin.inventory.item-units.destroy', { item_unit: id }), {
                 onSuccess: () => {
                     if (selectedUnit?.id === id) {
                         handleCreateNew();
@@ -269,7 +279,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
         const newType = newParentId ? 2 : 1;
         const newFactor = newParentId ? unit.conversion_factor : 1; // Main units usually factor 1
 
-        router.put(route('admin.inventory.item-units.update', draggedId), {
+        router.put(getLocalizedRoute('admin.inventory.item-units.update', { item_unit: draggedId }), {
             ...unit,
             base_unit: newParentId,
             unit_type: newType,
@@ -403,7 +413,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
         try {
             for (let i = 0; i < batches.length; i++) {
                 await new Promise((resolve, reject) => {
-                    router.post(route('admin.inventory.item-units.bulkImport'), {
+                    router.post(getLocalizedRoute('admin.inventory.item-units.bulkImport'), {
                         rows: batches[i],
                     }, {
                         preserveScroll: true,

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
+import { apiService } from '../../../services/api';
 
 
 export default function Attendance({ employees: propEmployees }) {
@@ -35,11 +36,19 @@ export default function Attendance({ employees: propEmployees }) {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
 
   useEffect(() => {
-    fetch('/api/attendance')
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setAttendanceRecords(data))
-      .catch(() => setAttendanceRecords([]));
+    fetchAttendance();
   }, []);
+
+  const fetchAttendance = () => {
+    apiService.get('/attendance')
+      .then(response => {
+        setAttendanceRecords(response.data || []);
+      })
+      .catch(error => {
+        console.error('Error fetching attendance:', error);
+        setAttendanceRecords([]);
+      });
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -125,7 +134,6 @@ export default function Attendance({ employees: propEmployees }) {
       return;
     }
 
-    const employeeData = employees[parseInt(employee)];
     let workHours = 0;
 
     if (timeIn && timeOut) {
@@ -137,9 +145,6 @@ export default function Attendance({ employees: propEmployees }) {
 
     const attendanceData = {
       employeeId: parseInt(employee),
-      employeeName: employeeData.name,
-      employeeCode: employeeData.code,
-      department: employeeData.department,
       date: attendanceDate,
       timeIn: timeIn || null,
       timeOut: timeOut || null,
@@ -150,27 +155,28 @@ export default function Attendance({ employees: propEmployees }) {
     };
 
     if (editingId) {
-      setAttendanceRecords((prev) =>
-        prev.map((record) =>
-          record.id === editingId
-            ? { ...attendanceData, id: editingId }
-            : record
-        )
-      );
-      showToast('Attendance updated successfully!', 'success');
+      apiService.put(`/attendance/${editingId}`, attendanceData)
+        .then(() => {
+          showToast('Attendance updated successfully!', 'success');
+          fetchAttendance();
+          closeModal();
+        })
+        .catch(err => {
+          console.error(err);
+          showToast('Failed to update attendance.', 'error');
+        });
     } else {
-      const newId =
-        attendanceRecords.length > 0
-          ? Math.max(...attendanceRecords.map((r) => r.id)) + 1
-          : 1;
-      setAttendanceRecords((prev) => [
-        ...prev,
-        { ...attendanceData, id: newId },
-      ]);
-      showToast('Attendance marked successfully!', 'success');
+      apiService.post('/attendance', attendanceData)
+        .then(() => {
+          showToast('Attendance marked successfully!', 'success');
+          fetchAttendance();
+          closeModal();
+        })
+        .catch(err => {
+          console.error(err);
+          showToast('Failed to mark attendance.', 'error');
+        });
     }
-
-    closeModal();
   };
 
   const editAttendance = (id) => {
@@ -194,8 +200,15 @@ export default function Attendance({ employees: propEmployees }) {
     if (
       window.confirm('Are you sure you want to delete this attendance record?')
     ) {
-      setAttendanceRecords((prev) => prev.filter((record) => record.id !== id));
-      showToast('Attendance record deleted successfully!', 'success');
+      apiService.delete(`/attendance/${id}`)
+        .then(() => {
+          showToast('Attendance record deleted successfully!', 'success');
+          fetchAttendance();
+        })
+        .catch(err => {
+          console.error(err);
+          showToast('Failed to delete attendance record.', 'error');
+        });
     }
   };
 
@@ -258,41 +271,54 @@ export default function Attendance({ employees: propEmployees }) {
 
     if (action.startsWith('mark-')) {
       const status = action.split('-')[1];
-      setAttendanceRecords((prev) =>
-        prev.map((record) => {
-          if (selectedRecords.includes(record.id)) {
-            const updated = { ...record, status };
-            if (status === 'present' || status === 'late') {
-              if (!updated.timeIn)
-                updated.timeIn = status === 'late' ? '09:30' : '09:00';
-              if (!updated.timeOut) updated.timeOut = '17:00';
-            } else {
-              updated.timeIn = null;
-              updated.timeOut = null;
-            }
-            return updated;
-          }
-          return record;
+      
+      const updates = selectedRecords.map(id => {
+        const record = attendanceRecords.find(r => r.id === id);
+        const updated = { ...record, status, employeeId: record.employeeId };
+        if (status === 'present' || status === 'late') {
+          if (!updated.timeIn)
+            updated.timeIn = status === 'late' ? '09:30' : '09:00';
+          if (!updated.timeOut) updated.timeOut = '17:00';
+        } else {
+          updated.timeIn = null;
+          updated.timeOut = null;
+        }
+        return apiService.put(`/attendance/${id}`, updated);
+      });
+
+      Promise.all(updates)
+        .then(() => {
+          showToast(`${selectedRecords.length} record(s) marked as ${status}!`, 'success');
+          fetchAttendance();
+          setSelectedRecords([]);
+          document.getElementById('bulkActions').value = 'Bulk Actions';
         })
-      );
-      showToast(
-        `${selectedRecords.length} record(s) marked as ${status}!`,
-        'success'
-      );
+        .catch(err => {
+          console.error(err);
+          showToast('Failed to update some records.', 'error');
+        });
+
     } else if (action === 'delete') {
       if (
         window.confirm(
           `Are you sure you want to delete ${selectedRecords.length} selected attendance record(s)?`
         )
       ) {
-        setAttendanceRecords((prev) =>
-          prev.filter((r) => !selectedRecords.includes(r.id))
-        );
-        showToast(`${selectedRecords.length} record(s) deleted!`, 'success');
+        const deletions = selectedRecords.map(id => apiService.delete(`/attendance/${id}`));
+        
+        Promise.all(deletions)
+          .then(() => {
+            showToast(`${selectedRecords.length} record(s) deleted!`, 'success');
+            fetchAttendance();
+            setSelectedRecords([]);
+            document.getElementById('bulkActions').value = 'Bulk Actions';
+          })
+          .catch(err => {
+            console.error(err);
+            showToast('Failed to delete some records.', 'error');
+          });
       }
     }
-    setSelectedRecords([]);
-    document.getElementById('bulkActions').value = 'Bulk Actions';
   };
 
   const exportAttendance = () => {

@@ -114,7 +114,7 @@ const Profession = ({ professions = [], departments = [] }) => {
         e.preventDefault();
         
         if (currentProfession) {
-            put(getLocalizedRoute('admin.professions.update', { professions: currentProfession.id }), {
+            put(getLocalizedRoute('admin.professions.update', { profession: currentProfession.id }), {
                 onSuccess: () => closeModal(),
             });
         } else {
@@ -126,7 +126,7 @@ const Profession = ({ professions = [], departments = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this profession?')) {
-            router.delete(getLocalizedRoute('admin.professions.destroy', { professions: id }));
+            router.delete(getLocalizedRoute('admin.professions.destroy', { profession: id }));
         }
     };
 

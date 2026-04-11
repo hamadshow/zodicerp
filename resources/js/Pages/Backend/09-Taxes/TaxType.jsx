@@ -1,14 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, router } from '@inertiajs/react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Head, router, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 
 const TaxType = ({ taxTypes = [], countries = [] }) => {
+    const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [filteredTaxTypes, setFilteredTaxTypes] = useState(taxTypes);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentTaxType, setCurrentTaxType] = useState(null);
-    const navigate = useNavigate();
-    const location = useLocation();
     const [stats, setStats] = useState({
         total: 0,
         active: 0,
@@ -52,7 +60,7 @@ const TaxType = ({ taxTypes = [], countries = [] }) => {
         setSearchTerm(e.target.value);
     };
 
-    const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
+    const query = useMemo(() => new URLSearchParams(window.location.search), [window.location.search]);
     const mode = query.get('mode');
     const taxTypeId = query.get('id');
     const isFormOpen = mode === 'create' || mode === 'edit' || mode === 'view';
@@ -72,19 +80,19 @@ const TaxType = ({ taxTypes = [], countries = [] }) => {
     }, [mode, taxTypeId, taxTypes]);
 
     const openCreateForm = () => {
-        navigate(`${location.pathname}?mode=create`);
+        router.visit(`${window.location.pathname}?mode=create`);
     };
 
     const openEditForm = (taxType) => {
-        navigate(`${location.pathname}?mode=edit&id=${taxType.id}`);
+        router.visit(`${window.location.pathname}?mode=edit&id=${taxType.id}`);
     };
 
     const openViewForm = (taxType) => {
-        navigate(`${location.pathname}?mode=view&id=${taxType.id}`);
+        router.visit(`${window.location.pathname}?mode=view&id=${taxType.id}`);
     };
 
     const closeForm = () => {
-        navigate(location.pathname, { replace: true });
+        router.visit(window.location.pathname, { replace: true });
     };
 
     const handleSubmit = (e) => {
@@ -112,11 +120,11 @@ const TaxType = ({ taxTypes = [], countries = [] }) => {
         };
 
         if (currentTaxType) {
-            router.put(route('admin.taxes.tax-types.update', currentTaxType.id), data, {
+            router.put(getLocalizedRoute('admin.taxes.types.update', { type: currentTaxType.id }), data, {
                 onSuccess: () => closeForm(),
             });
         } else {
-            router.post(route('admin.taxes.tax-types.store'), data, {
+            router.post(getLocalizedRoute('admin.taxes.types.store'), data, {
                 onSuccess: () => closeForm(),
             });
         }
@@ -124,7 +132,7 @@ const TaxType = ({ taxTypes = [], countries = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this Tax Type?')) {
-            router.delete(route('admin.taxes.tax-types.destroy', id));
+            router.delete(getLocalizedRoute('admin.taxes.types.destroy', { type: id }));
         }
     };
 
@@ -132,7 +140,7 @@ const TaxType = ({ taxTypes = [], countries = [] }) => {
         <AdminLayout activeMenu="Tax Types">
             <Head title="Tax Types - ZodicERP" />
             <div className="breadcrumb">
-                <a href="#">Dashboard</a>
+                <Link href={getLocalizedRoute('admin.dashboard')}>Dashboard</Link>
                 <span>/</span>
                 <a href="#">Tax & VAT</a>
                 <span>/</span>

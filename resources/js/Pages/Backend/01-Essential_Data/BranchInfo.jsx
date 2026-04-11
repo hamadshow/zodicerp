@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Head, router, useForm } from '@inertiajs/react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import { apiService } from '@/services/api';
 import '../../../../css/backend/main.scss';
-
 
 const resolveMediaUrl = (value) => {
     if (!value) {
@@ -27,11 +25,20 @@ const resolveMediaUrl = (value) => {
 };
 
 const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = null }) => {
+    const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [filteredBranches, setFilteredBranches] = useState(branches);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentBranch, setCurrentBranch] = useState(null);
-    const navigate = useNavigate();
-    const location = useLocation();
     const [activeTab, setActiveTab] = useState('basic');
     const [logoPreview, setLogoPreview] = useState(
         branch?.logo ? resolveMediaUrl(branch.logo) : null
@@ -121,7 +128,7 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
         setSearchTerm(e.target.value);
     };
 
-    const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
+    const query = useMemo(() => new URLSearchParams(window.location.search), [window.location.search]);
     const mode = query.get('mode') || formMode;
     const branchId = query.get('id');
     const isFormOpen = mode === 'create' || mode === 'edit' || mode === 'view';
@@ -231,19 +238,19 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
     }, [data.city]);
 
     const openCreateForm = () => {
-        navigate(`${location.pathname}?mode=create`);
+        router.visit(`${window.location.pathname}?mode=create`);
     };
 
     const openEditForm = (branch) => {
-        navigate(`${location.pathname}?mode=edit&id=${branch.id}`);
+        router.visit(`${window.location.pathname}?mode=edit&id=${branch.id}`);
     };
 
     const openViewForm = (branch) => {
-        navigate(`${location.pathname}?mode=view&id=${branch.id}`);
+        router.visit(`${window.location.pathname}?mode=view&id=${branch.id}`);
     };
 
     const closeForm = () => {
-        navigate(location.pathname, { replace: true });
+        router.visit(window.location.pathname, { replace: true });
     };
 
     const handleLogoChange = (e) => {
@@ -316,8 +323,8 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
         }
 
         const submitUrl = currentBranch
-            ? route('admin.branches.update', currentBranch.id)
-            : route('admin.branches.store');
+            ? getLocalizedRoute('admin.branches.update', { branch: currentBranch.id })
+            : getLocalizedRoute('admin.branches.store');
 
         router.post(submitUrl, payload, {
             forceFormData: true,
@@ -336,7 +343,7 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this branch info?')) {
-            router.delete(route('admin.branches.destroy', id));
+            router.delete(getLocalizedRoute('admin.branches.destroy', { branch: id }));
         }
     };
 

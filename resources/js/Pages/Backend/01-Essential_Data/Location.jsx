@@ -252,7 +252,7 @@ const Location = ({
     if (currentMode === 'country') {
       endpoint = editingId
         ? getLocalizedRoute('admin.location.countries.update', {
-            countryRecord: editingId,
+            country: editingId,
           })
         : getLocalizedRoute('admin.location.countries.store');
     } else if (currentMode === 'city') {
@@ -329,7 +329,7 @@ const Location = ({
     let endpoint = '';
     if (type === 'country') {
       endpoint = getLocalizedRoute('admin.location.countries.destroy', {
-        countryRecord: id,
+        country: id,
       });
     } else if (type === 'city') {
       endpoint = getLocalizedRoute('admin.location.cities.destroy', { city: id });

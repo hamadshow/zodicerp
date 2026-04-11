@@ -14,7 +14,7 @@ class BranchController extends Controller
 {
     public function index()
     {
-        $branches = Branch::with(['company', 'countryData', 'cityData', 'areaData'])->latest()->get();
+        $branches = Branch::with(['company', 'countryData', 'cityData', 'areaData'])->orderBy('id', 'asc')->get();
         $companies = Company::select('id', 'company_name')->get();
 
         return Inertia::render('Backend/01-Essential_Data/BranchInfo', [

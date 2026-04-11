@@ -5,7 +5,17 @@ import '../../../../css/backend/main.scss';
 
 
 const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
-    const { errors } = usePage().props;
+    const { props } = usePage();
+    const { localization, errors } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [filteredRates, setFilteredRates] = useState(exchangeRates);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -154,11 +164,11 @@ const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
         };
 
         if (currentRate) {
-            router.put(route('admin.exchange-rates.update', currentRate.id), data, {
+            router.put(getLocalizedRoute('admin.exchange-rates.update', { exchange_rate: currentRate.id }), data, {
                 onSuccess: () => closeModal(),
             });
         } else {
-            router.post(route('admin.exchange-rates.store'), data, {
+            router.post(getLocalizedRoute('admin.exchange-rates.store'), data, {
                 onSuccess: () => closeModal(),
             });
         }
@@ -166,13 +176,13 @@ const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this exchange rate?')) {
-            router.delete(route('admin.exchange-rates.destroy', id));
+            router.delete(getLocalizedRoute('admin.exchange-rates.destroy', { exchange_rate: id }));
         }
     };
 
     const handleFetchRates = () => {
         if (window.confirm('This will fetch current exchange rates from external API. Continue?')) {
-            router.post(route('admin.exchange-rates.fetch'), {}, {
+            router.post(getLocalizedRoute('admin.exchange-rates.fetch'), {}, {
                 preserveScroll: true,
                 onSuccess: () => window.location.reload(),
             });
@@ -196,9 +206,9 @@ const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
         localStorage.setItem('exchange_auto_interval', String(autoInterval));
         let timerId = null;
         if (autoUpdate) {
-            router.post(route('admin.exchange-rates.fetch'), {}, { preserveScroll: true });
+            router.post(getLocalizedRoute('admin.exchange-rates.fetch'), {}, { preserveScroll: true });
             timerId = setInterval(() => {
-                router.post(route('admin.exchange-rates.fetch'), {}, { preserveScroll: true });
+                router.post(getLocalizedRoute('admin.exchange-rates.fetch'), {}, { preserveScroll: true });
             }, autoInterval * 60 * 1000);
         }
         return () => {

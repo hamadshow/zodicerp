@@ -13,13 +13,18 @@ export default function TransferStock({
     transfer = null
 }) {
     const page = usePage();
-    const { errors: pageErrors, auth } = page.props;
+    const { errors: pageErrors, auth, localization } = page.props;
 
-    const pathname = window.location.pathname;
-    const pathParts = pathname.split('/').filter(Boolean);
-    const country = pathParts[0] || 'sa';
-    const lang = pathParts[1] || 'ar';
-    const isRtl = lang === 'ar';
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
+    const isRtl = localization?.current_locale === 'ar';
+    const lang = localization?.current_locale || 'ar';
 
     const [showForm, setShowForm] = useState(initialShowForm);
     const [searchTerm, setSearchTerm] = useState('');
@@ -27,10 +32,10 @@ export default function TransferStock({
 
     const t = (ar, en) => isRtl ? ar : en;
 
-    // Using route() helper instead of hardcoded paths
-    const storeUrl = route('admin.inventory.stock-transfers.store', { country, lang });
-    const updateUrl = transfer ? route('admin.inventory.stock-transfers.update', { country, lang, id: transfer.id }) : null;
-    const indexUrl = route('admin.inventory.stock-transfers.index', { country, lang });
+    // Using localized route helper
+    const storeUrl = getLocalizedRoute('admin.inventory.stock-transfers.store');
+    const updateUrl = transfer ? getLocalizedRoute('admin.inventory.stock-transfers.update', { stock_transfer: transfer.id }) : null;
+    const indexUrl = getLocalizedRoute('admin.inventory.stock-transfers.index');
 
     const { data, setData, post, put, processing, errors, reset, transform } = useForm({
         movement_date: transfer?.movement_date || new Date().toISOString().split('T')[0],
@@ -117,7 +122,7 @@ export default function TransferStock({
 
     const handleDelete = (id) => {
         if (confirm(t('هل أنت متأكد من حذف هذا التحويل؟', 'Are you sure you want to delete this transfer?'))) {
-            router.delete(route('admin.inventory.stock-transfers.destroy', { country, lang, stock_transfer: id }), {
+            router.delete(getLocalizedRoute('admin.inventory.stock-transfers.destroy', { stock_transfer: id }), {
                 preserveScroll: true
             });
         }
@@ -194,7 +199,7 @@ export default function TransferStock({
                                     <td>
                                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                                             <Link
-                                                href={route('admin.inventory.stock-transfers.show', { country, lang, id: stock.id })}
+                                                href={getLocalizedRoute('admin.inventory.stock-transfers.show', { stock_transfer: stock.id })}
                                                 style={{ color: '#3b82f6' }}
                                                 title={t("عرض", "View")}
                                             >
@@ -202,7 +207,7 @@ export default function TransferStock({
                                             </Link>
                                             <button
                                                 onClick={() => {
-                                                    router.get(route('admin.inventory.stock-transfers.show', { country, lang, id: stock.id }), {
+                                                    router.get(getLocalizedRoute('admin.inventory.stock-transfers.show', { stock_transfer: stock.id }), {
                                                         edit: true
                                                     });
                                                 }}
@@ -428,7 +433,7 @@ export default function TransferStock({
             <div className="transfer-stock-container" dir={isRtl ? 'rtl' : 'ltr'} lang={lang}>
                 <div className="page-header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#64748b', marginBottom: '10px' }}>
-                        <Link href={`/${country}/${lang}/admin/inventory/products`} style={{ color: '#3b82f6' }}>{t("المخزن", "Inventory")}</Link>
+                        <Link href={getLocalizedRoute('admin.inventory.products.index')} style={{ color: '#3b82f6' }}>{t("المخزن", "Inventory")}</Link>
                         <span>/</span>
                         {showForm ? (
                             <>

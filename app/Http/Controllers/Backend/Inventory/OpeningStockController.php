@@ -109,40 +109,12 @@ class OpeningStockController extends Controller
             ->with('success', 'Opening stock saved successfully');
     }
 
-    /**
-     * Display the specified opening stock.
-     */
-    public function show(Request $request, $id)
+    public function show(OpeningStock $openingStock)
     {
-        $openingStock = OpeningStock::with(['warehouse', 'company', 'creator', 'items.product', 'items.unit'])
-            ->findOrFail($id);
-
-        $warehouses = Warehouses::query()
-            ->select(['id', 'name'])
-            ->orderBy('id')
-            ->get();
-
-        $products = Products::query()
-            ->select(['id', 'name', 'sku', 'barcode'])
-            ->orderBy('id', 'desc')
-            ->limit(2000)
-            ->get();
-
-        $units = ItemUnit::query()
-            ->select(['id', 'name'])
-            ->where('active', true)
-            ->orderBy('id')
-            ->get();
-
-        $viewing = $request->query('edit') ? false : true;
-
-        return Inertia::render('Backend/03-Inventory/OpeningStock', [
-            'openingStock' => $openingStock,
-            'warehouses' => $warehouses,
-            'products' => $products,
-            'units' => $units,
-            'initialShowForm' => true,
-            'viewing' => $viewing,
+        $openingStock->load(['warehouse', 'items.product', 'creator']);
+        
+        return Inertia::render('Backend/03-Inventory/OpeningStockShow', [
+            'stock' => $openingStock,
         ]);
     }
 
@@ -200,23 +172,23 @@ class OpeningStockController extends Controller
             ->with('success', 'Opening stock updated successfully');
     }
 
-    /**
-     * Remove the specified opening stock from storage.
-     */
-    public function destroy(Request $request, $id)
+    public function destroy(OpeningStock $openingStock)
     {
         try {
-            DB::transaction(function () use ($id) {
-                $openingStock = OpeningStock::where('id', $id)
-                    ->firstOrFail();
+            DB::beginTransaction();
 
-                $openingStock->items()->delete();
-                $openingStock->delete();
-            });
+            // 1. Delete items first
+            $openingStock->items()->delete();
 
-            return back()->with('success', 'Opening stock deleted successfully');
+            // 2. Delete the header
+            $openingStock->delete();
+
+            DB::commit();
+
+            return redirect()->back()->with('success', 'Opening stock record deleted successfully');
         } catch (\Exception $e) {
-            return back()->withErrors(['general' => 'An error occurred while deleting: ' . $e->getMessage()]);
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Error deleting opening stock: ' . $e->getMessage());
         }
     }
 }

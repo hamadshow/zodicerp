@@ -1,9 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 
 const Departments = ({ departments: propDepartments, employees: propEmployees }) => {
+    const { props } = usePage();
+    const localization = props.localization;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const departmentsData = propDepartments?.data || (Array.isArray(propDepartments) ? propDepartments : []);
     const employeesData = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : []);
     
@@ -74,11 +85,11 @@ const Departments = ({ departments: propDepartments, employees: propEmployees })
     const handleSubmit = (e) => {
         e.preventDefault();
         if (currentDepartment) {
-            put(route('admin.departments.update', { id: currentDepartment.id, ...route().params }), {
+            put(getLocalizedRoute('admin.departments.update', { department: currentDepartment.id }), {
                 onSuccess: () => closeModal(),
             });
         } else {
-            post(route('admin.departments.store', route().params), {
+            post(getLocalizedRoute('admin.departments.store'), {
                 onSuccess: () => closeModal(),
             });
         }
@@ -86,7 +97,7 @@ const Departments = ({ departments: propDepartments, employees: propEmployees })
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this department?')) {
-            router.delete(route('admin.departments.destroy', { id, ...route().params }));
+            router.delete(getLocalizedRoute('admin.departments.destroy', { department: id }));
         }
     };
 

@@ -1,16 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import { apiService } from '../../../services/api';
 
 const PayrollAdvance = ({ employees: propEmployees }) => {
   const [dbEmployees, setDbEmployees] = useState([]);
+  const [advances, setAdvances] = useState([]);
+  const [filteredAdvances, setFilteredAdvances] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentAdvance, setCurrentAdvance] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  useEffect(() => {
+    fetchAdvances();
+  }, []);
 
   useEffect(() => {
     const propData = propEmployees?.data || propEmployees;
     if (!propData || !Array.isArray(propData) || propData.length === 0) {
-      fetch('/api/employees')
-        .then(response => response.json())
-        .then(data => {
+      apiService.get('/employees')
+        .then(response => {
+          const data = response.data;
           const employeeData = data.data || data;
           setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
         })
@@ -18,18 +34,33 @@ const PayrollAdvance = ({ employees: propEmployees }) => {
     }
   }, [propEmployees]);
 
+  const fetchAdvances = () => {
+    apiService.get('/payroll-advances')
+      .then(response => {
+        const data = response.data;
+        if (Array.isArray(data)) {
+          setAdvances(data);
+        } else if (data && data.error) {
+          showToast(data.error, 'error');
+          setAdvances([]);
+        } else {
+          setAdvances([]);
+        }
+      })
+      .catch(error => {
+        console.error('Error fetching advances:', error);
+        showToast('Failed to load advances', 'error');
+      });
+  };
+
   const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
-  const [advances, setAdvances] = useState([]);
-  const [filteredAdvances, setFilteredAdvances] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentAdvance, setCurrentAdvance] = useState(null);
 
   useEffect(() => {
-    const lowerSearch = searchTerm.toLowerCase();
-    const filtered = advances.filter(a => 
-      a.employee.toLowerCase().includes(lowerSearch)
-    );
+    const lowerSearch = (searchTerm || '').toLowerCase();
+    const filtered = (advances || []).filter(a => {
+      const employeeName = (a.employee || '').toLowerCase();
+      return employeeName.includes(lowerSearch);
+    });
     setFilteredAdvances(filtered);
   }, [searchTerm, advances]);
 
@@ -46,26 +77,51 @@ const PayrollAdvance = ({ employees: propEmployees }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const newAdvance = {
-      id: currentAdvance ? currentAdvance.id : Date.now(),
-      employee: formData.get('employee'),
+    const advanceData = {
+      employee_id: formData.get('employee_id'),
       amount: parseFloat(formData.get('amount')),
       date: formData.get('date'),
       repaymentPlan: formData.get('repaymentPlan'),
-      status: formData.get('status')
+      status: formData.get('status'),
+      notes: formData.get('notes') || ''
     };
 
     if (currentAdvance) {
-      setAdvances(advances.map(a => a.id === currentAdvance.id ? newAdvance : a));
+      apiService.put(`/payroll-advances/${currentAdvance.id}`, advanceData)
+        .then(() => {
+          showToast('Advance updated successfully!', 'success');
+          fetchAdvances();
+          closeModal();
+        })
+        .catch(err => {
+          console.error(err);
+          showToast('Failed to update advance.', 'error');
+        });
     } else {
-      setAdvances([...advances, newAdvance]);
+      apiService.post('/payroll-advances', advanceData)
+        .then(() => {
+          showToast('Advance requested successfully!', 'success');
+          fetchAdvances();
+          closeModal();
+        })
+        .catch(err => {
+          console.error(err);
+          showToast('Failed to request advance.', 'error');
+        });
     }
-    closeModal();
   };
 
   const handleDelete = (id) => {
     if (confirm('Are you sure you want to delete this advance?')) {
-      setAdvances(advances.filter(a => a.id !== id));
+      apiService.delete(`/payroll-advances/${id}`)
+        .then(() => {
+          showToast('Advance deleted successfully!', 'success');
+          fetchAdvances();
+        })
+        .catch(err => {
+          console.error(err);
+          showToast('Failed to delete advance.', 'error');
+        });
     }
   };
 
@@ -73,6 +129,10 @@ const PayrollAdvance = ({ employees: propEmployees }) => {
     <AdminLayout activeMenu="Payroll-Advance">
       <Head title="Payroll Advance" />
       
+      {toast && (
+        <div className={`toast toast-${toast.type}`}>{toast.message}</div>
+      )}
+
       <div className="payroll-advance-page">
         <div className="breadcrumb">
             <a href="#">Dashboard</a>
@@ -96,10 +156,16 @@ const PayrollAdvance = ({ employees: propEmployees }) => {
                     </button>
                 </div>
 
-                <button className="btn btn-primary" onClick={() => openModal()}>
-                    <span className="material-icons-outlined">add</span>
-                    <span>Request Advance</span>
-                </button>
+                <div className="actions" style={{ display: 'flex', gap: '10px' }}>
+                    <button className="btn btn-outline" onClick={() => { fetchAdvances(); showToast('Refreshing advances...', 'info'); }}>
+                        <span className="material-icons-outlined">refresh</span>
+                        <span>Refresh</span>
+                    </button>
+                    <button className="btn btn-primary" onClick={() => openModal()}>
+                        <span className="material-icons-outlined">add</span>
+                        <span>Request Advance</span>
+                    </button>
+                </div>
             </div>
 
             <div className="table-container">
@@ -150,7 +216,7 @@ const PayrollAdvance = ({ employees: propEmployees }) => {
       </div>
 
       {isModalOpen && (
-        <div className="modal-overlay" onClick={(e) => { if(e.target === e.currentTarget) closeModal(); }}>
+        <div className="modal-overlay active" onClick={(e) => { if(e.target === e.currentTarget) closeModal(); }}>
             <div className="modal">
                 <div className="modal-header">
                     <h3 className="modal-title">{currentAdvance ? 'Edit Advance' : 'Request Advance'}</h3>
@@ -162,9 +228,9 @@ const PayrollAdvance = ({ employees: propEmployees }) => {
                     <div className="modal-body">
                         <div className="form-group">
                             <label className="form-label">Employee Name</label>
-                            <select className="form-control" name="employee" defaultValue={currentAdvance?.employee || ''} required>
+                            <select className="form-control" name="employee_id" defaultValue={currentAdvance?.employee_id || ''} required>
                                 <option value="">Select Employee</option>
-                                {Array.isArray(employees) && employees.map(e => <option key={e.id} value={e.name}>{e.name}</option>)}
+                                {Array.isArray(employees) && employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                             </select>
                         </div>
                         <div className="form-group">
@@ -186,11 +252,18 @@ const PayrollAdvance = ({ employees: propEmployees }) => {
                         </div>
                         <div className="form-group">
                             <label className="form-label">Status</label>
-                            <select className="form-control" name="status" defaultValue={currentAdvance?.status || 'Pending'}>
-                                <option>Pending</option>
-                                <option>Approved</option>
-                                <option>Rejected</option>
+                            <select className="form-control" name="status" defaultValue={currentAdvance?.status || 'pending'}>
+                                <option value="pending">Pending</option>
+                                <option value="approved">Approved</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="defaulted">Defaulted</option>
+                                <option value="cancelled">Cancelled</option>
                             </select>
+                        </div>
+                        <div className="form-group">
+                            <label className="form-label">Notes</label>
+                            <textarea className="form-control" name="notes" defaultValue={currentAdvance?.notes} rows="3"></textarea>
                         </div>
                     </div>
                     <div className="modal-actions">
