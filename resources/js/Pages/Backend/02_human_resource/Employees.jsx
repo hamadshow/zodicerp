@@ -3,6 +3,7 @@ import { Head, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 import { apiService } from '../../../services/api';
+import { formatDate } from '@/utils/date';
 
 const resolveMediaUrl = (value) => {
   if (!value) {
@@ -22,20 +23,6 @@ const resolveMediaUrl = (value) => {
   );
 
   return `/media-files/${relativePath}`;
-};
-
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  try {
-    const datePart = dateString.split('T')[0];
-    const parts = datePart.split('-');
-    if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    }
-  } catch {
-    // Ignore errors and fallback
-  }
-  return dateString;
 };
 
 const EmployeesManagement = () => {

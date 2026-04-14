@@ -13,6 +13,7 @@ class FinancialReport extends Model
         'company_id',
         'report_key',
         'report_name',
+        'description',
         'category',
         'route_name',
         'icon',

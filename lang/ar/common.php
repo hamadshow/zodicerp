@@ -22,4 +22,10 @@ return [
     'view_all' => 'عرض الكل',
     'scroll_left' => 'التمرير لليسار',
     'scroll_right' => 'التمرير لليمين',
+    'pagination_show_from' => 'عرض من',
+    'pagination_to' => 'إلى',
+    'pagination_in' => 'في',
+    'pagination_records' => 'سجلات',
+    'pagination_previous' => 'السابق',
+    'pagination_next' => 'التالي',
 ];

@@ -31,7 +31,7 @@ export default function BudgetForecast({ forecasts, budgets }) {
     // Fetch budget items when budget changes
     useEffect(() => {
         if (data.budget_id) {
-            axios.get(`/admin/budget/forecasts/items/${data.budget_id}`)
+            axios.get(route('admin.budget.forecasts.items', data.budget_id))
                 .then(response => {
                     setBudgetItems(response.data);
                 })

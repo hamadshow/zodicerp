@@ -77,10 +77,8 @@ class JournalController extends Controller
 
         if ($request->filled('balance_status') && $request->balance_status !== 'all') {
             $isBalanced = $request->balance_status === 'balanced';
-            $query->whereExists(function ($q) use ($isBalanced) {
-                $q->select(DB::raw(1))
-                    ->from('journal_entry_lines')
-                    ->whereColumn('journal_entry_lines.journal_entry_code', 'journal_entries.entry_code')
+            $query->whereHas('lines', function ($q) use ($isBalanced) {
+                $q->select('journal_entry_code')
                     ->groupBy('journal_entry_code')
                     ->havingRaw('ABS(SUM(debit) - SUM(credit)) ' . ($isBalanced ? '<' : '>=') . ' 0.001');
             });

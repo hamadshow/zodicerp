@@ -6,6 +6,14 @@ import '../../../../css/backend/main.scss';
 
 // --- View Section Component ---
 const ViewSection = ({ categories, onEdit, onCreate, onDelete }) => {
+    const { props } = usePage();
+    const localization = props.localization || {};
+    const translations = localization.translations || {};
+
+    const t = (key, fallback) => {
+        return translations[`BudgetCategory.${key}`] || fallback;
+    };
+
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredCategories, setFilteredCategories] = useState(categories);
 
@@ -40,7 +48,7 @@ const ViewSection = ({ categories, onEdit, onCreate, onDelete }) => {
                     </div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.total}</span>
-                        <span className="stat-label">Total Categories</span>
+                        <span className="stat-label">{t('total_categories', 'Total Categories')}</span>
                     </div>
                 </div>
                 <div className="stat-card">
@@ -49,7 +57,7 @@ const ViewSection = ({ categories, onEdit, onCreate, onDelete }) => {
                     </div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.active}</span>
-                        <span className="stat-label">Active Categories</span>
+                        <span className="stat-label">{t('active_categories', 'Active Categories')}</span>
                     </div>
                 </div>
                 <div className="stat-card">
@@ -58,7 +66,7 @@ const ViewSection = ({ categories, onEdit, onCreate, onDelete }) => {
                     </div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.inactive}</span>
-                        <span className="stat-label">Inactive Categories</span>
+                        <span className="stat-label">{t('inactive_categories', 'Inactive Categories')}</span>
                     </div>
                 </div>
             </div>
@@ -70,14 +78,14 @@ const ViewSection = ({ categories, onEdit, onCreate, onDelete }) => {
                         <span className="material-icons-outlined search-icon">search</span>
                         <input
                             type="text"
-                            placeholder="Search categories..."
+                            placeholder={t('search_categories', 'Search categories...')}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     <button className="btn btn-primary" onClick={onCreate}>
                         <span className="material-icons-outlined">add</span>
-                        Add New Category
+                        {t('add_new_category', 'Add New Category')}
                     </button>
                 </div>
 
@@ -85,15 +93,15 @@ const ViewSection = ({ categories, onEdit, onCreate, onDelete }) => {
                     <table className="professional-table">
                         <thead>
                             <tr>
-                                <th>Code</th>
-                                <th>Name (AR)</th>
-                                <th>Name (EN)</th>
-                                <th>Parent Category</th>
-                                <th>Type</th>
-                                <th>Account</th>
-                                <th>Department</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th>{t('code', 'Code')}</th>
+                                <th>{t('name_ar', 'Name (AR)')}</th>
+                                <th>{t('name_en', 'Name (EN)')}</th>
+                                <th>{t('parent_category', 'Parent Category')}</th>
+                                <th>{t('type', 'Type')}</th>
+                                <th>{t('account', 'Account')}</th>
+                                <th>{t('department', 'Department')}</th>
+                                <th>{t('status', 'Status')}</th>
+                                <th>{t('actions', 'Actions')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -109,15 +117,15 @@ const ViewSection = ({ categories, onEdit, onCreate, onDelete }) => {
                                         <td>{category.department?.name_ar || category.department?.name_en || '-'}</td>
                                         <td>
                                             <span className={`status-badge ${category.is_active ? 'active' : 'inactive'}`}>
-                                                {category.is_active ? 'Active' : 'Inactive'}
+                                                {category.is_active ? t('active', 'Active') : t('inactive', 'Inactive')}
                                             </span>
                                         </td>
                                         <td>
                                             <div className="action-buttons">
-                                                <button onClick={() => onEdit(category)} title="Edit">
+                                                <button onClick={() => onEdit(category)} title={t('edit', 'Edit')}>
                                                     <span className="material-icons-outlined">edit</span>
                                                 </button>
-                                                <button className="delete-btn" onClick={() => onDelete(category.id)} title="Delete">
+                                                <button className="delete-btn" onClick={() => onDelete(category.id)} title={t('delete', 'Delete')}>
                                                     <span className="material-icons-outlined">delete</span>
                                                 </button>
                                             </div>
@@ -127,7 +135,7 @@ const ViewSection = ({ categories, onEdit, onCreate, onDelete }) => {
                             ) : (
                                 <tr>
                                     <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>
-                                        No budget categories found.
+                                        {t('no_categories_found', 'No budget categories found.')}
                                     </td>
                                 </tr>
                             )}
@@ -142,7 +150,14 @@ const ViewSection = ({ categories, onEdit, onCreate, onDelete }) => {
 // --- Form Section Component (Used for Create & Edit) ---
 const FormSection = ({ mode, initialData, parentCategories, accounts, departments, onBack, onSubmit }) => {
     const isEdit = mode === 'edit';
-    const { errors } = usePage().props;
+    const { props } = usePage();
+    const { errors } = props;
+    const localization = props.localization || {};
+    const translations = localization.translations || {};
+
+    const t = (key, fallback) => {
+        return translations[`BudgetCategory.${key}`] || fallback;
+    };
     
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -166,30 +181,30 @@ const FormSection = ({ mode, initialData, parentCategories, accounts, department
             <div className="content-card">
                 <div className="form-container">
                     <div className="form-section-title">
-                        {isEdit ? 'Edit Budget Category' : 'Create New Budget Category'}
+                        {isEdit ? t('edit_budget_category', 'Edit Budget Category') : t('create_new_budget_category', 'Create New Budget Category')}
                     </div>
 
                     <form onSubmit={handleSubmit}>
                         <div className="form-grid">
                             <div className="form-group">
-                                <label>Category Code</label>
+                                <label>{t('category_code', 'Category Code')}</label>
                                 <input
                                     type="text"
                                     name="code"
                                     defaultValue={initialData?.code}
-                                    placeholder="Auto-generated (e.g., BC-001)"
+                                    placeholder={t('auto_generated', 'Auto-generated (e.g., BC-001)')}
                                     readOnly={true}
                                     style={{ backgroundColor: '#f3f4f6' }}
                                 />
                                 {errors.code && <div className="error-message">{errors.code}</div>}
                             </div>
                             <div className="form-group">
-                                <label>Parent Category</label>
+                                <label>{t('parent_category', 'Parent Category')}</label>
                                 <select
                                     name="parent_id"
                                     defaultValue={initialData?.parent_id || ''}
                                 >
-                                    <option value="">None (Main Category)</option>
+                                    <option value="">{t('none_main', 'None (Main Category)')}</option>
                                     {parentCategories.map(pc => (
                                         // Avoid selecting itself as parent
                                         initialData?.id !== pc.id && (
@@ -203,7 +218,7 @@ const FormSection = ({ mode, initialData, parentCategories, accounts, department
 
                         <div className="form-grid">
                             <div className="form-group">
-                                <label>Name (Arabic) <span style={{ color: 'red' }}>*</span></label>
+                                <label>{t('name_ar', 'Name (Arabic)')} <span style={{ color: 'red' }}>*</span></label>
                                 <input
                                     type="text"
                                     name="name_ar"
@@ -214,7 +229,7 @@ const FormSection = ({ mode, initialData, parentCategories, accounts, department
                                 {errors.name_ar && <div className="error-message">{errors.name_ar}</div>}
                             </div>
                             <div className="form-group">
-                                <label>Name (English)</label>
+                                <label>{t('name_en', 'Name (English)')}</label>
                                 <input
                                     type="text"
                                     name="name_en"
@@ -227,7 +242,7 @@ const FormSection = ({ mode, initialData, parentCategories, accounts, department
 
                         <div className="form-grid">
                             <div className="form-group">
-                                <label>Category Type</label>
+                                <label>{t('type', 'Category Type')}</label>
                                 <input
                                     type="text"
                                     name="category_type"
@@ -237,13 +252,13 @@ const FormSection = ({ mode, initialData, parentCategories, accounts, department
                                 {errors.category_type && <div className="error-message">{errors.category_type}</div>}
                             </div>
                             <div className="form-group">
-                                <label>Status</label>
+                                <label>{t('status', 'Status')}</label>
                                 <select
                                     name="is_active"
                                     defaultValue={initialData ? (initialData.is_active ? '1' : '0') : '1'}
                                 >
-                                    <option value="1">Active</option>
-                                    <option value="0">Inactive</option>
+                                    <option value="1">{t('active', 'Active')}</option>
+                                    <option value="0">{t('inactive', 'Inactive')}</option>
                                 </select>
                                 {errors.is_active && <div className="error-message">{errors.is_active}</div>}
                             </div>
@@ -251,12 +266,12 @@ const FormSection = ({ mode, initialData, parentCategories, accounts, department
 
                         <div className="form-grid">
                             <div className="form-group">
-                                <label>GL Account</label>
+                                <label>{t('account', 'GL Account')}</label>
                                 <select
                                     name="account_id"
                                     defaultValue={initialData?.account_id || ''}
                                 >
-                                    <option value="">Select Account</option>
+                                    <option value="">{t('select_account', 'Select Account')}</option>
                                     {accounts.map(acc => (
                                         <option key={acc.AccID} value={acc.AccID}>
                                             {acc.AccName}
@@ -266,12 +281,12 @@ const FormSection = ({ mode, initialData, parentCategories, accounts, department
                                 {errors.account_id && <div className="error-message">{errors.account_id}</div>}
                             </div>
                             <div className="form-group">
-                                <label>Department</label>
+                                <label>{t('department', 'Department')}</label>
                                 <select
                                     name="department_id"
                                     defaultValue={initialData?.department_id || ''}
                                 >
-                                    <option value="">Select Department</option>
+                                    <option value="">{t('select_department', 'Select Department')}</option>
                                     {departments.map(dept => (
                                         <option key={dept.id} value={dept.id}>
                                             {dept.name_ar} ({dept.name_en})
@@ -283,7 +298,7 @@ const FormSection = ({ mode, initialData, parentCategories, accounts, department
                         </div>
 
                         <div className="form-group">
-                            <label>Description</label>
+                            <label>{t('description', 'Description')}</label>
                             <textarea
                                 name="description"
                                 defaultValue={initialData?.description}
@@ -294,10 +309,10 @@ const FormSection = ({ mode, initialData, parentCategories, accounts, department
 
                         <div className="form-actions">
                             <button type="button" className="btn btn-secondary" onClick={onBack}>
-                                Cancel
+                                {t('cancel', 'Cancel')}
                             </button>
                             <button type="submit" className="btn btn-primary">
-                                {isEdit ? 'Update Category' : 'Create Category'}
+                                {isEdit ? t('update_category', 'Update Category') : t('create_category', 'Create Category')}
                             </button>
                         </div>
                     </form>
@@ -309,9 +324,17 @@ const FormSection = ({ mode, initialData, parentCategories, accounts, department
 
 // --- Main Container Component ---
 const BudgetCategory = ({ categories = [], parentCategories = [], accounts = [], departments = [] }) => {
+    const { props } = usePage();
+    const localization = props.localization || {};
+    const translations = localization.translations || {};
+
+    const t = (key, fallback) => {
+        return translations[`BudgetCategory.${key}`] || fallback;
+    };
+
     const [mode, setMode] = useState('view'); // 'view' | 'create' | 'edit'
     const [selectedCategory, setSelectedCategory] = useState(null);
-    const { flash } = usePage().props;
+    const { flash } = props;
 
     useEffect(() => {
         if (flash?.success) {
@@ -356,7 +379,7 @@ const BudgetCategory = ({ categories = [], parentCategories = [], accounts = [],
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this category?')) {
+        if (window.confirm(t('delete_confirm', 'Are you sure you want to delete this category?'))) {
             router.delete(route('admin.budget.categories.destroy', id), {
                 preserveScroll: true
             });
@@ -365,20 +388,20 @@ const BudgetCategory = ({ categories = [], parentCategories = [], accounts = [],
 
     return (
         <AdminLayout activeMenu="Budget">
-            <Head title="Budget Categories - ZodicERP" />
+            <Head title={`${t('budget_categories', 'Budget Categories')} - ZodicERP`} />
             
             <div className="budget-categories-container">
                 {/* Fixed Page Header Title based on Mode */}
                 <div className="page-header">
                     <h1>
-                        {mode === 'view' && 'Budget Categories'}
-                        {mode === 'create' && 'New Budget Category'}
-                        {mode === 'edit' && 'Edit Budget Category'}
+                        {mode === 'view' && t('budget_categories', 'Budget Categories')}
+                        {mode === 'create' && t('create_new_budget_category', 'New Budget Category')}
+                        {mode === 'edit' && t('edit_budget_category', 'Edit Budget Category')}
                     </h1>
                     {mode !== 'view' && (
                         <button className="btn btn-secondary" onClick={handleBackClick}>
                             <span className="material-icons-outlined">arrow_back</span>
-                            Back to List
+                            {t('back_to_list', 'Back to List')}
                         </button>
                     )}
                 </div>

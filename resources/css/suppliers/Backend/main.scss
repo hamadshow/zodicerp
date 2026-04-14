@@ -2,6 +2,8 @@
 @use "Dashboard";
 @use "Products";
 
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900;1000&display=swap');
+
 // Variables
 $primary-color: #4f46e5;
 $primary-dark: #4338ca;
@@ -20,6 +22,10 @@ body {
     background-color: $background-color;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     color: #1e293b;
+
+    &[dir="rtl"] {
+        font-family: 'Cairo', sans-serif;
+    }
 }
 
 .supplier-layout {

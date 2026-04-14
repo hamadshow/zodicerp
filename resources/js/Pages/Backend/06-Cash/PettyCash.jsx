@@ -25,7 +25,7 @@ const FilterTab = ({ id, label, isActive, onClick }) => (
     </div>
 );
 
-const AddEditCashModal = ({ isOpen, onClose, cashAccount, isEditing, banks, currencies }) => {
+const AddEditCashModal = ({ isOpen, onClose, cashAccount, isEditing, banks, currencies, chartOfAccounts }) => {
     const { data, setData, post, put, processing, errors, reset } = useForm({
         account_code: '',
         name: '',
@@ -61,6 +61,17 @@ const AddEditCashModal = ({ isOpen, onClose, cashAccount, isEditing, banks, curr
         }
     }, [cashAccount, isOpen]);
 
+    const handleCOASelection = (coaId) => {
+        const selected = chartOfAccounts.find(acc => acc.AccID === parseInt(coaId));
+        if (selected) {
+            setData({
+                ...data,
+                account_code: selected.AccCode.toString(),
+                name: selected.AccName,
+            });
+        }
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
         if (isEditing) {
@@ -87,6 +98,24 @@ const AddEditCashModal = ({ isOpen, onClose, cashAccount, isEditing, banks, curr
                 </div>
                 <form onSubmit={handleSubmit}>
                     <div className="modal-body">
+                        {!isEditing && (
+                            <div className="form-group mb-4">
+                                <label className="form-label">Link to Chart of Accounts (Nature: Cash)</label>
+                                <select
+                                    className="form-select"
+                                    onChange={(e) => handleCOASelection(e.target.value)}
+                                    defaultValue=""
+                                >
+                                    <option value="" disabled>Select an account to auto-fill</option>
+                                    {chartOfAccounts.map(acc => (
+                                        <option key={acc.AccID} value={acc.AccID}>
+                                            {acc.AccCode} - {acc.AccName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
                         <div className="form-row">
                             <div className="form-group">
                                 <label className="form-label">Account Code</label>
@@ -292,7 +321,7 @@ const ViewCashModal = ({ isOpen, onClose, cashAccount }) => {
     );
 };
 
-const PettyCash = ({ cashAccounts, filters, banks, currencies }) => {
+const PettyCash = ({ cashAccounts, filters, banks, currencies, chartOfAccounts }) => {
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
     const [addEditModalOpen, setAddEditModalOpen] = useState(false);
@@ -532,6 +561,7 @@ const PettyCash = ({ cashAccounts, filters, banks, currencies }) => {
                 isEditing={!!editingCash}
                 banks={banks}
                 currencies={currencies}
+                chartOfAccounts={chartOfAccounts}
             />
 
             <ViewCashModal

@@ -580,6 +580,7 @@
 .accounts-table {
   width: 100%;
   border-collapse: collapse;
+  border-top: 2px solid #8b5cf6; // Purple top border from image
 }
 
 .accounts-table th,
@@ -594,6 +595,10 @@
   background-color: #f8fafc;
   font-weight: 600;
   color: #0f172a;
+
+  [dir="rtl"] & {
+    text-align: right;
+  }
 }
 
 .account-row-stopped {
@@ -603,7 +608,12 @@
 .account-code-cell {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+
+  [dir="rtl"] & {
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+  }
 }
 
 .account-toggle-btn {
@@ -615,16 +625,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--gray-color);
+  color: #64748b;
+  transition: transform 0.2s ease;
 }
 
 .account-toggle-placeholder {
-  width: 24px;
+  width: 20px;
 }
 
 .account-node-icon {
-  font-size: 18px;
-  color: var(--primary-color);
+  font-size: 20px;
+  color: #3b82f6;
 }
 
 .account-info {
@@ -634,8 +645,9 @@
 }
 
 .account-name span {
-  font-weight: 500;
-  color: var(--dark-color);
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.95rem;
 }
 
 .account-note {
@@ -646,63 +658,60 @@
 .account-type-pill {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
+  padding: 4px 12px;
   border-radius: 999px;
-  background-color: #dbeafe;
-  color: #1d4ed8;
+  background-color: #eff6ff; // Light blue
+  color: #3b82f6; // Blue
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
+  min-width: 60px;
+  justify-content: center;
 }
 
 .account-type-pill.account-type-sub {
-  background-color: var(--success-color);
-  color: #ffffff;
-}
-
-.nature-debit {
-  color: #1e88e5;
-  font-weight: 600;
-}
-
-.nature-credit {
-  color: #2e7d32;
-  font-weight: 600;
+  background-color: #10b981; // Green
+  color: #ffffff; // White
 }
 
 .account-final-pill {
   display: inline-flex;
   align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.account-final-pill.final-balance {
-  background-color: #ecfdf3;
-  color: #15803d;
-}
-
-.account-final-pill.final-pl {
-  background-color: #fef2f2;
-  color: #b91c1c;
-}
-
-.account-status {
   padding: 4px 12px;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
+  min-width: 80px;
+  justify-content: center;
+}
+
+.account-final-pill.final-balance {
+  background-color: #f0fdf4; // Very light green
+  color: #166534; // Dark green
+}
+
+.account-final-pill.final-pl {
+  background-color: #fef2f2; // Light red
+  color: #991b1b; // Red
+}
+
+.account-status {
+  display: inline-flex;
+  padding: 6px 16px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
   text-align: center;
+  justify-content: center;
+  min-width: 70px;
 }
 
 .status-active {
-  background-color: var(--success-color);
+  background-color: #10b981;
   color: #ffffff;
 }
 
 .status-inactive {
-  background-color: var(--gray-color);
+  background-color: #94a3b8;
   color: #ffffff;
 }
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
+import { formatDate } from '@/utils/date';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
 
@@ -367,7 +368,7 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
                                 {orders.data.map((order) => (
                                     <tr key={order.id}>
                                         <td>{order.po_number}</td>
-                                        <td>{order.po_date}</td>
+                                        <td>{formatDate(order.po_date)}</td>
                                         <td>{order.vendor?.name_en || order.vendor?.name_ar}</td>
                                         <td>
                                             <span className={`status-badge status-${order.status}`}>

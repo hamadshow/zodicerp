@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
 import '../../../../css/backend/main.scss';
 
@@ -13,6 +13,14 @@ const BudgeDashBoard = ({
     categorySummaries,
     budgetItemsTable,
 }) => {
+    const { props } = usePage();
+    const { localization } = props;
+    const translations = localization?.translations || {};
+
+    const t = (key, fallback) => {
+        return translations[`BudgeDashBoard.${key}`] || fallback;
+    };
+
     const { data, setData, get, processing } = useForm({
         budget_id: filters.budget_id || '',
         category_id: filters.category_id || '',
@@ -49,35 +57,35 @@ const BudgeDashBoard = ({
     const isBudgetSelected = !!data.budget_id;
 
     return (
-        <AdminLayout activeMenu="Budget Dashboard">
+        <AdminLayout activeMenu={t('budget_dashboard', 'Budget Dashboard')}>
             <Head>
-                <title>Budget Monitoring Dashboard</title>
+                <title>{t('budget_monitoring_dashboard', 'Budget Monitoring Dashboard')}</title>
 
             </Head>
 
             <div className="budget-dashboard-page">
                 <div className="page-header">
                     <div>
-                        <h1>Budget Monitoring Dashboard</h1>
+                        <h1>{t('budget_monitoring_dashboard', 'Budget Monitoring Dashboard')}</h1>
                         <p className="subtitle">
-                            Executive view of budget performance, variance, and alerts
+                            {t('subtitle', 'Executive view of budget performance, variance, and alerts')}
                         </p>
                     </div>
                     <div className="header-actions">
                         <button type="button" className="btn btn-outline" onClick={applyFilters} disabled={!isBudgetSelected}>
                             <span className="material-icons-outlined">refresh</span>
-                            Refresh
+                            {t('refresh', 'Refresh')}
                         </button>
                         <button type="button" className="btn btn-primary" disabled={!isBudgetSelected}>
                             <span className="material-icons-outlined">download</span>
-                            Export
+                            {t('export', 'Export')}
                         </button>
                     </div>
                 </div>
 
                 <form className="filter-panel" onSubmit={applyFilters}>
                     <div className="filter-group">
-                        <label>Budget <span className="text-red-500">*</span></label>
+                        <label>{t('budget', 'Budget')} <span className="text-red-500">*</span></label>
                         <select
                             value={data.budget_id}
                             onChange={(e) => {
@@ -88,46 +96,46 @@ const BudgeDashBoard = ({
                             }}
                             className="form-control"
                         >
-                            <option value="">Select Budget</option>
+                            <option value="">{t('select_budget', 'Select Budget')}</option>
                             {budgets.map((budget) => (
                                 <option key={budget.id} value={budget.id}>
-                                    {budget.budget_name_en} ({budget.fiscal_year})
+                                    {localization?.current_locale === 'ar' ? budget.budget_name_ar : budget.budget_name_en} ({budget.fiscal_year})
                                 </option>
                             ))}
                         </select>
                     </div>
                     <div className="filter-group">
-                        <label>Category</label>
+                        <label>{t('category', 'Category')}</label>
                         <select
                             value={data.category_id}
                             onChange={(e) => setData('category_id', e.target.value)}
                             disabled={!isBudgetSelected}
                             className="form-control"
                         >
-                            <option value="">All Categories</option>
+                            <option value="">{t('all_categories', 'All Categories')}</option>
                             {categories.map((category) => (
                                 <option key={category.id} value={category.id}>
-                                    {category.name_en}
+                                    {localization?.current_locale === 'ar' ? category.name_ar : category.name_en}
                                 </option>
                             ))}
                         </select>
                     </div>
                     <div className="filter-group">
-                        <label>Period Type</label>
+                        <label>{t('period_type', 'Period Type')}</label>
                         <select
                             value={data.period_type}
                             onChange={(e) => setData('period_type', e.target.value)}
                             disabled={!isBudgetSelected}
                             className="form-control"
                         >
-                            <option value="monthly">Monthly</option>
-                            <option value="year_to_date">Year To Date</option>
-                            <option value="full_year">Full Year</option>
+                            <option value="monthly">{t('monthly', 'Monthly')}</option>
+                            <option value="year_to_date">{t('year_to_date', 'Year To Date')}</option>
+                            <option value="full_year">{t('full_year', 'Full Year')}</option>
                         </select>
                     </div>
                     {(data.period_type === 'monthly' || data.period_type === 'year_to_date' || data.period_type === 'full_year') && (
                         <div className="filter-group">
-                            <label>Year</label>
+                            <label>{t('year', 'Year')}</label>
                             <input
                                 type="number"
                                 value={data.period_year}
@@ -139,25 +147,36 @@ const BudgeDashBoard = ({
                     )}
                     {data.period_type === 'monthly' && (
                         <div className="filter-group">
-                            <label>Month</label>
+                            <label>{t('month', 'Month')}</label>
                             <select
                                 value={data.period_month}
                                 onChange={(e) => setData('period_month', e.target.value)}
                                 disabled={!isBudgetSelected}
                                 className="form-control"
                             >
-                                {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
-                                    <option key={month} value={month}>
-                                        {new Date(0, month - 1).toLocaleString('default', {
-                                            month: 'long',
-                                        })}
+                                {[
+                                    { id: 1, key: 'january', fallback: 'January' },
+                                    { id: 2, key: 'february', fallback: 'February' },
+                                    { id: 3, key: 'march', fallback: 'March' },
+                                    { id: 4, key: 'april', fallback: 'April' },
+                                    { id: 5, key: 'may', fallback: 'May' },
+                                    { id: 6, key: 'june', fallback: 'June' },
+                                    { id: 7, key: 'july', fallback: 'July' },
+                                    { id: 8, key: 'august', fallback: 'August' },
+                                    { id: 9, key: 'september', fallback: 'September' },
+                                    { id: 10, key: 'october', fallback: 'October' },
+                                    { id: 11, key: 'november', fallback: 'November' },
+                                    { id: 12, key: 'december', fallback: 'December' },
+                                ].map((month) => (
+                                    <option key={month.id} value={month.id}>
+                                        {t(month.key, month.fallback)}
                                     </option>
                                 ))}
                             </select>
                         </div>
                     )}
                     <button type="submit" className="btn btn-primary apply-btn" disabled={processing || !isBudgetSelected}>
-                        {processing ? 'Loading...' : 'Apply Filters'}
+                        {processing ? t('loading', 'Loading...') : t('apply_filters', 'Apply Filters')}
                     </button>
                 </form>
 
@@ -167,9 +186,9 @@ const BudgeDashBoard = ({
                             analytics
                         </span>
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                            Please select a budget to load data
+                            {t('please_select_budget', 'Please select a budget to load data')}
                         </h2>
-                        <p>Select a budget from the filter bar above to view performance metrics.</p>
+                        <p>{t('select_budget_desc', 'Select a budget from the filter bar above to view performance metrics.')}</p>
                     </div>
                 ) : (
                     <div className={`transition-opacity duration-200 ${processing ? 'opacity-50 pointer-events-none' : ''}`}>
@@ -179,9 +198,9 @@ const BudgeDashBoard = ({
                                     <span className="material-icons-outlined">account_balance</span>
                                 </div>
                                 <div>
-                                    <div className="kpi-label">Total Budget</div>
+                                    <div className="kpi-label">{t('total_budget', 'Total Budget')}</div>
                                     <div className="kpi-value">{formatCurrency(kpis.total_budgeted)}</div>
-                                    <div className="kpi-subtext">{kpis.budget_items} items</div>
+                                    <div className="kpi-subtext">{kpis.budget_items} {t('items', 'items')}</div>
                                 </div>
                             </div>
                             <div className="kpi-card">
@@ -189,9 +208,9 @@ const BudgeDashBoard = ({
                                     <span className="material-icons-outlined">paid</span>
                                 </div>
                                 <div>
-                                    <div className="kpi-label">Actual Spent</div>
+                                    <div className="kpi-label">{t('actual_spent', 'Actual Spent')}</div>
                                     <div className="kpi-value">{formatCurrency(kpis.total_actual)}</div>
-                                    <div className="kpi-subtext">Utilization {utilization.toFixed(1)}%</div>
+                                    <div className="kpi-subtext">{t('utilization', 'Utilization')} {utilization.toFixed(1)}%</div>
                                 </div>
                             </div>
                             <div className="kpi-card">
@@ -199,9 +218,9 @@ const BudgeDashBoard = ({
                                     <span className="material-icons-outlined">savings</span>
                                 </div>
                                 <div>
-                                    <div className="kpi-label">Remaining</div>
+                                    <div className="kpi-label">{t('remaining', 'Remaining')}</div>
                                     <div className="kpi-value">{formatCurrency(kpis.total_available)}</div>
-                                    <div className="kpi-subtext">{kpis.categories} categories</div>
+                                    <div className="kpi-subtext">{kpis.categories} {t('categories', 'categories')}</div>
                                 </div>
                             </div>
                             <div className="kpi-card">
@@ -209,9 +228,9 @@ const BudgeDashBoard = ({
                                     <span className="material-icons-outlined">pie_chart</span>
                                 </div>
                                 <div>
-                                    <div className="kpi-label">Utilization %</div>
+                                    <div className="kpi-label">{t('utilization_percent', 'Utilization %')}</div>
                                     <div className="kpi-value">{utilization.toFixed(1)}%</div>
-                                    <div className="kpi-subtext">of total budget</div>
+                                    <div className="kpi-subtext">{t('of_total_budget', 'of total budget')}</div>
                                 </div>
                             </div>
                         </div>
@@ -219,10 +238,10 @@ const BudgeDashBoard = ({
                         <div className="dashboard-grid">
                             <div className="card chart-card">
                                 <div className="card-header">
-                                    <h2>Budget vs Actual Trend</h2>
+                                    <h2>{t('budget_vs_actual_trend', 'Budget vs Actual Trend')}</h2>
                                     <div className="legend">
-                                        <span className="legend-item budget">Budget</span>
-                                        <span className="legend-item actual">Actual</span>
+                                        <span className="legend-item budget">{t('legend_budget', 'Budget')}</span>
+                                        <span className="legend-item actual">{t('legend_actual', 'Actual')}</span>
                                     </div>
                                 </div>
                                 <div className="chart-container">
@@ -235,12 +254,12 @@ const BudgeDashBoard = ({
                                                     <div
                                                         className="bar budget"
                                                         style={{ height: `${budgetHeight}%` }}
-                                                        title={`Budget: ${formatCurrency(row.budgeted)}`}
+                                                        title={`${t('legend_budget', 'Budget')}: ${formatCurrency(row.budgeted)}`}
                                                     />
                                                     <div
                                                         className="bar actual"
                                                         style={{ height: `${actualHeight}%` }}
-                                                        title={`Actual: ${formatCurrency(row.actual)}`}
+                                                        title={`${t('legend_actual', 'Actual')}: ${formatCurrency(row.actual)}`}
                                                     />
                                                 </div>
                                                 <div className="label">{row.label}</div>
@@ -252,8 +271,8 @@ const BudgeDashBoard = ({
 
                             <div className="card category-card">
                                 <div className="card-header">
-                                    <h2>Actual by Category</h2>
-                                    <span className="subtitle">Top spending categories</span>
+                                    <h2>{t('actual_by_category', 'Actual by Category')}</h2>
+                                    <span className="subtitle">{t('top_spending_categories', 'Top spending categories')}</span>
                                 </div>
                                 <div className="category-list">
                                     {topCategories.map((row) => {
@@ -262,7 +281,9 @@ const BudgeDashBoard = ({
                                             : 0;
                                         return (
                                             <div key={row.category_id} className="category-row">
-                                                <div className="category-name">{row.category_name}</div>
+                                                <div className="category-name">
+                                                    {localization?.current_locale === 'ar' ? row.category_name_ar : row.category_name_en}
+                                                </div>
                                                 <div className="category-values">
                                                     <span className="actual-value">
                                                         {formatCurrency(row.actual)}
@@ -281,7 +302,7 @@ const BudgeDashBoard = ({
                                         );
                                     })}
                                     {topCategories.length === 0 && (
-                                        <div className="empty-state">No data available</div>
+                                        <div className="empty-state">{t('no_data_available', 'No data available')}</div>
                                     )}
                                 </div>
                             </div>
@@ -289,27 +310,27 @@ const BudgeDashBoard = ({
 
                         <div className="card items-table-card">
                             <div className="card-header">
-                                <h2>Budget Items Detail</h2>
-                                <span className="subtitle">Detailed breakdown by Category and Account</span>
+                                <h2>{t('budget_items_detail', 'Budget Items Detail')}</h2>
+                                <span className="subtitle">{t('detailed_breakdown', 'Detailed breakdown by Category and Account')}</span>
                             </div>
                             <div className="table-wrapper">
                                 <table className="items-table">
                                     <thead>
                                         <tr>
-                                            <th>Category</th>
-                                            <th>Account</th>
-                                            <th className="text-right">Budget Amount</th>
-                                            <th className="text-right">Actual Amount</th>
-                                            <th className="text-right">Variance</th>
-                                            <th className="text-right">Utilization %</th>
-                                            <th className="text-center">Status</th>
+                                            <th>{t('category', 'Category')}</th>
+                                            <th>{t('account', 'Account')}</th>
+                                            <th className="text-right">{t('budget_amount', 'Budget Amount')}</th>
+                                            <th className="text-right">{t('actual_amount', 'Actual Amount')}</th>
+                                            <th className="text-right">{t('variance', 'Variance')}</th>
+                                            <th className="text-right">{t('utilization_percent', 'Utilization %')}</th>
+                                            <th className="text-center">{t('status', 'Status')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {budgetItemsTable.map((row) => (
                                             <tr key={row.id}>
-                                                <td>{row.category_name}</td>
-                                                <td>{row.account_name}</td>
+                                                <td>{localization?.current_locale === 'ar' ? row.category_name_ar : row.category_name_en}</td>
+                                                <td>{localization?.current_locale === 'ar' ? row.account_name_ar : row.account_name_en}</td>
                                                 <td className="text-right">
                                                     {row.account_dm_type === 1
                                                         ? formatCurrency(-Math.abs(row.budgeted))
@@ -330,7 +351,7 @@ const BudgeDashBoard = ({
                                                 </td>
                                                 <td className="text-center">
                                                     <span className={`status-pill ${row.variance_status}`}>
-                                                        {row.variance_status === 'unfavorable' ? 'Over Budget' : 'Within Budget'}
+                                                        {row.variance_status === 'unfavorable' ? t('over_budget', 'Over Budget') : t('within_budget', 'Within Budget')}
                                                     </span>
                                                 </td>
                                             </tr>
@@ -338,7 +359,7 @@ const BudgeDashBoard = ({
                                         {budgetItemsTable.length === 0 && (
                                             <tr>
                                                 <td colSpan="7" className="text-center py-4">
-                                                    No budget items found for the selected criteria.
+                                                    {t('no_items_found', 'No budget items found for the selected criteria.')}
                                                 </td>
                                             </tr>
                                         )}

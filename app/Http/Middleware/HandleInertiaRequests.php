@@ -37,7 +37,7 @@ class HandleInertiaRequests extends Middleware
                 ->toArray();
 
             $fileTranslations = [];
-            $files = ['home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth' ,'verify_email','confirm','reset_password'];
+            $files = ['home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth' ,'verify_email','confirm','reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'FinancialReports', 'TrialBalance', 'Journal'];
 
             foreach ($files as $file) {
                 $path = lang_path("$locale/$file.php");
@@ -92,7 +92,7 @@ class HandleInertiaRequests extends Middleware
             'localization' => [
                 'current_country' => config('app.country'),
                 'current_locale' => app()->getLocale(),
-                'is_rtl' => false,
+                'is_rtl' => app()->getLocale() === 'ar',
                 'country_code' => session('country_code'),
                 'currency_code' => session('currency_code'),
                 'active_languages' => Cache::remember(

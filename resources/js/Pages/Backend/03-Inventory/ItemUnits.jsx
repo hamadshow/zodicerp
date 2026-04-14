@@ -113,6 +113,15 @@ const ItemUnitItem = ({ unit, treeVersion, level = 0, selectedId, onSelect, onDe
 const ItemUnits = ({ units = [], parents = [] }) => {
     const { props } = usePage();
     const { localization } = props;
+    const translations = localization?.translations || {};
+
+    const __ = (key, replacements = {}) => {
+        let text = translations[`ItemUnits.${key}`] || key;
+        Object.keys(replacements).forEach(r => {
+            text = text.replace(`:${r}`, replacements[r]);
+        });
+        return text;
+    };
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -245,7 +254,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this unit?')) {
+        if (window.confirm(__('delete_confirm'))) {
             router.delete(getLocalizedRoute('admin.inventory.item-units.destroy', { item_unit: id }), {
                 onSuccess: () => {
                     if (selectedUnit?.id === id) {
@@ -365,11 +374,11 @@ const ItemUnits = ({ units = [], parents = [] }) => {
             };
 
             // Client-side Validation
-            if (!item.name) item._errors.push('Name is required');
+            if (!item.name) item._errors.push(__('name_required'));
             
             // Check duplicates in current batch
             if (valid.find(v => v.name === item.name && item.name)) {
-                item._errors.push('Duplicate Name in file');
+                item._errors.push(__('duplicate_name'));
             }
 
             if (item._errors.length > 0) {
@@ -447,11 +456,11 @@ const ItemUnits = ({ units = [], parents = [] }) => {
     const handleExportExcel = () => {
         try {
             const dataToExport = units.map(unit => ({
-                'Name': unit.name,
-                'Unit Type': unit.unit_type === 1 ? 'Main' : 'Sub',
-                'Base Unit': unit.base_unit_name || (unit.base_unit ? parents.find(p => p.id === unit.base_unit)?.name : ''),
-                'Conversion Factor': unit.conversion_factor || 1,
-                'Active': unit.active ? 'Yes' : 'No'
+                [__('unit_name')]: unit.name,
+                [__('unit_type')]: unit.unit_type === 1 ? __('main_unit') : __('sub_unit'),
+                [__('base_unit')]: unit.base_unit_name || (unit.base_unit ? parents.find(p => p.id === unit.base_unit)?.name : ''),
+                [__('conversion_factor')]: unit.conversion_factor || 1,
+                [__('active')]: unit.active ? __('yes') : __('no')
             }));
 
             const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -468,10 +477,10 @@ const ItemUnits = ({ units = [], parents = [] }) => {
             worksheet['!cols'] = wscols;
 
             XLSX.writeFile(workbook, `ItemUnits_${new Date().toISOString().split('T')[0]}.xlsx`);
-            toast.success('تم تصدير البيانات بنجاح');
+            toast.success(localization?.current_locale === 'ar' ? 'تم تصدير البيانات بنجاح' : 'Data exported successfully');
         } catch (err) {
             console.error('Export failed:', err);
-            toast.error('فشل عملية التصدير');
+            toast.error(localization?.current_locale === 'ar' ? 'فشل عملية التصدير' : 'Export failed');
         }
     };
 
@@ -482,7 +491,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
             <div className="modal-overlay active" onClick={() => !importLoading && setShowImport(false)}>
                 <div className="modal import-modal" onClick={e => e.stopPropagation()}>
                     <div className="modal-header">
-                        <h3 className="modal-title">Import Item Units from Excel</h3>
+                        <h3 className="modal-title">{__('import_title')}</h3>
                         <button className="modal-close" onClick={() => setShowImport(false)}>&times;</button>
                     </div>
 
@@ -502,20 +511,20 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                                     style={{ display: 'none' }}
                                 />
                                 <i className="material-icons-outlined" style={{ fontSize: '48px', color: '#3b82f6' }}>cloud_upload</i>
-                                <p>Click to upload or drag and drop</p>
-                                <span>Excel files only (.xlsx, .xls)</span>
+                                <p>{__('click_to_upload')}</p>
+                                <span>{__('excel_only')}</span>
                                 <button className="btn-template" onClick={(e) => { e.stopPropagation(); downloadTemplate(); }}>
-                                    Download Template
+                                    {__('download_template')}
                                 </button>
                             </div>
                         ) : (
                             <div className="import-preview-container">
                                 <div className="preview-stats">
-                                    <span className="stat-badge total">Total: {importSummary.total}</span>
-                                    <span className="stat-badge valid">Valid: {importSummary.valid}</span>
-                                    <span className="stat-badge invalid">Invalid: {importSummary.invalid}</span>
+                                    <span className="stat-badge total">{__('total')}: {importSummary.total}</span>
+                                    <span className="stat-badge valid">{__('valid')}: {importSummary.valid}</span>
+                                    <span className="stat-badge invalid">{__('invalid')}: {importSummary.invalid}</span>
                                     <button className="btn-reset" onClick={() => { setExcelRows([]); setInvalidRows([]); }}>
-                                        Upload Different File
+                                        {__('upload_different_file')}
                                     </button>
                                 </div>
 
@@ -527,22 +536,22 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                                                 style={{ width: `${importProgress}%` }}
                                             ></div>
                                         </div>
-                                        <div className="progress-text">جاري الاستيراد: {importProgress}%</div>
+                                        <div className="progress-text">{__('import_progress', { progress: importProgress })}</div>
                                     </div>
                                 )}
 
                                 <div className="import-tables">
                                     {excelRows.length > 0 && (
                                         <div className="import-section">
-                                            <h4>Valid Rows ({excelRows.length})</h4>
+                                            <h4>{__('valid_rows', { count: excelRows.length })}</h4>
                                             <div className="table-responsive">
                                                 <table className="data-table preview-table">
                                                     <thead>
                                                         <tr>
-                                                            <th>Name</th>
-                                                            <th>Type</th>
-                                                            <th>Base Unit</th>
-                                                            <th>Factor</th>
+                                                            <th>{__('unit_name')}</th>
+                                                            <th>{__('unit_type')}</th>
+                                                            <th>{__('base_unit')}</th>
+                                                            <th>{__('conversion_factor')}</th>
                                                             <th></th>
                                                         </tr>
                                                     </thead>
@@ -550,7 +559,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                                                         {excelRows.map((row, idx) => (
                                                             <tr key={idx}>
                                                                 <td>{row.name}</td>
-                                                                <td>{row.unit_type === '1' ? 'Main' : 'Sub'}</td>
+                                                                <td>{row.unit_type === '1' ? __('main_unit') : __('sub_unit')}</td>
                                                                 <td>{row.base_unit_name || '-'}</td>
                                                                 <td>{row.conversion_factor}</td>
                                                                 <td>
@@ -566,13 +575,13 @@ const ItemUnits = ({ units = [], parents = [] }) => {
 
                                     {invalidRows.length > 0 && (
                                         <div className="import-section invalid">
-                                            <h4>Invalid Rows ({invalidRows.length})</h4>
+                                            <h4>{__('invalid_rows', { count: invalidRows.length })}</h4>
                                             <div className="table-responsive">
                                                 <table className="data-table preview-table">
                                                     <thead>
                                                         <tr>
-                                                            <th>Name</th>
-                                                            <th>Errors</th>
+                                                            <th>{__('unit_name')}</th>
+                                                            <th>{__('errors')}</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -602,26 +611,26 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                         )}
 
                         <div className="import-instructions">
-                            <h4>Instructions:</h4>
+                            <h4>{__('instructions')}</h4>
                             <ul>
-                                <li>Download the template to ensure correct column mapping.</li>
-                                <li><b>name:</b> Required.</li>
-                                <li><b>unit_type:</b> 1 for Main Unit, 2 for Sub Unit.</li>
-                                <li><b>base_unit_name:</b> Required for Sub Units. Must match an existing unit name.</li>
-                                <li><b>conversion_factor:</b> Required for Sub Units (e.g., 1000 for Grams to Kilograms).</li>
-                                <li><b>active:</b> 1 for yes, 0 for no.</li>
+                                <li>{__('instruction_template')}</li>
+                                <li><b>{__('instruction_name')}</b></li>
+                                <li><b>{__('instruction_unit_type')}</b></li>
+                                <li><b>{__('instruction_base_unit')}</b></li>
+                                <li><b>{__('instruction_factor')}</b></li>
+                                <li><b>{__('instruction_active')}</b></li>
                             </ul>
                         </div>
                     </div>
 
                     <div className="modal-actions">
-                        <button className="btn-cancel" onClick={() => setShowImport(false)}>Cancel</button>
+                        <button className="btn-cancel" onClick={() => setShowImport(false)}>{__('cancel')}</button>
                         <button 
                             className="btn-primary" 
                             onClick={submitImport}
                             disabled={excelRows.length === 0 || importLoading}
                         >
-                            {importLoading ? 'Importing...' : `Import ${excelRows.length} Item Units`}
+                            {importLoading ? __('importing') : __('import_button', { count: excelRows.length })}
                         </button>
                     </div>
                 </div>
@@ -631,7 +640,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
 
     return (
         <AdminLayout activeMenu="Inventory">
-            <Head title="Units Management" />
+            <Head title={__('title')} />
             <ToastContainer position="top-right" autoClose={3000} />
             {renderImportModal()}
 
@@ -642,7 +651,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                         onClick={() => setShowExcelMenu(!showExcelMenu)}
                     >
                         <i className="material-icons-outlined">grid_on</i>
-                        <span>Excel</span>
+                        <span>{__('excel')}</span>
                         <i className="material-icons-outlined">expand_more</i>
                     </button>
                     
@@ -650,15 +659,15 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                         <div className="excel-dropdown-menu">
                             <button className="excel-menu-item" onClick={() => { setShowExcelMenu(false); setShowImport(true); }}>
                                 <i className="material-icons-outlined">upload</i>
-                                <span>Import from Excel</span>
+                                <span>{__('import_from_excel')}</span>
                             </button>
                             <button className="excel-menu-item" onClick={() => { setShowExcelMenu(false); handleExportExcel(); }}>
                                 <i className="material-icons-outlined">download</i>
-                                <span>Export to Excel</span>
+                                <span>{__('export_to_excel')}</span>
                             </button>
                             <button className="excel-menu-item" onClick={() => { setShowExcelMenu(false); downloadTemplate(); }}>
                                 <i className="material-icons-outlined">description</i>
-                                <span>Download Template</span>
+                                <span>{__('download_template')}</span>
                             </button>
                         </div>
                     )}
@@ -671,10 +680,10 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                     <div className="tree-panel-header">
                         <button className="btn btn-primary" onClick={handleCreateNew} style={{ width: '100%', justifyContent: 'center', marginBottom: '12px' }}>
                             <span className="material-icons-outlined">add</span>
-                            Create
+                            {__('create_new')}
                         </button>
                         <p className="instruction-text">
-                            Drag and drop on the left to change hierarchy. Main units have no parent.
+                            {__('instruction_drag_drop')}
                         </p>
                     </div>
 
@@ -696,7 +705,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                             />
                         ))}
                         {unitTree.length === 0 && (
-                            <div className="empty-tree">No units found.</div>
+                            <div className="empty-tree">{__('no_units_found')}</div>
                         )}
                     </div>
                 </div>
@@ -705,19 +714,19 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                 <div className="categories-main">
                     <div className="editor-card">
                         <div className="editor-header">
-                            <h2>{isCreating ? 'Create New Unit' : 'Edit Unit'}</h2>
+                            <h2>{isCreating ? __('create_new_unit') : __('edit_unit')}</h2>
                         </div>
                         
                         <form className="editor-form" onSubmit={(e) => handleSubmit(e, false)}>
                             {/* Name */}
                             <div className="form-group">
-                                <label>Name</label>
+                                <label>{__('unit_name')}</label>
                                 <input 
                                     type="text" 
                                     className="form-control" 
                                     value={data.name}
                                     onChange={e => setData('name', e.target.value)}
-                                    placeholder="Unit Name (e.g., Kilogram, Box)"
+                                    placeholder={__('unit_name')}
                                     required
                                 />
                                 {errors.name && <div className="error-text">{errors.name}</div>}
@@ -726,7 +735,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                             {/* Unit Type & Parent */}
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label>Unit Type</label>
+                                    <label>{__('unit_type')}</label>
                                     <select 
                                         className="form-control"
                                         value={data.unit_type}
@@ -740,21 +749,21 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                                             }));
                                         }}
                                     >
-                                        <option value={1}>Main Unit</option>
-                                        <option value={2}>Sub Unit</option>
+                                        <option value={1}>{__('main_unit')}</option>
+                                        <option value={2}>{__('sub_unit')}</option>
                                     </select>
                                     {errors.unit_type && <div className="error-text">{errors.unit_type}</div>}
                                 </div>
 
                                 <div className="form-group">
-                                    <label>Base Unit (Parent)</label>
+                                    <label>{__('base_unit')}</label>
                                     <select 
                                         className="form-control"
                                         value={data.base_unit}
                                         onChange={e => setData('base_unit', e.target.value)}
                                         disabled={data.unit_type === 1}
                                     >
-                                        <option value="">None (Top Level)</option>
+                                        <option value="">{__('none_top_level')}</option>
                                         {parents.map(parent => (
                                             (selectedUnit?.id !== parent.id) && (
                                                 <option key={parent.id} value={parent.id}>{parent.name}</option>
@@ -767,21 +776,21 @@ const ItemUnits = ({ units = [], parents = [] }) => {
 
                             {/* Conversion Factor */}
                             <div className="form-group">
-                                <label>Conversion Factor</label>
+                                <label>{__('conversion_factor')}</label>
                                 <input 
                                     type="number" 
                                     step="0.0001"
                                     className="form-control"
                                     value={data.conversion_factor}
                                     onChange={e => setData('conversion_factor', e.target.value)}
-                                    placeholder="e.g. 1000 for Kg to Gram"
+                                    placeholder={__('conversion_factor')}
                                     disabled={data.unit_type === 1} // Main units are always 1
                                     required
                                 />
                                 <small className="helper-text">
                                     {data.unit_type === 1 
-                                        ? "Main units always have a factor of 1." 
-                                        : "How many of this unit make 1 Base Unit? (e.g. 1000 Grams = 1 Kg)"}
+                                        ? __('conversion_factor_helper_main')
+                                        : __('conversion_factor_helper_sub')}
                                 </small>
                                 {errors.conversion_factor && <div className="error-text">{errors.conversion_factor}</div>}
                             </div>
@@ -797,14 +806,14 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                                         />
                                         <span className="slider round"></span>
                                     </label>
-                                    <span className="toggle-label">Active</span>
+                                    <span className="toggle-label">{__('active')}</span>
                                 </div>
                             </div>
 
                             {/* Actions */}
                             <div className="form-actions">
                                 <button type="submit" className="btn btn-primary" disabled={processing}>
-                                    {processing ? 'Saving...' : 'Save'}
+                                    {processing ? __('saving') : __('save')}
                                 </button>
                                 <button 
                                     type="button" 
@@ -812,7 +821,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                                     onClick={(e) => handleSubmit(e, true)}
                                     disabled={processing}
                                 >
-                                    Save & Exit
+                                    {__('save_and_exit')}
                                 </button>
                             </div>
                         </form>

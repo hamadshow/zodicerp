@@ -18,6 +18,12 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
     const { props } = usePage();
     const localization = props.localization;
+    const translations = localization?.translations || {};
+    console.log('Suppliers translations:', translations);
+
+    const t = (key, fallback) => {
+        return translations[`Suppliers.${key}`] || fallback;
+    };
 
     // Import System State
     const [showImport, setShowImport] = useState(false);
@@ -188,9 +194,9 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
     };
 
     const handleDelete = (id) => {
-        if (confirm('Are you sure you want to delete this supplier?')) {
+        if (confirm(t('delete_confirm', 'Are you sure you want to delete this supplier?'))) {
             destroy(getLocalizedRoute('admin.purchases.suppliers.destroy', { supplier: id }), {
-                onError: () => setErrorMessage("Failed to delete supplier.")
+                onError: () => setErrorMessage(t('failed_delete', 'Failed to delete supplier.'))
             });
         }
     };
@@ -199,7 +205,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         router.post(getLocalizedRoute('admin.purchases.suppliers.toggleFavorite', { supplier: supplier.id }), {}, {
             preserveScroll: true,
             preserveState: true,
-            onError: () => setErrorMessage("Failed to update favorite status.")
+            onError: () => setErrorMessage(t('failed_favorite', "Failed to update favorite status."))
         });
     };
 
@@ -208,7 +214,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
         setErrorMessage(null); // Clear previous errors
         
         const handleError = (errors) => {
-            setErrorMessage("Please correct the errors below.");
+            setErrorMessage(t('correct_errors', "Please correct the errors below."));
             if (Object.keys(errors).some(k => k.startsWith('addresses'))) setActiveTab('addresses');
             else if (Object.keys(errors).some(k => k.startsWith('contacts'))) setActiveTab('contacts');
             else if (Object.keys(errors).some(k => k.startsWith('opening_balance'))) setActiveTab('opening_balance');
@@ -460,7 +466,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
             <div className="modal-overlay active" onClick={() => !importLoading && setShowImport(false)}>
                 <div className="modal import-modal" onClick={e => e.stopPropagation()}>
                     <div className="modal-header">
-                        <h3 className="modal-title">Import Suppliers from Excel</h3>
+                        <h3 className="modal-title">{t('import_excel_title', 'Import Suppliers from Excel')}</h3>
                         <button className="modal-close" onClick={() => setShowImport(false)}>
                             <span className="material-icons-outlined">close</span>
                         </button>
@@ -482,127 +488,103 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     style={{ display: 'none' }}
                                 />
                                 <span className="material-icons-outlined" style={{ fontSize: '48px', color: '#3b82f6', marginBottom: '10px' }}>cloud_upload</span>
-                                <p>Click to upload or drag and drop</p>
-                                <span>Excel files only (.xlsx, .xls)</span>
+                                <p>{t('click_to_upload', 'Click to upload or drag and drop')}</p>
+                                <span>{t('excel_only', 'Excel files only (.xlsx, .xls)')}</span>
                                 <button className="btn-template" onClick={(e) => { e.stopPropagation(); downloadTemplate(); }}>
-                                    <span className="material-icons-outlined" style={{ verticalAlign: 'middle', marginRight: '5px' }}>download</span>
-                                    Download Template
+                                    <span className="material-icons-outlined" style={{ verticalAlign: 'middle', [localization?.is_rtl ? 'marginLeft' : 'marginRight']: '5px' }}>download</span>
+                                    {t('download_template', 'Download Template')}
                                 </button>
                             </div>
                         ) : (
                             <div className="import-preview-container">
                                 <div className="preview-stats">
-                                    <span className="stat-badge total">Total: {importSummary.total}</span>
-                                    <span className="stat-badge valid">Valid: {importSummary.valid}</span>
-                                    <span className="stat-badge invalid">Invalid: {importSummary.invalid}</span>
-                                    <button className="btn-reset" onClick={() => { setExcelRows([]); setInvalidRows([]); }}>
-                                        Upload Different File
-                                    </button>
+                                    <span className="stat-badge total">{t('total', 'Total')}: {importSummary.total}</span>
+                                    <span className="stat-badge valid">{t('valid', 'Valid')}: {importSummary.valid}</span>
+                                    <span className="stat-badge invalid">{t('invalid', 'Invalid')}: {importSummary.invalid}</span>
                                 </div>
 
                                 {importLoading && (
                                     <div className="progress-bar-container">
                                         <div className="progress-bar">
-                                            <div 
-                                                className="progress-bar__fill" 
-                                                style={{ width: `${importProgress}%` }}
-                                            ></div>
+                                            <div className="progress-bar__fill" style={{ width: `${importProgress}%` }}></div>
                                         </div>
-                                        <div className="progress-text">جاري الاستيراد: {importProgress}%</div>
+                                        <div className="progress-text">{t('importing', 'Importing')} {importProgress}%</div>
                                     </div>
                                 )}
 
-                                <div className="import-tables">
-                                    {excelRows.length > 0 && (
-                                        <div className="import-section">
-                                            <h4>Valid Rows ({excelRows.length})</h4>
-                                            <div className="table-responsive">
-                                                <table className="data-table preview-table">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Code</th>
-                                                            <th>Name</th>
-                                                            <th>Phone</th>
-                                                            <th>Email</th>
-                                                            <th></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {excelRows.map((row, idx) => (
-                                                            <tr key={idx}>
-                                                                <td>{row.supplier_code}</td>
-                                                                <td>{row.name_ar}</td>
-                                                                <td>{row.primary_phone || '-'}</td>
-                                                                <td>{row.email || '-'}</td>
-                                                                <td>
-                                                                    <button className="btn-icon delete" onClick={() => removeImportRow(idx)}>
-                                                                        <span className="material-icons-outlined">delete</span>
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    )}
+                                {importError && <div className="alert alert--error">{importError}</div>}
 
-                                    {invalidRows.length > 0 && (
-                                        <div className="import-section invalid">
-                                            <h4>Invalid Rows ({invalidRows.length})</h4>
-                                            <div className="table-responsive">
-                                                <table className="data-table preview-table">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Name</th>
-                                                            <th>Errors</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {invalidRows.map((row, idx) => (
-                                                            <tr key={idx} className="invalid-row">
-                                                                <td>{row.name_ar || '-'}</td>
-                                                                <td>
-                                                                    {row._errors.map((err, i) => (
-                                                                        <span key={i} className="row-error">{err}</span>
-                                                                    ))}
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-                                    )}
+                                <div className="import-section">
+                                    <h4>{t('ready_to_import', 'Ready to Import')}</h4>
+                                    <div className="table-container">
+                                        <table className="preview-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>{t('supplier_code', 'Code')}</th>
+                                                    <th>{t('name', 'Name')}</th>
+                                                    <th>{t('group', 'Group')}</th>
+                                                    <th>{t('actions', 'Action')}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {excelRows.map((row, idx) => (
+                                                    <tr key={idx}>
+                                                        <td>{row.supplier_code}</td>
+                                                        <td>{row.name_ar}</td>
+                                                        <td>{row.group_code}</td>
+                                                        <td>
+                                                            <button className="btn-remove" onClick={() => removeImportRow(idx)}>
+                                                                <span className="material-icons-outlined">delete</span>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
+
+                                {invalidRows.length > 0 && (
+                                    <div className="import-section invalid">
+                                        <h4>{t('invalid_rows', 'Invalid Rows')}</h4>
+                                        <div className="table-container">
+                                            <table className="preview-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>{t('name', 'Name')}</th>
+                                                        <th>{t('errors', 'Errors')}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {invalidRows.map((row, idx) => (
+                                                        <tr key={idx}>
+                                                            <td>{row.name_ar}</td>
+                                                            <td>
+                                                                {row._errors.map((err, eIdx) => (
+                                                                    <span key={eIdx} className="row-error">{err}</span>
+                                                                ))}
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
-
-                        {importError && (
-                            <div className="alert alert--error" style={{ marginTop: '20px' }}>
-                                {importError}
-                            </div>
-                        )}
-
-                        <div className="import-instructions">
-                            <h4>Instructions:</h4>
-                            <ul>
-                                <li>Download the template to ensure correct column mapping.</li>
-                                <li><b>name_ar:</b> Required.</li>
-                                <li><b>group_code:</b> Must match an existing supplier group code.</li>
-                                <li><b>is_active:</b> 1 for Active, 0 for Inactive.</li>
-                            </ul>
-                        </div>
                     </div>
 
                     <div className="modal-actions">
-                        <button className="btn-cancel" onClick={() => setShowImport(false)}>Cancel</button>
+                        <button className="btn-cancel" onClick={() => setShowImport(false)} disabled={importLoading}>
+                            {t('cancel', 'Cancel')}
+                        </button>
                         <button 
-                            className="btn-primary" 
-                            onClick={submitImport}
-                            disabled={excelRows.length === 0 || importLoading}
+                            className="btn-import" 
+                            onClick={submitImport} 
+                            disabled={importLoading || !excelRows.length}
                         >
-                            {importLoading ? 'Importing...' : `Import ${excelRows.length} Suppliers`}
+                            {importLoading ? t('importing', 'Importing...') : t('confirm_import', 'Confirm Import')}
                         </button>
                     </div>
                 </div>
@@ -612,7 +594,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
     return (
         <AdminLayout>
-            <Head title="Suppliers Management" />
+            <Head title={`${t('suppliers', 'Suppliers Management')} - ZodicERP`} />
             <ToastContainer position="top-right" autoClose={3000} />
             {renderImportModal()}
             
@@ -623,14 +605,14 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                             <button 
                                 className="btn-back" 
                                 onClick={() => setMode('list')}
-                                title="Back to List"
+                                title={t('back', 'Back to List')}
                             >
                                 <span className="material-icons-outlined mirror-rtl">arrow_back</span>
                             </button>
                         )}
                         <h1 className="header-title">
-                            {mode === 'list' ? 'Suppliers Management' : 
-                             mode === 'create' ? 'Add New Supplier' : 'Edit Supplier'}
+                            {mode === 'list' ? t('suppliers', 'Suppliers Management') : 
+                             mode === 'create' ? t('add_supplier', 'Add New Supplier') : t('edit_supplier', 'Edit Supplier')}
                         </h1>
                     </div>
                     {mode === 'list' && (
@@ -639,7 +621,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                 <input
                                     type="text"
                                     className="search-input"
-                                    placeholder="Search suppliers..."
+                                    placeholder={t('search_suppliers', 'Search suppliers...')}
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                 />
@@ -650,7 +632,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     onClick={() => setShowExcelMenu(!showExcelMenu)}
                                 >
                                     <span className="material-icons-outlined">table_view</span>
-                                    <span>Excel Options</span>
+                                    <span>{t('excel', 'Excel Options')}</span>
                                     <span className={`material-icons-outlined arrow ${showExcelMenu ? 'up' : ''}`}>expand_more</span>
                                 </button>
                                 {showExcelMenu && (
@@ -665,8 +647,8 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                         >
                                             <span className="material-icons-outlined">upload_file</span>
                                             <div className="item-content">
-                                                <span className="title">Import Excel</span>
-                                                <span className="desc">Upload bulk suppliers</span>
+                                                <span className="title">{t('import_excel', 'Import Excel')}</span>
+                                                <span className="desc">{t('import_desc', 'Upload bulk suppliers')}</span>
                                             </div>
                                         </button>
                                         <button
@@ -679,8 +661,8 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                         >
                                             <span className="material-icons-outlined">download</span>
                                             <div className="item-content">
-                                                <span className="title">Export Excel</span>
-                                                <span className="desc">Download all suppliers</span>
+                                                <span className="title">{t('export_excel', 'Export Excel')}</span>
+                                                <span className="desc">{t('export_desc', 'Download all suppliers')}</span>
                                             </div>
                                         </button>
                                     </div>
@@ -688,7 +670,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                             </div>
                             <button className="btn-add" onClick={handleCreate}>
                                 <span className="material-icons-outlined">person_add</span>
-                                <span>Add Supplier</span>
+                                <span>{t('add_supplier', 'Add Supplier')}</span>
                             </button>
                         </div>
                     )}
@@ -716,14 +698,14 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                             <table className="data-table">
                             <thead>
                                 <tr>
-                                    <th>Code</th>
-                                    <th>Name</th>
-                                    <th>Group</th>
-                                    <th>Phone</th>
-                                    <th>Email</th>
-                                    <th>Telegram</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
+                                    <th>{t('supplier_code', 'Code')}</th>
+                                    <th>{t('name', 'Name')}</th>
+                                    <th>{t('group', 'Group')}</th>
+                                    <th>{t('phone', 'Phone')}</th>
+                                    <th>{t('email', 'Email')}</th>
+                                    <th>{t('telegram', 'Telegram')}</th>
+                                    <th>{t('status', 'Status')}</th>
+                                    <th>{t('actions', 'Actions')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -755,7 +737,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                         </td>
                                         <td>
                                             <span className={`supplier-status ${supplier.is_active ? 'status-active' : 'status-inactive'}`}>
-                                                {supplier.is_active ? 'Active' : 'Inactive'}
+                                                {supplier.is_active ? t('active', 'Active') : t('inactive', 'Inactive')}
                                             </span>
                                         </td>
                                         <td>
@@ -763,16 +745,16 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                 <button 
                                                 className={`btn-favorite ${supplier.favorite ? 'active' : ''}`}
                                                 onClick={() => handleToggleFavorite(supplier)}
-                                                title={supplier.favorite ? "Unfavorite" : "Favorite"}
+                                                title={supplier.favorite ? t('unfavorite', "Unfavorite") : t('favorite', "Favorite")}
                                             >
                                                 <span className="material-icons-outlined">
                                                     {supplier.favorite ? 'star' : 'star_border'}
                                                 </span>
                                             </button>
-                                            <button className="btn-icon edit" onClick={() => handleEdit(supplier)} title="Edit">
+                                            <button className="btn-icon edit" onClick={() => handleEdit(supplier)} title={t('edit', 'Edit')}>
                                                 <span className="material-icons-outlined">edit</span>
                                             </button>
-                                            <button className="btn-icon delete" onClick={() => handleDelete(supplier.id)} title="Delete">
+                                            <button className="btn-icon delete" onClick={() => handleDelete(supplier.id)} title={t('delete', 'Delete')}>
                                                 <span className="material-icons-outlined">delete</span>
                                             </button>
                                             </div>
@@ -781,7 +763,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                 ))}
                                 {suppliers.data.length === 0 && (
                                     <tr>
-                                        <td colSpan="8" className="empty-state">No suppliers found.</td>
+                                        <td colSpan="8" className="empty-state">{t('no_suppliers_found', 'No suppliers found.')}</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -799,16 +781,16 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                 ) : (
                     <form onSubmit={handleSubmit} className="suppliers-card">
                         <div className="tabs">
-                            {['general', 'addresses', 'contacts', 'opening_balance'].map(tab => (
-                                <button
-                                    key={tab}
-                                    type="button"
-                                    className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-                                    onClick={() => setActiveTab(tab)}
-                                >
-                                    {tab.replace('_', ' ').toUpperCase()}
-                                </button>
-                            ))}
+                                {['general', 'addresses', 'contacts', 'opening_balance'].map(tab => (
+                                    <button
+                                        key={tab}
+                                        type="button"
+                                        className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+                                        onClick={() => setActiveTab(tab)}
+                                    >
+                                        {t(tab, tab.replace('_', ' ').toUpperCase())}
+                                    </button>
+                                ))}
                         </div>
 
                         {/* GENERAL TAB */}
@@ -816,7 +798,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                             <div className="form-row">
                                 {/* Supplier Code is auto-generated in backend */}
                                 <div className="form-group">
-                                    <label className="form-label">Name</label>
+                                    <label className="form-label">{t('name', 'Name')}</label>
                                     <input 
                                         type="text" 
                                         className={`form-control ${errors.name_ar ? 'is-invalid' : ''}`}
@@ -826,7 +808,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     {errors.name_ar && <span className="invalid-feedback">{errors.name_ar}</span>}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Store Name</label>
+                                    <label className="form-label">{t('store_name', 'Store Name')}</label>
                                     <input 
                                         type="text" 
                                         className={`form-control ${errors.store_name_json ? 'is-invalid' : ''}`}
@@ -839,9 +821,9 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label className="form-label">Group</label>
+                                    <label className="form-label">{t('group', 'Group')}</label>
                                     <select className={`form-control ${errors.supplier_group_id ? 'is-invalid' : ''}`} value={data.supplier_group_id} onChange={e => setData('supplier_group_id', e.target.value)}>
-                                        <option value="">Select Group</option>
+                                        <option value="">{t('select_group', 'Select Group')}</option>
                                         {groups.map(g => <option key={g.id} value={g.id}>{g.name_en}</option>)}
                                     </select>
                                     {errors.supplier_group_id && <span className="invalid-feedback">{errors.supplier_group_id}</span>}
@@ -850,22 +832,22 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label className="form-label">Currency</label>
+                                    <label className="form-label">{t('currency', 'Currency')}</label>
                                     <select className={`form-control ${errors.currency_id ? 'is-invalid' : ''}`} value={data.currency_id} onChange={e => setData('currency_id', e.target.value)}>
-                                        <option value="">Select Currency</option>
+                                        <option value="">{t('select_currency', 'Select Currency')}</option>
                                         {currencies.map(c => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
                                     </select>
                                     {errors.currency_id && <span className="invalid-feedback">{errors.currency_id}</span>}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Account</label>
+                                    <label className="form-label">{t('account', 'Account')}</label>
                                     <div className="select-dropdown" ref={accountDropdownRef}>
                                         <button
                                             type="button"
                                             className={`select-dropdown__button ${!data.account_id ? 'is-placeholder' : ''} ${errors.account_id ? 'is-invalid' : ''}`}
                                             onClick={() => setAccountOpen(prev => !prev)}
                                         >
-                                            <span>{selectedAccount ? selectedAccount.Name_en : 'Select Account'}</span>
+                                            <span>{selectedAccount ? selectedAccount.Name_en : t('select_account', 'Select Account')}</span>
                                             <span className="select-dropdown__chevron">▾</span>
                                         </button>
                                         {accountOpen && (
@@ -883,7 +865,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                         }
                                                     }}
                                                 >
-                                                    Select Account
+                                                    {t('select_account', 'Select Account')}
                                                 </div>
                                                 {accounts.map(a => (
                                                     <div
@@ -912,12 +894,12 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label className="form-label">Tax Number</label>
+                                    <label className="form-label">{t('tax_number', 'Tax Number')}</label>
                                     <input className={`form-control ${errors.tax_number ? 'is-invalid' : ''}`} type="text" value={data.tax_number} onChange={e => setData('tax_number', e.target.value)} />
                                     {errors.tax_number && <span className="invalid-feedback">{errors.tax_number}</span>}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Commercial Register</label>
+                                    <label className="form-label">{t('commercial_register', 'Commercial Register')}</label>
                                     <input className={`form-control ${errors.commercial_register ? 'is-invalid' : ''}`} type="text" value={data.commercial_register} onChange={e => setData('commercial_register', e.target.value)} />
                                     {errors.commercial_register && <span className="invalid-feedback">{errors.commercial_register}</span>}
                                 </div>
@@ -925,12 +907,12 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label className="form-label">Credit Limit</label>
+                                    <label className="form-label">{t('credit_limit', 'Credit Limit')}</label>
                                     <input className={`form-control ${errors.credit_limit ? 'is-invalid' : ''}`} type="number" value={data.credit_limit} onChange={e => setData('credit_limit', e.target.value)} />
                                     {errors.credit_limit && <span className="invalid-feedback">{errors.credit_limit}</span>}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Mobile</label>
+                                    <label className="form-label">{t('mobile', 'Mobile')}</label>
                                     <input className={`form-control ${errors.primary_phone ? 'is-invalid' : ''}`} type="text" value={data.primary_phone} onChange={e => setData('primary_phone', e.target.value)} />
                                     {errors.primary_phone && <span className="invalid-feedback">{errors.primary_phone}</span>}
                                 </div>
@@ -938,12 +920,12 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label className="form-label">Email</label>
+                                    <label className="form-label">{t('email', 'Email')}</label>
                                     <input className={`form-control ${errors.email ? 'is-invalid' : ''}`} type="email" value={data.email} onChange={e => setData('email', e.target.value)} />
                                     {errors.email && <span className="invalid-feedback">{errors.email}</span>}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Website</label>
+                                    <label className="form-label">{t('website', 'Website')}</label>
                                     <input className={`form-control ${errors.website ? 'is-invalid' : ''}`} type="text" value={data.website} onChange={e => setData('website', e.target.value)} />
                                     {errors.website && <span className="invalid-feedback">{errors.website}</span>}
                                 </div>
@@ -951,7 +933,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
 
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label className="form-label">Password</label>
+                                    <label className="form-label">{t('password', 'Password')}</label>
                                     <input
                                         type={showPassword ? 'text' : 'password'}
                                         className={`form-control ${errors.password ? 'is-invalid' : ''}`}
@@ -962,7 +944,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     {errors.password && <span className="invalid-feedback">{errors.password}</span>}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Confirm Password</label>
+                                    <label className="form-label">{t('confirm_password', 'Confirm Password')}</label>
                                     <input
                                         type={showPassword ? 'text' : 'password'}
                                         className={`form-control ${errors.password_confirmation ? 'is-invalid' : ''}`}
@@ -981,22 +963,22 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                         onChange={e => setShowPassword(e.target.checked)}
                                         id="show_password"
                                     />
-                                    <label className="form-label" htmlFor="show_password">Show Password</label>
+                                    <label className="form-label" htmlFor="show_password">{t('show_password', 'Show Password')}</label>
                                 </div>
                             </div>
 
                             <div className="checkbox-row">
                                 <div className="checkbox-group">
                                     <input type="checkbox" checked={data.is_active} onChange={e => setData('is_active', e.target.checked)} id="is_active" />
-                                    <label className="form-label" htmlFor="is_active">Is Active</label>
+                                    <label className="form-label" htmlFor="is_active">{t('is_active', 'Is Active')}</label>
                                 </div>
                                 <div className="checkbox-group">
                                     <input type="checkbox" checked={data.is_vendor} onChange={e => setData('is_vendor', e.target.checked)} id="is_vendor" />
-                                    <label className="form-label" htmlFor="is_vendor">Is Vendor</label>
+                                    <label className="form-label" htmlFor="is_vendor">{t('is_vendor', 'Is Vendor')}</label>
                                 </div>
                                 <div className="checkbox-group">
                                     <input type="checkbox" checked={data.is_manufacturer} onChange={e => setData('is_manufacturer', e.target.checked)} id="is_manufacturer" />
-                                    <label className="form-label" htmlFor="is_manufacturer">Is Manufacturer</label>
+                                    <label className="form-label" htmlFor="is_manufacturer">{t('is_manufacturer', 'Is Manufacturer')}</label>
                                 </div>
                             </div>
                         </div>
@@ -1005,32 +987,32 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                         <div className={`tab-content ${activeTab === 'addresses' ? 'active' : ''}`}>
                             <div className="form-group">
                                 <button type="button" className="btn-secondary" onClick={() => addNested('addresses', { address_type: '', address_name: '', street: '', city_id: '', country_id: '' })}>
-                                    + Add Address
+                                    + {t('add_address', 'Add Address')}
                                 </button>
                             </div>
                             <div>
                                 {data.addresses.map((address, index) => (
                                     <div key={index} className="nested-card">
                                         <div className="nested-card-header">
-                                            <h4 className="nested-card-title">Address #{index + 1}</h4>
-                                            <button type="button" className="btn-danger btn-sm" onClick={() => removeNested('addresses', index)}>Remove</button>
+                                            <h4 className="nested-card-title">{t('address', 'Address')} #{index + 1}</h4>
+                                            <button type="button" className="btn-danger btn-sm" onClick={() => removeNested('addresses', index)}>{t('remove', 'Remove')}</button>
                                         </div>
                                         <div className="form-row">
                                             <div className="form-group">
-                                                <label className="form-label">Type</label>
+                                                <label className="form-label">{t('type', 'Type')}</label>
                                                 <select 
                                                     className={`form-control ${getNestedError('addresses', index, 'address_type') ? 'is-invalid' : ''}`} 
                                                     value={address.address_type} 
                                                     onChange={e => updateNested('addresses', index, 'address_type', e.target.value)}
                                                 >
-                                                    <option value="">Select Type</option>
-                                                    <option value="billing">Billing</option>
-                                                    <option value="shipping">Shipping</option>
+                                                    <option value="">{t('select_type', 'Select Type')}</option>
+                                                    <option value="billing">{t('billing', 'Billing')}</option>
+                                                    <option value="shipping">{t('shipping', 'Shipping')}</option>
                                                 </select>
                                                 {getNestedError('addresses', index, 'address_type') && <span className="invalid-feedback">{getNestedError('addresses', index, 'address_type')}</span>}
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Name</label>
+                                                <label className="form-label">{t('name', 'Name')}</label>
                                                 <input 
                                                     className={`form-control ${getNestedError('addresses', index, 'address_name') ? 'is-invalid' : ''}`} 
                                                     type="text" 
@@ -1040,7 +1022,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                 {getNestedError('addresses', index, 'address_name') && <span className="invalid-feedback">{getNestedError('addresses', index, 'address_name')}</span>}
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Street</label>
+                                                <label className="form-label">{t('street', 'Street')}</label>
                                                 <input 
                                                     className={`form-control ${getNestedError('addresses', index, 'street') ? 'is-invalid' : ''}`} 
                                                     type="text" 
@@ -1052,27 +1034,27 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                         </div>
                                         <div className="form-row">
                                             <div className="form-group">
-                                                <label className="form-label">Country</label>
+                                                <label className="form-label">{t('country', 'Country')}</label>
                                                 <select 
                                                     className={`form-control ${getNestedError('addresses', index, 'country_id') ? 'is-invalid' : ''}`} 
                                                     value={address.country_id} 
                                                     onChange={e => updateNested('addresses', index, 'country_id', e.target.value)}
                                                 >
-                                                    <option value="">Select Country</option>
-                                                    {countries.map(c => <option key={c.id} value={c.id}>{c.name_en}</option>)}
+                                                    <option value="">{t('select_country', 'Select Country')}</option>
+                                                    {countries.map(c => <option key={c.id} value={c.id}>{localization?.current_locale === 'ar' ? c.name_ar : c.name_en}</option>)}
                                                 </select>
                                                 {getNestedError('addresses', index, 'country_id') && <span className="invalid-feedback">{getNestedError('addresses', index, 'country_id')}</span>}
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">City</label>
+                                                <label className="form-label">{t('city', 'City')}</label>
                                                 <select 
                                                     className={`form-control ${getNestedError('addresses', index, 'city_id') ? 'is-invalid' : ''}`} 
                                                     value={address.city_id} 
                                                     onChange={e => updateNested('addresses', index, 'city_id', e.target.value)}
                                                 >
-                                                    <option value="">Select City</option>
+                                                    <option value="">{t('select_city', 'Select City')}</option>
                                                     {cities.filter(c => !address.country_id || c.country_id == address.country_id).map(c => (
-                                                        <option key={c.id} value={c.id}>{c.name_en}</option>
+                                                        <option key={c.id} value={c.id}>{localization?.current_locale === 'ar' ? c.name_ar : c.name_en}</option>
                                                     ))}
                                                 </select>
                                                 {getNestedError('addresses', index, 'city_id') && <span className="invalid-feedback">{getNestedError('addresses', index, 'city_id')}</span>}
@@ -1091,19 +1073,19 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     department: '', position_ar: '', position_en: '', 
                                     is_primary: false, receive_statements: false, receive_notifications: false, notes: '' 
                                 })}>
-                                    + Add Contact
+                                    + {t('add_contact', 'Add Contact')}
                                 </button>
                             </div>
                             <div>
                                 {data.contacts.map((contact, index) => (
                                     <div key={index} className="nested-card">
                                         <div className="nested-card-header">
-                                            <h4 className="nested-card-title">Contact #{index + 1}</h4>
-                                            <button type="button" className="btn-danger btn-sm" onClick={() => removeNested('contacts', index)}>Remove</button>
+                                            <h4 className="nested-card-title">{t('contact', 'Contact')} #{index + 1}</h4>
+                                            <button type="button" className="btn-danger btn-sm" onClick={() => removeNested('contacts', index)}>{t('remove', 'Remove')}</button>
                                         </div>
                                         <div className="form-row">
                                             <div className="form-group">
-                                                <label className="form-label">Name (AR) <span className="required">*</span></label>
+                                                <label className="form-label">{t('name_ar', 'Name (AR)')} <span className="required">*</span></label>
                                                 <input 
                                                     className={`form-control ${getNestedError('contacts', index, 'name_ar') ? 'is-invalid' : ''}`} 
                                                     type="text" 
@@ -1113,7 +1095,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                 {getNestedError('contacts', index, 'name_ar') && <span className="invalid-feedback">{getNestedError('contacts', index, 'name_ar')}</span>}
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Name (EN)</label>
+                                                <label className="form-label">{t('name_en', 'Name (EN)')}</label>
                                                 <input 
                                                     className={`form-control ${getNestedError('contacts', index, 'name_en') ? 'is-invalid' : ''}`} 
                                                     type="text" 
@@ -1123,7 +1105,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                 {getNestedError('contacts', index, 'name_en') && <span className="invalid-feedback">{getNestedError('contacts', index, 'name_en')}</span>}
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Department</label>
+                                                <label className="form-label">{t('department', 'Department')}</label>
                                                 <input 
                                                     className={`form-control ${getNestedError('contacts', index, 'department') ? 'is-invalid' : ''}`} 
                                                     type="text" 
@@ -1135,7 +1117,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                         </div>
                                         <div className="form-row">
                                             <div className="form-group">
-                                                <label className="form-label">Position (AR)</label>
+                                                <label className="form-label">{t('position_ar', 'Position (AR)')}</label>
                                                 <input 
                                                     className={`form-control ${getNestedError('contacts', index, 'position_ar') ? 'is-invalid' : ''}`} 
                                                     type="text" 
@@ -1145,7 +1127,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                 {getNestedError('contacts', index, 'position_ar') && <span className="invalid-feedback">{getNestedError('contacts', index, 'position_ar')}</span>}
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Position (EN)</label>
+                                                <label className="form-label">{t('position_en', 'Position (EN)')}</label>
                                                 <input 
                                                     className={`form-control ${getNestedError('contacts', index, 'position_en') ? 'is-invalid' : ''}`} 
                                                     type="text" 
@@ -1155,7 +1137,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                 {getNestedError('contacts', index, 'position_en') && <span className="invalid-feedback">{getNestedError('contacts', index, 'position_en')}</span>}
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Phone</label>
+                                                <label className="form-label">{t('phone', 'Phone')}</label>
                                                 <input 
                                                     className={`form-control ${getNestedError('contacts', index, 'phone') ? 'is-invalid' : ''}`} 
                                                     type="text" 
@@ -1167,7 +1149,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                         </div>
                                         <div className="form-row">
                                             <div className="form-group">
-                                                <label className="form-label">Mobile</label>
+                                                <label className="form-label">{t('mobile', 'Mobile')}</label>
                                                 <input 
                                                     className={`form-control ${getNestedError('contacts', index, 'mobile') ? 'is-invalid' : ''}`} 
                                                     type="text" 
@@ -1177,7 +1159,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                 {getNestedError('contacts', index, 'mobile') && <span className="invalid-feedback">{getNestedError('contacts', index, 'mobile')}</span>}
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">WhatsApp</label>
+                                                <label className="form-label">{t('whatsapp', 'WhatsApp')}</label>
                                                 <input 
                                                     className={`form-control ${getNestedError('contacts', index, 'whatsapp') ? 'is-invalid' : ''}`} 
                                                     type="text" 
@@ -1187,7 +1169,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                                 {getNestedError('contacts', index, 'whatsapp') && <span className="invalid-feedback">{getNestedError('contacts', index, 'whatsapp')}</span>}
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Telegram</label>
+                                                <label className="form-label">{t('telegram', 'Telegram')}</label>
                                                 <input 
                                                     className={`form-control ${getNestedError('contacts', index, 'telegram') ? 'is-invalid' : ''}`} 
                                                     type="text" 
@@ -1202,20 +1184,20 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                         <div className="checkbox-row">
                                             <div className="checkbox-group">
                                                 <input type="checkbox" checked={Boolean(contact.is_primary)} onChange={e => updateNested('contacts', index, 'is_primary', e.target.checked)} id={`contact-primary-${index}`} />
-                                                <label htmlFor={`contact-primary-${index}`} className="form-label">Is Primary</label>
+                                                <label htmlFor={`contact-primary-${index}`} className="form-label">{t('is_primary', 'Is Primary')}</label>
                                             </div>
                                             <div className="checkbox-group">
                                                 <input type="checkbox" checked={Boolean(contact.receive_statements)} onChange={e => updateNested('contacts', index, 'receive_statements', e.target.checked)} id={`contact-statements-${index}`} />
-                                                <label htmlFor={`contact-statements-${index}`} className="form-label">Receive Statements</label>
+                                                <label htmlFor={`contact-statements-${index}`} className="form-label">{t('receive_statements', 'Receive Statements')}</label>
                                             </div>
                                             <div className="checkbox-group">
                                                 <input type="checkbox" checked={Boolean(contact.receive_notifications)} onChange={e => updateNested('contacts', index, 'receive_notifications', e.target.checked)} id={`contact-notifications-${index}`} />
-                                                <label htmlFor={`contact-notifications-${index}`} className="form-label">Receive Notifications</label>
+                                                <label htmlFor={`contact-notifications-${index}`} className="form-label">{t('receive_notifications', 'Receive Notifications')}</label>
                                             </div>
                                         </div>
 
                                         <div className="form-group-full">
-                                            <label className="form-label">Notes</label>
+                                            <label className="form-label">{t('notes', 'Notes')}</label>
                                             <textarea className="form-control form-textarea" value={contact.notes || ''} onChange={e => updateNested('contacts', index, 'notes', e.target.value)} />
                                         </div>
                                     </div>
@@ -1227,7 +1209,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                         <div className={`tab-content ${activeTab === 'opening_balance' ? 'active' : ''}`}>
                              <div className="form-row">
                                 <div className="form-group">
-                                    <label className="form-label">Financial Year</label>
+                                    <label className="form-label">{t('financial_year', 'Financial Year')}</label>
                                     <input 
                                         className={`form-control ${errors['opening_balance.financial_year'] ? 'is-invalid' : ''}`}
                                         type="number" 
@@ -1237,7 +1219,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     {errors['opening_balance.financial_year'] && <span className="invalid-feedback">{errors['opening_balance.financial_year']}</span>}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Opening Date</label>
+                                    <label className="form-label">{t('opening_date', 'Opening Date')}</label>
                                     <input 
                                         className={`form-control ${errors['opening_balance.opening_date'] ? 'is-invalid' : ''}`}
                                         type="date" 
@@ -1247,13 +1229,13 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     {errors['opening_balance.opening_date'] && <span className="invalid-feedback">{errors['opening_balance.opening_date']}</span>}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Currency</label>
+                                    <label className="form-label">{t('currency', 'Currency')}</label>
                                     <select 
                                         className={`form-control ${errors['opening_balance.currency_id'] ? 'is-invalid' : ''}`}
                                         value={data.opening_balance.currency_id} 
                                         onChange={e => setData('opening_balance', { ...data.opening_balance, currency_id: e.target.value })}
                                     >
-                                        <option value="">Select Currency</option>
+                                        <option value="">{t('select_currency', 'Select Currency')}</option>
                                         {currencies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
                                     </select>
                                     {errors['opening_balance.currency_id'] && <span className="invalid-feedback">{errors['opening_balance.currency_id']}</span>}
@@ -1261,7 +1243,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                              </div>
                              <div className="form-row">
                                 <div className="form-group">
-                                    <label className="form-label">Exchange Rate</label>
+                                    <label className="form-label">{t('exchange_rate', 'Exchange Rate')}</label>
                                     <input 
                                         className={`form-control ${errors['opening_balance.exchange_rate'] ? 'is-invalid' : ''}`}
                                         type="number" 
@@ -1272,7 +1254,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     {errors['opening_balance.exchange_rate'] && <span className="invalid-feedback">{errors['opening_balance.exchange_rate']}</span>}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Debit Amount</label>
+                                    <label className="form-label">{t('debit_amount', 'Debit Amount')}</label>
                                     <input 
                                         className={`form-control ${errors['opening_balance.debit_amount'] ? 'is-invalid' : ''}`}
                                         type="number" 
@@ -1283,7 +1265,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                     {errors['opening_balance.debit_amount'] && <span className="invalid-feedback">{errors['opening_balance.debit_amount']}</span>}
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Credit Amount</label>
+                                    <label className="form-label">{t('credit_amount', 'Credit Amount')}</label>
                                     <input 
                                         className={`form-control ${errors['opening_balance.credit_amount'] ? 'is-invalid' : ''}`}
                                         type="number" 
@@ -1295,7 +1277,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                 </div>
                              </div>
                              <div className="form-group-full">
-                                <label className="form-label">Notes</label>
+                                <label className="form-label">{t('notes', 'Notes')}</label>
                                 <textarea 
                                     className={`form-control form-textarea ${errors['opening_balance.notes'] ? 'is-invalid' : ''}`}
                                     value={data.opening_balance.notes} 
@@ -1306,9 +1288,9 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                         </div>
 
                         <div className="form-actions">
-                            <button type="button" className="btn-secondary" onClick={() => setMode('list')}>Cancel</button>
+                            <button type="button" className="btn-secondary" onClick={() => setMode('list')}>{t('cancel', 'Cancel')}</button>
                             <button type="submit" className="btn-primary" disabled={processing}>
-                                {mode === 'create' ? 'Create Supplier' : 'Update Supplier'}
+                                {mode === 'create' ? t('add_supplier', 'Create Supplier') : t('edit_supplier', 'Update Supplier')}
                             </button>
                         </div>
                     </form>

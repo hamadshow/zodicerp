@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, usePage, router } from '@inertiajs/react';
 
 const resolveMediaUrl = (value) => {
   if (!value) {
@@ -21,16 +21,42 @@ const resolveMediaUrl = (value) => {
 };
 
 const Header = ({ isRtl }) => {
-  const { auth } = usePage().props;
+  const { auth, localization } = usePage().props;
   const user = auth.user;
+  const currentLocale = localization?.current_locale || 'ar';
+
+  const switchLanguage = (lang) => {
+    // Current URL format: /{country}/{lang}/admin/...
+    const currentPath = window.location.pathname;
+    const pathSegments = currentPath.split('/').filter(Boolean);
+    
+    if (pathSegments.length >= 2) {
+      // Assuming first segment is country and second is language
+      pathSegments[1] = lang;
+      const newPath = '/' + pathSegments.join('/') + window.location.search;
+      router.visit(newPath);
+    }
+  };
 
   return (
     <header className="header">
       <div className="header-actions">
-        <a href="/" className="action-btn" target="_blank" rel="noopener noreferrer">
-          <span className="material-icons-outlined">public</span>
-          <span>View website</span>
-        </a>
+        <div className="language-switcher">
+          <button 
+            className={`lang-btn ${currentLocale === 'en' ? 'active' : ''}`}
+            onClick={() => currentLocale !== 'en' && switchLanguage('en')}
+            title="English"
+          >
+            EN
+          </button>
+          <button 
+            className={`lang-btn ${currentLocale === 'ar' ? 'active' : ''}`}
+            onClick={() => currentLocale !== 'ar' && switchLanguage('ar')}
+            title="العربية"
+          >
+            AR
+          </button>
+        </div>
         <button className="action-btn">
           <span className="material-icons-outlined">dark_mode</span>
         </button>

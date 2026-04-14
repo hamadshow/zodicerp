@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Bank;
 use App\Models\CashAccount;
 use App\Models\Currency;
+use App\Models\Account;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -35,11 +36,19 @@ class PettyCashController extends Controller
 
         $currencies = Currency::where('status', 'active')->select('id', 'code', 'name')->get();
 
+        // Get accounts from chart of accounts where Nature is cash and AccType is 1
+        $chartOfAccounts = Account::where('Nature', 'cash')
+            ->where('AccType', 1)
+            ->where('AccStopped', false)
+            ->select('AccID', 'AccCode', 'AccName')
+            ->get();
+
         return Inertia::render('Backend/06-Cash/PettyCash', [
             'cashAccounts' => $cashAccounts,
             'filters' => $request->only(['search', 'status']),
             'banks' => $banks,
             'currencies' => $currencies,
+            'chartOfAccounts' => $chartOfAccounts,
         ]);
     }
 

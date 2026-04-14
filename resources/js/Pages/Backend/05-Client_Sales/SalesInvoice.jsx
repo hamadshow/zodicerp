@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
+import { formatDate } from '@/utils/date';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
 
@@ -368,7 +369,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                 {invoices?.data?.map((invoice) => (
                                     <tr key={invoice.id}>
                                         <td>{invoice.invoice_number}</td>
-                                        <td>{invoice.invoice_date}</td>
+                                        <td>{formatDate(invoice.invoice_date)}</td>
                                         <td>{invoice.customer?.name_en || invoice.customer?.name_ar || invoice.customer?.name}</td>
                                         <td>
                                             <span className={`status-badge type-${invoice.invoice_type}`}>

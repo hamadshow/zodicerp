@@ -641,11 +641,6 @@ class SupplierController extends Controller
             'currencies' => Currency::all(),
             'warehouses' => Warehouses::all(), // Assuming model name is Warehouses
             'accounts' => Account::where('AccStopped', false)->get(),
-            'localization' => [
-                'country_code' => session('country_code', 'sa'),
-                'current_locale' => app()->getLocale(),
-                'is_rtl' => app()->getLocale() === 'ar',
-            ],
         ]);
     }
 

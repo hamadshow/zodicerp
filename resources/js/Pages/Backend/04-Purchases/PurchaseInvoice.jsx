@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
+import { formatDate } from '@/utils/date';
 
-export default function PurchaseInvoice({ invoices, suppliers, orders, currencies, products, paymentTerms }) {
+export default function PurchaseInvoice({ invoices, suppliers, orders, currencies, products, units, warehouses, paymentTerms }) {
     const [mode, setMode] = useState('list'); // list, create, edit
     const [activeTab, setActiveTab] = useState('general');
     const { props } = usePage();
@@ -20,7 +21,7 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
 
     const productOptions = useMemo(() => {
         return (products || []).map(p => ({
-            id: String(p.id),
+            value: String(p.id),
             label: p.name_en || p.name_ar || ''
         }));
     }, [products]);
@@ -34,6 +35,7 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
         order_id: '',
         supplier_id: '',
         currency_id: '',
+        warehouse_id: '',
         exchange_rate: 1.000000,
         invoice_type: 'standard', // standard, proforma, credit_note, debit_note
         payment_status: 'unpaid', // unpaid, partial, paid, overdue
@@ -89,7 +91,7 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
         const toNum = (v) => (v === null || v === undefined ? 0 : Number(v));
         setData({
             ...invoice,
-            items: (invoice.details || []).map(it => {
+            items: (invoice.items || []).map(it => {
                 const qty = toNum(it.quantity);
                 const unitPrice = toNum(it.unit_price);
                 const discountAmount = toNum(it.discount_amount); // Assuming details table has this or calculated
@@ -195,6 +197,12 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
                 newItems[index].item_name_en = product.name_en;
                 newItems[index].unit_price = product.purchase_price || 0;
                 newItems[index].unit_id = product.unit_id || '';
+            } else {
+                // Clear fields if product is removed
+                newItems[index].item_name_ar = '';
+                newItems[index].item_name_en = '';
+                newItems[index].unit_price = 0;
+                newItems[index].unit_id = '';
             }
         }
 
@@ -303,7 +311,7 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
                                 {invoices?.data?.map((invoice) => (
                                     <tr key={invoice.id}>
                                         <td>{invoice.invoice_number}</td>
-                                        <td>{invoice.invoice_date}</td>
+                                        <td>{formatDate(invoice.invoice_date)}</td>
                                         <td>{invoice.supplier?.name_en || invoice.supplier?.name_ar}</td>
                                         <td>
                                             <span className={`status-badge type-${invoice.invoice_type}`}>
@@ -437,6 +445,21 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
                                     </div>
 
                                     <div className="form-group">
+                                        <label>Warehouse</label>
+                                        <select
+                                            value={data.warehouse_id}
+                                            onChange={e => setData('warehouse_id', e.target.value)}
+                                            className={errors.warehouse_id ? 'error' : ''}
+                                        >
+                                            <option value="">Select Warehouse</option>
+                                            {warehouses?.map(w => (
+                                                <option key={w.id} value={w.id}>{w.name_en || w.name_ar}</option>
+                                            ))}
+                                        </select>
+                                        {errors.warehouse_id && <div className="error-msg">{errors.warehouse_id}</div>}
+                                    </div>
+
+                                    <div className="form-group">
                                         <label>Invoice Type</label>
                                         <select
                                             value={data.invoice_type}
@@ -469,7 +492,8 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
                                     <table className="items-table">
                                         <thead>
                                             <tr>
-                                                <th>Product</th>
+                                                <th style={{ width: '30%' }}>Product</th>
+                                                <th>Unit</th>
                                                 <th>Quantity</th>
                                                 <th>Price</th>
                                                 <th>Discount</th>
@@ -491,11 +515,25 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
                                                         />
                                                     </td>
                                                     <td>
+                                                        <select
+                                                            className="form-select"
+                                                            value={item.unit_id}
+                                                            onChange={e => handleItemChange(index, 'unit_id', e.target.value)}
+                                                        >
+                                                            <option value="">Select Unit</option>
+                                                            {units?.map(u => (
+                                                                <option key={u.id} value={u.id}>{u.name_en || u.name_ar}</option>
+                                                            ))}
+                                                        </select>
+                                                        {errors[`items.${index}.unit_id`] && <div className="error-msg">{errors[`items.${index}.unit_id`]}</div>}
+                                                    </td>
+                                                    <td>
                                                         <input
                                                             type="number"
                                                             value={item.quantity}
                                                             onChange={e => handleItemChange(index, 'quantity', e.target.value)}
                                                             min="0.1"
+                                                            step="any"
                                                         />
                                                     </td>
                                                     <td>
@@ -504,6 +542,7 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
                                                             value={item.unit_price}
                                                             onChange={e => handleItemChange(index, 'unit_price', e.target.value)}
                                                             min="0"
+                                                            step="any"
                                                         />
                                                     </td>
                                                     <td>
@@ -512,6 +551,7 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
                                                             value={item.discount_amount}
                                                             onChange={e => handleItemChange(index, 'discount_amount', e.target.value)}
                                                             min="0"
+                                                            step="any"
                                                         />
                                                     </td>
                                                     <td>
@@ -520,6 +560,7 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
                                                             value={item.tax_amount}
                                                             onChange={e => handleItemChange(index, 'tax_amount', e.target.value)}
                                                             min="0"
+                                                            step="any"
                                                         />
                                                     </td>
                                                     <td>

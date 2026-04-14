@@ -37,6 +37,8 @@ class BankController extends Controller
         // For now, fetching all or filtering by type if known.
         // Assuming we want leaf accounts.
         $glAccounts = Account::where('Nature', 'bank')
+            ->where('AccType', 1)
+            ->where('AccStopped', false)
             ->select('AccID', 'AccName', 'AccCode')
             ->get();
 

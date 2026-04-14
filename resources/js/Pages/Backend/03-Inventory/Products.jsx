@@ -92,6 +92,11 @@ const CategoryTreeItem = ({ category, selectedIds, onToggle, level = 0, search =
 const ProductsList = ({ products, brands, categories, units, filters = {} }) => {
     const { props } = usePage();
     const { flash, localization } = props;
+    const translations = localization?.translations || {};
+
+    const t = (key, fallback) => {
+        return translations[`products.${key}`] || fallback;
+    };
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -164,7 +169,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this product?')) {
+        if (window.confirm(t('confirm_delete', 'Are you sure you want to delete this product?'))) {
             router.delete(getLocalizedRoute('admin.inventory.products.destroy', { product: id }));
         }
     };
@@ -532,7 +537,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
 
     return (
         <AdminLayout activeMenu="Inventory">
-            <Head title="Products" />
+            <Head title={t('products', 'Products')} />
             <ToastContainer position="top-right" autoClose={3000} />
             {renderImportModal()}
             
@@ -540,13 +545,13 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                 <div className="content-area">
                 <div className="page-header-section">
                     <div className="breadcrumb">
-                        <Link href={getLocalizedRoute('admin.dashboard')}>Dashboard</Link>
+                        <Link href={getLocalizedRoute('admin.dashboard')}>{t('dashboard', 'Dashboard')}</Link>
                         <span>/</span>
-                        <span>Inventory</span>
+                        <span>{t('inventory', 'Inventory')}</span>
                         <span>/</span>
-                        <span className="current">Products</span>
+                        <span className="current">{t('products', 'Products')}</span>
                     </div>
-                    <h1 className="page-title">Products</h1>
+                    <h1 className="page-title">{t('products', 'Products')}</h1>
                 </div>
 
                 {flash.success && (
@@ -568,7 +573,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                         </div>
                         <div className="stat-content">
                             <div className="stat-value">{safeProducts.total}</div>
-                            <div className="stat-label">Total Products</div>
+                            <div className="stat-label">{t('total_products', 'Total Products')}</div>
                         </div>
                     </div>
                     <div className="stat-card">
@@ -577,7 +582,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                         </div>
                         <div className="stat-content">
                             <div className="stat-value">{safeCategories.length}</div>
-                            <div className="stat-label">Total Categories</div>
+                            <div className="stat-label">{t('total_categories', 'Total Categories')}</div>
                         </div>
                     </div>
                     <div className="stat-card">
@@ -586,7 +591,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                         </div>
                         <div className="stat-content">
                             <div className="stat-value">{safeBrands.length}</div>
-                            <div className="stat-label">Total Brands</div>
+                            <div className="stat-label">{t('total_brands', 'Total Brands')}</div>
                         </div>
                     </div>
                     <div className="stat-card">
@@ -595,20 +600,20 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                         </div>
                         <div className="stat-content">
                             <div className="stat-value">$0.00</div>
-                            <div className="stat-label">Total Value</div>
+                            <div className="stat-label">{t('total_value', 'Total Value')}</div>
                         </div>
                     </div>
                 </div>
 
                 <div className="card">
                     <div className="card-header d-flex justify-between align-items-center">
-                        <h3>Products List</h3>
+                        <h3>{t('products_list', 'Products List')}</h3>
                         <div className="card-actions d-flex gap-2">
                             <div className="search-bar">
                                 <input 
                                     type="text" 
                                     name="search"
-                                    placeholder="Search..." 
+                                    placeholder={t('search', 'Search...')} 
                                     value={filterParams.search}
                                     onChange={handleFilterChange}
                                 />
@@ -623,7 +628,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                                     onClick={() => setShowExcelMenu(!showExcelMenu)}
                                 >
                                     <i className="material-icons-outlined">grid_on</i>
-                                    <span>Excel</span>
+                                    <span>{t('excel', 'Excel')}</span>
                                     <i className="material-icons-outlined">expand_more</i>
                                 </button>
                                 
@@ -631,15 +636,15 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                                     <div className="excel-dropdown-menu">
                                         <button className="excel-menu-item" onClick={() => { setShowExcelMenu(false); setShowImport(true); }}>
                                             <i className="material-icons-outlined">upload</i>
-                                            <span>Import from Excel</span>
+                                            <span>{t('import_excel', 'Import from Excel')}</span>
                                         </button>
                                         <button className="excel-menu-item" onClick={() => { setShowExcelMenu(false); handleExportExcel(); }}>
                                             <i className="material-icons-outlined">download</i>
-                                            <span>Export to Excel</span>
+                                            <span>{t('export_excel', 'Export to Excel')}</span>
                                         </button>
                                         <button className="excel-menu-item" onClick={() => { setShowExcelMenu(false); downloadTemplate(); }}>
                                             <i className="material-icons-outlined">description</i>
-                                            <span>Download Template</span>
+                                            <span>{t('download_template', 'Download Template')}</span>
                                         </button>
                                     </div>
                                 )}
@@ -647,48 +652,48 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
 
                             <Link className="btn btn-primary" href={getLocalizedRoute('admin.inventory.products.create')}>
                                 <span className="material-icons-outlined">add</span>
-                                Add Product
+                                {t('add_product', 'Add Product')}
                             </Link>
                         </div>
                     </div>
 
                     <div className="filter-bar">
                         <select name="category_id" className="form-control filter-select" value={filterParams.category_id} onChange={handleFilterChange}>
-                            <option value="">All Categories</option>
+                            <option value="">{t('all_categories', 'All Categories')}</option>
                             {safeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                         <select name="brand_id" className="form-control filter-select" value={filterParams.brand_id} onChange={handleFilterChange}>
-                                        <option value="">All Brands</option>
+                                        <option value="">{t('all_brands', 'All Brands')}</option>
                                         {safeBrands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                                     </select>
 
                                     <select name="unit_id" className="form-control filter-select" value={filterParams.unit_id} onChange={handleFilterChange}>
-                                        <option value="">All Units</option>
+                                        <option value="">{t('all_units', 'All Units')}</option>
                                         {safeUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                                     </select>
 
                                     <select name="status" className="form-control filter-select" value={filterParams.status} onChange={handleFilterChange}>
-                            <option value="">All Status</option>
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                            <option value="draft">Draft</option>
+                            <option value="">{t('all_status', 'All Status')}</option>
+                            <option value="active">{t('active', 'Active')}</option>
+                            <option value="inactive">{t('inactive', 'Inactive')}</option>
+                            <option value="draft">{t('draft', 'Draft')}</option>
                         </select>
-                        <button className="btn btn-outline" onClick={applyFilters}>Filter</button>
+                        <button className="btn btn-outline" onClick={applyFilters}>{t('filter', 'Filter')}</button>
                     </div>
 
                     <div className="table-container">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Product</th>
-                                    <th>SKU</th>
-                                    <th>Category</th>
-                                    <th>Brand</th>
-                                    <th>Unit</th>
-                                    <th>Price</th>
-                                    <th>Stock</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
+                                    <th>{t('product', 'Product')}</th>
+                                    <th>{t('sku', 'SKU')}</th>
+                                    <th>{t('category', 'Category')}</th>
+                                    <th>{t('brand', 'Brand')}</th>
+                                    <th>{t('unit', 'Unit')}</th>
+                                    <th>{t('price', 'Price')}</th>
+                                    <th>{t('stock', 'Stock')}</th>
+                                    <th>{t('status', 'Status')}</th>
+                                    <th>{t('actions', 'Actions')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -722,7 +727,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                                             </td>
                                             <td>
                                                 <span className={`status-badge status-${product.status}`}>
-                                                    {product.status}
+                                                    {t(product.status, product.status)}
                                                 </span>
                                             </td>
                                             <td>
@@ -730,11 +735,11 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                                                     <button
                                                         className="icon-btn edit"
                                                         onClick={() => router.get(getLocalizedRoute('admin.inventory.products.edit', { product: product.id }))}
-                                                        title="Edit"
+                                                        title={t('edit', 'Edit')}
                                                     >
                                                         <span className="material-icons-outlined">edit</span>
                                                     </button>
-                                                    <button className="icon-btn delete" onClick={() => handleDelete(product.id)} title="Delete">
+                                                    <button className="icon-btn delete" onClick={() => handleDelete(product.id)} title={t('delete', 'Delete')}>
                                                         <span className="material-icons-outlined">delete</span>
                                                     </button>
                                                 </div>
@@ -743,7 +748,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="9" className="empty-state">No products found.</td>
+                                        <td colSpan="9" className="empty-state">{t('no_products_found', 'No products found.')}</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -783,6 +788,11 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
 const ProductsForm = ({ product, categories, brands, units = [], itemAttributes = [], suppliers = [] }) => {
     const { props } = usePage();
     const { localization } = props;
+    const translations = localization?.translations || {};
+
+    const t = (key, fallback) => {
+        return translations[`products.${key}`] || fallback;
+    };
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -1463,19 +1473,19 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         submitWithAction('save');
     };
 
-    const pageTitle = product ? 'Edit Product' : 'Add New Product';
+    const pageTitle = product ? t('edit_product', 'Edit Product') : t('add_new_product', 'Add New Product');
 
     return (
         <AdminLayout activeMenu="Inventory">
             <Head title={`${pageTitle} - ZodicERP`} />
             <div className="products-ce-page">
                 <div className="breadcrumb">
-                    <Link href={getLocalizedRoute('admin.dashboard')}>Dashboard</Link>
+                    <Link href={getLocalizedRoute('admin.dashboard')}>{t('dashboard', 'Dashboard')}</Link>
                     <span>/</span>
-                    <span>Inventory</span>
+                    <span>{t('inventory', 'Inventory')}</span>
                     <span>/</span>
                     <Link href={getLocalizedRoute('admin.inventory.products.index')}>
-                        Products
+                        {t('products', 'Products')}
                     </Link>
                     <span>/</span>
                     <span>{pageTitle}</span>
@@ -1490,7 +1500,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                     href={getLocalizedRoute('admin.inventory.products.index')}
                                     className="btn btn-outline-danger"
                                 >
-                                    Back to List
+                                    {t('back_to_list', 'Back to List')}
                                 </Link>
                                 <button
                                     type="submit"
@@ -1501,14 +1511,14 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                     }}
                                     disabled={processing || submitLock}
                                 >
-                                    Save & Exit
+                                    {t('save_and_exit', 'Save & Exit')}
                                 </button>
                                 <button
                                     type="submit"
                                     className="btn btn-primary"
                                     disabled={processing || submitLock}
                                 >
-                                    Save
+                                    {t('save', 'Save')}
                                 </button>
                             </div>
                         </div>
@@ -2299,7 +2309,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
 
                                         <div className="form-grid">
                                             <div className="form-group">
-                                                <label className="form-label">SKU</label>
+                                                <label className="form-label">{t('sku', 'SKU')}</label>
                                                 <input
                                                     type="text"
                                                     className="form-control"
@@ -2310,7 +2320,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                 />
                                             </div>
                                             <div className="form-group">
-                                                <label className="form-label">Price</label>
+                                                <label className="form-label">{t('price', 'Price')}</label>
                                                 <input
                                                     type="number"
                                                     className="form-control"
@@ -2388,7 +2398,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                         </div>
 
                                         <div className="form-group">
-                                            <label className="form-label">Stock status</label>
+                                            <label className="form-label">{t('stock_status', 'Stock status')}</label>
                                             <div className="d-flex gap-4">
                                                 <label className="checkbox-option">
                                                     <input
@@ -2404,7 +2414,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                             )
                                                         }
                                                     />
-                                                    <span>In stock</span>
+                                                    <span>{t('in_stock', 'In stock')}</span>
                                                 </label>
                                                 <label className="checkbox-option">
                                                     <input
@@ -2421,7 +2431,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                             )
                                                         }
                                                     />
-                                                    <span>Out of stock</span>
+                                                    <span>{t('out_of_stock', 'Out of stock')}</span>
                                                 </label>
                                                 <label className="checkbox-option">
                                                     <input
@@ -2438,7 +2448,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                             )
                                                         }
                                                     />
-                                                    <span>On backorder</span>
+                                                    <span>{t('on_backorder', 'On backorder')}</span>
                                                 </label>
                                             </div>
                                         </div>

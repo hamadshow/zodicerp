@@ -529,12 +529,58 @@ Route::group([
 
         Route::prefix('budget')->name('budget.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Backend\Budget\BudgetMonitoringController::class, 'dashboard'])->name('dashboard');
-            Route::get('/categories', [\App\Http\Controllers\Backend\Budget\BudgetCategoryController::class, 'index'])->name('categories');
-            Route::get('/list', [\App\Http\Controllers\Backend\Budget\BudgetController::class, 'index'])->name('index');
-            Route::get('/forecasts', [\App\Http\Controllers\Backend\Budget\BudgetForecastController::class, 'index'])->name('forecasts');
-            Route::get('/monitoring', [\App\Http\Controllers\Backend\Budget\BudgetMonitoringController::class, 'index'])->name('monitoring');
-            Route::get('/transfers', [\App\Http\Controllers\Backend\Budget\BudgetTransferController::class, 'index'])->name('transfers');
-            Route::get('/commitments', [\App\Http\Controllers\Backend\Budget\BudgetCommitmentController::class, 'index'])->name('commitments');
+            Route::get('/dashboard', [\App\Http\Controllers\Backend\Budget\BudgetMonitoringController::class, 'dashboard'])->name('dashboard.index');
+            
+            Route::resource('categories', \App\Http\Controllers\Backend\Budget\BudgetCategoryController::class);
+            
+            Route::resource('list', \App\Http\Controllers\Backend\Budget\BudgetController::class)->names([
+                'index' => 'index',
+                'store' => 'store',
+                'update' => 'update',
+                'destroy' => 'destroy',
+            ]);
+
+            Route::prefix('commitments')->name('commitments.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Backend\Budget\BudgetCommitmentController::class, 'index'])->name('index');
+                Route::get('/items/{budget}', [\App\Http\Controllers\Backend\Budget\BudgetCommitmentController::class, 'getBudgetItems'])->name('items');
+                Route::get('/vendors', [\App\Http\Controllers\Backend\Budget\BudgetCommitmentController::class, 'getVendors'])->name('vendors');
+                Route::post('/', [\App\Http\Controllers\Backend\Budget\BudgetCommitmentController::class, 'store'])->name('store');
+                Route::put('/{commitment}', [\App\Http\Controllers\Backend\Budget\BudgetCommitmentController::class, 'update'])->name('update');
+                Route::delete('/{commitment}', [\App\Http\Controllers\Backend\Budget\BudgetCommitmentController::class, 'destroy'])->name('destroy');
+                Route::post('/{commitment}/close', [\App\Http\Controllers\Backend\Budget\BudgetCommitmentController::class, 'close'])->name('close');
+                Route::post('/{commitment}/utilize', [\App\Http\Controllers\Backend\Budget\BudgetCommitmentController::class, 'markUtilized'])->name('utilize');
+            });
+
+            Route::prefix('forecasts')->name('forecasts.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Backend\Budget\BudgetForecastController::class, 'index'])->name('index');
+                Route::get('/items/{budget}', [\App\Http\Controllers\Backend\Budget\BudgetForecastController::class, 'getBudgetItems'])->name('items');
+                Route::post('/', [\App\Http\Controllers\Backend\Budget\BudgetForecastController::class, 'store'])->name('store');
+                Route::put('/{forecast}', [\App\Http\Controllers\Backend\Budget\BudgetForecastController::class, 'update'])->name('update');
+                Route::post('/{forecast}/submit', [\App\Http\Controllers\Backend\Budget\BudgetForecastController::class, 'submitForApproval'])->name('submit');
+                Route::post('/{forecast}/approve', [\App\Http\Controllers\Backend\Budget\BudgetForecastController::class, 'approve'])->name('approve');
+                Route::post('/{forecast}/reject', [\App\Http\Controllers\Backend\Budget\BudgetForecastController::class, 'reject'])->name('reject');
+                Route::post('/{forecast}/implement', [\App\Http\Controllers\Backend\Budget\BudgetForecastController::class, 'implement'])->name('implement');
+            });
+
+            Route::prefix('monitoring')->name('monitoring.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Backend\Budget\BudgetMonitoringController::class, 'index'])->name('index');
+                Route::get('/items/{budget}', [\App\Http\Controllers\Backend\Budget\BudgetMonitoringController::class, 'getBudgetItems'])->name('items');
+                Route::get('/export', [\App\Http\Controllers\Backend\Budget\BudgetMonitoringController::class, 'export'])->name('export');
+                Route::put('/{monitoring}', [\App\Http\Controllers\Backend\Budget\BudgetMonitoringController::class, 'update'])->name('update');
+                Route::post('/{monitoring}/acknowledge', [\App\Http\Controllers\Backend\Budget\BudgetMonitoringController::class, 'acknowledge'])->name('acknowledge');
+                Route::post('/{monitoring}/follow-up', [\App\Http\Controllers\Backend\Budget\BudgetMonitoringController::class, 'followUp'])->name('follow-up');
+                Route::post('/{monitoring}/mark-done', [\App\Http\Controllers\Backend\Budget\BudgetMonitoringController::class, 'markActionDone'])->name('mark-done');
+            });
+
+            Route::prefix('transfers')->name('transfers.')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Backend\Budget\BudgetTransferController::class, 'index'])->name('index');
+                Route::get('/items/{budget}', [\App\Http\Controllers\Backend\Budget\BudgetTransferController::class, 'getBudgetItems'])->name('items');
+                Route::post('/', [\App\Http\Controllers\Backend\Budget\BudgetTransferController::class, 'store'])->name('store');
+                Route::post('/{transfer}/submit', [\App\Http\Controllers\Backend\Budget\BudgetTransferController::class, 'submit'])->name('submit');
+                Route::post('/{transfer}/approve', [\App\Http\Controllers\Backend\Budget\BudgetTransferController::class, 'approve'])->name('approve');
+                Route::post('/{transfer}/reject', [\App\Http\Controllers\Backend\Budget\BudgetTransferController::class, 'reject'])->name('reject');
+                Route::post('/{transfer}/complete', [\App\Http\Controllers\Backend\Budget\BudgetTransferController::class, 'complete'])->name('complete');
+            });
         });
 
         // 12. Taxes (الضرائب)

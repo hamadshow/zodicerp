@@ -77,6 +77,7 @@ class FinancialReportController extends Controller
                 'id' => $report->id,
                 'report_key' => $report->report_key,
                 'report_name' => $report->report_name,
+                'description' => $report->description,
                 'category' => $report->category,
                 'route' => $route,
                 'icon' => $report->icon,
@@ -867,8 +868,10 @@ class FinancialReportController extends Controller
             $id = $account->AccID;
             $code = $account->AccCode;
             
-            // Try matching by AccID first, then by AccCode
-            $posting = $postingsById->get($id) ?? $postingsById->get($code);
+            // Get all postings that match either AccID or AccCode (to handle inconsistencies)
+            $matchPostings = $postings->filter(function($p) use ($id, $code) {
+                return $p->account_id == $id || $p->account_id == $code;
+            });
             
             $accountData[$code] = [ // Key by AccCode for tree building
                 'AccID' => $account->AccID,
@@ -876,10 +879,10 @@ class FinancialReportController extends Controller
                 'AccName' => $account->AccName,
                 'AccType' => (int)$account->AccType,
                 'AccParent' => $account->AccParent,
-                'beginning_debit' => (float)($posting?->opening_debit ?? 0),
-                'beginning_credit' => (float)($posting?->opening_credit ?? 0),
-                'current_debit' => (float)($posting?->current_debit ?? 0),
-                'current_credit' => (float)($posting?->current_credit ?? 0),
+                'beginning_debit' => (float)$matchPostings->sum('opening_debit'),
+                'beginning_credit' => (float)$matchPostings->sum('opening_credit'),
+                'current_debit' => (float)$matchPostings->sum('current_debit'),
+                'current_credit' => (float)$matchPostings->sum('current_credit'),
             ];
         }
 
@@ -900,29 +903,44 @@ class FinancialReportController extends Controller
                 // Recursive call to get children
                 $children = $this->buildTrialBalanceTree($accountData, $id, $depth + 1);
                 
-                // Sum up children's totals into this account
-                foreach ($children as $child) {
-                    $account['beginning_debit'] += $child['beginning_debit'];
-                    $account['beginning_credit'] += $child['beginning_credit'];
-                    $account['current_debit'] += $child['current_debit'];
-                    $account['current_credit'] += $child['current_credit'];
-                }
+                $endDebit = 0;
+                $endCredit = 0;
 
-                // Calculate Ending Balances (Total)
-                // We show debit and credit separately based on the net balance
-                $totalDebit = $account['beginning_debit'] + $account['current_debit'];
-                $totalCredit = $account['beginning_credit'] + $account['current_credit'];
+                if (empty($children)) {
+                    // Leaf Account: Calculate Net Ending Balance
+                    $totalDebit = $account['beginning_debit'] + $account['current_debit'];
+                    $totalCredit = $account['beginning_credit'] + $account['current_credit'];
 
-                if ($totalDebit >= $totalCredit) {
-                    $account['ending_debit'] = $totalDebit - $totalCredit;
-                    $account['ending_credit'] = 0;
+                    if ($totalDebit >= $totalCredit) {
+                        $endDebit = $totalDebit - $totalCredit;
+                        $endCredit = 0;
+                    } else {
+                        $endDebit = 0;
+                        $endCredit = $totalCredit - $totalDebit;
+                    }
                 } else {
-                    $account['ending_debit'] = 0;
-                    $account['ending_credit'] = $totalCredit - $totalDebit;
+                    // Parent Account: Reset direct balances to avoid double counting
+                    // and aggregate strictly from children
+                    $account['beginning_debit'] = 0;
+                    $account['beginning_credit'] = 0;
+                    $account['current_debit'] = 0;
+                    $account['current_credit'] = 0;
+
+                    foreach ($children as $child) {
+                        $account['beginning_debit'] += $child['beginning_debit'];
+                        $account['beginning_credit'] += $child['beginning_credit'];
+                        $account['current_debit'] += $child['current_debit'];
+                        $account['current_credit'] += $child['current_credit'];
+                        $endDebit += $child['ending_debit'];
+                        $endCredit += $child['ending_credit'];
+                    }
                 }
 
+                $account['ending_debit'] = $endDebit;
+                $account['ending_credit'] = $endCredit;
                 $account['depth'] = $depth;
                 $account['children'] = $children;
+                
                 $tree[] = $account;
             }
         }
@@ -962,56 +980,85 @@ class FinancialReportController extends Controller
             // Beginning Balances (Opening)
             $openingBalances = DB::table('journal_entry_lines as l')
                 ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
+                ->join('accounts as a', function($join) {
+                    $join->on('a.AccCode', '=', 'l.account_id')
+                         ->orOn('a.AccID', '=', 'l.account_id');
+                })
                 ->where('e.company_id', $companyId)
+                ->where('a.company_id', $companyId)
                 ->where('e.entry_type', 'Opening')
                 ->select(
-                    'l.account_id',
+                    'a.AccCode as account_code',
                     DB::raw('SUM(l.debit) as opening_debit'),
                     DB::raw('SUM(l.credit) as opening_credit')
                 )
-                ->groupBy('l.account_id')
+                ->groupBy('a.AccCode')
                 ->get()
-                ->keyBy('account_id');
+                ->keyBy('account_code');
 
             // Current Activity (Non-Opening)
             $currentActivity = DB::table('journal_entry_lines as l')
                 ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
+                ->join('accounts as a', function($join) {
+                    $join->on('a.AccCode', '=', 'l.account_id')
+                         ->orOn('a.AccID', '=', 'l.account_id');
+                })
                 ->where('e.company_id', $companyId)
+                ->where('a.company_id', $companyId)
                 ->where('e.entry_type', '!=', 'Opening')
                 ->select(
-                    'l.account_id',
+                    'a.AccCode as account_code',
                     DB::raw('SUM(l.debit) as current_debit'),
                     DB::raw('SUM(l.credit) as current_credit'),
                     DB::raw('MIN(e.date) as period_start'),
                     DB::raw('MAX(e.date) as period_end')
                 )
-                ->groupBy('l.account_id')
+                ->groupBy('a.AccCode')
                 ->get()
-                ->keyBy('account_id');
+                ->keyBy('account_code');
 
-            // 2. Clear old postings for this company to avoid duplication (or update existing)
-            // For simplicity and matching the request "Post", we'll refresh the table
+            // 2. Clear old postings for this company
             DB::table('account_postings')->where('company_id', $companyId)->delete();
 
             // 3. Prepare data for insertion
-            $allAccountIds = $openingBalances->keys()->merge($currentActivity->keys())->unique();
+            $allCodes = $openingBalances->keys()->merge($currentActivity->keys())->unique();
             
             $postings = [];
             $now = now();
 
-            foreach ($allAccountIds as $accountId) {
-                $opening = $openingBalances->get($accountId);
-                $current = $currentActivity->get($accountId);
+            foreach ($allCodes as $code) {
+                $opening = $openingBalances->get($code);
+                $current = $currentActivity->get($code);
+
+                $begDebit = (float)($opening?->opening_debit ?? 0);
+                $begCredit = (float)($opening?->opening_credit ?? 0);
+                $currDebit = (float)($current?->current_debit ?? 0);
+                $currCredit = (float)($current?->current_credit ?? 0);
+
+                // Calculate Net Ending Balance
+                $totalDebit = $begDebit + $currDebit;
+                $totalCredit = $begCredit + $currCredit;
+                
+                $endDebit = 0;
+                $endCredit = 0;
+
+                if ($totalDebit >= $totalCredit) {
+                    $endDebit = $totalDebit - $totalCredit;
+                } else {
+                    $endCredit = $totalCredit - $totalDebit;
+                }
 
                 $postings[] = [
-                    'account_id' => $accountId,
+                    'account_id' => $code, // Use canonical AccCode
                     'company_id' => $companyId,
-                    'period_start' => $current?->period_start ?? '2026-01-01', // Default or from request
+                    'period_start' => $current?->period_start ?? '2026-01-01',
                     'period_end' => $current?->period_end ?? '2026-12-31',
-                    'opening_debit' => $opening?->opening_debit ?? 0,
-                    'opening_credit' => $opening?->opening_credit ?? 0,
-                    'current_debit' => $current?->current_debit ?? 0,
-                    'current_credit' => $current?->current_credit ?? 0,
+                    'opening_debit' => $begDebit,
+                    'opening_credit' => $begCredit,
+                    'current_debit' => $currDebit,
+                    'current_credit' => $currCredit,
+                    'ending_debit' => $endDebit,
+                    'ending_credit' => $endCredit,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ];

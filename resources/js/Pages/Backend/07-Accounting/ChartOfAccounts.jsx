@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage, Link } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -75,6 +75,27 @@ const filterTree = (nodes, term) => {
 
 export default function ChartOfAccounts() {
   const { props } = usePage();
+  const localization = props.localization || {};
+  const translations = localization.translations || {};
+
+  const t = (key, fallback) => {
+    return translations[`ChartOfAccounts.${key}`] || fallback;
+  };
+
+  const ACCOUNT_TYPES = [
+    { value: 0, label: t('main', 'Main') },
+    { value: 1, label: t('sub', 'Sub') },
+  ];
+
+  const DM_TYPES = [
+    { value: 0, label: t('debit', 'Debit') },
+    { value: 1, label: t('credit', 'Credit') },
+  ];
+
+  const NATURE_OPTIONS = [
+    'asset', 'Inventory','Accounts Receivable','cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income'
+  ];
+
   const [tree, setTree] = useState([]);
   const [allAccounts, setAllAccounts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -770,7 +791,7 @@ export default function ChartOfAccounts() {
 
   const handleDelete = async (account) => {
     if (!account || account.AccID == null) return;
-    const confirmDelete = window.confirm('Are you sure you want to delete this account?');
+    const confirmDelete = window.confirm(t('confirm_delete', 'Are you sure you want to delete this account?'));
     if (!confirmDelete) return;
     try {
       setLoading(true);
@@ -779,7 +800,7 @@ export default function ChartOfAccounts() {
     } catch (e) {
       console.error('Failed to delete account', e);
       const message =
-        e?.response?.data?.message || 'Failed to delete account.';
+        e?.response?.data?.message || t('failed_delete', 'Failed to delete account.');
       setError(message);
     } finally {
       setLoading(false);
@@ -789,7 +810,7 @@ export default function ChartOfAccounts() {
   const handleStop = async (account) => {
     if (!account || account.AccID == null) return;
     const confirmStop = window.confirm(
-      'Stopping this account will prevent future postings. Continue?',
+      t('confirm_stop', 'Stopping this account will prevent future postings. Continue?'),
     );
     if (!confirmStop) return;
     try {
@@ -800,7 +821,7 @@ export default function ChartOfAccounts() {
     } catch (e) {
       console.error('Failed to stop account', e);
       const message =
-        e?.response?.data?.message || 'Failed to stop account.';
+        e?.response?.data?.message || t('failed_stop', 'Failed to stop account.');
       setError(message);
     } finally {
       setLoading(false);
@@ -817,9 +838,14 @@ export default function ChartOfAccounts() {
         expanded[account.AccID] !== undefined ? expanded[account.AccID] : false;
       const isFinal = Number(account.AccFinal ?? 0) === 1;
       const finalValue = Number(account.AccFinal ?? 0);
-      const finalLabel = finalValue === 0 ? 'Balance' : 'P&L';
+      const finalLabel = finalValue === 0 ? t('balance_sheet', 'Balance') : t('pl', 'P&L');
       const finalClass = finalValue === 0 ? 'final-balance' : 'final-pl';
       const isSubType = Number(account.AccType ?? 0) === 1;
+
+      // Localized labels for better UI in RTL
+      const localizedType = Number(account.AccType ?? 0) === 0 ? t('main', 'Main') : t('sub', 'Sub');
+      const natureKey = (account.Nature || '').toLowerCase().replace(/ /g, '_');
+      const localizedNature = t(natureKey, account.Nature || '-');
 
       const row = (
         <tr
@@ -829,7 +855,7 @@ export default function ChartOfAccounts() {
           <td>
             <div
               className="account-code-cell"
-              style={{ paddingLeft: `${depth * 16}px` }}
+              style={{ [localization?.is_rtl ? 'paddingRight' : 'paddingLeft']: `${depth * 20}px` }}
             >
               {hasChildren ? (
                 <button
@@ -838,7 +864,7 @@ export default function ChartOfAccounts() {
                   onClick={() => toggleNode(account.AccID)}
                 >
                   <span className="material-icons-outlined">
-                    {isExpanded ? 'expand_more' : 'chevron_right'}
+                    {isExpanded ? 'expand_more' : (localization?.is_rtl ? 'chevron_left' : 'chevron_right')}
                   </span>
                 </button>
               ) : (
@@ -850,7 +876,7 @@ export default function ChartOfAccounts() {
               <span>{account.AccCode}</span>
             </div>
           </td>
-          <td>
+          <td style={{ textAlign: localization?.is_rtl ? 'right' : 'left' }}>
             <div className="account-info">
               <div className="account-name">
                 <span>{account.AccName}</span>
@@ -866,13 +892,13 @@ export default function ChartOfAccounts() {
                 isSubType ? 'account-type-sub' : ''
               }`}
             >
-              {getAccountTypeLabel(account.AccType)}
+              {localizedType}
             </span>
           </td>
           <td>
             {account.Nature ? (
               <span>
-                {account.Nature.charAt(0).toUpperCase() + account.Nature.slice(1)}
+                {localizedNature}
               </span>
             ) : (
               '-'
@@ -891,7 +917,7 @@ export default function ChartOfAccounts() {
                   : 'account-status status-active'
               }
             >
-              {stopped ? 'Inactive' : 'Active'}
+              {stopped ? t('inactive', 'Inactive') : t('active', 'Active')}
             </span>
           </td>
           <td>
@@ -936,13 +962,13 @@ export default function ChartOfAccounts() {
   return (
     <AdminLayout activeMenu="Chart of Accounts">
       <div className="ChartOfAccounts-page">
-        <Head title="Chart of Accounts - ZodicERP" />
+        <Head title={`${t('coa', 'Chart of Accounts')} - ZodicERP`} />
         <div className="breadcrumb">
-        <a href="#">Dashboard</a>
+        <Link href={route('admin.dashboard', { country: localization?.country_code || 'sa', lang: localization?.current_locale || 'ar' })}>{t('dashboard', 'Dashboard')}</Link>
         <span>/</span>
-        <a href="#">Accounting</a>
+        <span>{t('accounting', 'Accounting')}</span>
         <span>/</span>
-        <span>Chart of Accounts</span>
+        <span>{t('coa', 'Chart of Accounts')}</span>
       </div>
       {!showForm && (
         <div className="stats-cards">
@@ -952,7 +978,7 @@ export default function ChartOfAccounts() {
             </div>
             <div className="stat-content">
               <div className="stat-value">{stats.total}</div>
-              <div className="stat-label">Total Accounts</div>
+              <div className="stat-label">{t('total_accounts', 'Total Accounts')}</div>
             </div>
           </div>
           <div className="stat-card">
@@ -961,7 +987,7 @@ export default function ChartOfAccounts() {
             </div>
             <div className="stat-content">
               <div className="stat-value">{stats.active}</div>
-              <div className="stat-label">Active Accounts</div>
+              <div className="stat-label">{t('active_accounts', 'Active Accounts')}</div>
             </div>
           </div>
           <div className="stat-card">
@@ -970,7 +996,7 @@ export default function ChartOfAccounts() {
             </div>
             <div className="stat-content">
               <div className="stat-value">{stats.inactive}</div>
-              <div className="stat-label">Inactive Accounts</div>
+              <div className="stat-label">{t('inactive_accounts', 'Inactive Accounts')}</div>
             </div>
           </div>
         </div>
@@ -982,7 +1008,7 @@ export default function ChartOfAccounts() {
               <div className="search-bar light">
                 <input
                   type="text"
-                  placeholder="Search accounts..."
+                  placeholder={t('search_accounts', 'Search accounts...')}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -999,7 +1025,7 @@ export default function ChartOfAccounts() {
                   onClick={() => setShowExcelMenu(!showExcelMenu)}
                 >
                   <span className="material-icons-outlined">table_view</span>
-                  <span>Excel Options</span>
+                  <span>{t('excel', 'Excel Options')}</span>
                   <span className={`material-icons-outlined arrow ${showExcelMenu ? 'up' : ''}`}>expand_more</span>
                 </button>
                 {showExcelMenu && (
@@ -1014,8 +1040,8 @@ export default function ChartOfAccounts() {
                     >
                       <span className="material-icons-outlined">upload_file</span>
                       <div className="item-content">
-                        <span className="title">Import Excel</span>
-                        <span className="desc">Upload bulk accounts</span>
+                        <span className="title">{t('import_excel', 'Import Excel')}</span>
+                        <span className="desc">{t('instructions', 'Upload bulk accounts')}</span>
                       </div>
                     </button>
                     <button
@@ -1028,8 +1054,8 @@ export default function ChartOfAccounts() {
                     >
                       <span className="material-icons-outlined">download</span>
                       <div className="item-content">
-                        <span className="title">Export Excel</span>
-                        <span className="desc">Download all accounts</span>
+                        <span className="title">{t('export_excel', 'Export Excel')}</span>
+                        <span className="desc">{t('instructions', 'Download all accounts')}</span>
                       </div>
                     </button>
                   </div>
@@ -1044,7 +1070,7 @@ export default function ChartOfAccounts() {
                 }}
               >
                 <span className="material-icons-outlined">add</span>
-                <span>Add Account</span>
+                <span>{t('add_account', 'Add Account')}</span>
               </button>
               <button
                 type="button"
@@ -1052,7 +1078,7 @@ export default function ChartOfAccounts() {
                 onClick={loadAccounts}
               >
                 <span className="material-icons-outlined">refresh</span>
-                <span>Refresh</span>
+                <span>{t('refresh', 'Refresh')}</span>
               </button>
             </div>
           </div>
@@ -1063,27 +1089,27 @@ export default function ChartOfAccounts() {
             <table className="accounts-table">
               <thead>
                 <tr>
-                  <th>CODE</th>
-                  <th>ACCOUNT</th>
-                  <th>TYPE</th>
-                  <th>NATURE</th>
-                  <th>FINAL</th>
-                  <th>STATUS</th>
-                  <th>ACTIONS</th>
+                  <th>{t('code', 'CODE')}</th>
+                  <th>{t('name', 'ACCOUNT')}</th>
+                  <th>{t('type', 'TYPE')}</th>
+                  <th>{t('nature', 'NATURE')}</th>
+                  <th>{t('final', 'FINAL')}</th>
+                  <th>{t('status', 'STATUS')}</th>
+                  <th>{t('actions', 'ACTIONS')}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading && (
                   <tr>
                     <td colSpan={7} className="text-center">
-                      Loading...
+                      {t('loading', 'Loading...')}
                     </td>
                   </tr>
                 )}
                 {!loading && visibleTree.length === 0 && (
                   <tr>
                     <td colSpan={7} className="text-center">
-                      No accounts found.
+                      {t('no_accounts_found', 'No accounts found.')}
                     </td>
                   </tr>
                 )}
@@ -1097,7 +1123,7 @@ export default function ChartOfAccounts() {
         <div className="accounts-card account-form-card fade-in">
           <div className="card-header">
             <div className="card-title">
-              {currentAccount ? 'Edit Account' : 'Add New Account'}
+              {currentAccount ? t('edit_account', 'Edit Account') : t('add_account', 'Add New Account')}
             </div>
             <div className="actions">
               <button
@@ -1108,7 +1134,7 @@ export default function ChartOfAccounts() {
                   closeModal();
                 }}
               >
-                Back
+                {t('back', 'Back')}
               </button>
             </div>
           </div>
@@ -1132,7 +1158,7 @@ export default function ChartOfAccounts() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-code">
-                    Account Code
+                    {t('code', 'Account Code')}
                   </label>
                   <input
                     id="acc-code"
@@ -1147,7 +1173,7 @@ export default function ChartOfAccounts() {
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-name">
-                    Account Name
+                    {t('name', 'Account Name')}
                   </label>
                   <input
                     id="acc-name"
@@ -1164,7 +1190,7 @@ export default function ChartOfAccounts() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-type">
-                    Account Type
+                    {t('type', 'Account Type')}
                   </label>
                   <select
                     id="acc-type"
@@ -1182,7 +1208,7 @@ export default function ChartOfAccounts() {
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-parent">
-                    Parent Account
+                    {t('parent', 'Parent Account')}
                   </label>
                   <select
                     id="acc-parent"
@@ -1191,7 +1217,7 @@ export default function ChartOfAccounts() {
                     value={form.AccParent}
                     onChange={(e) => handleFieldChange('AccParent', e.target.value)}
                   >
-                    <option value="">None</option>
+                    <option value="">{t('none', 'None')}</option>
                     {(parentOptionsRemote ?? parentOptions).map((a) => (
                       <option key={a.AccID} value={String(a.AccCode)}>
                         {a.AccCode} - {a.AccName}
@@ -1203,7 +1229,7 @@ export default function ChartOfAccounts() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-dmtype">
-                    Debit / Credit Nature
+                    {t('dm_type', 'Debit / Credit Nature')}
                   </label>
                   <select
                     id="acc-dmtype"
@@ -1223,7 +1249,7 @@ export default function ChartOfAccounts() {
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-nature">
-                    Nature Account
+                    {t('nature', 'Nature Account')}
                   </label>
                   <select
                     id="acc-nature"
@@ -1232,10 +1258,10 @@ export default function ChartOfAccounts() {
                     value={form.Nature}
                     onChange={(e) => handleFieldChange('Nature', e.target.value)}
                   >
-                    <option value="">Select Nature</option>
+                    <option value="">{t('select_nature', 'Select Nature')}</option>
                     {NATURE_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>
-                        {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                        {t(opt.toLowerCase().replace(' ', '_'), opt)}
                       </option>
                     ))}
                   </select>
@@ -1244,7 +1270,7 @@ export default function ChartOfAccounts() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-final">
-                    Final Account Type
+                    {t('final', 'Final Account Type')}
                   </label>
                   <select
                     id="acc-final"
@@ -1255,13 +1281,13 @@ export default function ChartOfAccounts() {
                       handleFieldChange('AccFinal', Number(e.target.value) === 1)
                     }
                   >
-                    <option value={0}>Balance Sheet</option>
-                    <option value={1}>P&L</option>
+                    <option value={0}>{t('balance_sheet', 'Balance Sheet')}</option>
+                    <option value={1}>{t('pl', 'P&L')}</option>
                   </select>
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-max-limit">
-                    Max Limit
+                    {t('max_limit', 'Max Limit')}
                   </label>
                   <input
                     id="acc-max-limit"
@@ -1276,7 +1302,7 @@ export default function ChartOfAccounts() {
               <div className="form-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-max-duration">
-                    Max Duration
+                    {t('max_duration', 'Max Duration')}
                   </label>
                   <input
                     id="acc-max-duration"
@@ -1291,7 +1317,7 @@ export default function ChartOfAccounts() {
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="acc-branch">
-                    Branch
+                    {t('branch', 'Branch')}
                   </label>
                   <select
                     id="acc-branch"
@@ -1300,7 +1326,7 @@ export default function ChartOfAccounts() {
                     value={form.AccBranch}
                     onChange={(e) => handleFieldChange('AccBranch', e.target.value)}
                   >
-                    <option value="">Global (All Branches)</option>
+                    <option value="">{t('all_branches', 'Global (All Branches)')}</option>
                     {branches.map((b) => (
                       <option key={b.id} value={b.id}>
                         {b.branch_name} ({b.branch_code})
@@ -1311,7 +1337,7 @@ export default function ChartOfAccounts() {
               </div>
               <div className="form-group">
                 <label className="form-label" htmlFor="acc-note">
-                  Notes
+                  {t('note', 'Notes')}
                 </label>
                 <textarea
                   id="acc-note"
@@ -1319,11 +1345,11 @@ export default function ChartOfAccounts() {
                   className="form-control form-textarea"
                   value={form.AccNote}
                   onChange={(e) => handleFieldChange('AccNote', e.target.value)}
-                  placeholder="Enter account description or internal notes..."
+                  placeholder={t('note_placeholder', 'Enter account description or internal notes...')}
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Status</label>
+                <label className="form-label">{t('status', 'Status')}</label>
                 <label className="toggle-switch">
                   <input
                     type="checkbox"
@@ -1339,7 +1365,7 @@ export default function ChartOfAccounts() {
                   />
                   <span className="toggle-slider" />
                   <span className="toggle-label">
-                    {form.AccStopped ? 'Inactive' : 'Active'}
+                    {form.AccStopped ? t('inactive', 'Inactive') : t('active', 'Active')}
                   </span>
                 </label>
               </div>
@@ -1353,14 +1379,14 @@ export default function ChartOfAccounts() {
                   closeModal();
                 }}
               >
-                Cancel
+                {t('cancel', 'Cancel')}
               </button>
               <button
                 type="submit"
                 className="btn btn-primary"
                 disabled={loading}
               >
-                {currentAccount ? 'Update Account' : 'Create Account'}
+                {loading ? t('saving', 'Saving...') : (currentAccount ? t('save', 'Update Account') : t('save', 'Create Account'))}
               </button>
             </div>
           </form>
@@ -1372,7 +1398,7 @@ export default function ChartOfAccounts() {
         <div className="modal-overlay active">
           <div className="modal" style={{ maxWidth: '900px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Import Chart of Accounts from Excel</h3>
+              <h3 className="modal-title">{t('import_coa_excel', 'Import Chart of Accounts from Excel')}</h3>
               <button className="modal-close" onClick={() => setShowImport(false)}>×</button>
             </div>
             <div className="modal-body">
@@ -1391,15 +1417,15 @@ export default function ChartOfAccounts() {
                     onChange={(e) => handleFileUpload(e.target.files[0])}
                   />
                   <span className="material-icons-outlined" style={{ fontSize: '48px', marginBottom: '10px' }}>cloud_upload</span>
-                  <p>Click to upload or drag and drop Excel file</p>
-                  <p style={{ fontSize: '0.8rem', marginTop: '5px' }}>Supported formats: .xlsx, .xls</p>
+                  <p>{t('click_to_upload', 'Click to upload or drag and drop Excel file')}</p>
+                  <p style={{ fontSize: '0.8rem', marginTop: '5px' }}>{t('supported_formats', 'Supported formats: .xlsx, .xls')}</p>
                 </div>
               ) : (
                 <div className="import-preview-container">
                   <div className="preview-stats">
-                    <span className="stat-badge total">Total: {importSummary.total}</span>
-                    <span className="stat-badge valid">Valid: {importSummary.valid}</span>
-                    <span className="stat-badge invalid">Invalid: {importSummary.invalid}</span>
+                    <span className="stat-badge total">{t('total', 'Total')}: {importSummary.total}</span>
+                    <span className="stat-badge valid">{t('valid', 'Valid')}: {importSummary.valid}</span>
+                    <span className="stat-badge invalid">{t('invalid', 'Invalid')}: {importSummary.invalid}</span>
                   </div>
 
                   {importLoading && (
@@ -1416,12 +1442,12 @@ export default function ChartOfAccounts() {
                     <table className="data-table">
                       <thead>
                         <tr>
-                          <th>Code</th>
-                          <th>Name</th>
-                          <th>Type</th>
-                          <th>Parent</th>
-                          <th>Errors</th>
-                          <th>Action</th>
+                          <th>{t('code', 'Code')}</th>
+                          <th>{t('name', 'Name')}</th>
+                          <th>{t('type', 'Type')}</th>
+                          <th>{t('parent', 'Parent')}</th>
+                          <th>{t('errors', 'Errors')}</th>
+                          <th>{t('action', 'Action')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1432,7 +1458,7 @@ export default function ChartOfAccounts() {
                             <td>{row.AccName}</td>
                             <td>{row.AccType}</td>
                             <td>{row.AccParent}</td>
-                            <td className="text-success">Ready</td>
+                            <td className="text-success">{t('ready', 'Ready')}</td>
                             <td>
                               <button className="btn-icon delete" onClick={() => removeImportRow(idx)}>
                                 <span className="material-icons-outlined">delete</span>
@@ -1462,29 +1488,29 @@ export default function ChartOfAccounts() {
               )}
 
               <div className="import-instructions" style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
-                <h4 style={{ marginBottom: '10px', fontSize: '0.95rem' }}>Instructions:</h4>
+                <h4 style={{ marginBottom: '10px', fontSize: '0.95rem' }}>{t('instructions_title', 'Instructions')}:</h4>
                 <ul style={{ fontSize: '0.85rem', color: '#64748b', paddingLeft: '20px' }}>
-                  <li>Download the template to see required columns.</li>
-                  <li><strong>AccCode</strong> and <strong>AccName</strong> are mandatory.</li>
-                  <li><strong>AccType</strong>: 0 for Main, 1 for Sub.</li>
-                  <li><strong>AccDmType</strong>: 0 for Debit, 1 for Credit.</li>
-                  <li><strong>AccStopped</strong>: 0 for Active, 1 for Inactive.</li>
+                  <li>{t('instruction_template', 'Download the template to see required columns.')}</li>
+                  <li><strong>AccCode</strong> {t('and', 'and')} <strong>AccName</strong> {t('are_mandatory', 'are mandatory')}.</li>
+                  <li><strong>AccType</strong>: 0 {t('for_main', 'for Main')}, 1 {t('for_sub', 'for Sub')}.</li>
+                  <li><strong>AccDmType</strong>: 0 {t('for_debit', 'for Debit')}, 1 {t('for_credit', 'for Credit')}.</li>
+                  <li><strong>AccStopped</strong>: 0 {t('for_active', 'for Active')}, 1 {t('for_inactive', 'for Inactive')}.</li>
                 </ul>
               </div>
             </div>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={downloadTemplate}>
-                <span className="material-icons-outlined">download</span> Download Template
+                <span className="material-icons-outlined">download</span> {t('download_template', 'Download Template')}
               </button>
               <button className="btn btn-secondary" onClick={() => { setExcelRows([]); setInvalidRows([]); setImportError(null); }}>
-                Clear
+                {t('clear', 'Clear')}
               </button>
               <button 
                 className="btn btn-primary" 
                 onClick={submitImport}
                 disabled={excelRows.length === 0 || importLoading}
               >
-                {importLoading ? 'Importing...' : `Import ${excelRows.length} Accounts`}
+                {importLoading ? t('importing', 'Importing...') : `${t('import', 'Import')} ${excelRows.length} ${t('accounts', 'Accounts')}`}
               </button>
             </div>
           </div>

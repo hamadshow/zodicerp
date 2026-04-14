@@ -5,23 +5,32 @@ import AdminLayout from '../../components/AdminLayout';
 import Pagination from '../../components/Pagination';
 import { apiService } from '../../../../services/api';
 
-const STATUS_OPTIONS = [
-  { value: 'posted', label: 'مرحل فقط' },
-  { value: 'unposted', label: 'غير مرحل فقط' },
-  { value: 'all', label: 'الكل' },
-];
-
-const BALANCE_STATUS_OPTIONS = [
-  { value: 'balanced', label: 'متوازن' },
-  { value: 'unbalanced', label: 'غير متوازن' },
-  { value: 'all', label: 'الكل' },
-];
-
 export default function JournalReport() {
   const { props } = usePage();
-  const localization = props?.localization;
+  const localization = props?.localization || {};
+  const translations = localization?.translations || {};
   const locale = localization?.current_locale || 'ar';
   const isAr = locale === 'ar';
+
+  const t = (key, fallback, replacements = {}) => {
+    let message = translations[`Journal.${key}`] || translations[`FinancialReports.${key}`] || translations[key] || fallback;
+    Object.keys(replacements).forEach(r => {
+      message = message.replace(`:${r}`, replacements[r]);
+    });
+    return message;
+  };
+
+  const STATUS_OPTIONS = [
+    { value: 'posted', label: t('posted_only', 'Posted Only') },
+    { value: 'unposted', label: t('unposted_only', 'Unposted Only') },
+    { value: 'all', label: t('all', 'All') },
+  ];
+
+  const BALANCE_STATUS_OPTIONS = [
+    { value: 'balanced', label: t('balanced', 'Balanced') },
+    { value: 'unbalanced', label: t('unbalanced', 'Unbalanced') },
+    { value: 'all', label: t('all', 'All') },
+  ];
 
   const [journals, setJournals] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -91,7 +100,7 @@ export default function JournalReport() {
         setTotalRecords(data.length);
       }
     } catch (e) {
-      const message = e?.response?.data?.message || (isAr ? 'فشل تحميل تقرير اليومية.' : 'Failed to load journal report.');
+      const message = e?.response?.data?.message || t('failed_to_load', 'Failed to load journal report.');
       setError(message);
       setJournals([]);
     } finally {
@@ -157,36 +166,36 @@ export default function JournalReport() {
 
       allData.forEach((entry) => {
         const isBalanced = Math.abs((Number(entry.total_debit) || 0) - (Number(entry.total_credit) || 0)) < 0.001;
-        const balanceStatusText = isAr ? (isBalanced ? 'متوازن' : 'غير متوازن') : (isBalanced ? 'Balanced' : 'Unbalanced');
-        const statusText = isAr && entry.status === 'Post' ? 'مرحل' : isAr && entry.status === 'UnPost' ? 'غير مرحل' : entry.status;
+        const balanceStatusText = isBalanced ? t('balanced', 'Balanced') : t('unbalanced', 'Unbalanced');
+        const statusText = entry.status === 'Post' ? t('posted', 'Posted') : entry.status === 'UnPost' ? t('unposted', 'Unposted') : entry.status;
 
         const lines = entry.lines || [];
         if (lines.length === 0) {
           rows.push({
-            [isAr ? 'التاريخ' : 'Date']: entry.date,
-            [isAr ? 'رمز القيد' : 'Entry Code']: entry.entry_code,
-            [isAr ? 'الوصف' : 'Description']: entry.description,
-            [isAr ? 'المرجع' : 'Reference']: entry.reference || '',
-            [isAr ? 'النوع' : 'Type']: entry.entry_type,
-            [isAr ? 'التوازن' : 'Balance']: balanceStatusText,
-            [isAr ? 'الحالة' : 'Status']: statusText,
-            [isAr ? 'الحساب' : 'Account']: '',
-            [isAr ? 'مدين' : 'Debit']: 0,
-            [isAr ? 'دائن' : 'Credit']: 0,
+            [t('date', 'Date')]: entry.date,
+            [t('entry_code', 'Entry Code')]: entry.entry_code,
+            [t('description', 'Description')]: entry.description,
+            [t('reference', 'Reference')]: entry.reference || '',
+            [t('type', 'Type')]: entry.entry_type,
+            [t('balance', 'Balance')]: balanceStatusText,
+            [t('status', 'Status')]: statusText,
+            [t('account', 'Account')]: '',
+            [t('debit', 'Debit')]: 0,
+            [t('credit', 'Credit')]: 0,
           });
         } else {
           lines.forEach((line, index) => {
             rows.push({
-              [isAr ? 'التاريخ' : 'Date']: index === 0 ? entry.date : '',
-              [isAr ? 'رمز القيد' : 'Entry Code']: index === 0 ? entry.entry_code : '',
-              [isAr ? 'الوصف' : 'Description']: index === 0 ? entry.description : line.description || '',
-              [isAr ? 'المرجع' : 'Reference']: index === 0 ? (entry.reference || '') : '',
-              [isAr ? 'النوع' : 'Type']: index === 0 ? entry.entry_type : '',
-              [isAr ? 'التوازن' : 'Balance']: index === 0 ? balanceStatusText : '',
-              [isAr ? 'الحالة' : 'Status']: index === 0 ? statusText : '',
-              [isAr ? 'الحساب' : 'Account']: line.account_name || line.account_id,
-              [isAr ? 'مدين' : 'Debit']: line.debit || 0,
-              [isAr ? 'دائن' : 'Credit']: line.credit || 0,
+              [t('date', 'Date')]: index === 0 ? entry.date : '',
+              [t('entry_code', 'Entry Code')]: index === 0 ? entry.entry_code : '',
+              [t('description', 'Description')]: index === 0 ? entry.description : line.description || '',
+              [t('reference', 'Reference')]: index === 0 ? (entry.reference || '') : '',
+              [t('type', 'Type')]: index === 0 ? entry.entry_type : '',
+              [t('balance', 'Balance')]: index === 0 ? balanceStatusText : '',
+              [t('status', 'Status')]: index === 0 ? statusText : '',
+              [t('account', 'Account')]: line.account_name || line.account_id,
+              [t('debit', 'Debit')]: line.debit || 0,
+              [t('credit', 'Credit')]: line.credit || 0,
             });
           });
         }
@@ -194,7 +203,7 @@ export default function JournalReport() {
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
       const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, isAr ? 'تقرير اليومية' : 'Journal Report');
+      XLSX.utils.book_append_sheet(workbook, worksheet, t('title', 'Journal Report'));
       
       worksheet['!cols'] = [
         { wch: 12 }, { wch: 15 }, { wch: 10 }, { wch: 15 }, { wch: 30 },
@@ -205,7 +214,7 @@ export default function JournalReport() {
       XLSX.writeFile(workbook, fileName);
     } catch (err) {
       console.error('Export failed:', err);
-      setError(isAr ? 'فشل تصدير ملف Excel.' : 'Failed to export Excel.');
+      setError(t('failed_to_export', 'Failed to export Excel.'));
     } finally {
       setLoading(false);
     }
@@ -213,205 +222,352 @@ export default function JournalReport() {
 
   return (
     <AdminLayout activeMenu="Financial Reports">
-      <Head title={isAr ? 'تقرير اليومية - ZodicERP' : 'Journal Report - ZodicERP'} />
-      <div className="JournalReport-page" style={{ padding: '20px', direction: isAr ? 'rtl' : 'ltr' }}>
-        <div className="breadcrumb" style={{ marginBottom: '20px', fontSize: '14px', color: '#666' }}>
-          <a href="#" style={{ color: '#007bff', textDecoration: 'none' }}>{isAr ? 'لوحة التحكم' : 'Dashboard'}</a>
-          <span style={{ margin: '0 8px' }}>/</span>
-          <a href="#" style={{ color: '#007bff', textDecoration: 'none' }}>{isAr ? 'المحاسبة' : 'Accounting'}</a>
-          <span style={{ margin: '0 8px' }}>/</span>
-          <a href="/sa/ar/admin/financial-reports" style={{ color: '#007bff', textDecoration: 'none' }}>{isAr ? 'التقارير المالية' : 'Financial Reports'}</a>
-          <span style={{ margin: '0 8px' }}>/</span>
-          <span>{isAr ? 'اليومية' : 'Journal'}</span>
-        </div>
+      <div className={`qbo-report-page ${isAr ? 'rtl' : 'ltr'}`}>
+        <Head title={`${t('title', 'Journal Report')} - ZodicERP`} />
 
-        <div className="gl-header" style={{ marginBottom: '30px' }}>
-          <h1 className="gl-title" style={{ fontSize: '24px', fontWeight: 'bold', color: '#333', marginBottom: '8px' }}>{isAr ? 'تقرير اليومية' : 'Journal Report'}</h1>
-          <p className="gl-subtitle" style={{ color: '#666' }}>
-            {isAr ? 'قائمة بجميع قيود اليومية وخطوط المعاملات المقابلة لها.' : 'List of all journal entries and their corresponding transaction lines.'}
-          </p>
-        </div>
-
-        <div className="gl-filters-card" style={{ background: '#fff', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', marginBottom: '30px' }}>
-          <div className="gl-filters-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', alignItems: 'end' }}>
-            <div className="gl-form-group">
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{isAr ? 'بحث' : 'Search'}</label>
-              <input
-                type="text"
-                className="gl-input"
-                placeholder={isAr ? 'رمز القيد، المرجع...' : 'Entry code, reference...'}
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '4px' }}
-              />
-            </div>
-            <div className="gl-form-group">
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{isAr ? 'من تاريخ' : 'Date from'}</label>
-              <input
-                type="date"
-                className="gl-input"
-                value={filters.dateFrom}
-                onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '4px' }}
-              />
-            </div>
-            <div className="gl-form-group">
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{isAr ? 'إلى تاريخ' : 'Date to'}</label>
-              <input
-                type="date"
-                className="gl-input"
-                value={filters.dateTo}
-                onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '4px' }}
-              />
-            </div>
-            <div className="gl-form-group">
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{isAr ? 'الحالة' : 'Status'}</label>
-              <select
-                className="gl-input"
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '4px' }}
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {isAr ? opt.label : opt.value.charAt(0).toUpperCase() + opt.value.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="gl-form-group">
-              <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{isAr ? 'حالة التوازن' : 'Balance Status'}</label>
-              <select
-                className="gl-input"
-                value={filters.balanceStatus}
-                onChange={(e) => handleFilterChange('balanceStatus', e.target.value)}
-                style={{ width: '100%', padding: '8px 12px', border: '1px solid #ddd', borderRadius: '4px' }}
-              >
-                {BALANCE_STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {isAr ? opt.label : opt.value.charAt(0).toUpperCase() + opt.value.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="gl-form-actions" style={{ display: 'flex', gap: '10px' }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleApplyFilters}
-                disabled={loading}
-                style={{ padding: '8px 16px', backgroundColor: '#007bff', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-              >
-                <span className="material-icons-outlined" style={{ fontSize: '18px' }}>filter_alt</span>
-                {isAr ? 'تطبيق' : 'Apply'}
-              </button>
-              <button
-                type="button"
-                className="btn btn-excel"
-                onClick={handleExportExcel}
-                disabled={loading || journals.length === 0}
-                style={{ padding: '8px 16px', backgroundColor: '#28a745', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
-              >
-                <span className="material-icons-outlined" style={{ fontSize: '18px' }}>description</span>
-                {isAr ? 'تصدير' : 'Export'}
-              </button>
-            </div>
+        {/* 1. Breadcrumbs & Top Actions */}
+        <div className="report-top-nav no-print">
+          <div className="breadcrumb">
+            <span className="item">{t('reports', 'Reports')}</span>
+            <span className="sep material-icons-outlined">chevron_right</span>
+            <span className="item active">{t('journal', 'Journal')}</span>
+          </div>
+          <div className="top-actions">
+            <button className="action-link" onClick={() => router.get(route('admin.accounting.financial-reports'))}>
+              {t('back_to_report_list', 'Back to report list')}
+            </button>
           </div>
         </div>
 
-        {error && <div className="error-banner" style={{ padding: '12px', backgroundColor: '#f8d7da', color: '#721c24', borderRadius: '4px', marginBottom: '20px' }}>{error}</div>}
+        {/* 2. Main Title Area */}
+        <div className="report-header-area no-print">
+          <h1 className="report-title">{t('title', 'Journal Report')}</h1>
+          <div className="header-buttons">
+            <button className="btn-outline">{t('customize', 'Customize')}</button>
+            <button className="btn-primary">{t('save_customization', 'Save customization')}</button>
+          </div>
+        </div>
 
-        <div className="gl-table-card" style={{ background: '#fff', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
-          <table className="gl-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead style={{ background: '#f8f9fa' }}>
-              <tr>
-                <th style={{ padding: '12px', textAlign: isAr ? 'right' : 'left', borderBottom: '2px solid #dee2e6' }}>{isAr ? 'التاريخ / الرمز' : 'Date / Code'}</th>
-                <th style={{ padding: '12px', textAlign: isAr ? 'right' : 'left', borderBottom: '2px solid #dee2e6' }}>{isAr ? 'الوصف' : 'Description'}</th>
-                <th style={{ padding: '12px', textAlign: isAr ? 'right' : 'left', borderBottom: '2px solid #dee2e6' }}>{isAr ? 'الحساب' : 'Account'}</th>
-                <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #dee2e6' }}>{isAr ? 'مدين' : 'Debit'}</th>
-                <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #dee2e6' }}>{isAr ? 'دائن' : 'Credit'}</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #dee2e6' }}>{isAr ? 'التوازن' : 'Balance'}</th>
-                <th style={{ padding: '12px', textAlign: 'center', borderBottom: '2px solid #dee2e6' }}>{isAr ? 'الحالة' : 'Status'}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr>
-                  <td colSpan={7} style={{ padding: '20px', textAlign: 'center' }}>{isAr ? 'جاري التحميل...' : 'Loading...'}</td>
-                </tr>
-              )}
-              {!loading && journals.length === 0 && (
-                <tr>
-                  <td colSpan={7} style={{ padding: '20px', textAlign: 'center' }}>{isAr ? 'لم يتم العثور على قيود يومية.' : 'No journal entries found.'}</td>
-                </tr>
-              )}
-              {!loading && journals.map((entry) => {
-                const isBalanced = Math.abs((Number(entry.total_debit) || 0) - (Number(entry.total_credit) || 0)) < 0.001;
-                return (
-                  <React.Fragment key={entry.entry_code}>
-                    <tr style={{ backgroundColor: '#f1f3f5', fontWeight: 'bold' }}>
-                      <td style={{ padding: '10px 12px', borderBottom: '1px solid #dee2e6', textAlign: isAr ? 'right' : 'left' }}>
-                        <div style={{ fontSize: '12px', color: '#666' }}>{entry.date}</div>
-                        <button
-                          type="button"
-                          onClick={() => handleJournalClick(entry.entry_code)}
-                          style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', padding: 0, fontWeight: 'bold', fontSize: '14px' }}
-                        >
-                          {entry.entry_code}
-                        </button>
-                      </td>
-                      <td style={{ padding: '10px 12px', borderBottom: '1px solid #dee2e6', textAlign: isAr ? 'right' : 'left' }}>
-                        <div>{entry.description}</div>
-                        <div style={{ fontSize: '11px', color: '#888' }}>{isAr ? 'مرجع' : 'Ref'}: {entry.reference || '-'} | {isAr ? 'نوع' : 'Type'}: {entry.entry_type}</div>
-                      </td>
-                      <td colSpan={3} style={{ borderBottom: '1px solid #dee2e6' }}></td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: '1px solid #dee2e6' }}>
-                        <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', backgroundColor: isBalanced ? '#d4edda' : '#f8d7da', color: isBalanced ? '#155724' : '#721c24' }}>
-                          {isAr ? (isBalanced ? 'متوازن' : 'غير متوازن') : (isBalanced ? 'Balanced' : 'Unbalanced')}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px 12px', textAlign: 'center', borderBottom: '1px solid #dee2e6' }}>
-                        <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '11px', backgroundColor: entry.status === 'Post' ? '#d4edda' : '#fff3cd', color: entry.status === 'Post' ? '#155724' : '#856404' }}>
-                          {isAr && entry.status === 'Post' ? 'مرحل' : isAr && entry.status === 'UnPost' ? 'غير مرحل' : entry.status}
-                        </span>
-                      </td>
-                    </tr>
-                    {entry.lines && entry.lines.map((line, idx) => (
-                      <tr key={`${entry.entry_code}-line-${idx}`}>
-                        <td style={{ borderBottom: '1px solid #eee' }}></td>
-                        <td style={{ padding: '8px 12px', fontSize: '13px', color: '#555', borderBottom: '1px solid #eee', textAlign: isAr ? 'right' : 'left' }}>
-                          {line.description}
-                        </td>
-                        <td style={{ padding: '8px 12px', fontSize: '13px', borderBottom: '1px solid #eee', textAlign: isAr ? 'right' : 'left' }}>
-                          {line.account_name || (isAr ? `معرف الحساب: ${line.account_id}` : `Account ID: ${line.account_id}`)}
-                        </td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: '13px', borderBottom: '1px solid #eee' }}>
-                          {line.debit > 0 ? Number(line.debit).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}
-                        </td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: '13px', borderBottom: '1px solid #eee' }}>
-                          {line.credit > 0 ? Number(line.credit).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}
-                        </td>
-                        <td colSpan={2} style={{ borderBottom: '1px solid #eee' }}></td>
-                      </tr>
-                    ))}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-
-          {totalRecords > perPage && (
-            <div style={{ padding: '20px', borderTop: '1px solid #dee2e6' }}>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={Math.ceil(totalRecords / perPage)}
-                onPageChange={handlePageChange}
+        {/* 3. Filter/Action Bar */}
+        <div className="report-filter-bar no-print">
+          <div className="filter-group">
+            <div className="field">
+              <label>{t('search', 'Search')}</label>
+              <input
+                type="text"
+                className="qbo-input"
+                placeholder={t('entry_code_ref', 'Entry code, reference...')}
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
               />
             </div>
-          )}
+            <div className="field">
+              <label>{t('date_from', 'Date from')}</label>
+              <input
+                type="date"
+                className="qbo-date-input"
+                value={filters.dateFrom}
+                onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>{t('date_to', 'Date to')}</label>
+              <input
+                type="date"
+                className="qbo-date-input"
+                value={filters.dateTo}
+                onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label>{t('status', 'Status')}</label>
+              <select
+                className="qbo-select"
+                value={filters.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+              >
+                {STATUS_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="bar-actions">
+            <button className="btn-run" onClick={handleApplyFilters}>{t('run_report', 'Run report')}</button>
+          </div>
+        </div>
+
+        {/* 4. The "Paper" Report Container */}
+        <div className="report-paper-container">
+          <div className="report-paper-actions no-print">
+            <div className="left-tools">
+              {/* Journal specific tools can go here */}
+            </div>
+            <div className="right-tools">
+              <button title={t('print', 'Print')} onClick={() => window.print()}>
+                <span className="material-icons-outlined">print</span>
+              </button>
+              <button title={t('export', 'Export')} onClick={handleExportExcel}>
+                <span className="material-icons-outlined">ios_share</span>
+              </button>
+              <button title={t('settings', 'Settings')}>
+                <span className="material-icons-outlined">settings</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="report-content-paper shadow-xl">
+            {/* Report Header (Inside Paper) */}
+            <div className="inner-header">
+              <h2 className="company-name">{t('company_name', 'ZodicERP Company')}</h2>
+              <h3 className="report-type">{t('title', 'Journal Report')}</h3>
+              <p className="report-date">
+                {filters.dateFrom && filters.dateTo 
+                  ? `${t('from', 'From')} ${filters.dateFrom} ${t('to', 'To')} ${filters.dateTo}`
+                  : t('all_dates', 'All Dates')}
+              </p>
+            </div>
+
+            {error && <div className="unbalanced-warning no-print">{error}</div>}
+
+            {loading ? (
+              <div className="report-loading">
+                <div className="spinner"></div>
+                <p>{t('loading_data', 'Loading your financial data...')}</p>
+              </div>
+            ) : journals.length > 0 ? (
+              <div className="report-table-wrapper">
+                <table className="qbo-table journal-table">
+                  <thead>
+                    <tr>
+                      <th className="name-col">{t('date_code', 'Date / Code')}</th>
+                      <th>{t('description', 'Description')}</th>
+                      <th>{t('account', 'Account')}</th>
+                      <th className="total-col">{t('debit', 'Debit')}</th>
+                      <th className="total-col">{t('credit', 'Credit')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {journals.map((entry) => {
+                      const isBalanced = Math.abs((Number(entry.total_debit) || 0) - (Number(entry.total_credit) || 0)) < 0.001;
+                      return (
+                        <React.Fragment key={entry.entry_code}>
+                          <tr className="entry-header-row">
+                            <td className="date-code-cell">
+                              <div className="entry-date">{entry.date}</div>
+                              <button
+                                type="button"
+                                className="entry-code-link"
+                                onClick={() => handleJournalClick(entry.entry_code)}
+                              >
+                                {entry.entry_code}
+                              </button>
+                            </td>
+                            <td className="entry-desc-cell">
+                              <div className="main-desc">{entry.description}</div>
+                              <div className="meta-desc">
+                                {t('ref', 'Ref')}: {entry.reference || '-'} | {t('type', 'Type')}: {entry.entry_type}
+                              </div>
+                            </td>
+                            <td colSpan="1"></td>
+                            <td className="status-cell" colSpan="2">
+                              <div className="flex justify-end gap-2">
+                                <span className={`badge ${isBalanced ? 'badge-success' : 'badge-danger'}`}>
+                                  {isBalanced ? t('balanced', 'Balanced') : t('unbalanced', 'Unbalanced')}
+                                </span>
+                                <span className={`badge ${entry.status === 'Post' ? 'badge-success' : 'badge-warning'}`}>
+                                  {entry.status === 'Post' ? t('posted', 'Posted') : entry.status === 'UnPost' ? t('unposted', 'Unposted') : entry.status}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                          {entry.lines && entry.lines.map((line, idx) => (
+                            <tr key={`${entry.entry_code}-line-${idx}`} className="line-row">
+                              <td></td>
+                              <td className="line-desc">{line.description}</td>
+                              <td className="line-acc">
+                                {line.account?.AccName || line.account_name || t('account_id', `Account ID: ${line.account_id}`, { id: line.account_id })}
+                              </td>
+                              <td className="balance-cell">
+                                {line.debit > 0 ? Number(line.debit).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}
+                              </td>
+                              <td className="balance-cell">
+                                {line.credit > 0 ? Number(line.credit).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '-'}
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="entry-spacer"></tr>
+                        </React.Fragment>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                {totalRecords > perPage && (
+                  <div className="no-print mt-8 flex justify-center">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={Math.ceil(totalRecords / perPage)}
+                      onPageChange={handlePageChange}
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="no-data-msg">
+                {t('no_journal_entries', 'No journal entries found.')}
+              </div>
+            )}
+
+            <div className="inner-footer">
+              <p>{new Date().toLocaleString(locale === 'ar' ? 'ar-SA' : 'en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
+              <p>{t('accrual_basis', 'Accrual Basis')}</p>
+            </div>
+          </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        /* QuickBooks Online 2026 - Journal Redesign */
+        :root {
+          --qbo-green: #2ca01c;
+          --qbo-blue: #0077c5;
+          --qbo-gray-bg: #f4f5f8;
+          --qbo-border: #d4d7dc;
+          --qbo-text: #393a3d;
+          --qbo-text-light: #6b6c72;
+          --qbo-negative: #d52b1e;
+          --paper-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+        }
+
+        .qbo-report-page {
+          background-color: var(--qbo-gray-bg);
+          min-height: 100vh;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          color: var(--qbo-text);
+          padding-bottom: 80px;
+        }
+
+        .report-top-nav {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 32px;
+          background: #fff;
+          border-bottom: 1px solid var(--qbo-border);
+          position: sticky;
+          top: 0;
+          z-index: 50;
+        }
+        .report-top-nav .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--qbo-text-light); }
+        .report-top-nav .breadcrumb .active { font-weight: 600; color: var(--qbo-text); }
+        .report-top-nav .action-link { color: var(--qbo-blue); font-weight: 600; font-size: 13px; background: none; border: none; cursor: pointer; }
+
+        .report-header-area {
+          padding: 32px 32px 24px 32px;
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          max-width: 1200px;
+          margin: 0 auto;
+        }
+        .report-title { font-size: 28px; font-weight: 300; margin: 0; }
+        .header-buttons { display: flex; gap: 12px; }
+        
+        .btn-outline { padding: 8px 20px; border: 1px solid var(--qbo-border); border-radius: 20px; font-weight: 600; background: #fff; cursor: pointer; font-size: 14px; }
+        .btn-primary { padding: 8px 24px; background: var(--qbo-green); color: #fff; border: none; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 14px; }
+
+        .report-filter-bar {
+          margin: 0 32px 32px 32px;
+          background: #fff;
+          padding: 24px;
+          border-radius: 8px;
+          border: 1px solid var(--qbo-border);
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          max-width: 1200px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+        .filter-group { display: flex; gap: 24px; flex-wrap: wrap; }
+        .filter-group .field { display: flex; flex-direction: column; gap: 6px; }
+        .filter-group label { font-size: 11px; font-weight: 700; color: var(--qbo-text-light); text-transform: uppercase; }
+        
+        .qbo-input, .qbo-select, .qbo-date-input { 
+          padding: 8px 12px; border: 1px solid #babec5; border-radius: 4px; min-width: 160px; font-size: 14px; 
+        }
+
+        .btn-run { padding: 10px 32px; border: 1px solid #babec5; border-radius: 20px; font-weight: 700; background: #fff; cursor: pointer; font-size: 14px; }
+
+        .report-paper-container { margin: 0 32px; max-width: 1100px; margin-left: auto; margin-right: auto; }
+        .report-paper-actions { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .right-tools { display: flex; gap: 16px; }
+        .right-tools button { background: none; border: none; color: var(--qbo-text-light); cursor: pointer; padding: 4px; }
+
+        .report-content-paper {
+          background: #fff;
+          padding: 60px 80px;
+          min-height: 1000px;
+          box-shadow: var(--paper-shadow);
+          border-radius: 2px;
+        }
+
+        .inner-header { text-align: center; margin-bottom: 48px; }
+        .company-name { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+        .report-type { font-size: 24px; font-weight: 400; margin-bottom: 6px; }
+        .report-date { font-size: 15px; color: var(--qbo-text-light); }
+
+        .qbo-table { width: 100%; border-collapse: collapse; }
+        .qbo-table th { 
+          border-bottom: 1px solid var(--qbo-text); 
+          padding: 12px 8px; 
+          font-size: 12px; 
+          font-weight: 800; 
+          text-align: right; 
+          text-transform: uppercase;
+        }
+        .qbo-table .name-col { text-align: left; width: 15%; }
+        
+        .entry-header-row { background-color: #f9f9f9; }
+        .entry-header-row td { padding: 16px 8px; border-bottom: 1px solid var(--qbo-border); }
+        
+        .date-code-cell .entry-date { font-size: 12px; color: var(--qbo-text-light); }
+        .entry-code-link { background: none; border: none; color: var(--qbo-blue); font-weight: 700; padding: 0; cursor: pointer; }
+        
+        .main-desc { font-weight: 700; font-size: 14px; }
+        .meta-desc { font-size: 11px; color: var(--qbo-text-light); margin-top: 4px; }
+        
+        .line-row td { padding: 10px 8px; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+        .balance-cell { text-align: right; white-space: nowrap; font-family: 'Inter', monospace; }
+        
+        .badge { padding: 2px 10px; border-radius: 12px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+
+        .entry-spacer { height: 24px; }
+
+        .inner-footer { margin-top: 80px; border-top: 1px solid var(--qbo-border); padding-top: 24px; font-size: 13px; color: var(--qbo-text-light); display: flex; justify-content: space-between; }
+
+        .rtl { direction: rtl; }
+        .rtl .qbo-table th, .rtl .qbo-table td { text-align: right; }
+        .rtl .qbo-table .name-col { text-align: right; }
+        .rtl .balance-cell { text-align: left; }
+        .rtl .qbo-table th.total-col { text-align: left; }
+
+        @media print {
+          .no-print { display: none !important; }
+          .qbo-report-page { background: #fff; padding: 0; }
+          .report-content-paper { box-shadow: none; padding: 20px; }
+        }
+
+        .report-loading { text-align: center; padding: 150px 0; }
+        .spinner { width: 50px; height: 50px; border: 3px solid rgba(44, 160, 28, 0.1); border-top: 3px solid var(--qbo-green); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      `}</style>
     </AdminLayout>
   );
 }

@@ -103,10 +103,30 @@
 
 @use 'pages/Register';
 
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900;1000&display=swap');
+
 // Global RTL Support
 [dir="rtl"] {
     direction: rtl;
     text-align: right;
+    font-family: 'Cairo', sans-serif;
+
+    // Icons must keep their font families
+    .material-icons,
+    .material-icons-outlined,
+    .material-icons-round,
+    .material-icons-sharp,
+    .material-icons-two-tone {
+        font-family: 'Material Icons' !important;
+        &.material-icons-outlined { font-family: 'Material Icons Outlined' !important; }
+        &.material-icons-round { font-family: 'Material Icons Round' !important; }
+        &.material-icons-sharp { font-family: 'Material Icons Sharp' !important; }
+        &.material-icons-two-tone { font-family: 'Material Icons Two Tone' !important; }
+    }
+    
+    .fa, .fas, .far, .fab, .fa-solid, .fa-regular, .fa-brands {
+        font-family: "Font Awesome 6 Free", "Font Awesome 6 Brands", "Font Awesome 5 Free", "Font Awesome 5 Brands", sans-serif !important;
+    }
 
     .flex, .d-flex {
         &.flex-row {

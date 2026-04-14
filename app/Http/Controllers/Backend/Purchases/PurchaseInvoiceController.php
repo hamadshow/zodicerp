@@ -81,7 +81,7 @@ class PurchaseInvoiceController extends Controller
             'invoice_type' => 'required|in:standard,proforma,credit_note,debit_note',
             'payment_status' => 'required|in:unpaid,partial,paid,overdue',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'nullable|exists:products,id',
+            'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.001',
             'items.*.unit_id' => 'required|exists:item_units,id',
             'items.*.unit_price' => 'required|numeric|min:0',
@@ -122,16 +122,16 @@ class PurchaseInvoiceController extends Controller
                 'payment_terms' => $request->payment_terms_id, // Note: column is payment_terms (string) or use ID if schema changed. Schema says string(255).
             ]);
 
-            foreach ($request->items as $index => $item) {
+            foreach ($validated['items'] as $index => $item) {
                 $invoice->items()->create([
-                    'product_id' => $item['product_id'] ?? null,
+                    'product_id' => $item['product_id'],
                     'warehouse_id' => $item['warehouse_id'] ?? $warehouseId,
                     'quantity' => $item['quantity'],
                     'unit_id' => $item['unit_id'],
                     'unit_price' => $item['unit_price'],
                     'discount_amount' => $item['discount_amount'] ?? 0,
                     'tax_amount' => $item['tax_amount'] ?? 0,
-                    'tax_percentage' => $item['tax_percent'] ?? 0,
+                    'tax_percentage' => $item['tax_percent'] ?? $item['tax_percentage'] ?? 0,
                 ]);
             }
 
@@ -159,7 +159,7 @@ class PurchaseInvoiceController extends Controller
             'invoice_type' => 'required|in:standard,proforma,credit_note,debit_note',
             'payment_status' => 'required|in:unpaid,partial,paid,overdue',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'nullable|exists:products,id',
+            'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.001',
             'items.*.unit_id' => 'required|exists:item_units,id',
             'items.*.unit_price' => 'required|numeric|min:0',
@@ -195,16 +195,16 @@ class PurchaseInvoiceController extends Controller
             // Sync items: Delete old and re-create
             $invoice->items()->delete();
 
-            foreach ($request->items as $index => $item) {
+            foreach ($validated['items'] as $index => $item) {
                 $invoice->items()->create([
-                    'product_id' => $item['product_id'] ?? null,
+                    'product_id' => $item['product_id'],
                     'warehouse_id' => $item['warehouse_id'] ?? $warehouseId,
                     'quantity' => $item['quantity'],
                     'unit_id' => $item['unit_id'],
                     'unit_price' => $item['unit_price'],
                     'discount_amount' => $item['discount_amount'] ?? 0,
                     'tax_amount' => $item['tax_amount'] ?? 0,
-                    'tax_percentage' => $item['tax_percent'] ?? 0,
+                    'tax_percentage' => $item['tax_percent'] ?? $item['tax_percentage'] ?? 0,
                 ]);
             }
 

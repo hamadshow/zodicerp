@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
+import { formatDate } from '@/utils/date';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
 
@@ -470,7 +471,7 @@ export default function SalesOrders({
                                 {orders.data.map((o) => (
                                     <tr key={o.id}>
                                         <td>{o.order_number}</td>
-                                        <td>{o.order_date}</td>
+                                        <td>{formatDate(o.order_date)}</td>
                                         <td>{o.customer?.name_en || o.customer?.name_ar}</td>
                                         <td>
                                             <span className={`status-badge status-${o.status}`}>

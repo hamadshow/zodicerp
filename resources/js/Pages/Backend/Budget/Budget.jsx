@@ -1,11 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
 import '../../../../css/backend/main.scss';
 
 
 const Budget = ({ budgets, departments, branches, currencies, categories, accounts, projects, costCenters }) => {
+    const { props } = usePage();
+    const { localization } = props;
+    const translations = localization?.translations || {};
+
+    const t = (key, fallback) => {
+        return translations[`Budget.${key}`] || fallback;
+    };
+
     const [viewMode, setViewMode] = useState('list'); // list, create, edit
     const [activeTab, setActiveTab] = useState('info'); // info, items, summary
 
@@ -43,9 +51,9 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
     const categoryOptions = useMemo(() => 
         categories.map(c => ({
             value: String(c.id),
-            label: c.name_en || c.name_ar || c.name || `Category ${c.id}`
+            label: (localization?.current_locale === 'ar' ? c.name_ar : c.name_en) || c.name || `Category ${c.id}`
         })), 
-    [categories]);
+    [categories, localization?.current_locale]);
 
     const { accountIdToCode, accountCodeToId } = useMemo(() => {
         const idToCode = {};
@@ -62,9 +70,9 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
         accounts
             .map(a => ({
                 value: String(a.AccID),
-                label: `${a.AccCode ? a.AccCode + ' - ' : ''}${a.AccName}`
+                label: `${a.AccCode ? a.AccCode + ' - ' : ''}${localization?.current_locale === 'ar' ? a.AccName_ar || a.AccName : a.AccName}`
             })), 
-    [accounts]);
+    [accounts, localization?.current_locale]);
 
     // --- List View Components ---
     const BudgetList = () => (
@@ -73,23 +81,23 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                 <table>
                     <thead>
                         <tr>
-                            <th>Number</th>
-                            <th>Name (EN)</th>
-                            <th>Fiscal Year</th>
-                            <th>Department</th>
-                            <th>Status</th>
-                            <th>Total Revenue</th>
-                            <th>Total Expense</th>
-                            <th>Actions</th>
+                            <th>{t('number', 'Number')}</th>
+                            <th>{t('name_en', 'Name (EN)')}</th>
+                            <th>{t('fiscal_year', 'Fiscal Year')}</th>
+                            <th>{t('department', 'Department')}</th>
+                            <th>{t('status', 'Status')}</th>
+                            <th>{t('total_revenue', 'Total Revenue')}</th>
+                            <th>{t('total_expense', 'Total Expense')}</th>
+                            <th>{t('actions', 'Actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {budgets.data.map(budget => (
                             <tr key={budget.id} onClick={() => handleEdit(budget)} style={{ cursor: 'pointer' }}>
                                 <td>{budget.budget_number}</td>
-                                <td>{budget.budget_name_en}</td>
+                                <td>{localization?.current_locale === 'ar' ? budget.budget_name_ar : budget.budget_name_en}</td>
                                 <td>{budget.fiscal_year}</td>
-                                <td>{budget.department?.name_en || '-'}</td>
+                                <td>{(localization?.current_locale === 'ar' ? budget.department?.name_ar : budget.department?.name_en) || '-'}</td>
                                 <td>
                                     <span className={`badge ${budget.status === 'approved' ? 'active' : 'inactive'}`}>
                                         {budget.status}
@@ -118,8 +126,8 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
 
     // --- Form Actions ---
     const handleDelete = (id) => {
-        if (confirm('Are you sure you want to delete this budget?')) {
-            router.delete(route('admin.budgets.destroy', id));
+        if (confirm(t('delete_confirm', 'Are you sure you want to delete this budget?'))) {
+            router.delete(route('admin.budget.destroy', id));
         }
     };
 
@@ -181,12 +189,12 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
         const finalData = { ...data, items: itemsWithIds, ...totals };
 
         if (viewMode === 'create') {
-            post(route('admin.budgets.store'), {
+            post(route('admin.budget.store'), {
                 data: finalData,
                 onSuccess: () => setViewMode('list')
             });
         } else {
-            put(route('admin.budgets.update', data.id), {
+            put(route('admin.budget.update', data.id), {
                 data: finalData,
                 onSuccess: () => setViewMode('list')
             });
@@ -288,94 +296,94 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
     const renderInfoTab = () => (
         <div className="form-section animate-fade-in">
             <div className="form-group">
-                <label>Budget Number <span style={{ color: 'red' }}>*</span></label>
+                <label>{t('budget_number', 'Budget Number')} <span style={{ color: 'red' }}>*</span></label>
                 <input type="text" value={data.budget_number || ''} onChange={e => setData('budget_number', e.target.value)} />
                 {errors.budget_number && <span className="error">{errors.budget_number}</span>}
             </div>
             <div className="form-group">
-                <label>Budget Name (EN) <span style={{ color: 'red' }}>*</span></label>
+                <label>{t('name_en', 'Budget Name (EN)')} <span style={{ color: 'red' }}>*</span></label>
                 <input type="text" value={data.budget_name_en || ''} onChange={e => setData('budget_name_en', e.target.value)} />
                 {errors.budget_name_en && <span className="error" style={{ color: 'red' }}>{errors.budget_name_en}</span>}
             </div>
             <div className="form-group">
-                <label>Budget Name (AR) <span style={{ color: 'red' }}>*</span></label>
+                <label>{t('name_ar', 'Budget Name (AR)')} <span style={{ color: 'red' }}>*</span></label>
                 <input type="text" value={data.budget_name_ar || ''} onChange={e => setData('budget_name_ar', e.target.value)} />
                 {errors.budget_name_ar && <span className="error" style={{ color: 'red' }}>{errors.budget_name_ar}</span>}
             </div>
             <div className="form-group">
-                <label>Budget Type <span style={{ color: 'red' }}>*</span></label>
+                <label>{t('budget_type', 'Budget Type')} <span style={{ color: 'red' }}>*</span></label>
                 <select value={data.budget_type || ''} onChange={e => setData('budget_type', e.target.value)}>
-                    <option value="annual">Annual</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="project">Project</option>
-                    <option value="rolling">Rolling</option>
+                    <option value="annual">{t('annual', 'Annual')}</option>
+                    <option value="quarterly">{t('quarterly', 'Quarterly')}</option>
+                    <option value="monthly">{t('monthly', 'Monthly')}</option>
+                    <option value="project">{t('project', 'Project')}</option>
+                    <option value="rolling">{t('rolling', 'Rolling')}</option>
                 </select>
                 {errors.budget_type && <span className="error" style={{ color: 'red' }}>{errors.budget_type}</span>}
             </div>
             <div className="form-group">
-                <label>Scope Type <span style={{ color: 'red' }}>*</span></label>
+                <label>{t('scope_type', 'Scope Type')} <span style={{ color: 'red' }}>*</span></label>
                 <select value={data.scope_type || ''} onChange={e => setData('scope_type', e.target.value)}>
-                    <option value="company">Company</option>
-                    <option value="department">Department</option>
-                    <option value="project">Project</option>
-                    <option value="cost_center">Cost Center</option>
-                    <option value="branch">Branch</option>
+                    <option value="company">{t('company', 'Company')}</option>
+                    <option value="department">{t('department', 'Department')}</option>
+                    <option value="project">{t('project', 'Project')}</option>
+                    <option value="cost_center">{t('cost_center', 'Cost Center')}</option>
+                    <option value="branch">{t('branch', 'Branch')}</option>
                 </select>
                 {errors.scope_type && <span className="error" style={{ color: 'red' }}>{errors.scope_type}</span>}
             </div>
             <div className="form-group">
-                <label>Fiscal Year <span style={{ color: 'red' }}>*</span></label>
+                <label>{t('fiscal_year', 'Fiscal Year')} <span style={{ color: 'red' }}>*</span></label>
                 <input type="number" value={data.fiscal_year || ''} onChange={e => setData('fiscal_year', e.target.value)} />
                 {errors.fiscal_year && <span className="error" style={{ color: 'red' }}>{errors.fiscal_year}</span>}
             </div>
             <div className="form-group">
-                <label>Start Date <span style={{ color: 'red' }}>*</span></label>
+                <label>{t('start_date', 'Start Date')} <span style={{ color: 'red' }}>*</span></label>
                 <input type="date" value={data.start_date || ''} onChange={e => setData('start_date', e.target.value)} />
                 {errors.start_date && <span className="error" style={{ color: 'red' }}>{errors.start_date}</span>}
             </div>
             <div className="form-group">
-                <label>End Date <span style={{ color: 'red' }}>*</span></label>
+                <label>{t('end_date', 'End Date')} <span style={{ color: 'red' }}>*</span></label>
                 <input type="date" value={data.end_date || ''} onChange={e => setData('end_date', e.target.value)} />
                 {errors.end_date && <span className="error" style={{ color: 'red' }}>{errors.end_date}</span>}
             </div>
             <div className="form-group">
-                <label>Department</label>
+                <label>{t('department', 'Department')}</label>
                 <select value={data.department_id || ''} onChange={e => setData('department_id', e.target.value)}>
-                    <option value="">Select Department</option>
-                    {departments.map(d => <option key={d.id} value={d.id}>{d.name_en}</option>)}
+                    <option value="">{t('select_department', 'Select Department')}</option>
+                    {departments.map(d => <option key={d.id} value={d.id}>{localization?.current_locale === 'ar' ? d.name_ar : d.name_en}</option>)}
                 </select>
                 {errors.department_id && <span className="error" style={{ color: 'red' }}>{errors.department_id}</span>}
             </div>
             <div className="form-group">
-                <label>Currency <span style={{ color: 'red' }}>*</span></label>
+                <label>{t('currency', 'Currency')} <span style={{ color: 'red' }}>*</span></label>
                 <select value={data.currency_id || ''} onChange={e => setData('currency_id', e.target.value)}>
-                    <option value="">Select Currency</option>
+                    <option value="">{t('select_currency', 'Select Currency')}</option>
                     {currencies.map(c => <option key={c.id} value={c.id}>{c.code}</option>)}
                 </select>
                 {errors.currency_id && <span className="error" style={{ color: 'red' }}>{errors.currency_id}</span>}
             </div>
             <div className="form-group">
-                <label>Branch</label>
+                <label>{t('branch', 'Branch')}</label>
                 <select value={data.branch_id || ''} onChange={e => setData('branch_id', e.target.value)}>
-                    <option value="">Select Branch</option>
-                    {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    <option value="">{t('select_branch', 'Select Branch')}</option>
+                    {branches.map(b => <option key={b.id} value={b.id}>{localization?.current_locale === 'ar' ? b.name_ar : b.name_en || b.name}</option>)}
                 </select>
                 {errors.branch_id && <span className="error" style={{ color: 'red' }}>{errors.branch_id}</span>}
             </div>
              <div className="form-group">
-                <label>Project (Optional)</label>
+                <label>{t('project', 'Project')} (Optional)</label>
                  <select value={data.project_id || ''} onChange={e => setData('project_id', e.target.value)}>
-                    <option value="">Select Project</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    <option value="">{t('select_project', 'Select Project')}</option>
+                    {projects.map(p => <option key={p.id} value={p.id}>{localization?.current_locale === 'ar' ? p.name_ar : p.name_en || p.name}</option>)}
                 </select>
                 {errors.project_id && <span className="error" style={{ color: 'red' }}>{errors.project_id}</span>}
             </div>
              <div className="form-group">
-                <label>Cost Center (Optional)</label>
+                <label>{t('cost_center', 'Cost Center')} (Optional)</label>
                  <select value={data.cost_center_id || ''} onChange={e => setData('cost_center_id', e.target.value)}>
-                    <option value="">Select Cost Center</option>
-                    {costCenters.map(cc => <option key={cc.id} value={cc.id}>{cc.name}</option>)}
+                    <option value="">{t('select_cost_center', 'Select Cost Center')}</option>
+                    {costCenters.map(cc => <option key={cc.id} value={cc.id}>{localization?.current_locale === 'ar' ? cc.name_ar : cc.name_en || cc.name}</option>)}
                 </select>
                 {errors.cost_center_id && <span className="error" style={{ color: 'red' }}>{errors.cost_center_id}</span>}
             </div>
@@ -383,13 +391,13 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
             <div className="form-group">
                 <label className="toggle-switch">
                     <input type="checkbox" checked={data.allow_over_budget || false} onChange={e => setData('allow_over_budget', e.target.checked)} />
-                    Allow Over Budget
+                    {t('allow_over_budget', 'Allow Over Budget')}
                 </label>
             </div>
              <div className="form-group">
                 <label className="toggle-switch">
                     <input type="checkbox" checked={data.require_approval_over_budget || false} onChange={e => setData('require_approval_over_budget', e.target.checked)} />
-                    Require Approval
+                    {t('require_approval', 'Require Approval')}
                 </label>
             </div>
         </div>
@@ -398,20 +406,20 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
     const renderItemsTab = () => (
         <div className="items-section animate-fade-in">
             <button type="button" className="btn btn-secondary mb-3" onClick={addItem} style={{ marginBottom: '1rem' }}>
-                + Add Item
+                + {t('add_item', 'Add Item')}
             </button>
             <div className="items-grid">
                 <table>
                     <thead>
                         <tr>
-                            <th>Category</th>
-                            <th>Account</th>
-                            <th>Method</th>
-                            <th>Formula</th>
-                            <th>Annual Amount</th>
-                            {months.map(m => <th key={m}>{m.toUpperCase()}</th>)}
-                            <th>Notes</th>
-                            <th>Actions</th>
+                            <th>{t('category', 'Category')}</th>
+                            <th>{t('account', 'Account')}</th>
+                            <th>{t('method', 'Method')}</th>
+                            <th>{t('formula', 'Formula')}</th>
+                            <th>{t('annual_amount', 'Annual Amount')}</th>
+                            {months.map(m => <th key={m}>{t(m, m.toUpperCase())}</th>)}
+                            <th>{t('notes', 'Notes')}</th>
+                            <th>{t('actions', 'Actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -423,7 +431,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                                             options={categoryOptions}
                                             value={item.category_id ? String(item.category_id) : ''}
                                             onChange={(val) => updateItem(index, 'category_id', val)}
-                                            placeholder="Category"
+                                            placeholder={t('category', 'Category')}
                                         />
                                     </div>
                                 </td>
@@ -433,7 +441,7 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                                             options={accountOptions}
                                             value={item.account_id ? String(item.account_id) : ''}
                                             onChange={(val) => updateItem(index, 'account_id', val)}
-                                            placeholder={'Account'}
+                                            placeholder={t('account', 'Account')}
                                         />
                                     </div>
                                 </td>
@@ -443,9 +451,9 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                                         onChange={e => updateItem(index, 'calculation_method', e.target.value)}
                                         style={{ width: '120px' }}
                                     >
-                                        <option value="fixed">Manual</option>
-                                        <option value="formula">Formula</option>
-                                        <option value="percentage">Percentage</option>
+                                        <option value="fixed">{t('manual', 'Manual')}</option>
+                                        <option value="formula">{t('formula', 'Formula')}</option>
+                                        <option value="percentage">{t('percentage', 'Percentage')}</option>
                                     </select>
                                 </td>
                                 <td>
@@ -456,12 +464,12 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                                                 value={item.basis_account_id || ''}
                                                 onChange={e => updateItem(index, 'basis_account_id', e.target.value)}
                                                 style={{ width: '120px', fontSize: '12px', padding: '4px' }}
-                                                title="Select Basis Account"
+                                                title={t('select_basis', 'Select Basis Account')}
                                             >
-                                                <option value="">Select Basis</option>
+                                                <option value="">{t('select_basis', 'Select Basis')}</option>
                                                 {data.items.map((opt, i) => {
                                                      const acc = accountOptions.find(a => String(a.value) === String(opt.account_id));
-                                                     const label = acc ? acc.label : (opt.account_id ? `Account ${opt.account_id}` : `Row ${i+1}`);
+                                                     const label = acc ? acc.label : (opt.account_id ? `${t('account', 'Account')} ${opt.account_id}` : `Row ${i+1}`);
                                                      if (i === index) return null;
                                                      if (!opt.account_id) return null;
                                                      return <option key={i} value={opt.account_id}>{label}</option>
@@ -544,15 +552,15 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
         return (
             <div className="form-section animate-fade-in">
                 <div className="stat-card">
-                    <h3>Total Revenue</h3>
+                    <h3>{t('total_revenue', 'Total Revenue')}</h3>
                     <p>{totals.total_revenue.toLocaleString()}</p>
                 </div>
                 <div className="stat-card">
-                    <h3>Total Expense</h3>
+                    <h3>{t('total_expense', 'Total Expense')}</h3>
                     <p>{totals.total_expense.toLocaleString()}</p>
                 </div>
                 <div className="stat-card">
-                    <h3>Net Surplus/Deficit</h3>
+                    <h3>{t('net_surplus_deficit', 'Net Surplus/Deficit')}</h3>
                     <p style={{ color: totals.net_surplus_deficit >= 0 ? 'green' : 'red' }}>
                         {totals.net_surplus_deficit.toLocaleString()}
                     </p>
@@ -563,13 +571,13 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
 
     return (
         <AdminLayout>
-            <Head title="Budget Management" />
+            <Head title={t('budget_management', 'Budget Management')} />
             <div className="budget-management">
                 <div className="header-actions">
-                    <h1>Budget Management</h1>
+                    <h1>{t('budget_management', 'Budget Management')}</h1>
                     {viewMode === 'list' && (
                         <button className="btn-create" onClick={handleCreate}>
-                            <i className="material-icons">add</i> New Budget
+                            <i className="material-icons">add</i> {t('new_budget', 'New Budget')}
                         </button>
                     )}
                 </div>
@@ -579,25 +587,25 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
                 ) : (
                     <div className="budget-form-container">
                         <div className="form-header">
-                            <h2>{viewMode === 'create' ? 'Create New Budget' : 'Edit Budget'}</h2>
+                            <h2>{viewMode === 'create' ? t('create_new_budget', 'Create New Budget') : t('edit_budget', 'Edit Budget')}</h2>
                             <div className="tabs">
                                 <button 
                                     className={activeTab === 'info' ? 'active' : ''} 
                                     onClick={() => setActiveTab('info')}
                                 >
-                                    General Info
+                                    {t('general_info', 'General Info')}
                                 </button>
                                 <button 
                                     className={activeTab === 'items' ? 'active' : ''} 
                                     onClick={() => setActiveTab('items')}
                                 >
-                                    Budget Items
+                                    {t('budget_items', 'Budget Items')}
                                 </button>
                                 <button 
                                     className={activeTab === 'summary' ? 'active' : ''} 
                                     onClick={() => setActiveTab('summary')}
                                 >
-                                    Summary
+                                    {t('summary', 'Summary')}
                                 </button>
                             </div>
                         </div>
@@ -609,10 +617,10 @@ const Budget = ({ budgets, departments, branches, currencies, categories, accoun
 
                             <div className="form-actions">
                                 <button type="button" className="btn-cancel" onClick={() => setViewMode('list')}>
-                                    Cancel
+                                    {t('cancel', 'Cancel')}
                                 </button>
                                 <button type="submit" className="btn-save" disabled={processing}>
-                                    {processing ? 'Saving...' : 'Save Budget'}
+                                    {processing ? t('saving', 'Saving...') : t('save_budget', 'Save Budget')}
                                 </button>
                             </div>
                         </form>

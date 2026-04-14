@@ -39,11 +39,6 @@ class CustomerController extends Controller
             'accounts' => Account::where('AccStopped', false)->get(),
             'priceLists' => PriceList::where('is_active', true)->get(),
             'salesAgents' => SalesAgent::where('is_active', true)->get(),
-            'localization' => [
-                'country_code' => session('country_code', 'sa'),
-                'current_locale' => app()->getLocale(),
-                'is_rtl' => app()->getLocale() === 'ar',
-            ],
         ]);
     }
 

@@ -40,6 +40,11 @@
     @include transition-standard;
     background-color: transparent;
 
+    @include rtl {
+        flex-direction: row-reverse; // Flip toggle and logo in RTL
+        justify-content: space-between; // Space them out
+    }
+
     .collapsed & {
         padding: 0;
         justify-content: center;
@@ -199,6 +204,7 @@
     @include flex-center;
     width: 24px;
     flex-shrink: 0;
+    min-width: 24px; // Added min-width
 
     @include rtl {
         margin-right: 0;
@@ -228,6 +234,11 @@
     margin-left: auto;
     font-size: 16px;
     @include transition-standard(transform);
+
+    @include rtl {
+        margin-left: 0;
+        margin-right: auto;
+    }
 
     &.rotated {
         transform: rotate(180deg);
@@ -272,7 +283,7 @@
     white-space: nowrap;
 
     @include rtl {
-        padding: 8px 48px 8px 12px;
+        padding: 8px 43px 8px 12px; // Shifted 5px to the right in RTL (from 48px)
     }
 
     &:hover {
@@ -284,12 +295,22 @@
         color: $sidebar-accent;
         background-color: transparent;
     }
+
+    // Specific item style for Exchange Rates
+    &[href*="/exchange-rates"] {
+        box-shadow: 0px 4px 8px 0px rgba(0, 0, 0, 0.25), 0px 4px 8px 0px rgba(0, 0, 0, 0.25);
+    }
 }
 
 .submenu-icon {
     font-size: 18px;
     margin-right: 10px;
     opacity: 0.7;
+
+    @include rtl {
+        margin-right: 0;
+        margin-left: 10px;
+    }
 }
 
 /* Floating Submenu (Popover) */

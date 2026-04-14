@@ -15,7 +15,7 @@ const Pagination = ({
   const translations = localization?.translations || {};
 
   // Translation helpers
-  const t = (key, fallback) => translations[key] || fallback;
+  const t = (key, fallback) => translations[`common.${key}`] || fallback;
 
   // Generate page numbers to show
   const getPageNumbers = () => {
@@ -63,9 +63,9 @@ const Pagination = ({
           <option value={100}>100</option>
         </select>
         <span>
-          {t('pagination.show_from', 'Show from')} {(currentPage - 1) * recordsPerPage + 1} {t('pagination.to', 'to')}{' '}
-          {Math.min(currentPage * recordsPerPage, totalRecords)} {t('pagination.in', 'in')}{' '}
-          <span className="record-count-badge">{totalRecords}</span> {t('pagination.records', 'records')}
+          {t('pagination_show_from', 'Show from')} {(currentPage - 1) * recordsPerPage + 1} {t('pagination_to', 'to')}{' '}
+          {Math.min(currentPage * recordsPerPage, totalRecords)} {t('pagination_in', 'in')}{' '}
+          <span className="record-count-badge">{totalRecords}</span> {t('pagination_records', 'records')}
         </span>
       </div>
       <div className="pagination-controls">
@@ -74,7 +74,7 @@ const Pagination = ({
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
         >
-          {isRtl ? '»' : '«'} {t('pagination.previous', 'Previous')}
+          {isRtl ? '»' : '«'} {t('pagination_previous', 'Previous')}
         </button>
 
         {getPageNumbers().map((page, index) => (
@@ -93,7 +93,7 @@ const Pagination = ({
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
         >
-          {t('pagination.next', 'Next')} {isRtl ? '«' : '»'}
+          {t('pagination_next', 'Next')} {isRtl ? '«' : '»'}
         </button>
       </div>
     </div>

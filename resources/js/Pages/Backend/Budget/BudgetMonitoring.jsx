@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Head, useForm } from '@inertiajs/react';
-import { router } from '@inertiajs/react';
+import { Head, useForm, usePage, router } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
 import axios from 'axios';
 import { format } from 'date-fns';
@@ -130,7 +129,7 @@ const useBudgetMonitoringFilters = (initialFilters, initialBudgetItems) => {
 /**
  * Hook for inline editing with optimistic updates and error rollback
  */
-const useInlineEdit = (initialData, updateRouteName) => {
+const useInlineEdit = (initialData, updateRouteName, t) => {
     // Local copy of data for optimistic updates
     const [localData, setLocalData] = useState(initialData);
     const [editingCell, setEditingCell] = useState({ id: null, field: null });
@@ -186,10 +185,10 @@ const useInlineEdit = (initialData, updateRouteName) => {
                     item.id === row.id ? { ...item, [field]: originalValue } : item
                 ));
                 setIsSaving(false);
-                alert("Failed to save changes. Please try again.");
+                alert(t('save_failed', 'Failed to save changes. Please try again.'));
             }
         });
-    }, [editValue, updateRouteName, cancelEdit]);
+    }, [editValue, updateRouteName, cancelEdit, t]);
 
     return {
         localData,
@@ -206,7 +205,7 @@ const useInlineEdit = (initialData, updateRouteName) => {
 /**
  * Hook for managing the detail drawer
  */
-const useMonitoringDrawer = () => {
+const useMonitoringDrawer = (t) => {
     const [isOpen, setIsOpen] = useState(false);
     const [selectedMonitoring, setSelectedMonitoring] = useState(null);
 
@@ -235,13 +234,13 @@ const useMonitoringDrawer = () => {
 
     const handleAcknowledge = useCallback(() => {
         if (!selectedMonitoring) return;
-        if (!confirm('Are you sure you want to acknowledge this alert?')) return;
+        if (!confirm(t('confirm_acknowledge', 'Are you sure you want to acknowledge this alert?'))) return;
         
         post(route('admin.budget.monitoring.acknowledge', selectedMonitoring.id), {
             preserveScroll: true,
             onSuccess: () => closeDrawer(),
         });
-    }, [selectedMonitoring, post, closeDrawer]);
+    }, [selectedMonitoring, post, closeDrawer, t]);
 
     const handleFollowUpSave = useCallback(() => {
         if (!selectedMonitoring) return;
@@ -253,12 +252,12 @@ const useMonitoringDrawer = () => {
     }, [selectedMonitoring, post, closeDrawer]);
 
     const handleMarkDone = useCallback((monitoring) => {
-        if (!confirm('Mark this action as done?')) return;
+        if (!confirm(t('confirm_mark_done', 'Mark this action as done?'))) return;
         
         router.post(route('admin.budget.monitoring.mark-done', monitoring.id), {}, {
             preserveScroll: true,
         });
-    }, []);
+    }, [t]);
 
     return {
         isOpen,
@@ -301,37 +300,37 @@ const useMonitoringStats = (data) => {
 // Helper Components
 // ==========================================
 
-const ReportDashboard = React.memo(({ stats, formatCurrency }) => (
+const ReportDashboard = React.memo(({ stats, formatCurrency, t }) => (
     <div className="report-dashboard grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">Total Actual (Page)</h3>
+            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">{t('total_actual_page', 'Total Actual (Page)')}</h3>
             <div className="mt-2 text-2xl font-bold text-gray-800 dark:text-gray-100">
                 {formatCurrency(stats.totalActual)}
             </div>
             <div className="mt-1 text-xs text-gray-400">
-                vs Budget: {formatCurrency(stats.totalBudget)}
+                {t('vs_budget', 'vs Budget')}: {formatCurrency(stats.totalBudget)}
             </div>
         </div>
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">Active Alerts</h3>
+            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">{t('active_alerts', 'Active Alerts')}</h3>
             <div className="mt-2 text-2xl font-bold text-red-600 dark:text-red-400">
                 {stats.activeAlerts}
             </div>
-            <div className="mt-1 text-xs text-gray-400">Records with breached thresholds</div>
+            <div className="mt-1 text-xs text-gray-400">{t('breached_thresholds_desc', 'Records with breached thresholds')}</div>
         </div>
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">Avg Variance</h3>
+            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">{t('avg_variance', 'Avg Variance')}</h3>
             <div className="mt-2 text-2xl font-bold text-indigo-600 dark:text-indigo-400">
                 {stats.avgVariance.toFixed(1)}%
             </div>
-            <div className="mt-1 text-xs text-gray-400">Average percentage across page</div>
+            <div className="mt-1 text-xs text-gray-400">{t('avg_variance_desc', 'Average percentage across page')}</div>
         </div>
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">Pending Actions</h3>
+            <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">{t('pending_actions', 'Pending Actions')}</h3>
             <div className="mt-2 text-2xl font-bold text-orange-600 dark:text-orange-400">
                 {stats.pendingActions}
             </div>
-            <div className="mt-1 text-xs text-gray-400">Require attention</div>
+            <div className="mt-1 text-xs text-gray-400">{t('require_attention', 'Require attention')}</div>
         </div>
     </div>
 ));
@@ -345,7 +344,8 @@ const MonitoringRow = React.memo(({
     onMarkDone,
     editingCell, 
     editValue, 
-    setEditValue 
+    setEditValue,
+    t
 }) => {
     const isEditingAction = editingCell.id === row.id && editingCell.field === 'action_required';
     const isEditingComments = editingCell.id === row.id && editingCell.field === 'comments';
@@ -358,10 +358,10 @@ const MonitoringRow = React.memo(({
             <td>{format(new Date(row.monitoring_date), 'MMM dd, yyyy')}</td>
             <td>
                 <div className="font-medium text-gray-900">
-                    {row.budget_item?.account?.AccName || 'N/A'}
+                    {row.budget_item?.account?.AccName || t('na', 'N/A')}
                 </div>
                 <div className="text-xs text-gray-500">
-                    {row.budget_item?.category?.name_en || 'N/A'}
+                    {row.budget_item?.category?.name_en || t('na', 'N/A')}
                 </div>
             </td>
             <td className="amount-col">
@@ -376,14 +376,14 @@ const MonitoringRow = React.memo(({
             <td className="amount-col">{row.variance_percent}%</td>
             <td>
                 <span className={`status-badge ${row.variance_status || 'normal'}`}>
-                    {row.variance_status || 'Normal'}
+                    {t(row.variance_status || 'normal', row.variance_status || 'Normal')}
                 </span>
             </td>
             <td>
                 {row.threshold_breached && (
                     <span className="text-red-500 flex items-center gap-1">
                         <i className="material-icons-outlined text-sm">warning</i>
-                        {row.alert_level}
+                        {t(row.alert_level?.toLowerCase() || '', row.alert_level)}
                     </span>
                 )}
             </td>
@@ -431,14 +431,14 @@ const MonitoringRow = React.memo(({
             <td onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center gap-1">
                     {row.acknowledged_by ? (
-                        <span className="text-green-600 text-xs flex items-center" title={`Acknowledged by ${row.acknowledger?.name}`}>
+                        <span className="text-green-600 text-xs flex items-center" title={`${t('acknowledged_by', 'Acknowledged by')} ${row.acknowledger?.name}`}>
                             <i className="material-icons-outlined text-sm mr-1">check_circle</i>
                         </span>
                     ) : (
                         <button 
                             onClick={(e) => { e.stopPropagation(); onMarkDone(row); }}
                             className="text-gray-400 hover:text-green-600"
-                            title="Mark Action Done"
+                            title={t('mark_done', 'Mark Action Done')}
                         >
                             <i className="material-icons-outlined text-sm">check</i>
                         </button>
@@ -454,6 +454,14 @@ const MonitoringRow = React.memo(({
 // ==========================================
 
 export default function BudgetMonitoring({ monitorings, budgets, initialBudgetItems, filters }) {
+    const { props } = usePage();
+    const localization = props.localization || {};
+    const translations = localization.translations || {};
+
+    const t = (key, fallback) => {
+        return translations[`BudgetMonitoring.${key}`] || fallback;
+    };
+
     const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'report'
 
     // 1. Filter Logic
@@ -475,7 +483,7 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
         setEditValue,
         startEdit,
         saveEdit
-    } = useInlineEdit(monitorings.data, 'admin.budget.monitoring.update');
+    } = useInlineEdit(monitorings.data, 'admin.budget.monitoring.update', t);
 
     // 3. Drawer Logic
     const {
@@ -489,17 +497,17 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
         handleAcknowledge,
         handleFollowUpSave,
         handleMarkDone
-    } = useMonitoringDrawer();
+    } = useMonitoringDrawer(t);
 
     // 4. Stats Logic
     const stats = useMonitoringStats(localData);
 
     const formatCurrency = useCallback((amount) => {
-        return new Intl.NumberFormat('en-US', {
+        return new Intl.NumberFormat(localization.current_locale === 'ar' ? 'ar-SA' : 'en-US', {
             style: 'currency',
-            currency: 'USD',
+            currency: localization.currency_code || 'USD',
         }).format(amount || 0);
-    }, []);
+    }, [localization]);
 
     const handlePrint = () => {
         window.print();
@@ -507,15 +515,15 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
 
     return (
         <AdminLayout>
-            <Head title="Budget Monitoring" />
+            <Head title={t('budget_monitoring', 'Budget Monitoring')} />
             
             <div className="budget-monitoring-page">
                 {/* Header */}
                 <div className="page-header">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800">Budget Monitoring</h1>
+                        <h1 className="text-2xl font-bold text-gray-800">{t('budget_monitoring', 'Budget Monitoring')}</h1>
                         <nav className="text-sm text-gray-500 mt-1">
-                            Finance &gt; Budget Control &gt; Monitoring
+                            {t('finance_budget_control', 'Finance > Budget Control > Monitoring')}
                         </nav>
                     </div>
                     <div className="header-actions flex gap-2">
@@ -524,26 +532,26 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                                 className={`px-3 py-1 rounded text-sm ${viewMode === 'grid' ? 'bg-white shadow text-indigo-600' : 'text-gray-600'}`}
                                 onClick={() => setViewMode('grid')}
                             >
-                                <i className="material-icons-outlined text-sm align-middle mr-1">table_chart</i> Grid
+                                <i className="material-icons-outlined text-sm align-middle mr-1">table_chart</i> {t('grid', 'Grid')}
                             </button>
                             <button 
                                 className={`px-3 py-1 rounded text-sm ${viewMode === 'report' ? 'bg-white shadow text-indigo-600' : 'text-gray-600'}`}
                                 onClick={() => setViewMode('report')}
                             >
-                                <i className="material-icons-outlined text-sm align-middle mr-1">analytics</i> Report
+                                <i className="material-icons-outlined text-sm align-middle mr-1">analytics</i> {t('report', 'Report')}
                             </button>
                         </div>
                         <button 
                             onClick={handleExport}
                             className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50 transition flex items-center gap-2"
                         >
-                            <i className="material-icons-outlined text-sm">download</i> Export
+                            <i className="material-icons-outlined text-sm">download</i> {t('export', 'Export')}
                         </button>
                         <button 
                             onClick={handlePrint}
                             className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50 transition flex items-center gap-2"
                         >
-                            <i className="material-icons-outlined text-sm">print</i> Print
+                            <i className="material-icons-outlined text-sm">print</i> {t('print', 'Print')}
                         </button>
                     </div>
                 </div>
@@ -551,26 +559,26 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                 {/* Filter Panel */}
                 <form onSubmit={applyFilters} className="filter-panel">
                     <div>
-                        <label>Budget</label>
+                        <label>{t('budget', 'Budget')}</label>
                         <select 
                             value={filterData.budget_id} 
                             onChange={e => handleFilterChange('budget_id', e.target.value)}
                         >
-                            <option value="">All Budgets</option>
+                            <option value="">{t('all_budgets', 'All Budgets')}</option>
                             {budgets.map(b => (
-                                <option key={b.id} value={b.id}>{b.budget_name_en}</option>
+                                <option key={b.id} value={b.id}>{localization.current_locale === 'ar' ? b.budget_name_ar : b.budget_name_en}</option>
                             ))}
                         </select>
                     </div>
 
                     <div>
-                        <label>Budget Item</label>
+                        <label>{t('budget_item', 'Budget Item')}</label>
                         <select 
                             value={filterData.budget_item_id} 
                             onChange={e => handleFilterChange('budget_item_id', e.target.value)}
                             disabled={!filterData.budget_id}
                         >
-                            <option value="">All Items</option>
+                            <option value="">{t('all_items', 'All Items')}</option>
                             {budgetItems.map(item => (
                                 <option key={item.id} value={item.id}>{item.name}</option>
                             ))}
@@ -578,21 +586,21 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                     </div>
 
                     <div>
-                        <label>Period Type</label>
+                        <label>{t('period_type', 'Period Type')}</label>
                         <select 
                             value={filterData.period_type} 
                             onChange={e => handleFilterChange('period_type', e.target.value)}
                         >
-                            <option value="monthly">Monthly</option>
-                            <option value="quarterly">Quarterly</option>
-                            <option value="year_to_date">Custom Period</option>
-                            <option value="full_year">Full Year</option>
+                            <option value="monthly">{t('monthly', 'Monthly')}</option>
+                            <option value="quarterly">{t('quarterly', 'Quarterly')}</option>
+                            <option value="year_to_date">{t('custom_period', 'Custom Period')}</option>
+                            <option value="full_year">{t('full_year', 'Full Year')}</option>
                         </select>
                     </div>
 
                     {filterData.period_type === 'full_year' && (
                         <div>
-                            <label>Year</label>
+                            <label>{t('year', 'Year')}</label>
                             <input 
                                 type="number" 
                                 value={filterData.period_year} 
@@ -604,7 +612,7 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                     {filterData.period_type === 'monthly' && (
                         <>
                             <div>
-                                <label>Year</label>
+                                <label>{t('year', 'Year')}</label>
                                 <input 
                                     type="number" 
                                     value={filterData.period_year} 
@@ -612,13 +620,13 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                                 />
                             </div>
                             <div>
-                                <label>Month</label>
+                                <label>{t('month', 'Month')}</label>
                                 <select 
                                     value={filterData.period_month} 
                                     onChange={e => handleFilterChange('period_month', e.target.value)}
                                 >
                                     {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
-                                        <option key={m} value={m}>{new Date(0, m - 1).toLocaleString('default', { month: 'long' })}</option>
+                                        <option key={m} value={m}>{new Date(0, m - 1).toLocaleString(localization.current_locale === 'ar' ? 'ar-SA' : 'default', { month: 'long' })}</option>
                                     ))}
                                 </select>
                             </div>
@@ -628,7 +636,7 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                     {filterData.period_type === 'quarterly' && (
                         <>
                             <div>
-                                <label>Year</label>
+                                <label>{t('year', 'Year')}</label>
                                 <input 
                                     type="number" 
                                     value={filterData.period_year} 
@@ -636,15 +644,15 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                                 />
                             </div>
                             <div>
-                                <label>Quarter</label>
+                                <label>{t('quarter', 'Quarter')}</label>
                                 <select 
                                     value={filterData.period_quarter} 
                                     onChange={e => handleFilterChange('period_quarter', e.target.value)}
                                 >
-                                    <option value="1">Q1</option>
-                                    <option value="2">Q2</option>
-                                    <option value="3">Q3</option>
-                                    <option value="4">Q4</option>
+                                    <option value="1">{t('q1', 'Q1')}</option>
+                                    <option value="2">{t('q2', 'Q2')}</option>
+                                    <option value="3">{t('q3', 'Q3')}</option>
+                                    <option value="4">{t('q4', 'Q4')}</option>
                                 </select>
                             </div>
                         </>
@@ -653,7 +661,7 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                     {filterData.period_type === 'year_to_date' && (
                         <>
                             <div>
-                                <label>From Date</label>
+                                <label>{t('from_date', 'From Date')}</label>
                                 <input 
                                     type="date" 
                                     value={filterData.date_from} 
@@ -661,7 +669,7 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                                 />
                             </div>
                             <div>
-                                <label>To Date</label>
+                                <label>{t('to_date', 'To Date')}</label>
                                 <input 
                                     type="date" 
                                     value={filterData.date_to} 
@@ -672,40 +680,40 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                     )}
 
                     <div>
-                        <label>Status</label>
+                        <label>{t('status', 'Status')}</label>
                         <select 
                             value={filterData.variance_status} 
                             onChange={e => handleFilterChange('variance_status', e.target.value)}
                         >
-                            <option value="">All</option>
-                            <option value="normal">Normal</option>
-                            <option value="warning">Warning</option>
-                            <option value="critical">Critical</option>
+                            <option value="">{t('all', 'All')}</option>
+                            <option value="normal">{t('normal', 'Normal')}</option>
+                            <option value="warning">{t('warning', 'Warning')}</option>
+                            <option value="critical">{t('critical', 'Critical')}</option>
                         </select>
                     </div>
 
                     <div>
-                        <label>Alert Level</label>
+                        <label>{t('alert_level', 'Alert Level')}</label>
                         <select 
                             value={filterData.alert_level} 
                             onChange={e => handleFilterChange('alert_level', e.target.value)}
                         >
-                            <option value="">All</option>
-                            <option value="low">Low</option>
-                            <option value="medium">Medium</option>
-                            <option value="high">High</option>
+                            <option value="">{t('all', 'All')}</option>
+                            <option value="low">{t('low', 'Low')}</option>
+                            <option value="medium">{t('medium', 'Medium')}</option>
+                            <option value="high">{t('high', 'High')}</option>
                         </select>
                     </div>
 
                     <div>
-                        <label>Breached?</label>
+                        <label>{t('breached', 'Breached?')}</label>
                         <select 
                             value={filterData.threshold_breached} 
                             onChange={e => handleFilterChange('threshold_breached', e.target.value)}
                         >
-                            <option value="">All</option>
-                            <option value="1">Yes</option>
-                            <option value="0">No</option>
+                            <option value="">{t('all', 'All')}</option>
+                            <option value="1">{t('yes', 'Yes')}</option>
+                            <option value="0">{t('no', 'No')}</option>
                         </select>
                     </div>
                     
@@ -714,13 +722,13 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                         disabled={filterProcessing}
                         className={`bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 transition h-10 ${filterProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                        {filterProcessing ? 'Filtering...' : 'Filter'}
+                        {filterProcessing ? t('filtering', 'Filtering...') : t('filter', 'Filter')}
                     </button>
                 </form>
 
                 {/* Content Area */}
                 {viewMode === 'report' ? (
-                    <ReportDashboard stats={stats} formatCurrency={formatCurrency} />
+                    <ReportDashboard stats={stats} formatCurrency={formatCurrency} t={t} />
                 ) : (
                     <div className="monitoring-grid-container">
                         <div className="overflow-x-auto">
@@ -728,29 +736,29 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                                 <thead>
                                     <tr className="bg-gray-50 border-b border-gray-200">
                                         <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleSort('monitoring_date')}>
-                                            <div className="flex items-center gap-1">Date {filterData.sort_by === 'monitoring_date' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
+                                            <div className="flex items-center gap-1">{t('date', 'Date')} {filterData.sort_by === 'monitoring_date' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
                                         </th>
-                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Budget Item</th>
-                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Budgeted</th>
+                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{t('budget_item', 'Budget Item')}</th>
+                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{t('budgeted', 'Budgeted')}</th>
                                         <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleSort('actual_amount')}>
-                                            <div className="flex items-center justify-end gap-1">Actual {filterData.sort_by === 'actual_amount' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
+                                            <div className="flex items-center justify-end gap-1">{t('actual', 'Actual')} {filterData.sort_by === 'actual_amount' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
                                         </th>
-                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Committed</th>
+                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{t('committed', 'Committed')}</th>
                                         <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleSort('available_amount')}>
-                                            <div className="flex items-center justify-end gap-1">Available {filterData.sort_by === 'available_amount' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
+                                            <div className="flex items-center justify-end gap-1">{t('available', 'Available')} {filterData.sort_by === 'available_amount' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
                                         </th>
                                         <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleSort('variance_amount')}>
-                                            <div className="flex items-center justify-end gap-1">Variance {filterData.sort_by === 'variance_amount' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
+                                            <div className="flex items-center justify-end gap-1">{t('variance', 'Variance')} {filterData.sort_by === 'variance_amount' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
                                         </th>
                                         <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleSort('variance_percent')}>
-                                            <div className="flex items-center justify-end gap-1">Var % {filterData.sort_by === 'variance_percent' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
+                                            <div className="flex items-center justify-end gap-1">{t('var_percent', 'Var %')} {filterData.sort_by === 'variance_percent' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
                                         </th>
-                                        <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Status</th>
-                                        <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Alert</th>
-                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Action Required</th>
-                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Comments</th>
-                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Follow Up</th>
-                                        <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">Actions</th>
+                                        <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{t('status', 'Status')}</th>
+                                        <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{t('alert', 'Alert')}</th>
+                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{t('action_required', 'Action Required')}</th>
+                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{t('comments', 'Comments')}</th>
+                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{t('follow_up', 'Follow Up')}</th>
+                                        <th scope="col" className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">{t('actions', 'Actions')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -767,12 +775,13 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                                                 editingCell={editingCell}
                                                 editValue={editValue}
                                                 setEditValue={setEditValue}
+                                                t={t}
                                             />
                                         ))
                                     ) : (
                                         <tr>
                                             <td colSpan="14" className="text-center py-8 text-gray-500">
-                                                No monitoring records found.
+                                                {t('no_records_found', 'No monitoring records found.')}
                                             </td>
                                         </tr>
                                     )}
@@ -787,28 +796,28 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                     <div className="detail-drawer-overlay" onClick={closeDrawer}>
                         <div className="detail-drawer" onClick={e => e.stopPropagation()}>
                             <div className="drawer-header">
-                                <h2>Monitoring Details</h2>
+                                <h2>{t('monitoring_details', 'Monitoring Details')}</h2>
                                 <button className="close-btn" onClick={closeDrawer}>&times;</button>
                             </div>
                             
                             <div className="drawer-content">
                                 {/* Financial Summary */}
                                 <div className="detail-section">
-                                    <h3>Financial Summary</h3>
+                                    <h3>{t('financial_summary', 'Financial Summary')}</h3>
                                     <div className="detail-row">
-                                        <span className="label">Actual Amount</span>
+                                        <span className="label">{t('actual_amount', 'Actual Amount')}</span>
                                         <span className="value">{formatCurrency(selectedMonitoring.actual_amount)}</span>
                                     </div>
                                     <div className="detail-row">
-                                        <span className="label">Committed</span>
+                                        <span className="label">{t('committed', 'Committed')}</span>
                                         <span className="value">{formatCurrency(selectedMonitoring.committed_amount)}</span>
                                     </div>
                                     <div className="detail-row">
-                                        <span className="label">Available</span>
+                                        <span className="label">{t('available', 'Available')}</span>
                                         <span className="value text-green-600">{formatCurrency(selectedMonitoring.available_amount)}</span>
                                     </div>
                                     <div className="detail-row">
-                                        <span className="label">Variance</span>
+                                        <span className="label">{t('variance', 'Variance')}</span>
                                         <span className="value text-red-600">
                                             {formatCurrency(selectedMonitoring.variance_amount)} ({selectedMonitoring.variance_percent}%)
                                         </span>
@@ -817,30 +826,30 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
 
                                 {/* Status & Alerts */}
                                 <div className="detail-section">
-                                    <h3>Status & Alerts</h3>
+                                    <h3>{t('status_alerts', 'Status & Alerts')}</h3>
                                     <div className="detail-row">
-                                        <span className="label">Status</span>
+                                        <span className="label">{t('status', 'Status')}</span>
                                         <span className={`status-badge ${selectedMonitoring.variance_status}`}>
-                                            {selectedMonitoring.variance_status}
+                                            {t(selectedMonitoring.variance_status, selectedMonitoring.variance_status)}
                                         </span>
                                     </div>
                                     <div className="detail-row">
-                                        <span className="label">Threshold Breached</span>
-                                        <span className="value">{selectedMonitoring.threshold_breached ? 'Yes' : 'No'}</span>
+                                        <span className="label">{t('threshold_breached', 'Threshold Breached')}</span>
+                                        <span className="value">{selectedMonitoring.threshold_breached ? t('yes', 'Yes') : t('no', 'No')}</span>
                                     </div>
                                     <div className="detail-row">
-                                        <span className="label">Alert Level</span>
-                                        <span className="value uppercase">{selectedMonitoring.alert_level || 'None'}</span>
+                                        <span className="label">{t('alert_level', 'Alert Level')}</span>
+                                        <span className="value uppercase">{t(selectedMonitoring.alert_level?.toLowerCase() || '', selectedMonitoring.alert_level || 'None')}</span>
                                     </div>
                                 </div>
 
                                 {/* Actions & Workflow */}
                                 <div className="detail-section">
-                                    <h3>Actions & Workflow</h3>
+                                    <h3>{t('actions_workflow', 'Actions & Workflow')}</h3>
                                     
                                     <div className="action-form">
                                         <div className="form-group">
-                                            <label>Action Required</label>
+                                            <label>{t('action_required', 'Action Required')}</label>
                                             <textarea 
                                                 rows="2"
                                                 value={actionData.action_required}
@@ -850,7 +859,7 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                                         </div>
                                         
                                         <div className="form-group">
-                                            <label>Follow Up Date</label>
+                                            <label>{t('follow_up_date', 'Follow Up Date')}</label>
                                             <input 
                                                 type="date"
                                                 value={actionData.follow_up_date}
@@ -860,7 +869,7 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                                         </div>
 
                                         <div className="form-group">
-                                            <label>Comments</label>
+                                            <label>{t('comments', 'Comments')}</label>
                                             <textarea 
                                                 rows="2"
                                                 value={actionData.comments}
@@ -873,10 +882,10 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                                 
                                 {/* Audit Info */}
                                 <div className="mt-6 pt-6 border-t border-gray-200 text-xs text-gray-500">
-                                    <p>Monitored by: {selectedMonitoring.monitor?.name || 'System'} on {format(new Date(selectedMonitoring.monitoring_date), 'PP')}</p>
+                                    <p>{t('monitored_by', 'Monitored by')}: {selectedMonitoring.monitor?.name || t('system', 'System')} {t('on', 'on')} {format(new Date(selectedMonitoring.monitoring_date), 'PP')}</p>
                                     {selectedMonitoring.acknowledged_by && (
                                         <p className="text-green-600 mt-1">
-                                            Acknowledged by: {selectedMonitoring.acknowledger?.name} on {format(new Date(selectedMonitoring.acknowledged_date), 'PP')}
+                                            {t('acknowledged_by', 'Acknowledged by')}: {selectedMonitoring.acknowledger?.name} {t('on', 'on')} {format(new Date(selectedMonitoring.acknowledged_date), 'PP')}
                                         </p>
                                     )}
                                 </div>
@@ -890,20 +899,20 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                                             disabled={processing}
                                             className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
                                         >
-                                            Save Updates
+                                            {t('save_updates', 'Save Updates')}
                                         </button>
                                         <button 
                                             onClick={handleAcknowledge}
                                             disabled={processing}
                                             className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
                                         >
-                                            Acknowledge & Lock
+                                            {t('acknowledge_lock', 'Acknowledge & Lock')}
                                         </button>
                                     </>
                                 )}
                                 {selectedMonitoring.acknowledged_by && (
                                     <span className="text-sm text-gray-500 italic self-center">
-                                        This record is acknowledged and read-only.
+                                        {t('read_only_msg', 'This record is acknowledged and read-only.')}
                                     </span>
                                 )}
                             </div>

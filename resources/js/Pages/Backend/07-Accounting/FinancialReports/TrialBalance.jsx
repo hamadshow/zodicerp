@@ -1,13 +1,22 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
 import { apiService } from '../../../../services/api';
 
 export default function TrialBalance() {
+  const { props } = usePage();
+  const localization = props.localization || {};
+  const translations = localization.translations || {};
+  const currentLocale = localization.current_locale || 'en';
+
+  const t = (key, fallback) => {
+    return translations[`TrialBalance.${key}`] || fallback;
+  };
+
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState([]);
-  const [lang, setLang] = useState('en');
+  const [lang, setLang] = useState(currentLocale);
 
   const fetchData = useCallback(async () => {
     try {
@@ -44,52 +53,17 @@ export default function TrialBalance() {
   };
 
   const translateAccountName = (code, name) => {
-    if (lang === 'ar') return name;
-    
-    const translations = {
-      '1': 'Assets',
-      '2': 'Liabilities',
-      '3': 'Equity',
-      '4': 'Income',
-      '5': 'Cost of Goods Sold',
-      '6': 'Expenses'
+    const accountTranslations = {
+      '1': t('assets', 'Assets'),
+      '2': t('liabilities', 'Liabilities'),
+      '3': t('equity', 'Equity'),
+      '4': t('income', 'Income'),
+      '5': t('cost_of_goods_sold', 'Cost of Goods Sold'),
+      '6': t('expenses', 'Expenses')
     };
     
-    return translations[code] || name;
+    return lang === 'ar' ? name : (accountTranslations[code] || name);
   };
-
-  const t = {
-    ar: {
-      title: 'ميزان المراجعة',
-      accountName: 'اسم الحساب',
-      beginning: 'رصيد أول المدة',
-      current: 'الحركة',
-      balance: 'الرصيد النهائي',
-      debit: 'مدين',
-      credit: 'دائن',
-      total: 'الإجمالي',
-      loading: 'جاري التحميل...',
-      noData: 'لا توجد بيانات متاحة',
-      subtitle: "اضغط على حرف 'a' للتحويل للغة الإنجليزية",
-      exportExcel: 'تصدير إكسل'
-    },
-    en: {
-      title: 'Trial Balance',
-      accountName: 'ACCOUNT NAME',
-      beginning: 'Beginning Balances',
-      current: 'CURRENT',
-      balance: 'BALANCE (Ending Balance)',
-      debit: 'Debit',
-      credit: 'Credit',
-      total: 'Total',
-      loading: 'Loading...',
-      noData: 'No data available',
-      subtitle: "Press 'a' to toggle language",
-      exportExcel: 'Export Excel'
-    }
-  };
-
-  const currentLang = t[lang];
 
   const handleAccountClick = (row) => {
     if (row.AccType !== 1) return;
@@ -110,16 +84,16 @@ export default function TrialBalance() {
     
     // Prepare headers
     const headers = [
-      [currentLang.title],
+      [t('title', 'Trial Balance')],
       [''],
       [
-        currentLang.accountName, 
-        currentLang.beginning + ' (' + currentLang.debit + ')',
-        currentLang.beginning + ' (' + currentLang.credit + ')',
-        currentLang.current + ' (' + currentLang.debit + ')',
-        currentLang.current + ' (' + currentLang.credit + ')',
-        currentLang.balance + ' (' + currentLang.debit + ')',
-        currentLang.balance + ' (' + currentLang.credit + ')'
+        t('account_name', 'Account Name'), 
+        t('beginning', 'Beginning Balances') + ' (' + t('debit', 'Debit') + ')',
+        t('beginning', 'Beginning Balances') + ' (' + t('credit', 'Credit') + ')',
+        t('current', 'CURRENT') + ' (' + t('debit', 'Debit') + ')',
+        t('current', 'CURRENT') + ' (' + t('credit', 'Credit') + ')',
+        t('balance', 'BALANCE (Ending Balance)') + ' (' + t('debit', 'Debit') + ')',
+        t('balance', 'BALANCE (Ending Balance)') + ' (' + t('credit', 'Credit') + ')'
       ]
     ];
 
@@ -142,7 +116,7 @@ export default function TrialBalance() {
 
     // Add Grand Total row
     rows.push([
-      lang === 'ar' ? 'الإجمالي النهائي' : 'GRAND TOTAL',
+      t('grand_total', 'GRAND TOTAL'),
       grandTotals.beginning_debit || 0,
       grandTotals.beginning_credit || 0,
       grandTotals.current_debit || 0,
@@ -191,12 +165,12 @@ export default function TrialBalance() {
   return (
     <AdminLayout activeMenu="Financial Reports">
       <div className={`financial-reports-page trial-balance-page ${lang === 'ar' ? 'rtl' : 'ltr'}`}>
-        <Head title={`${currentLang.title} - ZodicERP`} />
+        <Head title={`${t('title', 'Trial Balance')} - ZodicERP`} />
 
         <div className="report-header">
           <div className="report-header__title-section">
-            <h1>{currentLang.title}</h1>
-            <p className="subtitle">{currentLang.subtitle}</p>
+            <h1>{t('title', 'Trial Balance')}</h1>
+            <p className="subtitle">{t('toggle_lang_hint', "Press 'a' to toggle language")}</p>
           </div>
           <div className="report-header__actions">
              <button 
@@ -215,10 +189,10 @@ export default function TrialBalance() {
                  }}
               >
                 <i className="material-icons-outlined">file_download</i>
-                <span>{currentLang.exportExcel}</span>
+                <span>{t('export_excel', 'Export Excel')}</span>
              </button>
              <button className="btn btn-primary" onClick={() => window.print()}>
-                {lang === 'ar' ? 'طباعة' : 'Print'}
+                {t('print', 'Print')}
              </button>
           </div>
         </div>
@@ -228,24 +202,24 @@ export default function TrialBalance() {
             <table className="report-table trial-balance-table">
               <thead>
                 <tr className="main-header">
-                  <th rowSpan="2" className="account-col">{currentLang.accountName}</th>
-                  <th colSpan="2">{currentLang.beginning}</th>
-                  <th colSpan="2">{currentLang.current}</th>
-                  <th colSpan="2">{currentLang.balance}</th>
+                  <th rowSpan="2" className="account-col">{t('account_name', 'Account Name')}</th>
+                  <th colSpan="2">{t('beginning', 'Beginning Balances')}</th>
+                  <th colSpan="2">{t('current', 'CURRENT')}</th>
+                  <th colSpan="2">{t('balance', 'BALANCE (Ending Balance)')}</th>
                 </tr>
                 <tr className="sub-header">
-                  <th>{currentLang.debit}</th>
-                  <th>{currentLang.credit}</th>
-                  <th>{currentLang.debit}</th>
-                  <th>{currentLang.credit}</th>
-                  <th>{currentLang.debit}</th>
-                  <th>{currentLang.credit}</th>
+                  <th>{t('debit', 'Debit')}</th>
+                  <th>{t('credit', 'Credit')}</th>
+                  <th>{t('debit', 'Debit')}</th>
+                  <th>{t('credit', 'Credit')}</th>
+                  <th>{t('debit', 'Debit')}</th>
+                  <th>{t('credit', 'Credit')}</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="7" className="text-center py-10">{currentLang.loading}</td>
+                    <td colSpan="7" className="text-center py-10">{t('loading', 'Loading...')}</td>
                   </tr>
                 ) : data.length > 0 ? (
                   data.map((row) => (
@@ -259,7 +233,7 @@ export default function TrialBalance() {
                           cursor: row.AccType === 1 ? 'pointer' : 'default'
                         }}
                       >
-                        {row.AccType === 0 && <span className="total-label">{lang === 'ar' ? 'إجمالي ' : 'Total '}</span>}
+                        {row.AccType === 0 && <span className="total-label">{t('total', 'Total')} </span>}
                         {row.AccCode} - {translateAccountName(row.AccCode, row.AccName)}
                       </td>
                       <td className="text-right amount-cell">{formatNumber(row.beginning_debit)}</td>
@@ -272,7 +246,7 @@ export default function TrialBalance() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="7" className="text-center py-10">{currentLang.noData}</td>
+                    <td colSpan="7" className="text-center py-10">{t('no_data', 'No data available')}</td>
                   </tr>
                 )}
               </tbody>
@@ -280,7 +254,7 @@ export default function TrialBalance() {
                 <tfoot>
                   <tr className="grand-total-row">
                     <td className="account-cell font-bold text-center">
-                      {lang === 'ar' ? 'الإجمالي النهائي' : 'GRAND TOTAL'}
+                      {t('grand_total', 'GRAND TOTAL')}
                     </td>
                     <td className="text-right amount-cell font-bold">{formatNumber(grandTotals.beginning_debit)}</td>
                     <td className="text-right amount-cell font-bold">{formatNumber(grandTotals.beginning_credit)}</td>

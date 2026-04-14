@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
+import { formatDate } from '@/utils/date';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
 
@@ -366,7 +367,7 @@ export default function PurchaseQuotations({ quotations, vendors, currencies, pr
                                 {quotations.data.map((q) => (
                                     <tr key={q.id}>
                                         <td>{q.quotation_number}</td>
-                                        <td>{q.quotation_date}</td>
+                                        <td>{formatDate(q.quotation_date)}</td>
                                         <td>{q.vendor?.name_en || q.vendor?.name_ar}</td>
                                         <td>
                                             <span className={`status-badge status-${q.status}`}>
