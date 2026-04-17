@@ -62,31 +62,41 @@ class DashboardService
     public function getDashboardStats(?string $dateFrom = null, ?string $dateTo = null): array
     {
         $cacheKey = $this->getCacheKey('stats', $dateFrom, $dateTo);
+        $useCache = empty($dateFrom) && empty($dateTo);
 
-        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($dateFrom, $dateTo) {
-            $userStats = $this->userService->getDashboardStats();
-            $productStats = $this->productService->getDashboardStats();
-            $orderStats = $this->orderService->getDashboardStats($dateFrom, $dateTo);
-            $netRevenue = $this->getNetInvoiceRevenue($dateFrom, $dateTo);
-            $netPurchases = $this->getNetPurchases($dateFrom, $dateTo);
+        if ($useCache) {
+            return Cache::remember($cacheKey, $this->cacheDuration, function () use ($dateFrom, $dateTo) {
+                return $this->computeDashboardStats($dateFrom, $dateTo);
+            });
+        }
 
-            return [
-                'users' => $userStats,
-                'products' => $productStats,
-                'orders' => $orderStats,
-                'categories' => [
-                    'total_categories' => Categories::count(),
-                    'active_categories' => Categories::where('status', 'active')->count(),
-                ],
-                'summary' => [
-                    'total_users' => $userStats['total_users'],
-                    'total_products' => $productStats['total_products'],
-                    'total_orders' => $orderStats['total_orders'],
-                    'total_revenue' => $netRevenue,
-                    'total_net_purchases' => $netPurchases,
-                ]
-            ];
-        });
+        return $this->computeDashboardStats($dateFrom, $dateTo);
+    }
+
+    protected function computeDashboardStats(?string $dateFrom = null, ?string $dateTo = null): array
+    {
+        $userStats = $this->userService->getDashboardStats();
+        $productStats = $this->productService->getDashboardStats();
+        $orderStats = $this->orderService->getDashboardStats($dateFrom, $dateTo);
+        $netRevenue = $this->getNetInvoiceRevenue($dateFrom, $dateTo);
+        $netPurchases = $this->getNetPurchases($dateFrom, $dateTo);
+
+        return [
+            'users' => $userStats,
+            'products' => $productStats,
+            'orders' => $orderStats,
+            'categories' => [
+                'total_categories' => Categories::count(),
+                'active_categories' => Categories::where('status', 'active')->count(),
+            ],
+            'summary' => [
+                'total_users' => $userStats['total_users'],
+                'total_products' => $productStats['total_products'],
+                'total_orders' => $orderStats['total_orders'],
+                'total_revenue' => $netRevenue,
+                'total_net_purchases' => $netPurchases,
+            ]
+        ];
     }
 
     /**
@@ -128,53 +138,63 @@ class DashboardService
      */
     public function getSalesChartData(int $months = 12, ?string $dateFrom = null, ?string $dateTo = null): array
     {
+        $useCache = empty($dateFrom) && empty($dateTo);
         $cacheKey = $this->getCacheKey('sales_chart', $dateFrom, $dateTo, ['months' => $months]);
 
-        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($months, $dateFrom, $dateTo) {
-            $query = Order::selectRaw('
-                    YEAR(created_at) as year,
-                    MONTH(created_at) as month,
-                    COUNT(*) as orders_count,
-                    SUM(total_amount) as revenue
-                ');
+        if ($useCache) {
+            return Cache::remember($cacheKey, $this->cacheDuration, function () use ($months, $dateFrom, $dateTo) {
+                return $this->computeSalesChartData($months, $dateFrom, $dateTo);
+            });
+        }
 
-            if (!empty($dateFrom) || !empty($dateTo)) {
-                $this->applyDateRangeFilters($query, $dateFrom, $dateTo);
-            } else {
-                $query->where('created_at', '>=', Carbon::now()->subMonths($months));
-            }
+        return $this->computeSalesChartData($months, $dateFrom, $dateTo);
+    }
 
-            $data = $query->groupBy('year', 'month')
-                ->orderBy('year')
-                ->orderBy('month')
-                ->get();
+    protected function computeSalesChartData(int $months = 12, ?string $dateFrom = null, ?string $dateTo = null): array
+    {
+        $query = Order::selectRaw('
+                YEAR(created_at) as year,
+                MONTH(created_at) as month,
+                COUNT(*) as orders_count,
+                SUM(total_amount) as revenue
+            ');
 
-            $labels = [];
-            $orders = [];
-            $revenue = [];
+        if (!empty($dateFrom) || !empty($dateTo)) {
+            $this->applyDateRangeFilters($query, $dateFrom, $dateTo);
+        } else {
+            $query->where('created_at', '>=', Carbon::now()->subMonths($months));
+        }
 
-            $startDate = !empty($dateFrom) ? Carbon::parse($dateFrom)->startOfMonth() : Carbon::now()->subMonths($months - 1)->startOfMonth();
-            $endDate = !empty($dateTo) ? Carbon::parse($dateTo)->endOfMonth() : Carbon::now()->endOfMonth();
-            $currentDate = $startDate->copy();
+        $data = $query->groupBy('year', 'month')
+            ->orderBy('year')
+            ->orderBy('month')
+            ->get();
 
-            while ($currentDate <= $endDate) {
-                $labels[] = $currentDate->format('M Y');
+        $labels = [];
+        $orders = [];
+        $revenue = [];
 
-                $monthData = $data->first(function ($item) use ($currentDate) {
-                    return $item->year == $currentDate->year && $item->month == $currentDate->month;
-                });
+        $startDate = !empty($dateFrom) ? Carbon::parse($dateFrom)->startOfMonth() : Carbon::now()->subMonths($months - 1)->startOfMonth();
+        $endDate = !empty($dateTo) ? Carbon::parse($dateTo)->endOfMonth() : Carbon::now()->endOfMonth();
+        $currentDate = $startDate->copy();
 
-                $orders[] = $monthData ? $monthData->orders_count : 0;
-                $revenue[] = $monthData ? $monthData->revenue : 0;
-                $currentDate->addMonth();
-            }
+        while ($currentDate <= $endDate) {
+            $labels[] = $currentDate->format('M Y');
 
-            return [
-                'labels' => $labels,
-                'orders' => $orders,
-                'revenue' => $revenue,
-            ];
-        });
+            $monthData = $data->first(function ($item) use ($currentDate) {
+                return $item->year == $currentDate->year && $item->month == $currentDate->month;
+            });
+
+            $orders[] = $monthData ? $monthData->orders_count : 0;
+            $revenue[] = $monthData ? $monthData->revenue : 0;
+            $currentDate->addMonth();
+        }
+
+        return [
+            'labels' => $labels,
+            'orders' => $orders,
+            'revenue' => $revenue,
+        ];
     }
 
     /**
@@ -182,23 +202,33 @@ class DashboardService
      */
     public function getOrderStatusDistribution(?string $dateFrom = null, ?string $dateTo = null): array
     {
+        $useCache = empty($dateFrom) && empty($dateTo);
         $cacheKey = $this->getCacheKey('order_status', $dateFrom, $dateTo);
 
-        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($dateFrom, $dateTo) {
-            $query = Order::selectRaw('status, COUNT(*) as count');
+        if ($useCache) {
+            return Cache::remember($cacheKey, $this->cacheDuration, function () use ($dateFrom, $dateTo) {
+                return $this->computeOrderStatusDistribution($dateFrom, $dateTo);
+            });
+        }
 
-            if (!empty($dateFrom) || !empty($dateTo)) {
-                $this->applyDateRangeFilters($query, $dateFrom, $dateTo);
-            }
+        return $this->computeOrderStatusDistribution($dateFrom, $dateTo);
+    }
 
-            $data = $query->groupBy('status')->get();
+    protected function computeOrderStatusDistribution(?string $dateFrom = null, ?string $dateTo = null): array
+    {
+        $query = Order::selectRaw('status, COUNT(*) as count');
 
-            return [
-                'labels' => $data->pluck('status')->map(fn($status) => ucfirst($status)),
-                'data' => $data->pluck('count'),
-                'colors' => ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
-            ];
-        });
+        if (!empty($dateFrom) || !empty($dateTo)) {
+            $this->applyDateRangeFilters($query, $dateFrom, $dateTo);
+        }
+
+        $data = $query->groupBy('status')->get();
+
+        return [
+            'labels' => $data->pluck('status')->map(fn($status) => ucfirst($status)),
+            'data' => $data->pluck('count'),
+            'colors' => ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF']
+        ];
     }
 
     /**
@@ -206,49 +236,59 @@ class DashboardService
      */
     public function getRevenueByMonthData(int $months = 12, ?string $dateFrom = null, ?string $dateTo = null): array
     {
+        $useCache = empty($dateFrom) && empty($dateTo);
         $cacheKey = $this->getCacheKey('revenue_by_month', $dateFrom, $dateTo, ['months' => $months]);
 
-        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($months, $dateFrom, $dateTo) {
-            $query = Order::selectRaw('
-                    YEAR(created_at) as year,
-                    MONTH(created_at) as month,
-                    SUM(total_amount) as revenue
-                ');
+        if ($useCache) {
+            return Cache::remember($cacheKey, $this->cacheDuration, function () use ($months, $dateFrom, $dateTo) {
+                return $this->computeRevenueByMonthData($months, $dateFrom, $dateTo);
+            });
+        }
 
-            if (!empty($dateFrom) || !empty($dateTo)) {
-                $this->applyDateRangeFilters($query, $dateFrom, $dateTo);
-            } else {
-                $query->where('created_at', '>=', Carbon::now()->subMonths($months));
-            }
+        return $this->computeRevenueByMonthData($months, $dateFrom, $dateTo);
+    }
 
-            $data = $query->groupBy('year', 'month')
-                ->orderBy('year')
-                ->orderBy('month')
-                ->get();
+    protected function computeRevenueByMonthData(int $months = 12, ?string $dateFrom = null, ?string $dateTo = null): array
+    {
+        $query = Order::selectRaw('
+                YEAR(created_at) as year,
+                MONTH(created_at) as month,
+                SUM(total_amount) as revenue
+            ');
 
-            $labels = [];
-            $values = [];
+        if (!empty($dateFrom) || !empty($dateTo)) {
+            $this->applyDateRangeFilters($query, $dateFrom, $dateTo);
+        } else {
+            $query->where('created_at', '>=', Carbon::now()->subMonths($months));
+        }
 
-            $startDate = !empty($dateFrom) ? Carbon::parse($dateFrom)->startOfMonth() : Carbon::now()->subMonths($months - 1)->startOfMonth();
-            $endDate = !empty($dateTo) ? Carbon::parse($dateTo)->endOfMonth() : Carbon::now()->endOfMonth();
-            $currentDate = $startDate->copy();
+        $data = $query->groupBy('year', 'month')
+            ->orderBy('year')
+            ->orderBy('month')
+            ->get();
 
-            while ($currentDate <= $endDate) {
-                $labels[] = $currentDate->format('M Y');
+        $labels = [];
+        $values = [];
 
-                $monthData = $data->first(function ($item) use ($currentDate) {
-                    return $item->year == $currentDate->year && $item->month == $currentDate->month;
-                });
+        $startDate = !empty($dateFrom) ? Carbon::parse($dateFrom)->startOfMonth() : Carbon::now()->subMonths($months - 1)->startOfMonth();
+        $endDate = !empty($dateTo) ? Carbon::parse($dateTo)->endOfMonth() : Carbon::now()->endOfMonth();
+        $currentDate = $startDate->copy();
 
-                $values[] = $monthData ? $monthData->revenue : 0;
-                $currentDate->addMonth();
-            }
+        while ($currentDate <= $endDate) {
+            $labels[] = $currentDate->format('M Y');
 
-            return [
-                'labels' => $labels,
-                'data' => $values,
-            ];
-        });
+            $monthData = $data->first(function ($item) use ($currentDate) {
+                return $item->year == $currentDate->year && $item->month == $currentDate->month;
+            });
+
+            $values[] = $monthData ? $monthData->revenue : 0;
+            $currentDate->addMonth();
+        }
+
+        return [
+            'labels' => $labels,
+            'data' => $values,
+        ];
     }
 
     /**
@@ -256,80 +296,87 @@ class DashboardService
      */
     public function getRecentActivity(int $limit = 10, ?string $dateFrom = null, ?string $dateTo = null): array
     {
+        $useCache = empty($dateFrom) && empty($dateTo);
         $cacheKey = $this->getCacheKey('recent_activity', $dateFrom, $dateTo, ['limit' => $limit]);
 
-        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($limit, $dateFrom, $dateTo) {
-            $activities = [];
+        if ($useCache) {
+            return Cache::remember($cacheKey, $this->cacheDuration, function () use ($limit, $dateFrom, $dateTo) {
+                return $this->computeRecentActivity($limit, $dateFrom, $dateTo);
+            });
+        }
 
-            // Recent orders
-            $orderQuery = Order::with('creator')->latest();
-            if (!empty($dateFrom) || !empty($dateTo)) {
-                $this->applyDateRangeFilters($orderQuery, $dateFrom, $dateTo);
-            }
+        return $this->computeRecentActivity($limit, $dateFrom, $dateTo);
+    }
 
-            $recentOrders = $orderQuery
-                ->take(5)
-                ->get()
-                ->map(function ($order) {
-                    return [
-                        'id' => "order_{$order->id}",
-                        'type' => 'order',
-                        'title' => "New order #{$order->order_number}",
-                        'description' => "Order placed by " . ($order->creator ? $order->creator->name : 'Guest'),
-                        'amount' => $order->total_amount,
-                        'created_at' => $order->created_at,
-                    ];
-                });
+    protected function computeRecentActivity(int $limit = 10, ?string $dateFrom = null, ?string $dateTo = null): array
+    {
+        $activities = [];
 
-            // Recent users
-            $userQuery = User::latest();
-            if (!empty($dateFrom) || !empty($dateTo)) {
-                $this->applyDateRangeFilters($userQuery, $dateFrom, $dateTo);
-            }
+        $orderQuery = Order::with('creator')->latest();
+        if (!empty($dateFrom) || !empty($dateTo)) {
+            $this->applyDateRangeFilters($orderQuery, $dateFrom, $dateTo);
+        }
 
-            $recentUsers = $userQuery
-                ->take(3)
-                ->get()
-                ->map(function ($user) {
-                    return [
-                        'id' => "user_{$user->id}",
-                        'type' => 'user',
-                        'title' => "New user registered",
-                        'description' => $user->name . " joined the platform",
-                        'created_at' => $user->created_at,
-                    ];
-                });
+        $recentOrders = $orderQuery
+            ->take(5)
+            ->get()
+            ->map(function ($order) {
+                return [
+                    'id' => "order_{$order->id}",
+                    'type' => 'order',
+                    'title' => "New order #{$order->order_number}",
+                    'description' => "Order placed by " . ($order->creator ? $order->creator->name : 'Guest'),
+                    'amount' => $order->total_amount,
+                    'created_at' => $order->created_at,
+                ];
+            });
 
-            // Recent products
-            $productQuery = Products::latest();
-            if (!empty($dateFrom) || !empty($dateTo)) {
-                $this->applyDateRangeFilters($productQuery, $dateFrom, $dateTo);
-            }
+        $userQuery = User::latest();
+        if (!empty($dateFrom) || !empty($dateTo)) {
+            $this->applyDateRangeFilters($userQuery, $dateFrom, $dateTo);
+        }
 
-            $recentProducts = $productQuery
-                ->take(2)
-                ->get()
-                ->map(function ($product) {
-                    return [
-                        'id' => "product_{$product->id}",
-                        'type' => 'product',
-                        'title' => "New product added",
-                        'description' => $product->name . " is now available",
-                        'created_at' => $product->created_at,
-                    ];
-                });
+        $recentUsers = $userQuery
+            ->take(3)
+            ->get()
+            ->map(function ($user) {
+                return [
+                    'id' => "user_{$user->id}",
+                    'type' => 'user',
+                    'title' => "New user registered",
+                    'description' => $user->name . " joined the platform",
+                    'created_at' => $user->created_at,
+                ];
+            });
 
-            $activities = collect()
-                ->merge($recentOrders)
-                ->merge($recentUsers)
-                ->merge($recentProducts)
-                ->sortByDesc('created_at')
-                ->take($limit)
-                ->values()
-                ->toArray();
+        $productQuery = Products::latest();
+        if (!empty($dateFrom) || !empty($dateTo)) {
+            $this->applyDateRangeFilters($productQuery, $dateFrom, $dateTo);
+        }
 
-            return $activities;
-        });
+        $recentProducts = $productQuery
+            ->take(2)
+            ->get()
+            ->map(function ($product) {
+                return [
+                    'id' => "product_{$product->id}",
+                    'type' => 'product',
+                    'title' => "New product added",
+                    'description' => $product->name . " is now available",
+                    'created_at' => $product->created_at,
+                ];
+            });
+
+        $activities = collect()
+            ->merge($recentOrders)
+            ->merge($recentUsers)
+            ->merge($recentProducts)
+            ->sortByDesc('created_at')
+            ->take($limit)
+            ->values()
+            ->toArray();
+
+        return $activities;
     }
 
     /**
@@ -337,37 +384,47 @@ class DashboardService
      */
     public function getTopSellingProducts(int $limit = 5, ?string $dateFrom = null, ?string $dateTo = null): array
     {
+        $useCache = empty($dateFrom) && empty($dateTo);
         $cacheKey = $this->getCacheKey('top_selling_products', $dateFrom, $dateTo, ['limit' => $limit]);
 
-        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($limit, $dateFrom, $dateTo) {
-            $query = DB::table('sales_order_details')
-                ->join('products', 'sales_order_details.product_id', '=', 'products.id')
-                ->join('sales_orders', 'sales_order_details.order_id', '=', 'sales_orders.id')
-                ->where('sales_orders.status', 'completed');
+        if ($useCache) {
+            return Cache::remember($cacheKey, $this->cacheDuration, function () use ($limit, $dateFrom, $dateTo) {
+                return $this->computeTopSellingProducts($limit, $dateFrom, $dateTo);
+            });
+        }
 
-            if (!empty($dateFrom) || !empty($dateTo)) {
-                if (!empty($dateFrom)) {
-                    $query->whereDate('sales_orders.created_at', '>=', Carbon::parse($dateFrom)->format('Y-m-d'));
-                }
-                if (!empty($dateTo)) {
-                    $query->whereDate('sales_orders.created_at', '<=', Carbon::parse($dateTo)->format('Y-m-d'));
-                }
+        return $this->computeTopSellingProducts($limit, $dateFrom, $dateTo);
+    }
+
+    protected function computeTopSellingProducts(int $limit = 5, ?string $dateFrom = null, ?string $dateTo = null): array
+    {
+        $query = DB::table('sales_order_details')
+            ->join('products', 'sales_order_details.product_id', '=', 'products.id')
+            ->join('sales_orders', 'sales_order_details.order_id', '=', 'sales_orders.id')
+            ->where('sales_orders.status', 'completed');
+
+        if (!empty($dateFrom) || !empty($dateTo)) {
+            if (!empty($dateFrom)) {
+                $query->whereDate('sales_orders.created_at', '>=', Carbon::parse($dateFrom)->format('Y-m-d'));
             }
+            if (!empty($dateTo)) {
+                $query->whereDate('sales_orders.created_at', '<=', Carbon::parse($dateTo)->format('Y-m-d'));
+            }
+        }
 
-            return $query
-                ->selectRaw('
-                    products.id,
-                    products.name,
-                    products.image,
-                    SUM(sales_order_details.quantity) as total_sold,
-                    SUM(sales_order_details.line_total) as total_revenue
-                ')
-                ->groupBy('products.id', 'products.name', 'products.image')
-                ->orderBy('total_sold', 'desc')
-                ->limit($limit)
-                ->get()
-                ->toArray();
-        });
+        return $query
+            ->selectRaw('
+                products.id,
+                products.name,
+                products.image,
+                SUM(sales_order_details.quantity) as total_sold,
+                SUM(sales_order_details.line_total) as total_revenue
+            ')
+            ->groupBy('products.id', 'products.name', 'products.image')
+            ->orderBy('total_sold', 'desc')
+            ->limit($limit)
+            ->get()
+            ->toArray();
     }
 
     /**
