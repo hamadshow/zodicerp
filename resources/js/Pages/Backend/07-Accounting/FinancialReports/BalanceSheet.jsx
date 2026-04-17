@@ -17,7 +17,7 @@ export default function BalanceSheet() {
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
-  const [lang, setLang] = useState(currentLocale);
+  const [lang] = useState(currentLocale);
   const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split('T')[0]);
   const [collapsedNodes, setCollapsedNodes] = useState({});
   const [reportingBasis, setReportingBasis] = useState('Accrual');

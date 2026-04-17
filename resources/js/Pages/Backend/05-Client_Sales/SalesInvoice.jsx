@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
+import Pagination from '../components/Pagination';
 import { formatDate } from '@/utils/date';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
 
-export default function SalesInvoice({ invoices, customers, orders, currencies, products, salesAgents }) {
+export default function SalesInvoice({ invoices, customers, orders, currencies, products, salesAgents, units, warehouses }) {
     const [mode, setMode] = useState('list'); // list, create, edit
     const invoiceRef = useRef(null);
     const printRef = useRef(null);
     const { props } = usePage();
-    const { localization, flash } = props;
-    const { errors } = props;
+    const { localization, flash, errors, filters = {} } = props;
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -20,6 +20,19 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
             lang: localization?.current_locale || 'ar',
             ...params
         });
+    };
+
+    const handleSort = (column) => {
+        const currentSort = filters.sort_by || '';
+        const currentDir = filters.sort_dir || 'asc';
+        const newDir = currentSort === column && currentDir === 'asc' ? 'desc' : 'asc';
+
+        router.get(getLocalizedRoute('admin.client-sales.invoices.index'), {
+            ...filters,
+            sort_by: column,
+            sort_dir: newDir,
+            page: 1,
+        }, { preserveState: true });
     };
 
     const orderOptions = useMemo(() => {
@@ -42,6 +55,20 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
             label: p.name_en || p.name_ar || ''
         }));
     }, [products]);
+
+    const unitOptions = useMemo(() => {
+        return (units || []).map(u => ({
+            value: String(u.id),
+            label: u.name_en || u.name_ar || ''
+        }));
+    }, [units]);
+
+    const warehouseOptions = useMemo(() => {
+        return (warehouses || []).map(w => ({
+            value: String(w.id),
+            label: w.name_en || w.name_ar || ''
+        }));
+    }, [warehouses]);
 
     // Initial Form State
     const { data, setData, post, put, delete: destroy, processing, reset } = useForm({
@@ -102,6 +129,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                 item_name_en: '',
                 quantity: 1,
                 unit_id: '',
+                warehouse_id: '',
                 unit_price: 0,
                 discount_amount: 0,
                 tax_amount: 0,
@@ -128,7 +156,8 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                     discount_amount: discountAmount,
                     tax_amount: taxAmount,
                     line_total: toNum(it.line_total),
-                    unit_id: it.product?.unit_id || '',
+                    unit_id: it.unit_id || it.product?.unit_id || '',
+                    warehouse_id: it.warehouse_id || '',
                     item_name_ar: it.product?.name_ar || '',
                     item_name_en: it.product?.name_en || '',
                 };
@@ -234,6 +263,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                 item_name_en: '',
                 quantity: 1,
                 unit_id: '',
+                warehouse_id: '',
                 unit_price: 0,
                 discount_amount: 0,
                 tax_amount: 0,
@@ -259,8 +289,9 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
             if (product) {
                 newItems[index].item_name_ar = product.name_ar || product.name || '';
                 newItems[index].item_name_en = product.name_en || product.name || '';
-                newItems[index].unit_price = product.price || 0;
+                newItems[index].unit_price = product.sale_price || 0;
                 newItems[index].unit_id = product.unit_id || '';
+                newItems[index].warehouse_id = newItems[index].warehouse_id || (warehouses?.[0]?.id || '');
             }
         }
 
@@ -356,7 +387,12 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                             <thead>
                                 <tr>
                                     <th>Ref #</th>
-                                    <th>Date</th>
+                                    <th
+                                        style={{ cursor: 'pointer' }}
+                                        onClick={() => handleSort('invoice_date')}
+                                    >
+                                        Date {filters.sort_by === 'invoice_date' && (filters.sort_dir === 'asc' ? '↑' : '↓')}
+                                    </th>
                                     <th>Customer</th>
                                     <th>Type</th>
                                     <th>Status</th>
@@ -396,6 +432,14 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                 )}
                             </tbody>
                         </table>
+                        <Pagination
+                            currentPage={invoices.current_page}
+                            totalPages={invoices.last_page}
+                            totalRecords={invoices.total}
+                            recordsPerPage={invoices.per_page}
+                            onPageChange={(page) => router.get(getLocalizedRoute('admin.client-sales.invoices.index'), { ...filters, page }, { preserveState: true })}
+                            onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.client-sales.invoices.index'), { ...filters, page: 1, per_page: perPage }, { preserveState: true })}
+                        />
                     </div>
                 ) : (
                     <>
@@ -519,6 +563,8 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                         <tr>
                                             <th style={{width: '50px'}} className="text-center">#</th>
                                             <th style={{width: '25%'}}>Item</th>
+                                            <th style={{width: '10%'}}>Unit</th>
+                                            <th style={{width: '15%'}}>Warehouse</th>
                                             <th style={{width: '10%'}} className="text-center">Qty</th>
                                             <th style={{width: '15%'}} className="text-right">Price</th>
                                             <th style={{width: '10%'}} className="text-right">Disc</th>
@@ -546,6 +592,28 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                                         value={item.item_name_ar}
                                                         onChange={e => handleItemChange(index, 'item_name_ar', e.target.value)}
                                                     />
+                                                </td>
+                                                <td>
+                                                    <select
+                                                        value={item.unit_id ? String(item.unit_id) : ''}
+                                                        onChange={e => handleItemChange(index, 'unit_id', e.target.value)}
+                                                    >
+                                                        <option value="">Select Unit</option>
+                                                        {unitOptions.map(unit => (
+                                                            <option key={unit.value} value={unit.value}>{unit.label}</option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <select
+                                                        value={item.warehouse_id ? String(item.warehouse_id) : ''}
+                                                        onChange={e => handleItemChange(index, 'warehouse_id', e.target.value)}
+                                                    >
+                                                        <option value="">Select Warehouse</option>
+                                                        {warehouseOptions.map(warehouse => (
+                                                            <option key={warehouse.value} value={warehouse.value}>{warehouse.label}</option>
+                                                        ))}
+                                                    </select>
                                                 </td>
                                                 <td>
                                                     <input 

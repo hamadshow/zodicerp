@@ -145,6 +145,7 @@
 .menu-item {
     display: flex;
     align-items: center;
+    gap: 12px;
     padding: 10px 12px;
     border-radius: 6px;
     cursor: pointer;
@@ -195,21 +196,16 @@
     .collapsed & {
         justify-content: center;
         padding: 10px 0;
+        gap: 0;
     }
 }
 
 .menu-icon {
-    margin-right: 12px;
     font-size: 20px;
     @include flex-center;
     width: 24px;
     flex-shrink: 0;
     min-width: 24px; // Added min-width
-
-    @include rtl {
-        margin-right: 0;
-        margin-left: 12px;
-    }
 
     .collapsed & {
         margin-right: 0;
@@ -275,7 +271,8 @@
 .submenu-item {
     display: flex;
     align-items: center;
-    padding: 8px 12px 8px 48px;
+    gap: 12px; // Normalized gap for all menu items
+    padding: 8px 12px 8px 40px;
     color: $sidebar-text;
     font-size: 0.85rem;
     text-decoration: none;
@@ -283,7 +280,7 @@
     white-space: nowrap;
 
     @include rtl {
-        padding: 8px 43px 8px 12px; // Shifted 5px to the right in RTL (from 48px)
+        padding: 8px 40px 8px 12px;
     }
 
     &:hover {
@@ -303,14 +300,14 @@
 }
 
 .submenu-icon {
+    width: 24px; // Consistent icon container size
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 18px;
-    margin-right: 10px;
     opacity: 0.7;
-
-    @include rtl {
-        margin-right: 0;
-        margin-left: 10px;
-    }
+    flex-shrink: 0;
 }
 
 /* Floating Submenu (Popover) */
@@ -350,6 +347,7 @@
 .floating-item {
     display: flex;
     align-items: center;
+    gap: 10px;
     padding: 8px 16px;
     color: $sidebar-text;
     text-decoration: none;
@@ -369,7 +367,6 @@
 
 .floating-icon {
     font-size: 18px;
-    margin-right: 10px;
     opacity: 0.8;
 }
 

@@ -5,7 +5,7 @@ import TextInput from '@/Components/TextInput';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { FinanzaFooter, FinanzaHeader } from '@/Pages/Home/Home';
-import { useTranslation } from '@/Hooks/useTranslation';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function ConfirmPassword() {
   const { localization } = usePage().props;

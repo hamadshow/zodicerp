@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -85,7 +86,32 @@ class User extends Authenticatable
      */
     public function hasRole(string $role): bool
     {
-        return $this->role === $role;
+        if ($this->role === $role) {
+            return true;
+        }
+
+        return $this->roles()->where('slug', $role)->exists();
+    }
+
+    /**
+     * Check if the user has a specific permission.
+     */
+    /**
+     * Check if the user has a specific permission.
+     */
+    public function hasPermission(string $permission): bool
+    {
+        return $this->roles->contains(function ($role) use ($permission) {
+            return is_array($role->permissions) && in_array($permission, $role->permissions);
+        });
+    }
+
+    /**
+     * Get the roles associated with the user.
+     */
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'role_users');
     }
 
     public function company(): BelongsTo

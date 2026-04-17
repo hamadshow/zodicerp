@@ -21,8 +21,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectTo(
             function (Request $request) {
                 $params = [
-                    'country' => session('country_code', 'sa'),
-                    'lang' => session('locale', 'ar'),
+                    'country' => $request->segment(1) ?: session('country_code', 'sa'),
+                    'lang' => $request->segment(2) ?: session('locale', 'ar'),
                 ];
 
                 return route('login', $params);

@@ -1,15 +1,29 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
 import { formatDate } from '@/utils/date';
+import Pagination from '../components/Pagination';
 
-export default function PurchaseInvoice({ invoices, suppliers, orders, currencies, products, units, warehouses, paymentTerms }) {
+export default function PurchaseInvoice({ invoices, suppliers, orders, currencies, products, units, warehouses, paymentTerms, filters }) {
     const [mode, setMode] = useState('list'); // list, create, edit
     const [activeTab, setActiveTab] = useState('general');
+    const [search, setSearch] = useState(filters?.search || '');
+    const [status, setStatus] = useState(filters?.status || '');
     const { props } = usePage();
     const { localization, flash } = props;
     const { errors } = props;
+
+    const handleSearch = (e) => {
+        if (e) e.preventDefault();
+        router.get(getLocalizedRoute('admin.purchases.invoices.index'), { search, status }, { preserveState: true });
+    };
+
+    useEffect(() => {
+        if (mode === 'list') {
+            handleSearch();
+        }
+    }, [status]);
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -293,7 +307,31 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
                 )}
 
                 {mode === 'list' ? (
-                    <div className="purchase-invoices-module__table-container">
+                    <>
+                        <div className="table-filters mb-4 flex gap-4">
+                            <form onSubmit={handleSearch} className="flex-1 flex gap-2">
+                                <input
+                                    type="text"
+                                    className="form-input flex-1"
+                                    placeholder="Search by invoice number or supplier..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                />
+                                <button type="submit" className="btn-secondary">Search</button>
+                            </form>
+                            <select
+                                className="form-select w-48"
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value)}
+                            >
+                                <option value="">All Statuses</option>
+                                <option value="unpaid">Unpaid</option>
+                                <option value="partial">Partially Paid</option>
+                                <option value="paid">Paid</option>
+                                <option value="overdue">Overdue</option>
+                            </select>
+                        </div>
+                        <div className="purchase-invoices-module__table-container">
                         <table>
                             <thead>
                                 <tr>
@@ -339,6 +377,15 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
                             </tbody>
                         </table>
                     </div>
+                    <Pagination
+                        currentPage={invoices.current_page}
+                        totalPages={invoices.last_page}
+                        totalRecords={invoices.total}
+                        recordsPerPage={invoices.per_page}
+                        onPageChange={(page) => router.get(getLocalizedRoute('admin.purchases.invoices.index'), { ...filters, page }, { preserveState: true })}
+                        onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.purchases.invoices.index'), { ...filters, page: 1, per_page: perPage }, { preserveState: true })}
+                    />
+                    </>
                 ) : (
                     <form onSubmit={handleSubmit} className="purchase-invoices-module__form-container">
                         <div className="purchase-invoices-module__tabs">

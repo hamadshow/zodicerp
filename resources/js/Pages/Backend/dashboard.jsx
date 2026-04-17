@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { Head } from '@inertiajs/react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Head, router } from '@inertiajs/react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  LineChart, Line, PieChart, Pie, Cell, Legend 
+} from 'recharts';
 import AdminLayout from './components/AdminLayout';
 import Table from './components/Table';
 import Pagination from './components/Pagination';
 import { apiService } from '../../services/api';
 
 const Dashboard = () => {
+  const today = new Date().toISOString().slice(0, 10);
+
   const [tableData, setTableData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectAll, setSelectAll] = useState(false);
@@ -13,6 +19,11 @@ const Dashboard = () => {
   const [recordsPerPage, setRecordsPerPage] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState(today);
+  const [dateTo, setDateTo] = useState(today);
+  const [appliedDateFrom, setAppliedDateFrom] = useState(today);
+  const [appliedDateTo, setAppliedDateTo] = useState(today);
 
   // Dashboard statistics data
   const [stats, setStats] = useState({
@@ -20,314 +31,441 @@ const Dashboard = () => {
     totalOrders: 0,
     totalRevenue: 0,
     totalProducts: 0,
+    totalNetPurchases: 0,
   });
 
-  // Recent activity data
+  // New state variables for charts and alerts
+  const [salesData, setSalesData] = useState([]);
+  const [distributionData, setDistributionData] = useState([]);
+  const [topProducts, setTopProducts] = useState([]);
+  const [lowStockAlerts, setLowStockAlerts] = useState([]);
+  const [categoryTree, setCategoryTree] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
 
-  // Fetch dashboard data from API
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        // Fetch dashboard statistics
-        const statsResponse = await apiService.get('/dashboard/stats');
-        setStats(
-          statsResponse.data || {
-            totalUsers: 124,
-            totalOrders: 56,
-            totalRevenue: 12450,
-            totalProducts: 89,
-          }
-        );
+  // Fetch all dashboard data from API
+  const fetchDashboardData = useCallback(async (from = appliedDateFrom, to = appliedDateTo, page = currentPage) => {
+    setLoading(true);
 
-        // Fetch recent activity
-        const activityResponse = await apiService.get('/dashboard/activity');
-        setRecentActivity(
-          activityResponse.data || [
-            {
-              id: 1,
-              action: 'New user registered',
-              user: 'John Doe',
-              time: '2 minutes ago',
-            },
-            {
-              id: 2,
-              action: 'Order placed',
-              user: 'Jane Smith',
-              time: '15 minutes ago',
-            },
-            {
-              id: 3,
-              action: 'Product updated',
-              user: 'Admin',
-              time: '1 hour ago',
-            },
-            {
-              id: 4,
-              action: 'Payment received',
-              user: 'Mike Johnson',
-              time: '3 hours ago',
-            },
-          ]
-        );
-
-        // Fetch table data (pages)
-        const response = await apiService.get('/pages', {
-          page: currentPage,
-          per_page: recordsPerPage,
-        });
-
-        const data = response.data.data || response.data; // Handle pagination structure
-        const total = response.data.total || data.length;
-
-        // Calculate total records and pages
-        setTotalRecords(total);
-        setTotalPages(Math.ceil(total / recordsPerPage));
-
-        // Set the current page data
-        setTableData(data.map((item) => ({ ...item, selected: false })));
-        setLoading(false);
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-
-        // Fallback to mock data if there's an error
-        setStats({
-          totalUsers: 124,
-          totalOrders: 56,
-          totalRevenue: 12450,
-          totalProducts: 89,
-        });
-
-        setRecentActivity([
-          {
-            id: 1,
-            action: 'New user registered',
-            user: 'John Doe',
-            time: '2 minutes ago',
-          },
-          {
-            id: 2,
-            action: 'Order placed',
-            user: 'Jane Smith',
-            time: '15 minutes ago',
-          },
-          {
-            id: 3,
-            action: 'Product updated',
-            user: 'Admin',
-            time: '1 hour ago',
-          },
-          {
-            id: 4,
-            action: 'Payment received',
-            user: 'Mike Johnson',
-            time: '3 hours ago',
-          },
-        ]);
-
-        const mockData = Array.from({ length: 50 }, (_, i) => ({
-          id: i + 1,
-          name: `Page ${i + 1}`,
-          template: i % 3 === 0 ? 'Default' : i % 3 === 1 ? 'Blog' : 'Custom',
-          createdAt: new Date(
-            Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000
-          )
-            .toISOString()
-            .split('T')[0],
-          status: i % 4 === 0 ? 'Draft' : 'Published',
-          selected: false,
-        }));
-
-        setTotalRecords(mockData.length);
-        setTotalPages(Math.ceil(mockData.length / recordsPerPage));
-
-        const startIndex = (currentPage - 1) * recordsPerPage;
-        const endIndex = startIndex + recordsPerPage;
-        setTableData(mockData.slice(startIndex, endIndex));
-        setLoading(false);
-      }
+    const dashboardFilterParams = {
+      date_from: from || undefined,
+      date_to: to || undefined,
     };
 
-    fetchDashboardData();
-  }, [currentPage, recordsPerPage]);
+    let statsData = {};
 
-  const handleRowSelect = (id) => {
-    setTableData((prevData) =>
-      prevData.map((row) =>
-        row.id === id ? { ...row, selected: !row.selected } : row
-      )
-    );
+    try {
+      const statsRes = await apiService.get('/dashboard/stats', dashboardFilterParams);
+      statsData = statsRes.data?.data ?? {};
+    } catch (error) {
+      console.error('Error fetching dashboard stats:', error);
+    }
+
+    setStats({
+      totalUsers: statsData.summary?.total_users ?? 0,
+      totalNetPurchases: statsData.summary?.total_net_purchases ?? 0,
+      totalOrders: statsData.summary?.total_orders ?? 0,
+      totalRevenue: statsData.summary?.total_revenue ?? 0,
+      totalProducts: statsData.summary?.total_products ?? 0,
+    });
+
+    try {
+      const [
+        activityRes,
+        ordersRes,
+        salesRes,
+        distRes,
+        topProdRes,
+        lowStockRes,
+        categoryRes
+      ] = await Promise.all([
+        apiService.get('/dashboard/recent-activity', { limit: 10, ...dashboardFilterParams }),
+        apiService.get('/orders', { page: page, per_page: recordsPerPage, search: searchQuery || undefined, ...dashboardFilterParams }),
+        apiService.get('/dashboard/sales-chart', { months: 12, ...dashboardFilterParams }),
+        apiService.get('/dashboard/order-status-distribution', dashboardFilterParams),
+        apiService.get('/dashboard/top-selling-products', { limit: 5, ...dashboardFilterParams }),
+        apiService.get('/dashboard/low-stock-alerts'),
+        apiService.get('/categories/tree')
+      ]);
+
+      setRecentActivity(activityRes.data?.data ?? []);
+
+      const ordersData = ordersRes.data?.data ?? [];
+      const ordersTotal = ordersRes.data?.pagination?.total ?? ordersData.length;
+      setTotalRecords(ordersTotal);
+      setTotalPages(Math.max(1, Math.ceil(ordersTotal / recordsPerPage)));
+      setTableData(ordersData.map(item => ({ ...item, selected: false })));
+
+      const salesDataRaw = salesRes.data?.data ?? {};
+      setSalesData(
+        (salesDataRaw.labels ?? []).map((label, index) => ({
+          name: label,
+          sales: salesDataRaw.orders?.[index] ?? 0,
+          revenue: salesDataRaw.revenue?.[index] ?? 0,
+        }))
+      );
+
+      const distributionDataRaw = distRes.data?.data ?? {};
+      setDistributionData(
+        (distributionDataRaw.labels ?? []).map((label, index) => ({
+          name: label,
+          value: distributionDataRaw.data?.[index] ?? 0,
+        }))
+      );
+
+      setTopProducts(topProdRes.data?.data ?? []);
+      setLowStockAlerts(lowStockRes.data?.data ?? []);
+      setCategoryTree(categoryRes.data?.data ?? []);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+
+      setSalesData([
+        { name: 'Jan', sales: 4000, revenue: 2400 },
+        { name: 'Feb', sales: 3000, revenue: 1398 },
+        { name: 'Mar', sales: 2000, revenue: 9800 },
+        { name: 'Apr', sales: 2780, revenue: 3908 },
+        { name: 'May', sales: 1890, revenue: 4800 },
+        { name: 'Jun', sales: 2390, revenue: 3800 },
+      ]);
+
+      setDistributionData([
+        { name: 'Pending', value: 400 },
+        { name: 'Processing', value: 300 },
+        { name: 'Shipped', value: 300 },
+        { name: 'Delivered', value: 200 },
+      ]);
+
+      setTopProducts([
+        { id: 1, name: 'Premium Coffee Beans', sales: 154, stock: 45 },
+        { id: 2, name: 'Espresso Machine', sales: 84, stock: 12 },
+        { id: 3, name: 'Organic Green Tea', sales: 210, stock: 8 },
+      ]);
+
+      setLowStockAlerts([
+        { id: 3, name: 'Organic Green Tea', stock: 8, threshold: 10 },
+        { id: 5, name: 'Sugar Packets', stock: 50, threshold: 100 },
+      ]);
+
+      setCategoryTree([
+        { id: 1, name: 'Electronics', count: 45 },
+        { id: 2, name: 'Furniture', count: 12 },
+        { id: 3, name: 'Apparel', count: 32 },
+      ]);
+
+      setRecentActivity([
+        { id: 1, action: 'Order placed', user: 'Jane Smith', time: '2 mins ago' },
+        { id: 2, action: 'New product added', user: 'Admin', time: '1 hour ago' },
+      ]);
+
+      const mockOrders = Array.from({ length: 50 }, (_, i) => ({
+        id: i + 1,
+        order_number: `ORD-${1000 + i}`,
+        customer: { name: `Customer ${i + 1}` },
+        total_amount: (Math.random() * 500 + 50).toFixed(2),
+        created_at: new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
+        status: ['pending', 'processing', 'shipped', 'delivered'][i % 4],
+        selected: false,
+      }));
+
+      const filteredMockData = searchQuery 
+        ? mockOrders.filter(o => o.order_number.includes(searchQuery) || o.customer.name.includes(searchQuery))
+        : mockOrders;
+
+      setTotalRecords(filteredMockData.length);
+      setTotalPages(Math.ceil(filteredMockData.length / recordsPerPage));
+      setTableData(filteredMockData.slice((currentPage - 1) * recordsPerPage, currentPage * recordsPerPage));
+    }
+
+    setLoading(false);
+  }, [currentPage, recordsPerPage, searchQuery, appliedDateFrom, appliedDateTo]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  const handleRowSelect = (idOrIndex) => {
+    setTableData(prev => prev.map((row, idx) => (row.id === idOrIndex || idx === idOrIndex) ? { ...row, selected: !row.selected } : row));
   };
 
   const handleSelectAll = () => {
-    const newSelectAll = !selectAll;
-    setSelectAll(newSelectAll);
-    setTableData((prevData) =>
-      prevData.map((row) => ({ ...row, selected: newSelectAll }))
-    );
+    const newVal = !selectAll;
+    setSelectAll(newVal);
+    setTableData(prev => prev.map(row => ({ ...row, selected: newVal })));
   };
 
-  const handlePageChange = (page) => {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
+  const handlePageChange = (p) => p >= 1 && p <= totalPages && setCurrentPage(p);
+  const handleRecordsPerPageChange = (n) => { setRecordsPerPage(n); setCurrentPage(1); };
+  const handleSearchChange = (e) => { setSearchQuery(e.target.value); setCurrentPage(1); };
+  const handleReload = () => fetchDashboardData();
+  const handleCreateOrder = () => router.visit('/admin/orders/create');
+  const handleEditOrder = (o) => router.visit(`/admin/orders/${o.id}/edit`);
+  
+  const handleDeleteOrder = async (order) => {
+    if (confirm(`Are you sure you want to delete order "${order.order_number}"?`)) {
+      try {
+        await apiService.delete(`/orders/${order.id}`);
+        fetchDashboardData();
+      } catch (error) {
+        console.error('Delete error:', error);
+      }
     }
   };
 
-  const handleRecordsPerPageChange = (newRecordsPerPage) => {
-    setRecordsPerPage(newRecordsPerPage);
-    setCurrentPage(1); // Reset to first page when changing records per page
+  const handleBulkAction = async (action) => {
+    const selectedIds = tableData.filter(row => row.selected).map(row => row.id);
+    if (selectedIds.length === 0) return;
+
+    try {
+      if (action === 'delete') {
+        if (confirm(`Delete ${selectedIds.length} orders?`)) {
+          await apiService.post('/orders/bulk-delete', { ids: selectedIds });
+        }
+      } else if (action === 'ship' || action === 'cancel') {
+        const status = action === 'ship' ? 'shipped' : 'cancelled';
+        await apiService.post('/orders/bulk-update-status', { ids: selectedIds, status });
+      }
+      fetchDashboardData();
+      setSelectAll(false);
+    } catch (error) {
+      console.error('Bulk action error:', error);
+    }
   };
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="spinner"></div>
-        <p>Loading dashboard...</p>
-      </div>
-    );
+  const handleApplyDateRange = async () => {
+    const selectedFrom = dateFrom || today;
+    const selectedTo = dateTo || today;
+    setAppliedDateFrom(selectedFrom);
+    setAppliedDateTo(selectedTo);
+    const nextPage = 1;
+    setCurrentPage(nextPage);
+    await fetchDashboardData(selectedFrom, selectedTo, nextPage);
+  };
+
+  const columns = [
+    { header: 'ID', key: 'id', sortable: true },
+    { header: 'ORDER #', key: 'order_number', sortable: true, render: (row) => <a href={`/admin/orders/${row.id}`} className="table-link">{row.order_number}</a> },
+    { header: 'CUSTOMER', key: 'customer', render: (row) => row.customer?.name || 'N/A' },
+    { header: 'TOTAL', key: 'total_amount', sortable: true, render: (row) => `$${row.total_amount}` },
+    { header: 'DATE', key: 'created_at', sortable: true },
+    { header: 'STATUS', key: 'status', sortable: true, render: (row) => <span className={`status status-${row.status.toLowerCase()}`}>{row.status}</span> }
+  ];
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
+  if (loading && tableData.length === 0) {
+    return <div className="loading-container"><div className="spinner"></div><p>Loading...</p></div>;
   }
 
   return (
     <AdminLayout activeMenu="Dashboard">
-      <Head>
-        <title>Admin Dashboard</title>
-      </Head>
+      <Head><title>Admin Dashboard</title></Head>
 
-      <div className="card" style={{ marginBottom: '16px' }}>
-        <div className="card-header">
-          <h1>Admin Dashboard</h1>
-        </div>
-        <div className="card-body">
-          <p>Welcome, Admin. Use the sidebar to navigate.</p>
-        </div>
-      </div>
-      {/* Dashboard Statistics Cards */}
-      <div className="dashboard-stats">
-        <div className="stat-card">
-          <div className="stat-icon bg-blue-500">
-            <span className="material-icons-outlined">people</span>
-          </div>
-          <div className="stat-info">
-            <h3>{stats.totalUsers}</h3>
-            <p>Users</p>
-          </div>
+      <div className="dashboard-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '24px', alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <label htmlFor="dashboard-from-date" style={{ fontSize: '0.85rem', marginBottom: '4px', color: '#4b5563' }}>From</label>
+          <input
+            id="dashboard-from-date"
+            type="date"
+            className="form-control"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
         </div>
 
-        <div className="stat-card">
-          <div className="stat-icon bg-green-500">
-            <span className="material-icons-outlined">shopping_cart</span>
-          </div>
-          <div className="stat-info">
-            <h3>{stats.totalOrders}</h3>
-            <p>Orders</p>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <label htmlFor="dashboard-to-date" style={{ fontSize: '0.85rem', marginBottom: '4px', color: '#4b5563' }}>To</label>
+          <input
+            id="dashboard-to-date"
+            type="date"
+            className="form-control"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
         </div>
 
-        <div className="stat-card">
-          <div className="stat-icon bg-purple-500">
-            <span className="material-icons-outlined">payments</span>
-          </div>
-          <div className="stat-info">
-            <h3>${stats.totalRevenue.toLocaleString()}</h3>
-            <p>Revenue</p>
-          </div>
-        </div>
+        <button
+          type="button"
+          className="btn btn-outline"
+          onClick={() => { setDateFrom(today); setDateTo(today); setCurrentPage(1); }}
+          style={{ height: '38px' }}
+        >
+          Reset to today
+        </button>
 
-        <div className="stat-card">
-          <div className="stat-icon bg-orange-500">
-            <span className="material-icons-outlined">inventory</span>
-          </div>
-          <div className="stat-info">
-            <h3>{stats.totalProducts}</h3>
-            <p>Products</p>
-          </div>
-        </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={handleApplyDateRange}
+          style={{ height: '38px' }}
+        >
+          Apply range
+        </button>
       </div>
 
-      {/* Recent Activity and Pages Table */}
-      <div className="dashboard-grid">
-        <div className="activity-section">
-          <div className="section-header">
-            <h2>Recent Activity</h2>
+      {/* Stats Cards */}
+      <div className="dashboard-stats" style={{ marginBottom: '24px' }}>
+        {[
+          { icon: 'payments', color: 'bg-purple-500', label: 'Revenue', val: `$${stats.totalRevenue.toLocaleString()}` },
+          { icon: 'inventory_2', color: 'bg-blue-500', label: 'Net Purchases', val: `$${stats.totalNetPurchases.toLocaleString()}` },
+          { icon: 'shopping_cart', color: 'bg-green-500', label: 'Orders', val: stats.totalOrders },
+          { icon: 'inventory', color: 'bg-orange-500', label: 'Products', val: stats.totalProducts }
+        ].map((s, i) => (
+          <div key={i} className="stat-card">
+            <div className={`stat-icon ${s.color}`}><span className="material-icons-outlined">{s.icon}</span></div>
+            <div className="stat-info"><h3>{s.val}</h3><p>{s.label}</p></div>
           </div>
+        ))}
+      </div>
 
-          <div className="activity-list">
-            {recentActivity.map((activity) => (
-              <div key={activity.id} className="activity-item">
-                <div className="activity-icon">
-                  <span className="material-icons-outlined">
-                    notifications
-                  </span>
-                </div>
-                <div className="activity-content">
-                  <p>
-                    <strong>{activity.action}</strong> by {activity.user}
-                  </p>
-                  <span className="activity-time">{activity.time}</span>
-                </div>
-              </div>
-            ))}
+      {/* Charts Section */}
+      <div className="dashboard-grid charts-grid" style={{ marginBottom: '24px' }}>
+        <div className="card chart-card">
+          <div className="card-header"><h2>Sales & Revenue Overview</h2></div>
+          <div className="card-body" style={{ height: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={salesData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line type="monotone" dataKey="sales" stroke="#8884d8" activeDot={{ r: 8 }} />
+                <Line type="monotone" dataKey="revenue" stroke="#82ca9d" />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="pages-section">
-          <div className="section-header">
-            <h2>Recent Pages</h2>
-            <a href="/admin/pages">View All</a>
+        <div className="card chart-card">
+          <div className="card-header"><h2>Order Distribution</h2></div>
+          <div className="card-body" style={{ height: '300px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={distributionData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                  {distributionData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
+        </div>
+      </div>
 
-          <div className="card">
-            <div className="card-header">
-              <div className="actions">
-                <select className="btn btn-outline">
-                  <option>Bulk Actions</option>
-                  <option>Publish Selected</option>
-                  <option>Move to Draft</option>
-                  <option>Delete Selected</option>
-                </select>
-                <button className="btn btn-outline">
-                  <span className="material-icons-outlined">
-                    filter_list
-                  </span>
-                  <span>Filters</span>
-                </button>
-                <div className="search-bar light">
-                  <input type="text" placeholder="Search pages..." />
-                  <button>
-                    <span className="material-icons-outlined">
-                      search
-                    </span>
-                  </button>
+      {/* Categories and Management Grid */}
+      <div className="dashboard-grid triple-grid" style={{ marginBottom: '24px' }}>
+        <div className="card">
+          <div className="card-header">
+            <h2>Product Categories</h2>
+            <a href="/admin/categories" className="text-sm">Manage</a>
+          </div>
+          <div className="card-body">
+            <div className="simple-list">
+              {categoryTree.slice(0, 5).map(cat => (
+                <div key={cat.id} className="list-item">
+                  <div className="item-info">
+                    <strong>{cat.name}</strong>
+                    <p>{cat.count || 0} Products</p>
+                  </div>
+                  <span className="material-icons-outlined text-gray-400">chevron_right</span>
                 </div>
-              </div>
-              <div className="actions">
-                <button className="btn btn-primary">
-                  <span className="material-icons-outlined">add</span>
-                  <span>Create Page</span>
-                </button>
-                <button className="btn btn-outline">
-                  <span className="material-icons-outlined">refresh</span>
-                  <span>Reload</span>
-                </button>
-              </div>
+              ))}
             </div>
-
-            <Table
-              tableData={tableData}
-              handleRowSelect={handleRowSelect}
-              selectAll={selectAll}
-              handleSelectAll={handleSelectAll}
-            />
-
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalRecords={totalRecords}
-              recordsPerPage={recordsPerPage}
-              onPageChange={handlePageChange}
-              onRecordsPerPageChange={handleRecordsPerPageChange}
-            />
           </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header"><h2>Top Selling Products</h2></div>
+          <div className="card-body">
+            <div className="simple-list">
+              {topProducts.map(p => (
+                <div key={p.id} className="list-item">
+                  <div className="item-info"><strong>{p.name}</strong><p>{p.sales} units sold</p></div>
+                  <div className={`item-badge ${p.stock < 10 ? 'badge-danger' : 'badge-success'}`}>{p.stock} in stock</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header"><h2>Low Stock Alerts</h2></div>
+          <div className="card-body">
+            <div className="simple-list">
+              {lowStockAlerts.map(p => (
+                <div key={p.id} className="list-item alert-item">
+                  <span className="material-icons-outlined text-danger">warning</span>
+                  <div className="item-info"><strong>{p.name}</strong><p>Only {p.stock} remaining (Threshold: {p.threshold})</p></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Activity and Management Grid */}
+      <div className="dashboard-grid charts-grid" style={{ marginBottom: '24px' }}>
+        <div className="card">
+          <div className="card-header"><h2>Recent Activity</h2></div>
+          <div className="card-body">
+            <div className="activity-list">
+              {recentActivity.map(a => (
+                <div key={a.id} className="activity-item">
+                  <div className="activity-icon"><span className="material-icons-outlined">notifications</span></div>
+                  <div className="activity-content"><p><strong>{a.action}</strong> by {a.user}</p><span className="activity-time">{a.time}</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="card-header"><h2>System Management</h2></div>
+          <div className="card-body">
+            <div className="simple-list">
+              {[
+                { label: 'User Management', icon: 'person', href: '/admin/users' },
+                { label: 'Roles & Permissions', icon: 'security', href: '/admin/roles' },
+                { label: 'Inventory Control', icon: 'inventory_2', href: '/admin/inventory' }
+              ].map((item, idx) => (
+                <a key={idx} href={item.href} className="list-item" style={{ textDecoration: 'none' }}>
+                  <div className="item-info" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <span className="material-icons-outlined" style={{ color: '#6366f1' }}>{item.icon}</span>
+                    <strong>{item.label}</strong>
+                  </div>
+                  <span className="material-icons-outlined text-gray-400">arrow_forward</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Table Section */}
+      <div className="pages-section">
+        <div className="section-header"><h2>Recent Orders</h2><a href="/admin/orders">View All</a></div>
+        <div className="card">
+          <div className="card-header">
+            <div className="actions">
+              <select 
+                className="btn btn-outline"
+                onChange={(e) => handleBulkAction(e.target.value)}
+                value=""
+              >
+                <option value="" disabled>Bulk Actions</option>
+                <option value="ship">Ship Selected</option>
+                <option value="cancel">Cancel Selected</option>
+                <option value="delete">Delete Selected</option>
+              </select>
+              <button className="btn btn-outline"><span className="material-icons-outlined">filter_list</span><span>Filters</span></button>
+              <div className="search-bar light"><input type="text" placeholder="Search orders..." value={searchQuery} onChange={handleSearchChange} /><button><span className="material-icons-outlined">search</span></button></div>
+            </div>
+            <div className="actions">
+              <button className="btn btn-primary" onClick={handleCreateOrder}><span className="material-icons-outlined">add</span><span>Create Order</span></button>
+              <button className="btn btn-outline" onClick={handleReload}><span className="material-icons-outlined">refresh</span><span>Reload</span></button>
+            </div>
+          </div>
+          <Table tableData={tableData} columns={columns} handleRowSelect={handleRowSelect} selectAll={selectAll} handleSelectAll={handleSelectAll} onEdit={handleEditOrder} onDelete={handleDeleteOrder} />
+          <Pagination currentPage={currentPage} totalPages={totalPages} totalRecords={totalRecords} recordsPerPage={recordsPerPage} onPageChange={handlePageChange} onRecordsPerPageChange={handleRecordsPerPageChange} />
         </div>
       </div>
     </AdminLayout>

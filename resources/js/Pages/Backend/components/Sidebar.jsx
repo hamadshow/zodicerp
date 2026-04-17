@@ -131,7 +131,7 @@ const Sidebar = ({
           {menuItems.map((item, index) => {
             const menuKey = item.label.toLowerCase().replace(/\s+/g, '-');
             const isActive = isUrlActive 
-                ? isUrlActive(item.href)
+                ? isUrlActive(item.href, !item.hasSubmenu)
                 : activeMenu === item.label;
             const isOpen = openSubmenus[menuKey];
             
@@ -171,7 +171,7 @@ const Sidebar = ({
                       <Link
                         key={subIndex}
                         href={subItem.href || '#'}
-                        className={`submenu-item ${isUrlActive ? (isUrlActive(subItem.href) ? 'active' : '') : (subItem.label === activeMenu ? 'active' : '')}`}
+                        className={`submenu-item ${isUrlActive ? (isUrlActive(subItem.href, true) ? 'active' : '') : (subItem.label === activeMenu ? 'active' : '')}`}
                         onClick={(e) => {
                             if (!subItem.href) {
                                 e.preventDefault();
@@ -212,7 +212,7 @@ const Sidebar = ({
              <Link
                 key={subIndex}
                 href={subItem.href || '#'}
-                className={`floating-item ${isUrlActive ? (isUrlActive(subItem.href) ? 'active' : '') : (subItem.label === activeMenu ? 'active' : '')}`}
+                className={`floating-item ${isUrlActive ? (isUrlActive(subItem.href, true) ? 'active' : '') : (subItem.label === activeMenu ? 'active' : '')}`}
                 onClick={(e) => {
                     setFloatingMenu(null);
                     if (!subItem.href) {

@@ -8,6 +8,9 @@ export { FinanzaFooter, FinanzaHeader };
 
 const Home = () => {
   const { auth, localization } = usePage().props;
+  console.log('Localization Props:', localization);
+  console.log('Translations:', localization?.translations);
+  const isRtl = localization?.is_rtl;
   const countryCode =
     localization?.country_code ||
     (typeof localization?.current_country === 'string'
@@ -15,6 +18,11 @@ const Home = () => {
       : localization?.current_country?.code?.toLowerCase?.()) ||
     'sa';
   const locale = localization?.current_locale || localization?.locale || 'en';
+
+  useEffect(() => {
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+    document.documentElement.lang = locale;
+  }, [isRtl, locale]);
   const loginHref = `/${countryCode}/${locale}/login`;
   const registerHref = `/${countryCode}/${locale}/register`;
   const logoutHref = `/${countryCode}/${locale}/logout`;
@@ -39,31 +47,37 @@ const Home = () => {
     if (!trimmed) return null;
     return trimmed.split(/\s+/)[0] || null;
   }, [customerName]);
+
+  const translations = localization?.translations || {};
+  const t = (key, fallback = null) => {
+    const groupKey = `homepage.${key}`;
+    return translations[groupKey] || translations[key] || fallback || key;
+  };
   const slides = useMemo(
     () => [
       {
         image: '/storage/images/carousel-1.jpg',
-        title: 'Your Financial Status Is Our Goal',
-        subtitle: 'Modern finance support for startups, SMBs, and enterprises.',
-        ctaLabel: 'Explore More',
+        title: t('hero_slide_1_title', 'Your Financial Status Is Our Goal'),
+        subtitle: t('hero_slide_1_subtitle', 'Modern finance support for startups, SMBs, and enterprises.'),
+        ctaLabel: t('hero_btn_explore', 'Explore More'),
         ctaHref: '#services',
       },
       {
         image: '/storage/images/carousel-2.jpg',
-        title: 'Smarter Growth With Data-Driven Strategy',
-        subtitle: 'Planning, reporting, and investment guidance built for scale.',
-        ctaLabel: 'View Services',
+        title: t('hero_slide_2_title', 'Smarter Growth With Data-Driven Strategy'),
+        subtitle: t('hero_slide_2_subtitle', 'Planning, reporting, and investment guidance built for scale.'),
+        ctaLabel: t('hero_btn_view_services', 'View Services'),
         ctaHref: '#services',
       },
       {
         image: '/storage/images/header.jpg',
-        title: 'Build Stronger Cashflow',
-        subtitle: 'Reduce risk, improve margins, and keep your runway healthy.',
-        ctaLabel: 'Contact Us',
+        title: t('hero_slide_3_title', 'Build Stronger Cashflow'),
+        subtitle: t('hero_slide_3_subtitle', 'Reduce risk, improve margins, and keep your runway healthy.'),
+        ctaLabel: t('hero_btn_contact', 'Contact Us'),
         ctaHref: '#contact',
       },
     ],
-    []
+    [t]
   );
 
   const aboutImage = '/storage/images/about.jpg';
@@ -72,47 +86,47 @@ const Home = () => {
     () => [
       {
         icon: 'fa-solid fa-chart-line',
-        title: 'Financial Planning',
-        text: 'Budgeting, forecasting, and KPI dashboards to support growth.',
+        title: t('service_financial_planning_title', 'Financial Planning'),
+        text: t('service_financial_planning_text', 'Budgeting, forecasting, and KPI dashboards to support growth.'),
       },
       {
         icon: 'fa-solid fa-coins',
-        title: 'Cash Investment',
-        text: 'Optimize liquidity and allocate capital with confidence.',
+        title: t('service_cash_investment_title', 'Cash Investment'),
+        text: t('service_cash_investment_text', 'Optimize liquidity and allocate capital with confidence.'),
       },
       {
         icon: 'fa-solid fa-briefcase',
-        title: 'Financial Consultancy',
-        text: 'Expert guidance tailored to your business stage and goals.',
+        title: t('service_financial_consultancy_title', 'Financial Consultancy'),
+        text: t('service_financial_consultancy_text', 'Expert guidance tailored to your business stage and goals.'),
       },
       {
         icon: 'fa-solid fa-hand-holding-dollar',
-        title: 'Business Loans',
-        text: 'Structured financing options with clear terms and support.',
+        title: t('service_business_loans_title', 'Business Loans'),
+        text: t('service_business_loans_text', 'Structured financing options with clear terms and support.'),
       },
       {
         icon: 'fa-solid fa-shield-halved',
-        title: 'Risk Management',
-        text: 'Identify, assess, and mitigate financial exposure proactively.',
+        title: t('service_risk_management_title', 'Risk Management'),
+        text: t('service_risk_management_text', 'Identify, assess, and mitigate financial exposure proactively.'),
       },
       {
         icon: 'fa-solid fa-file-invoice-dollar',
-        title: 'Tax & Reporting',
-        text: 'Accurate reporting and compliance-aligned documentation.',
+        title: t('service_tax_reporting_title', 'Tax & Reporting'),
+        text: t('service_tax_reporting_text', 'Accurate reporting and compliance-aligned documentation.'),
       },
     ],
-    []
+    [t]
   );
 
   const projects = useMemo(
     () => [
-      { title: 'Financial Consultancy', src: '/storage/images/service-1.jpg', tag: 'Consulting' },
-      { title: 'Business Loans', src: '/storage/images/service-2.jpg', tag: 'Funding' },
-      { title: 'Financial Planning', src: '/storage/images/service-3.jpg', tag: 'Planning' },
-      { title: 'Risk Management', src: '/storage/images/service-4.jpg', tag: 'Risk' },
-      { title: 'Investment Strategy', src: '/storage/images/carousel-2.jpg', tag: 'Invest' },
+      { title: t('service_financial_consultancy_title', 'Financial Consultancy'), src: '/storage/images/service-1.jpg', tag: t('project_tag_consulting', 'Consulting') },
+      { title: t('service_business_loans_title', 'Business Loans'), src: '/storage/images/service-2.jpg', tag: t('project_tag_funding', 'Funding') },
+      { title: t('service_financial_planning_title', 'Financial Planning'), src: '/storage/images/service-3.jpg', tag: t('project_tag_planning', 'Planning') },
+      { title: t('service_risk_management_title', 'Risk Management'), src: '/storage/images/service-4.jpg', tag: t('project_tag_risk', 'Risk') },
+      { title: t('service_cash_investment_title', 'Investment Strategy'), src: '/storage/images/carousel-2.jpg', tag: t('project_tag_invest', 'Invest') },
     ],
-    []
+    [t]
   );
 
   const [isScrolled, setIsScrolled] = useState(false);
@@ -297,12 +311,12 @@ const Home = () => {
 
   const validateContact = (values) => {
     const nextErrors = {};
-    if (!values.name.trim()) nextErrors.name = 'Name is required.';
-    if (!values.email.trim()) nextErrors.email = 'Email is required.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) nextErrors.email = 'Enter a valid email.';
-    if (!values.subject.trim()) nextErrors.subject = 'Subject is required.';
-    if (!values.message.trim()) nextErrors.message = 'Message is required.';
-    else if (values.message.trim().length < 10) nextErrors.message = 'Message must be at least 10 characters.';
+    if (!values.name.trim()) nextErrors.name = t('contact_error_name_required', 'Name is required.');
+    if (!values.email.trim()) nextErrors.email = t('contact_error_email_required', 'Email is required.');
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) nextErrors.email = t('contact_error_email_invalid', 'Enter a valid email.');
+    if (!values.subject.trim()) nextErrors.subject = t('contact_error_subject_required', 'Subject is required.');
+    if (!values.message.trim()) nextErrors.message = t('contact_error_message_required', 'Message is required.');
+    else if (values.message.trim().length < 10) nextErrors.message = t('contact_error_message_min', 'Message must be at least 10 characters.');
     return nextErrors;
   };
 
@@ -311,7 +325,7 @@ const Home = () => {
     const nextErrors = validateContact(contactValues);
     setContactErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    setContactSuccess('Thanks! Your message has been sent successfully.');
+    setContactSuccess(t('contact_success', 'Thanks! Your message has been sent successfully.'));
     setContactValues({ name: '', email: '', subject: '', message: '' });
     window.setTimeout(() => setContactSuccess(''), 4000);
   };
@@ -329,7 +343,7 @@ const Home = () => {
 
       <div id="top" className="finanza-landing">
         <a className="finanza-skip-link" href="#main-content">
-          Skip to content
+          {t('skip_to_content', 'Skip to content')}
         </a>
 
         <FinanzaHeader
@@ -344,6 +358,7 @@ const Home = () => {
           logoutHref={logoutHref}
           dashboardHref={dashboardHref}
           customerFirstName={customerFirstName}
+          t={t}
         />
 
         <main id="main-content">
@@ -364,7 +379,7 @@ const Home = () => {
                   <div className="finanza-hero-overlay" />
                   <div className="container-fluid finanza-hero-content">
                     <div className="finanza-hero-kicker" data-animate>
-                      Welcome to ZodicERP
+                      {t('hero_kicker', 'Welcome to ZodicERP')}
                     </div>
                     <h1 className="finanza-hero-title" data-animate>
                       {s.title}
@@ -411,24 +426,23 @@ const Home = () => {
                 </div>
                 <div className="finanza-about-copy">
                   <div className="finanza-pill" data-animate>
-                    About Us
+                    {t('about', 'About Us')}
                   </div>
                   <h2 className="finanza-title" data-animate>
-                    We Help Our Clients To Grow Their Business
+                    {t('about_title', 'We Help Our Clients To Grow Their Business')}
                   </h2>
                   <p className="finanza-muted" data-animate>
-                    Tempor erat elitr rebum at clita. Diam dolor diam ipsum sit. Aliqu diam amet diam et eos. Clita erat ipsum et lorem et sit, sed
-                    stet lorem sit clita duo justo magna dolore erat amet
+                    {t('about_description', 'Tempor erat elitr rebum at clita. Diam dolor diam ipsum sit. Aliqu diam amet diam et eos. Clita erat ipsum et lorem et sit, sed stet lorem sit clita duo justo magna dolore erat amet')}
                   </p>
                   <div className="finanza-about-bullets" data-animate>
                     <div className="finanza-bullet">
-                      <i className="fa-solid fa-check" /> No Hidden Costs
+                      <i className="fa-solid fa-check" /> {t('about_bullet_1', 'No Hidden Costs')}
                     </div>
                     <div className="finanza-bullet">
-                      <i className="fa-solid fa-check" /> Dedicated Team
+                      <i className="fa-solid fa-check" /> {t('about_bullet_2', 'Dedicated Team')}
                     </div>
                     <div className="finanza-bullet">
-                      <i className="fa-solid fa-check" /> 24/7 Support
+                      <i className="fa-solid fa-check" /> {t('about_bullet_3', '24/7 Support')}
                     </div>
                   </div>
                 </div>
@@ -440,8 +454,8 @@ const Home = () => {
                     <i className="fa-solid fa-xmark" />
                   </div>
                   <div className="finanza-feature-body">
-                    <div className="finanza-feature-title">No Hidden Cost</div>
-                    <div className="finanza-feature-text">Clita erat ipsum lorem sit sed stet duo justo</div>
+                    <div className="finanza-feature-title">{t('feature_no_hidden_cost_title', 'No Hidden Cost')}</div>
+                    <div className="finanza-feature-text">{t('feature_no_hidden_cost_text', 'Clita erat ipsum lorem sit sed stet duo justo')}</div>
                   </div>
                 </div>
                 <div className="finanza-feature" data-animate>
@@ -449,8 +463,8 @@ const Home = () => {
                     <i className="fa-solid fa-users" />
                   </div>
                   <div className="finanza-feature-body">
-                    <div className="finanza-feature-title">Dedicated Team</div>
-                    <div className="finanza-feature-text">Clita erat ipsum lorem sit sed stet duo justo</div>
+                    <div className="finanza-feature-title">{t('feature_dedicated_team_title', 'Dedicated Team')}</div>
+                    <div className="finanza-feature-text">{t('feature_dedicated_team_text', 'Clita erat ipsum lorem sit sed stet duo justo')}</div>
                   </div>
                 </div>
                 <div className="finanza-feature" data-animate>
@@ -458,8 +472,8 @@ const Home = () => {
                     <i className="fa-solid fa-phone" />
                   </div>
                   <div className="finanza-feature-body">
-                    <div className="finanza-feature-title">24/7 Available</div>
-                    <div className="finanza-feature-text">Clita erat ipsum lorem sit sed stet duo justo</div>
+                    <div className="finanza-feature-title">{t('feature_24_7_available_title', '24/7 Available')}</div>
+                    <div className="finanza-feature-text">{t('feature_24_7_available_text', 'Clita erat ipsum lorem sit sed stet duo justo')}</div>
                   </div>
                 </div>
               </div>
@@ -470,9 +484,9 @@ const Home = () => {
             <div className="container-fluid">
               <div className="finanza-center">
                 <div className="finanza-pill" data-animate>
-                  Services
+                  {t('services', 'Services')}
                 </div>
-                <h2 className="finanza-title">Awesome Financial Services For Business</h2>
+                <h2 className="finanza-title">{t('services_title', 'Awesome Financial Services For Business')}</h2>
               </div>
 
               <div className="finanza-servicesCards" role="list">
@@ -483,11 +497,11 @@ const Home = () => {
                     </div>
                     <h3 className="finanza-serviceCard-title">{s.title}</h3>
                     <p className="finanza-muted finanza-serviceCard-text">{s.text}</p>
-                    <a className="finanza-serviceCard-link" href="#contact" aria-label={`${s.title} details`}>
-                      Read more <i className="fa-solid fa-arrow-right" />
-                    </a>
-                  </article>
-                ))}
+                     <a className="finanza-serviceCard-link" href="#contact" aria-label={`${s.title} details`}>
+                       {t('service_read_more', 'Read more')} <i className="fa-solid fa-arrow-right" />
+                     </a>
+                    </article>
+                  ))}
               </div>
             </div>
           </section>
@@ -496,9 +510,9 @@ const Home = () => {
             <div className="container-fluid">
               <div className="finanza-center">
                 <div className="finanza-pill" data-animate>
-                  Our Projects
+                  {t('our_projects', 'Our Projects')}
                 </div>
-                <h2 className="finanza-title">We Have Completed Latest Projects</h2>
+                <h2 className="finanza-title">{t('projects_title', 'We Have Completed Latest Projects')}</h2>
               </div>
 
               <div className={`finanza-carousel ${isProjectsDragging ? 'is-dragging' : ''}`} data-animate style={{ '--per-view': projectsPerView }}>
@@ -549,12 +563,12 @@ const Home = () => {
           </section>
 
           <section id="contact" className="finanza-section finanza-section--alt" aria-label="Contact">
-            <div className="container-fluid">
-              <div className="finanza-contact-grid">
-                <div className="finanza-contact-form" data-animate>
-                  <div className="finanza-pill">Contact</div>
-                  <h2 className="finanza-title">If You Have Any Query, Please Contact Us</h2>
-                  <p className="finanza-muted">We usually reply within 24 hours.</p>
+          <div className="container-fluid">
+            <div className="finanza-contact-grid">
+              <div className="finanza-contact-form" data-animate>
+                <div className="finanza-pill">{t('contact', 'Contact')}</div>
+                <h2 className="finanza-title">{t('contact_title', 'If You Have Any Query, Please Contact Us')}</h2>
+                <p className="finanza-muted">{t('contact_subtitle', 'We usually reply within 24 hours.')}</p>
 
                   {contactSuccess ? <div className="finanza-alert finanza-alert--success">{contactSuccess}</div> : null}
 
@@ -573,7 +587,7 @@ const Home = () => {
                             onChange={(e) => setContactValues((v) => ({ ...v, name: e.target.value }))}
                           />
                           <label className="finanza-label" htmlFor="name">
-                            Your Name
+                            {t('contact_name_label', 'Your Name')}
                           </label>
                         </div>
                         {contactErrors.name ? <div className="finanza-error">{contactErrors.name}</div> : null}
@@ -592,7 +606,7 @@ const Home = () => {
                             onChange={(e) => setContactValues((v) => ({ ...v, email: e.target.value }))}
                           />
                           <label className="finanza-label" htmlFor="email">
-                            Your Email
+                            {t('contact_email_label', 'Your Email')}
                           </label>
                         </div>
                         {contactErrors.email ? <div className="finanza-error">{contactErrors.email}</div> : null}
@@ -611,7 +625,7 @@ const Home = () => {
                           onChange={(e) => setContactValues((v) => ({ ...v, subject: e.target.value }))}
                         />
                         <label className="finanza-label" htmlFor="subject">
-                          Subject
+                          {t('contact_subject_label', 'Subject')}
                         </label>
                       </div>
                       {contactErrors.subject ? <div className="finanza-error">{contactErrors.subject}</div> : null}
@@ -629,14 +643,14 @@ const Home = () => {
                           onChange={(e) => setContactValues((v) => ({ ...v, message: e.target.value }))}
                         />
                         <label className="finanza-label" htmlFor="message">
-                          Message
+                          {t('contact_message_label', 'Message')}
                         </label>
                       </div>
                       {contactErrors.message ? <div className="finanza-error">{contactErrors.message}</div> : null}
                     </div>
 
                     <button className="finanza-btn finanza-btn--primary" type="submit">
-                      Send Message
+                      {t('contact_submit', 'Send Message')}
                     </button>
                   </form>
                 </div>
@@ -655,7 +669,7 @@ const Home = () => {
           </section>
         </main>
 
-        <FinanzaFooter />
+        <FinanzaFooter t={t} />
 
         <a className="finanza-backtotop" href="#top" aria-label="Back to top">
           <i className="fa-solid fa-arrow-up" />

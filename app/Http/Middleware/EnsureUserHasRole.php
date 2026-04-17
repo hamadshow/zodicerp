@@ -12,10 +12,9 @@ class EnsureUserHasRole
     {
         $user = $request->user();
         if (! $user) {
-            return redirect()->route('login', [
-                'country' => session('country_code', 'sa'),
-                'lang' => session('locale', 'ar'),
-            ]);
+            $country = $request->segment(1) ?: session('country_code', 'sa');
+            $lang = $request->segment(2) ?: session('locale', 'ar');
+            return redirect()->to("/{$country}/{$lang}/login");
         }
 
         if (method_exists($user, 'hasRole')) {

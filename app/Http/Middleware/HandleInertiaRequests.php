@@ -37,7 +37,7 @@ class HandleInertiaRequests extends Middleware
                 ->toArray();
 
             $fileTranslations = [];
-            $files = ['home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth' ,'verify_email','confirm','reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'FinancialReports', 'TrialBalance', 'Journal'];
+            $files = ['homepage', 'home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth' ,'verify_email','confirm','reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'FinancialReports', 'TrialBalance', 'Journal'];
 
             foreach ($files as $file) {
                 $path = lang_path("$locale/$file.php");
@@ -46,6 +46,8 @@ class HandleInertiaRequests extends Middleware
                     foreach ($translations as $key => $value) {
                         $fileTranslations["$file.$key"] = $value;
                     }
+                } else {
+                    \Log::info("Translation file not found: $path");
                 }
             }
 
@@ -61,7 +63,7 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $isAdminRoute = $request->is('*/admin/*') || $request->is('*/admin');
-        $skipTranslations = $request->path() === '' || $request->is('Home');
+        $skipTranslations = false;
 
         $cartCount = 0;
         $cartVersion = 0;

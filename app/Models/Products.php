@@ -135,6 +135,11 @@ class Products extends Model
         return $this->belongsToMany(Categories::class, 'category_product', 'product_id', 'category_id');
     }
 
+    public function category()
+    {
+        return $this->belongsTo(Categories::class, 'category_id');
+    }
+
     public function variations()
     {
         return $this->hasMany(ProductVariation::class, 'configurable_product_id');

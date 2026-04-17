@@ -2,7 +2,7 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { FinanzaFooter, FinanzaHeader } from '@/Pages/Home/Home';
-import { useTranslation } from '@/Hooks/useTranslation';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function VerifyEmail({ status }) {
   const { auth, localization } = usePage().props;

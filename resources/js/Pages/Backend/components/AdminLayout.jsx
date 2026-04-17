@@ -45,11 +45,17 @@ const AdminLayout = ({
   };
 
   // Helper to determine if a menu item is active based on current URL
-  const isUrlActive = (path) => {
-    if (!path) return false;
+  const isUrlActive = (path, exact = false) => {
+    if (!path || path === '#') return false;
     try {
-        const currentPath = new URL(path, window.location.origin).pathname;
-        return url === currentPath || url.startsWith(currentPath + '/');
+        const urlObj = new URL(path, window.location.origin);
+        const currentPath = urlObj.pathname.replace(/\/$/, '');
+        const normalizedUrl = url.split('?')[0].replace(/\/$/, '');
+        
+        if (exact) {
+            return normalizedUrl === currentPath;
+        }
+        return normalizedUrl === currentPath || normalizedUrl.startsWith(currentPath + '/');
     } catch {
         return false;
     }
@@ -115,6 +121,7 @@ const AdminLayout = ({
         },
       ].filter(Boolean),
     },
+    
     {
       icon: 'inventory_2',
       label: translations['sidebar.inventory'] || 'Inventory',
@@ -148,7 +155,44 @@ const AdminLayout = ({
         { icon: 'keyboard_return', label: translations['sidebar.purchase_returns'] || 'Purchase Returns', href: getLocalizedRoute('admin.purchases.returns.index') },
       ],
     },
-
+    {
+      icon: 'point_of_sale',
+      label: translations['sidebar.client_sales'] || 'Client & Sales',
+      hasSubmenu: true,
+      submenuItems: [
+        { icon: 'groups', label: translations['sidebar.customer_groups'] || 'Customers Group', href: getLocalizedRoute('admin.client-sales.customer-groups.index') },
+        { icon: 'person_add', label: translations['sidebar.customers'] || 'Customers', href: getLocalizedRoute('admin.client-sales.customers.index') },
+        { icon: 'request_quote', label: translations['sidebar.quotations'] || 'Sales Quotations', href: getLocalizedRoute('admin.client-sales.quotations.index') },
+        { icon: 'receipt_long', label: translations['sidebar.orders'] || 'Sales Orders', href: getLocalizedRoute('admin.client-sales.orders.index') },
+        { icon: 'receipt', label: translations['sidebar.invoices'] || 'Sales Invoices', href: getLocalizedRoute('admin.client-sales.invoices.index') },
+      ],
+    },
+    {
+      icon: 'business',
+      label: translations['sidebar.fixed_assets'] || 'Fixed Assets',
+      hasSubmenu: true,
+      submenuItems: [
+        { icon: 'category', label: translations['sidebar.asset_categories'] || 'Asset Categories', href: getLocalizedRoute('admin.assets.categories.index') },
+        { icon: 'tune', label: translations['sidebar.asset_attributes'] || 'Asset Attributes', href: getLocalizedRoute('admin.assets.asset-attributes.index') },
+        { icon: 'web_asset', label: translations['sidebar.assets_register'] || 'Assets Register', href: getLocalizedRoute('admin.assets.register.index') },
+        { icon: 'swap_horiz', label: translations['sidebar.asset_movements'] || 'Asset Movements', href: getLocalizedRoute('admin.assets.movements.index') },
+        { icon: 'trending_up', label: translations['sidebar.asset_revaluation'] || 'Asset Revaluation', href: getLocalizedRoute('admin.assets.revaluation.index') },
+        { icon: 'delete_forever', label: translations['sidebar.asset_disposal'] || 'Asset Disposal', href: getLocalizedRoute('admin.assets.disposal.index') },
+        { icon: 'calculate', label: translations['sidebar.run_depr'] || 'Run Depr', href: getLocalizedRoute('admin.assets.depreciation.run') },
+        { icon: 'calendar_today', label: translations['sidebar.depr_schedule'] || 'Depr Schedule', href: getLocalizedRoute('admin.assets.depreciation.schedule') },
+        { icon: 'assessment', label: translations['sidebar.depr_report'] || 'Depr Report', href: getLocalizedRoute('admin.assets.depreciation.report') },
+      ],
+    },
+    {
+      icon: 'account_balance_wallet',
+      label: translations['sidebar.accounting'] || 'Accounting',
+      hasSubmenu: true,
+      submenuItems: [
+        { icon: 'account_tree', label: translations['sidebar.chart_of_accounts'] || 'Chart of Accounts', href: getLocalizedRoute('admin.chart-of-accounts') },
+        { icon: 'edit_note', label: translations['sidebar.journal_entries'] || 'Journal Entries', href: getLocalizedRoute('admin.journal-entries') },
+        { icon: 'bar_chart', label: translations['sidebar.financial_reports'] || 'Financial Reports', href: getLocalizedRoute('admin.financial-reports.index') },
+      ],
+    },
     {
       icon: 'percent',
       label: translations['sidebar.discounts_taxes'] || 'Discounts & Taxes',
@@ -195,34 +239,6 @@ const AdminLayout = ({
       ],
     },
     {
-      icon: 'point_of_sale',
-      label: translations['sidebar.client_sales'] || 'Client & Sales',
-      hasSubmenu: true,
-      submenuItems: [
-        { icon: 'groups', label: translations['sidebar.customer_groups'] || 'Customers Group', href: getLocalizedRoute('admin.client-sales.customer-groups.index') },
-        { icon: 'person_add', label: translations['sidebar.customers'] || 'Customers', href: getLocalizedRoute('admin.client-sales.customers.index') },
-        { icon: 'request_quote', label: translations['sidebar.quotations'] || 'Sales Quotations', href: getLocalizedRoute('admin.client-sales.quotations.index') },
-        { icon: 'receipt_long', label: translations['sidebar.orders'] || 'Sales Orders', href: getLocalizedRoute('admin.client-sales.orders.index') },
-        { icon: 'receipt', label: translations['sidebar.invoices'] || 'Sales Invoices', href: getLocalizedRoute('admin.client-sales.invoices.index') },
-      ],
-    },
-    {
-      icon: 'business',
-      label: translations['sidebar.fixed_assets'] || 'Fixed Assets',
-      hasSubmenu: true,
-      submenuItems: [
-        { icon: 'category', label: translations['sidebar.asset_categories'] || 'Asset Categories', href: getLocalizedRoute('admin.assets.categories.index') },
-        { icon: 'tune', label: translations['sidebar.asset_attributes'] || 'Asset Attributes', href: getLocalizedRoute('admin.assets.asset-attributes.index') },
-        { icon: 'web_asset', label: translations['sidebar.assets_register'] || 'Assets Register', href: getLocalizedRoute('admin.assets.register.index') },
-        { icon: 'swap_horiz', label: translations['sidebar.asset_movements'] || 'Asset Movements', href: getLocalizedRoute('admin.assets.movements.index') },
-        { icon: 'trending_up', label: translations['sidebar.asset_revaluation'] || 'Asset Revaluation', href: getLocalizedRoute('admin.assets.revaluation.index') },
-        { icon: 'delete_forever', label: translations['sidebar.asset_disposal'] || 'Asset Disposal', href: getLocalizedRoute('admin.assets.disposal.index') },
-        { icon: 'calculate', label: translations['sidebar.run_depr'] || 'Run Depr', href: getLocalizedRoute('admin.assets.depreciation.run') },
-        { icon: 'calendar_today', label: translations['sidebar.depr_schedule'] || 'Depr Schedule', href: getLocalizedRoute('admin.assets.depreciation.schedule') },
-        { icon: 'assessment', label: translations['sidebar.depr_report'] || 'Depr Report', href: getLocalizedRoute('admin.assets.depreciation.report') },
-      ],
-    },
-    {
       icon: 'account_balance',
       label: translations['sidebar.bank_cash'] || 'Bank and Cash',
       hasSubmenu: true,
@@ -230,7 +246,8 @@ const AdminLayout = ({
           { icon: 'account_balance_wallet', label: translations['sidebar.cash'] || 'Cash', href: getLocalizedRoute('admin.petty-cash.index') },
           { icon: 'account_balance', label: translations['sidebar.banks'] || 'Banks', href: getLocalizedRoute('admin.banks.index') },
           { icon: 'payments', label: translations['sidebar.cheque'] || 'Cheque', href: getLocalizedRoute('admin.cheques.index') },
-          { icon: 'swap_horiz', label: translations['sidebar.bank_transactions'] || 'Bank Transactions', href: getLocalizedRoute('admin.bank-transactions.index') }
+          { icon: 'swap_horiz', label: translations['sidebar.bank_transactions'] || 'Bank Transactions', href: getLocalizedRoute('admin.bank-transactions.index') },
+          { icon: 'receipt_long', label: translations['sidebar.payment_voucher'] || 'Payment Voucher', href: getLocalizedRoute('admin.payment-vouchers.index') }
       ],
     },
     {
@@ -243,22 +260,6 @@ const AdminLayout = ({
                 { icon: 'description', label: translations['sidebar.tax_reports'] || 'Tax Reports', href: getLocalizedRoute('admin.taxes.reports.index') },
             ],
         },
-    {
-      icon: 'account_balance_wallet',
-      label: translations['sidebar.accounting'] || 'Accounting',
-      hasSubmenu: true,
-      submenuItems: [
-        { icon: 'account_tree', label: translations['sidebar.chart_of_accounts'] || 'Chart of Accounts', href: getLocalizedRoute('admin.chart-of-accounts') },
-        { icon: 'edit_note', label: translations['sidebar.journal_entries'] || 'Journal Entries', href: getLocalizedRoute('admin.journal-entries') },
-        { icon: 'bar_chart', label: translations['sidebar.financial_reports'] || 'Financial Reports', href: getLocalizedRoute('admin.financial-reports.index') },
-      ],
-    },
-    {
-      icon: 'account_tree',
-      label: translations['sidebar.plugin'] || 'Plugin',
-      href: getLocalizedRoute('admin.pages.plugins.index'),
-    },
-
     {
       icon: 'insights',
       label: translations['sidebar.investing_stack'] || 'Investing Stack',

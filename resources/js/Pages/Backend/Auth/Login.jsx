@@ -3,7 +3,7 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import React, { useMemo, useState } from 'react';
 import { FinanzaFooter } from '@/Pages/Home/components/Footer';
 import { FinanzaHeader } from '@/Pages/Home/components/Header';
-import { useTranslation } from '@/Hooks/useTranslation';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Login({ status, canResetPassword }) {
   const { localization } = usePage().props;

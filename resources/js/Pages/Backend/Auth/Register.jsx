@@ -1,7 +1,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import React, { useEffect, useMemo, useState } from 'react';
 import { FinanzaFooter, FinanzaHeader } from '@/Pages/Home/Home';
-import { useTranslation } from '@/Hooks/useTranslation';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Register() {
   const { localization } = usePage().props;

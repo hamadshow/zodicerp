@@ -24,6 +24,7 @@
 @use 'pages/Brands';
 @use 'pages/Brokers';
 @use 'pages/BudgeDashBoard';
+@use 'pages/dashboard';
 @use 'pages/BudgetCategory';
 @use 'pages/BudgetCommitment';
 @use 'pages/BudgetForecast';
@@ -61,6 +62,7 @@
 @use 'pages/Warehouses';
 @use 'pages/OpeningStock';
 @use 'pages/StockTransfers';
+@use 'pages/PaymentVoucher';
 
 // Existing/Additional pages
 @use 'pages/Location';

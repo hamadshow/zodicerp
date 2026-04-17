@@ -269,7 +269,7 @@ Route::group([
     Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
 
         // Dashboard (لوحة التحكم الرئيسية)
-        Route::get('/', [AdminController::class, 'index'])->name('dashboard');
+        Route::get('', [AdminController::class, 'index'])->name('dashboard');
 
         // 1. Media Management (إدارة الوسائط)
         Route::prefix('media')->name('media.')->group(function () {
@@ -508,6 +508,82 @@ Route::group([
         Route::resource('petty-cash', \App\Http\Controllers\Backend\Cash\PettyCashController::class);
         Route::resource('cheques', \App\Http\Controllers\Backend\Cash\ChequeController::class);
         Route::resource('bank-transactions', \App\Http\Controllers\Backend\Cash\BankTransactionController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::get('payment-vouchers', function (\Illuminate\Http\Request $request) {
+            $search = trim((string) $request->input('search', ''));
+            $status = trim((string) $request->input('status', ''));
+            $supplierId = $request->input('supplier_id');
+            $perPage = max(5, min(100, (int) $request->input('per_page', 10)));
+
+            $vouchersQuery = \App\Models\Vendor_Purchases\SupplierPayment::query()
+                ->with([
+                    'supplier:id,name_ar',
+                    'currency:id,code,name',
+                    'allocations.invoice:id,invoice_number,invoice_date',
+                ])
+                ->latest('id');
+
+            if ($search !== '') {
+                $vouchersQuery->where(function ($query) use ($search) {
+                    $query->where('payment_number', 'like', "%{$search}%")
+                        ->orWhere('reference_number', 'like', "%{$search}%");
+                });
+            }
+
+            if ($status !== '') {
+                $vouchersQuery->where('status', $status);
+            }
+
+            if (!empty($supplierId)) {
+                $vouchersQuery->where('supplier_id', $supplierId);
+            }
+
+            $vouchers = $vouchersQuery->paginate($perPage)->withQueryString();
+
+            $suppliers = \App\Models\Vendor_Purchases\Supplier::query()
+                ->select('id', 'name_ar', 'is_active')
+                ->where('is_active', true)
+                ->orderBy('name_ar')
+                ->get();
+
+            $currencies = \App\Models\Currency::query()
+                ->select('id', 'code', 'name', 'status')
+                ->orderBy('code')
+                ->get();
+
+            $bankAccounts = \App\Models\BankAccount::query()
+                ->select('id', 'account_name', 'account_number', 'currency', 'status')
+                ->where('status', 'active')
+                ->orderBy('account_name')
+                ->get();
+
+            $openInvoices = \App\Models\Vendor_Purchases\PurchaseInvoice::query()
+                ->with('currency:id,code,name')
+                ->select('id', 'invoice_number', 'invoice_date', 'supplier_id', 'currency_id', 'total_amount', 'paid_amount', 'balance_amount')
+                ->where('balance_amount', '>', 0)
+                ->where('payment_status', '!=', 'paid')
+                ->orderByDesc('id')
+                ->limit(200)
+                ->get();
+
+            return Inertia::render('Backend/06-Cash/PaymentVoucher', [
+                'vouchers' => $vouchers,
+                'suppliers' => $suppliers,
+                'currencies' => $currencies,
+                'bankAccounts' => $bankAccounts,
+                'openInvoices' => $openInvoices,
+                'filters' => [
+                    'search' => $search,
+                    'status' => $status,
+                    'supplier_id' => $supplierId,
+                ],
+            ]);
+        })->name('payment-vouchers.index');
+        Route::post('payment-vouchers', [\App\Http\Controllers\Backend\Cash\PaymentVoucherController::class, 'store'])
+            ->name('payment-vouchers.store');
+        Route::put('payment-vouchers/{voucher}', [\App\Http\Controllers\Backend\Cash\PaymentVoucherController::class, 'update'])
+            ->name('payment-vouchers.update');
+        Route::delete('payment-vouchers/{voucher}', [\App\Http\Controllers\Backend\Cash\PaymentVoucherController::class, 'destroy'])
+            ->name('payment-vouchers.destroy');
 
         // 10. Investing (الاستثمار)
         Route::prefix('investing')->name('investing.')->group(function () {
@@ -608,8 +684,8 @@ Route::group([
         Route::prefix('location')->name('location.')->group(function () {
             Route::get('/', [LocationController::class, 'index'])->name('index');
             Route::post('/countries', [LocationController::class, 'storeCountry'])->name('countries.store');
-            Route::put('/countries/{country}', [LocationController::class, 'updateCountry'])->name('countries.update');
-            Route::delete('/countries/{country}', [LocationController::class, 'destroyCountry'])->name('countries.destroy');
+            Route::put('/countries/{country_model}', [LocationController::class, 'updateCountry'])->name('countries.update');
+            Route::delete('/countries/{country_model}', [LocationController::class, 'destroyCountry'])->name('countries.destroy');
 
             Route::post('/cities', [LocationController::class, 'storeCity'])->name('cities.store');
             Route::put('/cities/{city}', [LocationController::class, 'updateCity'])->name('cities.update');

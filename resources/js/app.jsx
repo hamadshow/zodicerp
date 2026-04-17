@@ -34,6 +34,7 @@ import '@fontsource/figtree/600.css';
 
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
+import { QueryProvider } from './hooks/QueryProvider';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -64,7 +65,11 @@ createInertiaApp({
   // eslint-disable-next-line no-unused-vars
   setup({ el, App, props }) {
     const root = createRoot(el);
-    root.render(<App {...props} />);
+    root.render(
+      <QueryProvider>
+        <App {...props} />
+      </QueryProvider>
+    );
   },
   progress: {
     color: '#bfc0c0ff',

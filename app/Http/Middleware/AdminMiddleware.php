@@ -23,28 +23,29 @@ class AdminMiddleware
         }
 
         if (! $user) {
-            return redirect()->route('login', [
-                'country' => session('country_code', 'sa'),
-                'lang' => session('locale', 'ar'),
-            ]);
+            $country = $request->segment(1) ?: session('country_code', 'sa');
+            $lang = $request->segment(2) ?: session('locale', 'ar');
+            return redirect()->to("/{$country}/{$lang}/login");
         }
 
         if (Auth::check() && $user instanceof \App\Models\User) {
-            return $next($request);
+            // Also check role for safety, though previously it was allowed
+            $role = strtolower($user->role ?? '');
+            if (in_array($role, ['admin', 'superadmin'])) {
+                return $next($request);
+            }
         }
 
         $role = strtolower($user->role ?? '');
 
         if (! in_array($role, ['admin', 'superadmin'])) {
-            $params = [
-                'country' => session('country_code', 'sa'),
-                'lang' => session('locale', 'ar'),
-            ];
+            $country = $request->segment(1) ?: session('country_code', 'sa');
+            $lang = $request->segment(2) ?: session('locale', 'ar');
 
             if ($role === 'customer' || Auth::guard('customer')->check()) {
-                return redirect()->route('customer.dashboard', $params);
+                return redirect()->to("/{$country}/{$lang}/customer/dashboard");
             } elseif ($role === 'supplier' || Auth::guard('supplier')->check()) {
-                return redirect()->route('supplier.dashboard', $params);
+                return redirect()->to("/{$country}/{$lang}/supplier/dashboard");
             }
 
             abort(403, 'Unauthorized');

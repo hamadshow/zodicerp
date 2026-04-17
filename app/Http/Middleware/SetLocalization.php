@@ -37,8 +37,12 @@ class SetLocalization
         }
 
         $supportedLocales = \Illuminate\Support\Facades\Cache::remember('supported_locales', 86400, function () {
-            $locales = \App\Models\Language::pluck('lang_code')->toArray();
-            return empty($locales) ? ['en', 'ar'] : $locales;
+            try {
+                $locales = \App\Models\Language::pluck('lang_code')->toArray();
+                return empty($locales) ? ['en', 'ar'] : $locales;
+            } catch (\Exception $e) {
+                return ['en', 'ar'];
+            }
         });
 
         $appDefaultLocale = (string) config('app.locale', 'en');
@@ -93,8 +97,8 @@ class SetLocalization
         }
 
         // Set URL defaults for country and lang
-        $currentCountry = session('country_code', 'sa');
-        $currentLocale = session('locale', $appDefaultLocale);
+        $currentCountry = strtolower($countryCode ?: session('country_code', 'sa'));
+        $currentLocale = strtolower($langCode ?: session('locale', $appDefaultLocale));
 
         URL::defaults([
             'country' => $currentCountry,

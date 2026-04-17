@@ -526,32 +526,24 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                             {t('finance_budget_control', 'Finance > Budget Control > Monitoring')}
                         </nav>
                     </div>
-                    <div className="header-actions flex gap-2">
-                        <div className="view-switcher bg-gray-100 rounded p-1 flex mr-4">
-                            <button 
-                                className={`px-3 py-1 rounded text-sm ${viewMode === 'grid' ? 'bg-white shadow text-indigo-600' : 'text-gray-600'}`}
-                                onClick={() => setViewMode('grid')}
-                            >
-                                <i className="material-icons-outlined text-sm align-middle mr-1">table_chart</i> {t('grid', 'Grid')}
-                            </button>
-                            <button 
-                                className={`px-3 py-1 rounded text-sm ${viewMode === 'report' ? 'bg-white shadow text-indigo-600' : 'text-gray-600'}`}
-                                onClick={() => setViewMode('report')}
-                            >
-                                <i className="material-icons-outlined text-sm align-middle mr-1">analytics</i> {t('report', 'Report')}
-                            </button>
-                        </div>
+                    <div className="header-actions">
                         <button 
-                            onClick={handleExport}
-                            className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50 transition flex items-center gap-2"
+                            className={viewMode === 'grid' ? 'active' : ''}
+                            onClick={() => setViewMode('grid')}
                         >
-                            <i className="material-icons-outlined text-sm">download</i> {t('export', 'Export')}
+                            <i className="material-icons-outlined">table_chart</i> {t('grid', 'Grid')}
                         </button>
                         <button 
-                            onClick={handlePrint}
-                            className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-50 transition flex items-center gap-2"
+                            className={viewMode === 'report' ? 'active' : ''}
+                            onClick={() => setViewMode('report')}
                         >
-                            <i className="material-icons-outlined text-sm">print</i> {t('print', 'Print')}
+                            <i className="material-icons-outlined">analytics</i> {t('report', 'Report')}
+                        </button>
+                        <button onClick={handleExport}>
+                            <i className="material-icons-outlined">download</i> {t('export', 'Export')}
+                        </button>
+                        <button onClick={handlePrint}>
+                            <i className="material-icons-outlined">print</i> {t('print', 'Print')}
                         </button>
                     </div>
                 </div>
@@ -720,7 +712,7 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                     <button 
                         type="submit" 
                         disabled={filterProcessing}
-                        className={`bg-indigo-600 text-white px-6 py-2 rounded hover:bg-indigo-700 transition h-10 ${filterProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`filter-btn ${filterProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         {filterProcessing ? t('filtering', 'Filtering...') : t('filter', 'Filter')}
                     </button>
@@ -734,7 +726,7 @@ export default function BudgetMonitoring({ monitorings, budgets, initialBudgetIt
                         <div className="overflow-x-auto">
                             <table className="monitoring-table">
                                 <thead>
-                                    <tr className="bg-gray-50 border-b border-gray-200">
+                                    <tr>
                                         <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 whitespace-nowrap" onClick={() => handleSort('monitoring_date')}>
                                             <div className="flex items-center gap-1">{t('date', 'Date')} {filterData.sort_by === 'monitoring_date' && <span className="text-gray-900">{filterData.sort_dir === 'asc' ? '↑' : '↓'}</span>}</div>
                                         </th>

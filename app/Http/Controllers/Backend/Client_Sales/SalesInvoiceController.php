@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Backend\Client_Sales;
 
+use App\Models\Client_Sales\SalesOrder;
+use App\Models\Vendor_Purchases\SalesAgent;
 use App\Http\Controllers\Controller;
 use App\Models\Client_Sales\Customer;
 use App\Models\Client_Sales\SalesInvoice;
@@ -19,7 +21,7 @@ class SalesInvoiceController extends Controller
     public function index(Request $request)
     {
         $query = SalesInvoice::query()
-            ->with(['customer', 'currency', 'creator', 'items'])
+            ->with(['customer', 'currency', 'creator', 'details.product'])
             ->orderBy('created_at', 'desc');
 
         if ($request->filled('search')) {
@@ -37,6 +39,16 @@ class SalesInvoiceController extends Controller
             $query->where('payment_status', $request->input('status'));
         }
 
+        $sortBy = $request->input('sort_by');
+        $sortDir = strtolower($request->input('sort_dir')) === 'desc' ? 'desc' : 'asc';
+        $allowedSorts = ['invoice_number', 'invoice_date', 'due_date', 'total_amount', 'balance_amount', 'payment_status', 'invoice_type'];
+
+        if ($sortBy && in_array($sortBy, $allowedSorts)) {
+            $query->orderBy($sortBy, $sortDir);
+        } else {
+            $query->orderBy('created_at', 'desc');
+        }
+
         $invoices = $query->paginate(10)->withQueryString();
 
         // Load shared data for filters/modals
@@ -52,6 +64,14 @@ class SalesInvoiceController extends Controller
         $units = ItemUnit::select('id', 'name as name_en', 'name as name_ar')->where('unit_type', 1)->get();
         $warehouses = Warehouses::select('id', 'name as name_en', 'name as name_ar')->get();
 
+        $orders = SalesOrder::select('id', 'order_number')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $salesAgents = SalesAgent::select('id', 'name_en', 'name_ar')
+            ->where('is_active', true)
+            ->get();
+
         // Mock data for terms
         $paymentTerms = [
             ['id' => 1, 'name' => 'Net 30'],
@@ -63,10 +83,12 @@ class SalesInvoiceController extends Controller
         return Inertia::render('Backend/05-Client_Sales/SalesInvoice', [
             'invoices' => $invoices,
             'customers' => $customers,
+            'orders' => $orders,
             'currencies' => $currencies,
             'products' => $products,
             'units' => $units,
             'warehouses' => $warehouses,
+            'salesAgents' => $salesAgents,
             'paymentTerms' => $paymentTerms,
             'filters' => $request->only(['search', 'status']),
         ]);
@@ -129,7 +151,7 @@ class SalesInvoiceController extends Controller
             ]);
 
             foreach ($request->items as $index => $item) {
-                $invoice->items()->create([
+                $invoice->details()->create([
                     'product_id' => $item['product_id'] ?? null,
                     'warehouse_id' => $item['warehouse_id'] ?? $warehouseId,
                     'quantity' => $item['quantity'],
@@ -137,7 +159,6 @@ class SalesInvoiceController extends Controller
                     'unit_price' => $item['unit_price'],
                     'discount_amount' => $item['discount_amount'] ?? 0,
                     'tax_amount' => $item['tax_amount'] ?? 0,
-                    'tax_percentage' => $item['tax_percent'] ?? 0,
                 ]);
             }
 
@@ -204,10 +225,10 @@ class SalesInvoiceController extends Controller
             ]);
 
             // Sync items: Delete old and re-create
-            $invoice->items()->delete();
+            $invoice->details()->delete();
 
             foreach ($request->items as $index => $item) {
-                $invoice->items()->create([
+                $invoice->details()->create([
                     'product_id' => $item['product_id'] ?? null,
                     'warehouse_id' => $item['warehouse_id'] ?? $warehouseId,
                     'quantity' => $item['quantity'],
@@ -215,7 +236,6 @@ class SalesInvoiceController extends Controller
                     'unit_price' => $item['unit_price'],
                     'discount_amount' => $item['discount_amount'] ?? 0,
                     'tax_amount' => $item['tax_amount'] ?? 0,
-                    'tax_percentage' => $item['tax_percent'] ?? 0,
                 ]);
             }
 

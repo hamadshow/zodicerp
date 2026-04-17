@@ -14,6 +14,7 @@ export function FinanzaHeader({
   dashboardHref = '/dashboard',
   customerFirstName = null,
   homeHref,
+  t = (k, f) => f || k,
 }) {
   const page = usePage();
   const auth = page?.props?.auth || null;
@@ -49,19 +50,19 @@ export function FinanzaHeader({
           {showFullNav ? (
             <nav className={`finanza-nav ${isMobileMenuOpen ? 'finanza-nav--open' : ''}`} aria-label="Primary">
               <a className="finanza-nav-link finanza-nav-link--active" href="#top" aria-current="page">
-                Home
+                {t('header_home', 'Home')}
               </a>
               <a className="finanza-nav-link" href="#about">
-                About
+                {t('header_about', 'About')}
               </a>
               <a className="finanza-nav-link" href="#services">
-                Services
+                {t('header_services', 'Services')}
               </a>
               <a className="finanza-nav-link" href="#projects">
-                Projects
+                {t('header_projects', 'Projects')}
               </a>
               <a className="finanza-nav-link" href="#contact">
-                Contact
+                {t('header_contact', 'Contact')}
               </a>
             </nav>
           ) : null}
@@ -74,7 +75,7 @@ export function FinanzaHeader({
                       {avatarLetter}
                     </span>
                     <span className="finanza-userChip-meta">
-                      <span className="finanza-userChip-name">{resolvedName || 'Account'}</span>
+                      <span className="finanza-userChip-name">{resolvedName || t('header_dashboard', 'Dashboard')}</span>
                       {resolvedEmail ? <span className="finanza-userChip-email">{resolvedEmail}</span> : null}
                     </span>
                   </Link>
@@ -84,7 +85,7 @@ export function FinanzaHeader({
                     method="post"
                     as="button"
                     type="button"
-                    aria-label="Logout"
+                    aria-label={t('header_logout', 'Logout')}
                   >
                     <i className="fa-solid fa-right-from-bracket" />
                   </Link>
@@ -92,10 +93,10 @@ export function FinanzaHeader({
               ) : (
                 <>
                   <Link className="finanza-btn finanza-btn--ghost" href={loginHref}>
-                    Login
+                    {t('header_login', 'Login')}
                   </Link>
                   <Link className="finanza-btn finanza-btn--primary finanza-btn--sm" href={registerHref}>
-                    Register
+                    {t('header_register', 'Register')}
                   </Link>
                 </>
               )}
@@ -137,38 +138,38 @@ export function FinanzaHeader({
               </button>
             </div>
             <a className="finanza-mobileMenu-link" href="#top" onClick={closeMobileMenu}>
-              Home
+              {t('header_home', 'Home')}
             </a>
             <a className="finanza-mobileMenu-link" href="#about" onClick={closeMobileMenu}>
-              About
+              {t('header_about', 'About')}
             </a>
             <a className="finanza-mobileMenu-link" href="#services" onClick={closeMobileMenu}>
-              Services
+              {t('header_services', 'Services')}
             </a>
             <a className="finanza-mobileMenu-link" href="#projects" onClick={closeMobileMenu}>
-              Projects
+              {t('header_projects', 'Projects')}
             </a>
             <a className="finanza-mobileMenu-link" href="#contact" onClick={closeMobileMenu}>
-              Contact
+              {t('header_contact', 'Contact')}
             </a>
 
             <div className="finanza-mobileMenu-actions">
               {isAuthenticated ? (
                 <>
                   <a className="finanza-btn finanza-btn--ghost" href={dashboardHref}>
-                    Dashboard
+                    {t('header_dashboard', 'Dashboard')}
                   </a>
                   <Link className="finanza-btn finanza-btn--primary" href={logoutHref} method="post" as="button" type="button">
-                    Logout
+                    {t('header_logout', 'Logout')}
                   </Link>
                 </>
               ) : (
                 <>
                   <button type="button" className="finanza-btn finanza-btn--ghost" onClick={() => onOpenAuth?.('login')}>
-                    Login
+                    {t('header_login', 'Login')}
                   </button>
                   <button type="button" className="finanza-btn finanza-btn--primary" onClick={() => onOpenAuth?.('register')}>
-                    Register
+                    {t('header_register', 'Register')}
                   </button>
                 </>
               )}

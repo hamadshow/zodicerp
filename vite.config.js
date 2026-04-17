@@ -48,7 +48,6 @@ export default defineConfig(({ mode }) => {
     },
   },
 
-  // -------------------  EDITED SECTION -------------------
   server: {
     host: '127.0.0.1',
     port: 5173,
@@ -60,6 +59,7 @@ export default defineConfig(({ mode }) => {
       origin: ['http://127.0.0.1:8000', 'http://localhost:8000'],
       methods: ['GET', 'POST', 'OPTIONS'],
       allowedHeaders: ['*'],
+      credentials: true,
     },
     proxy: {
       '/media-files': {

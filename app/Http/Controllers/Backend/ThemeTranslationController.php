@@ -5,11 +5,19 @@ namespace App\Http\Controllers\Backend;
 use App\Http\Controllers\Controller;
 use App\Models\Language;
 use App\Models\LanguageLine;
+use App\Services\AIService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class ThemeTranslationController extends Controller
 {
+    protected AIService $aiService;
+
+    public function __construct(AIService $aiService)
+    {
+        $this->aiService = $aiService;
+    }
+
     public function index(Request $request)
     {
         $query = LanguageLine::query();
@@ -46,6 +54,32 @@ class ThemeTranslationController extends Controller
         $languageLine->save();
 
         return back()->with('success', 'Theme translation updated successfully.');
+    }
+
+    /**
+     * Auto-translate a language line using AI.
+     */
+    public function autoTranslate(Request $request, LanguageLine $languageLine)
+    {
+        $request->validate([
+            'locale' => 'required|string',
+        ]);
+
+        $locale = $request->input('locale');
+        $originalText = $languageLine->text['en'] ?? $languageLine->key;
+
+        $translated = $this->aiService->translate($originalText, $locale);
+
+        if ($translated) {
+            $text = $languageLine->text;
+            $text[$locale] = $translated;
+            $languageLine->text = $text;
+            $languageLine->save();
+
+            return back()->with('success', 'AI Translation successful.');
+        }
+
+        return back()->with('error', 'AI Translation failed: ' . $this->aiService->getLastError());
     }
 
     public function sync()
