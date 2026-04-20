@@ -23,6 +23,7 @@
 @use 'pages/BankTransactions';
 @use 'pages/Brands';
 @use 'pages/Brokers';
+@use 'pages/CacheManagement';
 @use 'pages/BudgeDashBoard';
 @use 'pages/dashboard';
 @use 'pages/BudgetCategory';
@@ -40,6 +41,10 @@
 @use 'pages/ItemAttributes';
 @use 'pages/ItemUnits';
 @use 'pages/ListedCompanies';
+@use 'pages/BuyShares';
+@use 'pages/SellShares';
+@use 'pages/portfolio';
+@use 'pages/Wallet';
 @use 'pages/Login';
 @use 'pages/MarketPrices';
 @use 'pages/Nationalities';

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use Exception;
 
 class OrderService extends BaseService
@@ -126,29 +127,28 @@ class OrderService extends BaseService
 
     /**
      * Get order dashboard stats
+     * Default behavior: If no date range provided, use today's date (inclusive)
      */
     public function getDashboardStats(?string $dateFrom = null, ?string $dateTo = null): array
     {
+        // Default to today's date if no range provided for consistent filtering
+        $effectiveDateFrom = $dateFrom ?? Carbon::today()->format('Y-m-d');
+        $effectiveDateTo = $dateTo ?? Carbon::today()->format('Y-m-d');
+
         $baseQuery = $this->model->query();
 
-        if (!empty($dateFrom)) {
-            $baseQuery->whereDate('created_at', '>=', $dateFrom);
-        }
-
-        if (!empty($dateTo)) {
-            $baseQuery->whereDate('created_at', '<=', $dateTo);
-        }
+        // Apply date range filter with indexed column (created_at)
+        // whereDate uses parameterized queries internally for optimal performance
+        $baseQuery->whereDate('created_at', '>=', $effectiveDateFrom)
+                  ->whereDate('created_at', '<=', $effectiveDateTo);
 
         $totalOrders = (clone $baseQuery)->count();
         $totalRevenue = (clone $baseQuery)->sum('total_amount');
         $pendingOrders = (clone $baseQuery)->where('status', 'pending')->count();
         $completedOrders = (clone $baseQuery)->where('status', 'completed')->count();
 
+        // Get monthly revenue for the current year or filtered date range
         $monthlyRevenueQuery = (clone $baseQuery);
-        if (empty($dateFrom) && empty($dateTo)) {
-            $monthlyRevenueQuery->whereYear('created_at', date('Y'));
-        }
-
         $monthlyRevenue = $monthlyRevenueQuery
             ->selectRaw('MONTH(created_at) as month, YEAR(created_at) as year, SUM(total_amount) as revenue')
             ->groupBy('year', 'month')

@@ -32,7 +32,7 @@ class MarketPriceController extends Controller
         // For the form dropdown, we might need a list of companies.
         // If the list is huge, we should load it asynchronously or use a searchable select.
         // For now, let's load a limited set or all if reasonable.
-        $companies = ListedCompany::select('id', 'company_code', 'legal_name_ar', 'legal_name_en')->get();
+        $companies = ListedCompany::select('id', 'company_code', 'ticker_symbol', 'legal_name_ar', 'legal_name_en')->get();
 
         return Inertia::render('Backend/InvestingStack/MarketPrices', [
             'marketPrices' => $marketPrices,
@@ -44,7 +44,7 @@ class MarketPriceController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'instrument_id' => 'required|exists:companies,id',
+            'instrument_id' => 'required|exists:companies_shares,id',
             'bid_price' => 'required|numeric',
             'ask_price' => 'required|numeric',
             'last_price' => 'required|numeric',
@@ -73,7 +73,7 @@ class MarketPriceController extends Controller
     public function update(Request $request, MarketPrice $marketPrice)
     {
         $validated = $request->validate([
-            'instrument_id' => 'required|exists:companies,id',
+            'instrument_id' => 'required|exists:companies_shares,id',
             'bid_price' => 'required|numeric',
             'ask_price' => 'required|numeric',
             'last_price' => 'required|numeric',

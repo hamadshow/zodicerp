@@ -1,0 +1,186 @@
+/* Portfolio Module Styles */
+
+.portfolio-module {
+  padding: 1.5rem;
+  background-color: #f3f6f9;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+
+  &__top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+
+    .header-title {
+      h1 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a202c;
+        margin-bottom: 0.25rem;
+      }
+      p {
+        color: #718096;
+        font-size: 0.875rem;
+      }
+    }
+
+    .export-actions {
+      display: flex;
+      gap: 0.75rem;
+
+      .btn-export {
+        background: white;
+        border: 1px solid #e2e8f0;
+        padding: 0.5rem 1rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        color: #4a5568;
+        transition: all 0.2s;
+
+        &:hover { background: #f8fafc; border-color: #cbd5e0; }
+        .material-icons-outlined { font-size: 1.1rem; }
+      }
+    }
+  }
+
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+
+      .stat-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        
+        &.blue { background-color: #ebf8ff; color: #3182ce; }
+        &.purple { background-color: #faf5ff; color: #805ad5; }
+        
+        .material-icons-outlined { font-size: 28px; }
+      }
+
+      &.green { 
+        border-left: 4px solid #48bb78;
+        .stat-icon { background-color: #f0fff4; color: #38a169; }
+      }
+      &.red { 
+        border-left: 4px solid #f56565;
+        .stat-icon { background-color: #fff5f5; color: #e53e3e; }
+      }
+
+      .stat-info {
+        display: flex;
+        flex-direction: column;
+        
+        .stat-value {
+          font-size: 1.5rem;
+          font-weight: 800;
+          color: #2d3748;
+        }
+        
+        .stat-label {
+          font-size: 0.75rem;
+          color: #718096;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          font-weight: 600;
+        }
+      }
+    }
+  }
+
+  &__table-container {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+
+      th {
+        background: #f8fafc;
+        padding: 1rem 1.5rem;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #718096;
+        text-transform: uppercase;
+        border-bottom: 2px solid #e2e8f0;
+      }
+
+      td {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid #edf2f7;
+        font-size: 0.875rem;
+        color: #4a5568;
+      }
+
+      tr:last-child td { border-bottom: none; }
+      tr:hover { background-color: #f7fafc; }
+
+      .stock-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+
+        .symbol-badge {
+          width: fit-content;
+          background: #ebf8ff;
+          color: #3182ce;
+          padding: 0.2rem 0.6rem;
+          border-radius: 6px;
+          font-weight: 700;
+          font-size: 0.75rem;
+        }
+        .stock-name {
+          font-weight: 500;
+          color: #2d3748;
+        }
+      }
+
+      .text-right { text-align: right; }
+      .font-mono { font-family: 'JetBrains Mono', 'Roboto Mono', monospace; }
+      .font-bold { font-weight: 700; }
+      
+      .text-success { color: #38a169; }
+      .text-danger { color: #e53e3e; }
+    }
+  }
+}
+
+/* RTL Support */
+[dir="rtl"] {
+  .portfolio-module {
+    &__top-header { text-align: right; flex-direction: row-reverse; }
+    &__stats { .stat-card { text-align: right; flex-direction: row-reverse; } }
+    &__table-container {
+      table {
+        th, td { text-align: right; }
+        .text-right { text-align: left; }
+        .stock-info { align-items: flex-end; }
+      }
+    }
+  }
+}

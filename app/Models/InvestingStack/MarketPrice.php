@@ -9,6 +9,8 @@ class MarketPrice extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $guarded = ['id'];
 
     protected $casts = [
@@ -17,8 +19,6 @@ class MarketPrice extends Model
         'price_timestamp' => 'datetime',
         'is_eod' => 'boolean',
         'is_intraday' => 'boolean',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
 
         // Decimal casts to ensure they are returned as numbers/strings correctly?
         // Laravel returns decimals as strings by default to preserve precision.

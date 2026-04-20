@@ -11,4 +11,8 @@ return [
     'reports' => 'Reports',
     'inventory' => 'Inventory',
     'suppliers' => 'Suppliers',
+    'wallet' => 'Wallet',
+    'buy_shares' => 'Buy Shares',
+    'sell_shares' => 'Sell Shares',
+    'portfolio' => 'Portfolio',
 ];

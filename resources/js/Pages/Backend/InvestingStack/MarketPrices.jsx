@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import SearchableComboBox from '../components/SearchableComboBox';
 import { debounce } from 'lodash';
 
 const ViewSection = ({ marketPrices, filters, onEdit, onCreate, onDelete }) => {
@@ -9,7 +10,7 @@ const ViewSection = ({ marketPrices, filters, onEdit, onCreate, onDelete }) => {
     const handleSearch = useMemo(
         () => debounce((value) => {
             router.get(
-                route('admin.investing-stack.market-prices.index'),
+                route('admin.investing.prices.index'),
                 { search: value },
                 { preserveState: true, replace: true }
             );
@@ -157,10 +158,21 @@ const ViewSection = ({ marketPrices, filters, onEdit, onCreate, onDelete }) => {
 const FormSection = ({ mode, initialData, companies, onBack, onSubmit }) => {
     const isEdit = mode === 'edit';
     const { errors } = usePage().props;
+    const [instrumentId, setInstrumentId] = useState(initialData?.instrument_id || '');
     
     // Set default values for date/time if creating
     const defaultDate = new Date().toISOString().split('T')[0];
     const defaultTime = new Date().toTimeString().split(' ')[0].substring(0, 5);
+
+    const companyOptions = useMemo(() => {
+        return companies.map(company => ({
+            value: company.id,
+            label: `${company.company_code} - ${company.legal_name_ar || company.legal_name_en}`,
+            code: company.company_code,
+            ticker_symbol: company.ticker_symbol,
+            name: company.legal_name_ar || company.legal_name_en
+        }));
+    }, [companies]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -196,183 +208,190 @@ const FormSection = ({ mode, initialData, companies, onBack, onSubmit }) => {
                     </div>
 
                     <form onSubmit={handleSubmit}>
-                        <div className="form-grid">
-                            <div className="form-group full-width">
-                                <label>Instrument *</label>
-                                <select
-                                    name="instrument_id"
-                                    defaultValue={initialData?.instrument_id || ''}
-                                    required
-                                >
-                                    <option value="">Select Company / Instrument</option>
-                                    {companies.map(company => (
-                                        <option key={company.id} value={company.id}>
-                                            {company.company_code} - {company.legal_name_ar || company.legal_name_en}
-                                        </option>
-                                    ))}
-                                </select>
-                                {errors.instrument_id && <div className="error-message">{errors.instrument_id}</div>}
+                        <div className="form-sections">
+                            <div className="form-section">
+                                <div className="form-section-title">Essential Data</div>
+                                <div className="form-grid">
+                                    <div className="form-group full-width">
+                                        <label>Instrument *</label>
+                                        <SearchableComboBox
+                                            name="instrument_id"
+                                            value={instrumentId}
+                                            onChange={setInstrumentId}
+                                            options={companyOptions}
+                                            placeholder="Search by name, code or ticker..."
+                                            required
+                                        />
+                                        {errors.instrument_id && <div className="error-message">{errors.instrument_id}</div>}
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Date *</label>
+                                        <input
+                                            type="date"
+                                            name="price_date"
+                                            defaultValue={initialData?.price_date || defaultDate}
+                                            required
+                                        />
+                                        {errors.price_date && <div className="error-message">{errors.price_date}</div>}
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Time *</label>
+                                        <input
+                                            type="time"
+                                            name="price_time"
+                                            defaultValue={initialData?.price_time || defaultTime}
+                                            required
+                                        />
+                                        {errors.price_time && <div className="error-message">{errors.price_time}</div>}
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Prices */}
-                            <div className="form-group">
-                                <label>Bid Price *</label>
-                                <input
-                                    type="number" step="0.0001"
-                                    name="bid_price"
-                                    defaultValue={initialData?.bid_price}
-                                    required
-                                />
-                                {errors.bid_price && <div className="error-message">{errors.bid_price}</div>}
-                            </div>
-                            <div className="form-group">
-                                <label>Ask Price *</label>
-                                <input
-                                    type="number" step="0.0001"
-                                    name="ask_price"
-                                    defaultValue={initialData?.ask_price}
-                                    required
-                                />
-                                {errors.ask_price && <div className="error-message">{errors.ask_price}</div>}
-                            </div>
-                            <div className="form-group">
-                                <label>Last Price *</label>
-                                <input
-                                    type="number" step="0.0001"
-                                    name="last_price"
-                                    defaultValue={initialData?.last_price}
-                                    required
-                                />
-                                {errors.last_price && <div className="error-message">{errors.last_price}</div>}
-                            </div>
-                            <div className="form-group">
-                                <label>Open Price</label>
-                                <input
-                                    type="number" step="0.0001"
-                                    name="open_price"
-                                    defaultValue={initialData?.open_price}
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label>High Price</label>
-                                <input
-                                    type="number" step="0.0001"
-                                    name="high_price"
-                                    defaultValue={initialData?.high_price}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Low Price</label>
-                                <input
-                                    type="number" step="0.0001"
-                                    name="low_price"
-                                    defaultValue={initialData?.low_price}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Close Price</label>
-                                <input
-                                    type="number" step="0.0001"
-                                    name="close_price"
-                                    defaultValue={initialData?.close_price}
-                                />
-                            </div>
-
-                            {/* Date & Time */}
-                            <div className="form-group">
-                                <label>Date *</label>
-                                <input
-                                    type="date"
-                                    name="price_date"
-                                    defaultValue={initialData?.price_date || defaultDate}
-                                    required
-                                />
-                                {errors.price_date && <div className="error-message">{errors.price_date}</div>}
-                            </div>
-                            <div className="form-group">
-                                <label>Time *</label>
-                                <input
-                                    type="time"
-                                    name="price_time"
-                                    defaultValue={initialData?.price_time || defaultTime}
-                                    required
-                                />
-                                {errors.price_time && <div className="error-message">{errors.price_time}</div>}
+                            <div className="form-section">
+                                <div className="form-section-title">Trading Session</div>
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label>Bid Price *</label>
+                                        <input
+                                            type="number" step="0.0001"
+                                            name="bid_price"
+                                            defaultValue={initialData?.bid_price}
+                                            required
+                                        />
+                                        {errors.bid_price && <div className="error-message">{errors.bid_price}</div>}
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Ask Price *</label>
+                                        <input
+                                            type="number" step="0.0001"
+                                            name="ask_price"
+                                            defaultValue={initialData?.ask_price}
+                                            required
+                                        />
+                                        {errors.ask_price && <div className="error-message">{errors.ask_price}</div>}
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Last Price *</label>
+                                        <input
+                                            type="number" step="0.0001"
+                                            name="last_price"
+                                            defaultValue={initialData?.last_price}
+                                            required
+                                        />
+                                        {errors.last_price && <div className="error-message">{errors.last_price}</div>}
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Open Price</label>
+                                        <input
+                                            type="number" step="0.0001"
+                                            name="open_price"
+                                            defaultValue={initialData?.open_price}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>High Price</label>
+                                        <input
+                                            type="number" step="0.0001"
+                                            name="high_price"
+                                            defaultValue={initialData?.high_price}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Low Price</label>
+                                        <input
+                                            type="number" step="0.0001"
+                                            name="low_price"
+                                            defaultValue={initialData?.low_price}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Close Price</label>
+                                        <input
+                                            type="number" step="0.0001"
+                                            name="close_price"
+                                            defaultValue={initialData?.close_price}
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Volume */}
-                            <div className="form-group">
-                                <label>Volume</label>
-                                <input
-                                    type="number" step="0.01"
-                                    name="volume"
-                                    defaultValue={initialData?.volume}
-                                />
-                            </div>
-                             <div className="form-group">
-                                <label>Bid Volume</label>
-                                <input
-                                    type="number" step="0.01"
-                                    name="bid_volume"
-                                    defaultValue={initialData?.bid_volume}
-                                />
-                            </div>
-                             <div className="form-group">
-                                <label>Ask Volume</label>
-                                <input
-                                    type="number" step="0.01"
-                                    name="ask_volume"
-                                    defaultValue={initialData?.ask_volume}
-                                />
-                            </div>
-
-                            {/* Change */}
-                            <div className="form-group">
-                                <label>Change Amount</label>
-                                <input
-                                    type="number" step="0.0001"
-                                    name="change_amount"
-                                    defaultValue={initialData?.change_amount}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Change Percent (%)</label>
-                                <input
-                                    type="number" step="0.0001"
-                                    name="change_percent"
-                                    defaultValue={initialData?.change_percent}
-                                />
+                            <div className="form-section">
+                                <div className="form-section-title">Trading Volume</div>
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label>Volume</label>
+                                        <input
+                                            type="number" step="0.01"
+                                            name="volume"
+                                            defaultValue={initialData?.volume}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Bid Volume</label>
+                                        <input
+                                            type="number" step="0.01"
+                                            name="bid_volume"
+                                            defaultValue={initialData?.bid_volume}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Ask Volume</label>
+                                        <input
+                                            type="number" step="0.01"
+                                            name="ask_volume"
+                                            defaultValue={initialData?.ask_volume}
+                                        />
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Metadata */}
-                            <div className="form-group">
-                                <label>Data Source</label>
-                                <input
-                                    type="text"
-                                    name="data_source"
-                                    defaultValue={initialData?.data_source}
-                                    placeholder="e.g., Bloomberg, Reuters"
-                                />
-                            </div>
-
-                            <div className="form-group checkbox-group full-width">
-                                <label className="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        name="is_eod"
-                                        defaultChecked={initialData?.is_eod}
-                                    />
-                                    End of Day (EOD)
-                                </label>
-                                <label className="checkbox-label">
-                                    <input
-                                        type="checkbox"
-                                        name="is_intraday"
-                                        defaultChecked={initialData?.is_intraday}
-                                    />
-                                    Intraday
-                                </label>
+                            <div className="form-section">
+                                <div className="form-section-title">Change and Data Source</div>
+                                <div className="form-grid">
+                                    <div className="form-group">
+                                        <label>Change Amount</label>
+                                        <input
+                                            type="number" step="0.0001"
+                                            name="change_amount"
+                                            defaultValue={initialData?.change_amount}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Change Percent (%)</label>
+                                        <input
+                                            type="number" step="0.0001"
+                                            name="change_percent"
+                                            defaultValue={initialData?.change_percent}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Data Source</label>
+                                        <input
+                                            type="text"
+                                            name="data_source"
+                                            defaultValue={initialData?.data_source}
+                                            placeholder="e.g., Bloomberg, Reuters"
+                                        />
+                                    </div>
+                                    <div className="form-group checkbox-group full-width">
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                name="is_eod"
+                                                defaultChecked={initialData?.is_eod}
+                                            />
+                                            End of Day (EOD)
+                                        </label>
+                                        <label className="checkbox-label">
+                                            <input
+                                                type="checkbox"
+                                                name="is_intraday"
+                                                defaultChecked={initialData?.is_intraday}
+                                            />
+                                            Intraday
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -413,11 +432,11 @@ const MarketPrices = () => {
 
     const handleSubmit = (data) => {
         if (mode === 'create') {
-            router.post(route('admin.investing-stack.market-prices.store'), data, {
+            router.post(route('admin.investing.prices.store'), data, {
                 onSuccess: () => setMode('view'),
             });
         } else if (mode === 'edit') {
-            router.put(route('admin.investing-stack.market-prices.update', currentPrice.id), data, {
+            router.put(route('admin.investing.prices.update', currentPrice.id), data, {
                 onSuccess: () => setMode('view'),
             });
         }
@@ -425,7 +444,7 @@ const MarketPrices = () => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this market price?')) {
-            router.delete(route('admin.investing-stack.market-prices.destroy', id));
+            router.delete(route('admin.investing.prices.destroy', id));
         }
     };
 

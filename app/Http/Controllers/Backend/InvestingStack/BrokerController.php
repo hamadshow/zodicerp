@@ -44,10 +44,8 @@ class BrokerController extends Controller
             'broker_name_en' => 'nullable|string|max:200',
             'broker_type' => 'required|in:stock,forex,commodities,crypto,full_service,discount,online,institutional',
             'country_id' => 'required|exists:countries,id',
-            'is_active' => 'boolean', // Mapped to status? Migration has 'status' enum.
-            // Let's stick to migration columns
+            'is_regulated' => 'boolean',
             'status' => 'in:active,suspended,revoked,blacklisted,inactive',
-            // Add other fields as nullable for now to avoid validation hell for user
             'legal_name_ar' => 'nullable|string',
             'legal_name_en' => 'nullable|string',
             'license_number' => 'nullable|string',

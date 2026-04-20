@@ -9,16 +9,11 @@ class ListedCompany extends Model
 {
     use HasFactory;
 
-    protected $table = 'companies';
+    protected $table = 'companies_shares';
 
     protected $guarded = ['id'];
 
     protected $casts = [
-        'is_public' => 'boolean',
-        'is_vat_registered' => 'boolean',
-        'is_customer' => 'boolean',
-        'is_vendor' => 'boolean',
-        'is_competitor' => 'boolean',
         'ipo_date' => 'date',
         'verified_at' => 'date',
         'created_at' => 'datetime',
@@ -26,14 +21,14 @@ class ListedCompany extends Model
     ];
 
     // Relationships
-    public function sector()
-    {
-        return $this->belongsTo(\App\Models\InvestingStack\Sector::class, 'sector_id'); // Assuming Sector model will be here
-    }
-
     public function industry()
     {
-        return $this->belongsTo(\App\Models\InvestingStack\Industry::class, 'industry_id'); // Assuming Industry model
+        return $this->belongsTo(\App\Models\InvestingStack\Industry::class, 'industry_id');
+    }
+
+    public function subIndustry()
+    {
+        return $this->belongsTo(\App\Models\InvestingStack\SubIndustry::class, 'sub_industry_id');
     }
 
     public function country()
@@ -41,8 +36,33 @@ class ListedCompany extends Model
         return $this->belongsTo(\App\Models\Country::class, 'country_id');
     }
 
+    public function state()
+    {
+        return $this->belongsTo(\App\Models\State::class, 'state_id');
+    }
+
+    public function city()
+    {
+        return $this->belongsTo(\App\Models\City::class, 'city_id');
+    }
+
     public function reportingCurrency()
     {
         return $this->belongsTo(\App\Models\Currency::class, 'reporting_currency_id');
+    }
+
+    public function exchange()
+    {
+        return $this->belongsTo(\App\Models\InvestingStack\Exchange::class, 'exchange_id');
+    }
+
+    public function marketIndices()
+    {
+        return $this->belongsToMany(\App\Models\InvestingStack\MarketIndex::class, 'company_market_index', 'company_id', 'market_index_id');
+    }
+
+    public function creditRating()
+    {
+        return $this->belongsTo(\App\Models\InvestingStack\CreditRating::class, 'credit_rating_id');
     }
 }

@@ -48,9 +48,14 @@ export default function SearchableComboBox({
     if (!term) {
       return limited;
     }
-    return limited.filter((opt) =>
-      String(opt.label || '').toLowerCase().includes(term),
-    );
+    return limited.filter((opt) => {
+      const labelMatch = String(opt.label || '').toLowerCase().includes(term);
+      const codeMatch = opt.code ? String(opt.code).toLowerCase().includes(term) : false;
+      const tickerMatch = opt.ticker_symbol ? String(opt.ticker_symbol).toLowerCase().includes(term) : false;
+      const valueMatch = String(opt.value || '').toLowerCase().includes(term);
+      
+      return labelMatch || codeMatch || tickerMatch || valueMatch;
+    });
   }, [options, searchTerm, disableFiltering]);
 
   useEffect(() => {

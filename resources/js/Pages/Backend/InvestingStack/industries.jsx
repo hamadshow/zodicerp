@@ -218,9 +218,9 @@ const Industries = ({ industries = [], sectors = [], parents = [] }) => {
             preserveScroll: true,
         };
         if (isCreating) {
-            post(route('admin.investing-stack.industries.store'), options);
+            post(route('admin.investing.industries.store'), options);
         } else if (selectedItem) {
-            router.post(route('admin.investing-stack.industries.update', selectedItem.id), {
+            router.post(route('admin.investing.industries.update', selectedItem.id), {
                 _method: 'PUT',
                 ...data
             }, options);
@@ -229,7 +229,7 @@ const Industries = ({ industries = [], sectors = [], parents = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this industry?')) {
-            router.delete(route('admin.investing-stack.industries.destroy', id), {
+            router.delete(route('admin.investing.industries.destroy', id), {
                 onSuccess: () => {
                     if (selectedItem?.id === id) {
                         handleCreateNew();
@@ -255,7 +255,7 @@ const Industries = ({ industries = [], sectors = [], parents = [] }) => {
     const handleMoveIndustry = (draggedId, newParentId) => {
         const item = industries.find(i => String(i.id) === String(draggedId));
         if (!item || String(item.parent_industry_id) === String(newParentId)) return;
-        router.put(route('admin.investing-stack.industries.update', draggedId), {
+        router.put(route('admin.investing.industries.update', draggedId), {
             ...item,
             parent_industry_id: newParentId
         }, { preserveScroll: true });

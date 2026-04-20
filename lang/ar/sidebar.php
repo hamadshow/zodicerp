@@ -110,11 +110,14 @@ return [
     
     'plugin' => 'الإضافات',
     'investing_stack' => 'الاستثمار',
+    'wallet' => 'المحفظة المالية',
     'industries' => 'الصناعات',
     'listed_companies' => 'الشركات المدرجة',
     'brokers' => 'الوسطاء',
     'market_prices' => 'أسعار السوق',
-    
+    'buy_shares' => 'شراء أسهم',
+    'sell_shares' => 'بيع أسهم',
+    'portfolio' => 'المحفظة الاستثمارية',
     'media' => 'الوسائط',
     'tasks' => 'المهام',
     'settings' => 'الإعدادات',

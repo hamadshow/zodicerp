@@ -1,0 +1,220 @@
+/* Wallet Module Styles */
+
+.wallet-module {
+  padding: 1.5rem;
+  background-color: #f3f6f9;
+  min-height: 100vh;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #1a202c;
+    }
+  }
+
+  &__balance-card {
+    background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+    padding: 2rem;
+    border-radius: 12px;
+    color: white;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+
+    .balance-label {
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      opacity: 0.9;
+    }
+
+    .balance-amount {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin: 0.5rem 0;
+    }
+
+    .balance-actions {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1.5rem;
+
+      button {
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        padding: 0.5rem 1.5rem;
+        border-radius: 6px;
+        color: white;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+
+        &:hover { background: rgba(255,255,255,0.3); }
+        &.deposit { background: #48bb78; border: none; }
+        &.withdraw { background: #f56565; border: none; }
+      }
+    }
+  }
+
+  &__filters {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1rem;
+
+    .search-box {
+      flex: 1;
+      position: relative;
+      input {
+        width: 100%;
+        padding: 0.5rem 1rem 0.5rem 2.5rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+      }
+      .material-icons-outlined {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #718096;
+      }
+    }
+
+    select {
+      padding: 0.5rem 1rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      min-width: 150px;
+    }
+  }
+
+  &__table-container {
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+
+      th {
+        background: #f8fafc;
+        padding: 1rem 1.5rem;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #718096;
+        text-transform: uppercase;
+        border-bottom: 2px solid #e2e8f0;
+      }
+
+      td {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #edf2f7;
+        font-size: 0.875rem;
+      }
+
+      .type-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        &.deposit { background: #f0fff4; color: #38a169; }
+        &.withdraw { background: #fff5f5; color: #e53e3e; }
+      }
+
+      .status-badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        &.completed { background: #e6fffa; color: #319795; }
+        &.pending { background: #feebc8; color: #c05621; }
+        &.cancelled { background: #fed7d7; color: #c53030; }
+      }
+
+      .actions {
+        display: flex;
+        gap: 0.5rem;
+        button {
+          border: 1px solid #e2e8f0;
+          background: white;
+          padding: 0.3rem;
+          border-radius: 4px;
+          cursor: pointer;
+          color: #718096;
+          &:hover { background: #f7fafc; }
+        }
+      }
+    }
+  }
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+
+  .modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+
+    h2 { margin-bottom: 1.5rem; font-size: 1.25rem; font-weight: 700; }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+      label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.875rem; }
+      input, select, textarea {
+        width: 100%;
+        padding: 0.625rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        &:focus { outline: none; border-color: #3182ce; }
+      }
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 1rem;
+      margin-top: 2rem;
+      button {
+        padding: 0.5rem 1.5rem;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        &.btn-cancel { background: #edf2f7; border: none; color: #4a5568; }
+        &.btn-save { background: #3182ce; border: none; color: white; }
+      }
+    }
+  }
+}
+
+/* RTL Support */
+[dir="rtl"] {
+  .wallet-module {
+    &__header, &__filters, &__table-container table th { text-align: right; }
+    .search-box .material-icons-outlined { left: auto; right: 0.75rem; }
+    .search-box input { padding: 0.5rem 2.5rem 0.5rem 1rem; }
+  }
+}

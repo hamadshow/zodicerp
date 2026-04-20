@@ -61,3 +61,12 @@ Route::apiResource('roles', App\Http\Controllers\Api\RoleController::class);
 Route::post('/roles/{roleId}/assign-permission', [App\Http\Controllers\Api\RoleController::class, 'assignPermission']);
 Route::post('/roles/{roleId}/remove-permission', [App\Http\Controllers\Api\RoleController::class, 'removePermission']);
 Route::apiResource('permissions', App\Http\Controllers\Api\PermissionController::class);
+
+// Cache Management API Routes
+Route::prefix('cache')->group(function () {
+    Route::post('/clear-app', [App\Http\Controllers\Backend\Settings\CacheController::class, 'clearAppCache']);
+    Route::post('/clear-config', [App\Http\Controllers\Backend\Settings\CacheController::class, 'clearConfigCache']);
+    Route::post('/clear-route', [App\Http\Controllers\Backend\Settings\CacheController::class, 'clearRouteCache']);
+    Route::post('/clear-view', [App\Http\Controllers\Backend\Settings\CacheController::class, 'clearViewCache']);
+    Route::post('/clear-all', [App\Http\Controllers\Backend\Settings\CacheController::class, 'clearAll']);
+});

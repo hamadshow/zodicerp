@@ -1,0 +1,267 @@
+/* Sell Shares Module Styles - Adapted from Buy Shares */
+
+.sell-shares-module {
+  padding: 1.5rem;
+  background-color: #f3f6f9;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+
+  &__top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .export-actions {
+      display: flex;
+      gap: 0.75rem;
+
+      .btn-export {
+        background: white;
+        border: 1px solid #e1e8ef;
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        color: #4a5568;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+
+        &:hover { background: #f8fafc; }
+        
+        .material-icons-outlined { font-size: 1.1rem; }
+      }
+    }
+  }
+
+  /* Invoice Card Style */
+  .invoice-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    padding: 2.5rem;
+    margin-bottom: 2rem;
+    border: 1px solid #edf2f7;
+
+    .invoice-header-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3rem;
+
+      .company-info {
+        h2 { font-size: 1.5rem; font-weight: 800; color: #1a202c; text-transform: uppercase; margin-bottom: 0.25rem; }
+        p { color: #a0aec0; font-size: 0.875rem; }
+      }
+
+      .invoice-meta {
+        width: 300px;
+        .meta-field {
+          display: flex;
+          align-items: center;
+          margin-bottom: 0.75rem;
+          label { width: 100px; color: #718096; font-size: 0.875rem; }
+          .input-wrapper { flex: 1; position: relative; }
+          input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            background: #f8fafc;
+            font-size: 0.875rem;
+            &.required { border-right: 3px solid #f56565; }
+          }
+        }
+      }
+    }
+
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #a0aec0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #edf2f7;
+      padding-bottom: 0.5rem;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      margin-bottom: 2.5rem;
+
+      .grid-column {
+        .form-row {
+          display: flex;
+          gap: 1rem;
+          margin-bottom: 1rem;
+        }
+
+        .form-group {
+          flex: 1;
+          label { display: block; font-size: 0.75rem; color: #718096; margin-bottom: 0.4rem; }
+          select, input {
+            width: 100%;
+            padding: 0.625rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            color: #2d3748;
+            &:focus { border-color: #3182ce; outline: none; box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1); }
+          }
+        }
+      }
+    }
+
+    /* Items Table */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 2rem;
+
+      th {
+        background: #f7fafc;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #718096;
+        text-transform: uppercase;
+        border-bottom: 2px solid #edf2f7;
+      }
+
+      td {
+        padding: 1rem;
+        border-bottom: 1px solid #edf2f7;
+        font-size: 0.875rem;
+        
+        .item-input {
+          border: 1px solid #e2e8f0;
+          background: #fff;
+          width: 100%;
+          padding: 0.5rem;
+          border-radius: 4px;
+          &:focus { outline: none; border-color: #3182ce; }
+        }
+      }
+
+      .btn-add-item {
+        margin-top: 1rem;
+        background: white;
+        border: 1px dashed #cbd5e0;
+        color: #4a5568;
+        width: 100%;
+        padding: 0.75rem;
+        border-radius: 6px;
+        font-size: 0.875rem;
+        cursor: pointer;
+        &:hover { background: #f7fafc; border-color: #a0aec0; }
+      }
+    }
+
+    /* Summary Section */
+    .summary-section {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr;
+      gap: 3rem;
+
+      .notes-column {
+        .form-group {
+          margin-bottom: 1.5rem;
+          label { font-size: 0.75rem; color: #718096; display: block; margin-bottom: 0.5rem; }
+          textarea {
+            width: 100%;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.75rem;
+            font-size: 0.875rem;
+            resize: vertical;
+            &:focus { border-color: #3182ce; outline: none; }
+          }
+        }
+      }
+
+      .totals-card {
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 1.5rem;
+
+        .total-row {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 0.75rem;
+          font-size: 0.875rem;
+          color: #4a5568;
+          
+          &.grand-total {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #edf2f7;
+            font-weight: 800;
+            font-size: 1.125rem;
+            color: #1a202c;
+          }
+
+          &.balance { color: #e53e3e; font-weight: 700; }
+          
+          .value { font-weight: 700; }
+          input { width: 100px; text-align: right; border: 1px solid #e2e8f0; border-radius: 4px; padding: 0.2rem; }
+        }
+      }
+    }
+  }
+
+  .form-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding: 1.5rem 0;
+
+    .btn {
+      padding: 0.75rem 2rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s;
+
+      &-cancel { background: white; border: 1px solid #e2e8f0; color: #4a5568; &:hover { background: #f7fafc; } }
+      &-save { background: #3182ce; border: 1px solid #3182ce; color: white; &:hover { background: #2c5282; } }
+    }
+  }
+}
+
+/* RTL Support */
+[dir="rtl"] {
+  .sell-shares-module {
+    .invoice-card {
+      .invoice-header-row { flex-direction: row-reverse; }
+      .invoice-meta {
+        .meta-field {
+          flex-direction: row-reverse;
+          label { text-align: right; }
+          input { &.required { border-right: none; border-left: 3px solid #f56565; } }
+        }
+      }
+      .details-grid {
+        .grid-column { text-align: right; }
+      }
+      .items-table {
+        th, td { text-align: right; }
+      }
+      .summary-section {
+        .totals-card { text-align: right; .total-row { flex-direction: row-reverse; } }
+      }
+    }
+    .form-footer { flex-direction: row-reverse; }
+  }
+}

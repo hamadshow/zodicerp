@@ -6,6 +6,8 @@ use App\Models\Categories;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
@@ -141,18 +143,34 @@ class CategoryService extends BaseService
      */
     public function getTree(bool $includeInactive = false): Collection
     {
-        $query = Categories::query();
+        try {
+            $query = Categories::query();
 
-        if (!$includeInactive) {
-            $query->where('status', 'active');
+            // Check if status column exists before filtering
+            if (!$includeInactive && Schema::hasColumn('categories', 'status')) {
+                $query->where('status', 'active');
+            }
+
+            // Get categories with product count if products table exists
+            if (Schema::hasTable('products') && Schema::hasColumn('products', 'category_id')) {
+                return $query->leftJoin('products', 'categories.id', '=', 'products.category_id')
+                             ->selectRaw('categories.id, categories.name, COUNT(products.id) as count')
+                             ->groupBy('categories.id', 'categories.name')
+                             ->orderBy('categories.name')
+                             ->get();
+            }
+
+            // Fallback: return categories without product count
+            return $query->select('id', 'name')
+                         ->selectRaw('0 as count')
+                         ->orderBy('name')
+                         ->get();
+
+        } catch (\Exception $e) {
+            // Log the error and return empty collection
+            \Log::error('Failed to retrieve category tree: ' . $e->getMessage());
+            return collect();
         }
-
-        // Get categories with product count
-        return $query->leftJoin('products', 'categories.id', '=', 'products.category_id')
-                     ->selectRaw('categories.id, categories.name, COUNT(products.id) as count')
-                     ->groupBy('categories.id', 'categories.name')
-                     ->orderBy('categories.name')
-                     ->get();
     }
 
     /**

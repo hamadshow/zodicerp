@@ -45,32 +45,43 @@ class DashboardService
 
     /**
      * Get main dashboard statistics
+     * Default behavior: If no date range provided, use today's date (inclusive)
      */
     protected function applyDateRangeFilters($query, ?string $dateFrom, ?string $dateTo, string $column = 'created_at')
     {
-        if (!empty($dateFrom)) {
-            $query->whereDate($column, '>=', Carbon::parse($dateFrom)->format('Y-m-d'));
-        }
+        // Default to today's date if no range provided
+        $effectiveDateFrom = $dateFrom ?? Carbon::today()->format('Y-m-d');
+        $effectiveDateTo = $dateTo ?? Carbon::today()->format('Y-m-d');
 
-        if (!empty($dateTo)) {
-            $query->whereDate($column, '<=', Carbon::parse($dateTo)->format('Y-m-d'));
-        }
+        // Use whereDate with indexed columns for optimal performance
+        // Carbon::parse ensures proper date format conversion
+        $query->whereDate($column, '>=', Carbon::parse($effectiveDateFrom)->format('Y-m-d'))
+              ->whereDate($column, '<=', Carbon::parse($effectiveDateTo)->format('Y-m-d'));
 
         return $query;
     }
 
+    /**
+     * Get dashboard statistics with date filtering
+     * Uses caching only when no date filters are applied (full data)
+     */
     public function getDashboardStats(?string $dateFrom = null, ?string $dateTo = null): array
     {
-        $cacheKey = $this->getCacheKey('stats', $dateFrom, $dateTo);
-        $useCache = empty($dateFrom) && empty($dateTo);
+        // Default to today's date for both if not provided
+        $effectiveDateFrom = $dateFrom ?? Carbon::today()->format('Y-m-d');
+        $effectiveDateTo = $dateTo ?? Carbon::today()->format('Y-m-d');
+
+        // Only use cache when using default (today's) dates
+        $useCache = ($effectiveDateFrom === Carbon::today()->format('Y-m-d')) &&
+                    ($effectiveDateTo === Carbon::today()->format('Y-m-d'));
 
         if ($useCache) {
-            return Cache::remember($cacheKey, $this->cacheDuration, function () use ($dateFrom, $dateTo) {
-                return $this->computeDashboardStats($dateFrom, $dateTo);
+            return Cache::remember($this->getCacheKey('stats'), $this->cacheDuration, function () use ($effectiveDateFrom, $effectiveDateTo) {
+                return $this->computeDashboardStats($effectiveDateFrom, $effectiveDateTo);
             });
         }
 
-        return $this->computeDashboardStats($dateFrom, $dateTo);
+        return $this->computeDashboardStats($effectiveDateFrom, $effectiveDateTo);
     }
 
     protected function computeDashboardStats(?string $dateFrom = null, ?string $dateTo = null): array
@@ -107,8 +118,8 @@ class DashboardService
         $totalInvoicesQuery = SalesInvoice::query();
         $totalReturnsQuery = SalesReturn::query();
 
-        $this->applyDateRangeFilters($totalInvoicesQuery, $dateFrom, $dateTo);
-        $this->applyDateRangeFilters($totalReturnsQuery, $dateFrom, $dateTo);
+        $this->applyDateRangeFilters($totalInvoicesQuery, $dateFrom, $dateTo, 'invoice_date');
+        $this->applyDateRangeFilters($totalReturnsQuery, $dateFrom, $dateTo, 'return_date');
 
         $totalInvoices = $totalInvoicesQuery->sum('total_amount') ?? 0;
         $totalReturns = $totalReturnsQuery->sum('total_amount') ?? 0;
@@ -124,8 +135,8 @@ class DashboardService
         $totalPurchasesQuery = PurchaseInvoice::query();
         $totalPurchaseReturnsQuery = PurchaseReturn::query();
 
-        $this->applyDateRangeFilters($totalPurchasesQuery, $dateFrom, $dateTo);
-        $this->applyDateRangeFilters($totalPurchaseReturnsQuery, $dateFrom, $dateTo);
+        $this->applyDateRangeFilters($totalPurchasesQuery, $dateFrom, $dateTo, 'invoice_date');
+        $this->applyDateRangeFilters($totalPurchaseReturnsQuery, $dateFrom, $dateTo, 'return_date');
 
         $totalPurchases = $totalPurchasesQuery->sum('total_amount') ?? 0;
         $totalPurchaseReturns = $totalPurchaseReturnsQuery->sum('total_amount') ?? 0;

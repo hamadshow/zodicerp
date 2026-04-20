@@ -8,9 +8,16 @@ import AdminLayout from './components/AdminLayout';
 import Table from './components/Table';
 import Pagination from './components/Pagination';
 import { apiService } from '../../services/api';
+import { 
+  formatDateForInput, 
+  isValidDdMmYyyy,
+  getCurrentDateDdMmYyyy,
+  getCurrentDateYyyyMmDd 
+} from '../../utils/date';
 
 const Dashboard = () => {
-  const today = new Date().toISOString().slice(0, 10);
+  const todayYyyyMmDd = getCurrentDateYyyyMmDd();
+  const todayDdMmYyyy = getCurrentDateDdMmYyyy();
 
   const [tableData, setTableData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,10 +27,12 @@ const Dashboard = () => {
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFrom, setDateFrom] = useState(today);
-  const [dateTo, setDateTo] = useState(today);
-  const [appliedDateFrom, setAppliedDateFrom] = useState(today);
-  const [appliedDateTo, setAppliedDateTo] = useState(today);
+  
+  // Date states - store in dd/mm/yyyy format for display, convert to yyyy-mm-dd for API
+  const [dateFrom, setDateFrom] = useState(todayDdMmYyyy);
+  const [dateTo, setDateTo] = useState(todayDdMmYyyy);
+  const [appliedDateFrom, setAppliedDateFrom] = useState(todayYyyyMmDd);
+  const [appliedDateTo, setAppliedDateTo] = useState(todayYyyyMmDd);
 
   // Dashboard statistics data
   const [stats, setStats] = useState({
@@ -42,13 +51,24 @@ const Dashboard = () => {
   const [categoryTree, setCategoryTree] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
 
-  // Fetch all dashboard data from API
+  /**
+   * Fetch all dashboard data from API
+   * Handles date range filtering with proper defaults:
+   * - If no dates provided, defaults to today's date (inclusive)
+   * - Uses parameterized queries for optimal performance
+   * - Properly formats dates for API compatibility
+   */
   const fetchDashboardData = useCallback(async (from = appliedDateFrom, to = appliedDateTo, page = currentPage) => {
     setLoading(true);
 
+    // Default to today's date if no date range is provided
+    const effectiveDateFrom = from || todayYyyyMmDd;
+    const effectiveDateTo = to || todayYyyyMmDd;
+
+    // Prepare filter parameters for API (yyyy-MM-dd format for MySQL)
     const dashboardFilterParams = {
-      date_from: from || undefined,
-      date_to: to || undefined,
+      date_from: effectiveDateFrom,
+      date_to: effectiveDateTo,
     };
 
     let statsData = {};
@@ -87,9 +107,9 @@ const Dashboard = () => {
         apiService.get('/categories/tree')
       ]);
 
-      setRecentActivity(activityRes.data?.data ?? []);
+      setRecentActivity(Array.isArray(activityRes.data?.data) ? activityRes.data.data : []);
 
-      const ordersData = ordersRes.data?.data ?? [];
+      const ordersData = Array.isArray(ordersRes.data?.data) ? ordersRes.data.data : [];
       const ordersTotal = ordersRes.data?.pagination?.total ?? ordersData.length;
       setTotalRecords(ordersTotal);
       setTotalPages(Math.max(1, Math.ceil(ordersTotal / recordsPerPage)));
@@ -97,24 +117,24 @@ const Dashboard = () => {
 
       const salesDataRaw = salesRes.data?.data ?? {};
       setSalesData(
-        (salesDataRaw.labels ?? []).map((label, index) => ({
+        (Array.isArray(salesDataRaw.labels) ? salesDataRaw.labels : []).map((label, index) => ({
           name: label,
-          sales: salesDataRaw.orders?.[index] ?? 0,
-          revenue: salesDataRaw.revenue?.[index] ?? 0,
+          sales: Array.isArray(salesDataRaw.orders) ? salesDataRaw.orders[index] ?? 0 : 0,
+          revenue: Array.isArray(salesDataRaw.revenue) ? salesDataRaw.revenue[index] ?? 0 : 0,
         }))
       );
 
       const distributionDataRaw = distRes.data?.data ?? {};
       setDistributionData(
-        (distributionDataRaw.labels ?? []).map((label, index) => ({
+        (Array.isArray(distributionDataRaw.labels) ? distributionDataRaw.labels : []).map((label, index) => ({
           name: label,
-          value: distributionDataRaw.data?.[index] ?? 0,
+          value: Array.isArray(distributionDataRaw.data) ? distributionDataRaw.data[index] ?? 0 : 0,
         }))
       );
 
-      setTopProducts(topProdRes.data?.data ?? []);
-      setLowStockAlerts(lowStockRes.data?.data ?? []);
-      setCategoryTree(categoryRes.data?.data ?? []);
+      setTopProducts(Array.isArray(topProdRes.data?.data) ? topProdRes.data.data : []);
+      setLowStockAlerts(Array.isArray(lowStockRes.data?.data) ? lowStockRes.data.data : []);
+      setCategoryTree(Array.isArray(categoryRes.data?.data) ? categoryRes.data.data : []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
 
@@ -156,12 +176,14 @@ const Dashboard = () => {
         { id: 2, action: 'New product added', user: 'Admin', time: '1 hour ago' },
       ]);
 
+      const mockDate = effectiveDateFrom || new Date().toISOString().split('T')[0];
+
       const mockOrders = Array.from({ length: 50 }, (_, i) => ({
         id: i + 1,
         order_number: `ORD-${1000 + i}`,
         customer: { name: `Customer ${i + 1}` },
         total_amount: (Math.random() * 500 + 50).toFixed(2),
-        created_at: new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
+        created_at: mockDate,
         status: ['pending', 'processing', 'shipped', 'delivered'][i % 4],
         selected: false,
       }));
@@ -230,14 +252,63 @@ const Dashboard = () => {
     }
   };
 
+  /**
+   * Apply Date Range Filter
+   * Validates and applies date range filter to dashboard data
+   * - Enforces dd/MM/yyyy format
+   * - Validates that From Date is not greater than To Date
+   * - Defaults to today's date if no dates are selected
+   * - Converts to yyyy-MM-dd for API compatibility
+   */
   const handleApplyDateRange = async () => {
-    const selectedFrom = dateFrom || today;
-    const selectedTo = dateTo || today;
-    setAppliedDateFrom(selectedFrom);
-    setAppliedDateTo(selectedTo);
+    // Convert dd/MM/yyyy to yyyy-MM-dd format for API
+    let apiDateFrom = null;
+    let apiDateTo = null;
+
+    // Validate and parse From Date
+    if (dateFrom && dateFrom.trim() !== '') {
+      if (!isValidDdMmYyyy(dateFrom)) {
+        alert('خطأ: تاريخ البداية يجب أن يكون بتنسيق dd/MM/yyyy (مثال: 17/04/2026)');
+        return;
+      }
+      apiDateFrom = formatDateForInput(dateFrom);
+    }
+
+    // Validate and parse To Date
+    if (dateTo && dateTo.trim() !== '') {
+      if (!isValidDdMmYyyy(dateTo)) {
+        alert('خطأ: تاريخ النهاية يجب أن يكون بتنسيق dd/MM/yyyy (مثال: 17/04/2026)');
+        return;
+      }
+      apiDateTo = formatDateForInput(dateTo);
+    }
+
+    // Validate date range: From date should not be greater than To date
+    if (apiDateFrom && apiDateTo && apiDateFrom > apiDateTo) {
+      alert('خطأ: تاريخ البداية يجب أن يكون قبل أو يساوي تاريخ النهاية');
+      return;
+    }
+
+    // If no dates provided, default to today's date (inclusive filtering)
+    if (!apiDateFrom && !apiDateTo) {
+      apiDateFrom = todayYyyyMmDd;
+      apiDateTo = todayYyyyMmDd;
+    } else if (!apiDateFrom) {
+      // If only To date is provided, use it as both from and to (single day filter)
+      apiDateFrom = apiDateTo;
+    } else if (!apiDateTo) {
+      // If only From date is provided, use it as both from and to (single day filter)
+      apiDateTo = apiDateFrom;
+    }
+
+    // Update state with formatted dates for display
+    setAppliedDateFrom(apiDateFrom);
+    setAppliedDateTo(apiDateTo);
+
+    // Reset to first page and fetch data with new date filter
     const nextPage = 1;
     setCurrentPage(nextPage);
-    await fetchDashboardData(selectedFrom, selectedTo, nextPage);
+    await fetchDashboardData(apiDateFrom, apiDateTo, nextPage);
   };
 
   const columns = [
@@ -264,8 +335,9 @@ const Dashboard = () => {
           <label htmlFor="dashboard-from-date" style={{ fontSize: '0.85rem', marginBottom: '4px', color: '#4b5563' }}>From</label>
           <input
             id="dashboard-from-date"
-            type="date"
+            type="text"
             className="form-control"
+            placeholder="dd/mm/yyyy"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
           />
@@ -275,8 +347,9 @@ const Dashboard = () => {
           <label htmlFor="dashboard-to-date" style={{ fontSize: '0.85rem', marginBottom: '4px', color: '#4b5563' }}>To</label>
           <input
             id="dashboard-to-date"
-            type="date"
+            type="text"
             className="form-control"
+            placeholder="dd/mm/yyyy"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
           />
@@ -285,7 +358,14 @@ const Dashboard = () => {
         <button
           type="button"
           className="btn btn-outline"
-          onClick={() => { setDateFrom(today); setDateTo(today); setCurrentPage(1); }}
+          onClick={async () => {
+            setDateFrom(todayDdMmYyyy);
+            setDateTo(todayDdMmYyyy);
+            setAppliedDateFrom(todayYyyyMmDd);
+            setAppliedDateTo(todayYyyyMmDd);
+            setCurrentPage(1);
+            await fetchDashboardData(todayYyyyMmDd, todayYyyyMmDd, 1);
+          }}
           style={{ height: '38px' }}
         >
           Reset to today
@@ -304,7 +384,7 @@ const Dashboard = () => {
       {/* Stats Cards */}
       <div className="dashboard-stats" style={{ marginBottom: '24px' }}>
         {[
-          { icon: 'payments', color: 'bg-purple-500', label: 'Revenue', val: `$${stats.totalRevenue.toLocaleString()}` },
+          { icon: 'payments', color: 'bg-purple-500', label: 'Net Sales', val: `$${stats.totalRevenue.toLocaleString()}` },
           { icon: 'inventory_2', color: 'bg-blue-500', label: 'Net Purchases', val: `$${stats.totalNetPurchases.toLocaleString()}` },
           { icon: 'shopping_cart', color: 'bg-green-500', label: 'Orders', val: stats.totalOrders },
           { icon: 'inventory', color: 'bg-orange-500', label: 'Products', val: stats.totalProducts }
@@ -319,8 +399,8 @@ const Dashboard = () => {
       {/* Charts Section */}
       <div className="dashboard-grid charts-grid" style={{ marginBottom: '24px' }}>
         <div className="card chart-card">
-          <div className="card-header"><h2>Sales & Revenue Overview</h2></div>
-          <div className="card-body" style={{ height: '300px' }}>
+          <div className="card-header"><h2>Sales & Net Sales Overview</h2></div>
+          <div className="card-body" style={{ height: '300px', minHeight: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={salesData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -337,7 +417,7 @@ const Dashboard = () => {
 
         <div className="card chart-card">
           <div className="card-header"><h2>Order Distribution</h2></div>
-          <div className="card-body" style={{ height: '300px' }}>
+          <div className="card-body" style={{ height: '300px', minHeight: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={distributionData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">

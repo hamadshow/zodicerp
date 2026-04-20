@@ -591,6 +591,10 @@ Route::group([
             Route::resource('companies', \App\Http\Controllers\Backend\InvestingStack\ListedCompanyController::class);
             Route::resource('brokers', \App\Http\Controllers\Backend\InvestingStack\BrokerController::class);
             Route::resource('prices', \App\Http\Controllers\Backend\InvestingStack\MarketPriceController::class);
+            Route::resource('buy-shares', \App\Http\Controllers\Backend\InvestingStack\BuyShareController::class);
+            Route::resource('sell-shares', \App\Http\Controllers\Backend\InvestingStack\SellShareController::class);
+            Route::get('portfolio', [\App\Http\Controllers\Backend\InvestingStack\PortfolioController::class, 'index'])->name('portfolio.index');
+            Route::resource('wallet', \App\Http\Controllers\Backend\InvestingStack\WalletController::class);
         });
 
         // 11. Budgeting (الموازنة)
@@ -768,6 +772,7 @@ Route::group([
         Route::get('platform-admin', function () {
             return Inertia::render('Backend/Settings/PlatformAdmin');
         })->name('platform-admin.index');
+        Route::get('cache-management', [App\Http\Controllers\Backend\Settings\CacheController::class, 'index'])->name('cache.index');
         Route::get('users', function () {
             return Inertia::render('Backend/Settings/Users');
         })->name('users.index');
