@@ -4,6 +4,7 @@ namespace App\Models\InvestingStack;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Company;
 
 class MarketPrice extends Model
 {
@@ -14,19 +15,48 @@ class MarketPrice extends Model
     protected $guarded = ['id'];
 
     protected $casts = [
-        'price_date' => 'date',
-        // 'price_time' => 'time', // Laravel doesn't have a direct 'time' cast to Carbon instance in older versions, but string is fine.
-        'price_timestamp' => 'datetime',
         'is_eod' => 'boolean',
         'is_intraday' => 'boolean',
-
-        // Decimal casts to ensure they are returned as numbers/strings correctly?
-        // Laravel returns decimals as strings by default to preserve precision.
-        // We can cast to float/double if needed for calculation, but string is safer for display.
+        'created_at' => 'datetime',
     ];
 
+    /**
+     * Get the instrument associated with the price.
+     */
     public function instrument()
     {
         return $this->belongsTo(ListedCompany::class, 'instrument_id');
+    }
+
+    /**
+     * Get the company (tenant) associated with this record.
+     */
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
+
+    /**
+     * Get the detailed price records (time-series).
+     */
+    public function details()
+    {
+        return $this->hasMany(MarketPriceDetail::class, 'market_price_id');
+    }
+
+    /**
+     * Scope a query to only include EOD prices.
+     */
+    public function scopeEod($query)
+    {
+        return $query->where('is_eod', true);
+    }
+
+    /**
+     * Scope a query to only include intraday prices.
+     */
+    public function scopeIntraday($query)
+    {
+        return $query->where('is_intraday', true);
     }
 }

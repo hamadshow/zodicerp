@@ -1,9 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import { debounce } from 'lodash';
 
 export default function Wallet({ transactions, currencies, brokers = [], balance, filters = {} }) {
+    const { props } = usePage();
+    const currentLocale = props.localization?.current_locale || 'ar';
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
@@ -34,7 +37,9 @@ export default function Wallet({ transactions, currencies, brokers = [], balance
     );
 
     useEffect(() => {
-        handleSearch(searchTerm, typeFilter);
+        if (searchTerm !== (filters.search || '') || typeFilter !== (filters.type || '')) {
+            handleSearch(searchTerm, typeFilter);
+        }
     }, [searchTerm, typeFilter]);
 
     const openModal = (transaction = null, type = 'DEPOSIT') => {
@@ -149,7 +154,13 @@ export default function Wallet({ transactions, currencies, brokers = [], balance
                                             {tx.transaction_type}
                                         </span>
                                     </td>
-                                    <td>{tx.broker?.id ? tx.broker.id : '-'}</td>
+                                    <td>
+                                        {tx.broker ? (
+                                            currentLocale === 'ar' 
+                                                ? (tx.broker.broker_name_ar || tx.broker.broker_name_en) 
+                                                : (tx.broker.broker_name_en || tx.broker.broker_name_ar)
+                                        ) : '-'}
+                                    </td>
                                     <td>{tx.reference_id || '-'}</td>
                                     <td style={{ fontWeight: '700' }}>
                                         {tx.transaction_type === 'DEPOSIT' ? '+' : '-'}${parseFloat(tx.amount).toFixed(2)}
@@ -226,7 +237,9 @@ export default function Wallet({ transactions, currencies, brokers = [], balance
                                     <option value="">Select Broker</option>
                                     {brokers.map(broker => (
                                         <option key={broker.id} value={broker.id}>
-                                            {broker.id} - {broker.broker_code}
+                                            {currentLocale === 'ar' 
+                                                ? (broker.broker_name_ar || broker.broker_name_en) 
+                                                : (broker.broker_name_en || broker.broker_name_ar)}
                                         </option>
                                     ))}
                                 </select>

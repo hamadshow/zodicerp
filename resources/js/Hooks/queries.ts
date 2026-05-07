@@ -6,8 +6,7 @@ import {
   ordersApi,
   categoriesApi,
   rolesApi,
-  permissionsApi,
-  authApi
+  permissionsApi
 } from '@/services/api';
 import {
   User,

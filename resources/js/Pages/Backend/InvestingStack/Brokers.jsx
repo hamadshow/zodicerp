@@ -18,7 +18,9 @@ const ViewSection = ({ brokers, filters, onEdit, onCreate, onDelete }) => {
     );
 
     useEffect(() => {
-        handleSearch(searchTerm);
+        if (searchTerm !== (filters.search || '')) {
+            handleSearch(searchTerm);
+        }
     }, [searchTerm]);
 
     const stats = useMemo(() => {

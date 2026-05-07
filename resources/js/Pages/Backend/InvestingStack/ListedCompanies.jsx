@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, router, Link, useForm } from '@inertiajs/react';
+import { Head, router, Link, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 
 const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, countries: countriesData, filters, onEdit, onCreate, onDelete }) => {
+    const { props } = usePage();
+    const translations = props.localization?.translations || {};
+    const t = (key, fallback) => {
+        const fullKey = `ListedCompanies.${key}`;
+        if (translations[fullKey]) return translations[fullKey];
+        console.warn(`Missing translation: ${fullKey}`);
+        return fallback;
+    };
+
     const [searchQuery, setSearchQuery] = useState(filters?.search || '');
     const [internalRatingFilter, setInternalRatingFilter] = useState(filters?.internal_rating || '');
     const [countryFilter, setCountryFilter] = useState(filters?.country || '');
@@ -28,11 +37,20 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
         if (countryFilter) params.country = countryFilter;
         if (marketIndexFilter) params.market_index = marketIndexFilter;
 
-        router.get(route('admin.investing.companies.index'), params, {
-            preserveState: true,
-            preserveScroll: true,
-            replace: true
-        });
+        // Check if params are different from current filters
+        const hasChanges = 
+            debouncedSearchQuery !== (filters?.search || '') ||
+            internalRatingFilter !== (filters?.internal_rating || '') ||
+            countryFilter !== (filters?.country || '') ||
+            marketIndexFilter !== (filters?.market_index || '');
+
+        if (hasChanges) {
+            router.get(route('admin.investing.companies.index'), params, {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true
+            });
+        }
     }, [debouncedSearchQuery, internalRatingFilter, countryFilter, marketIndexFilter]);
 
     const internalRatings = ['A', 'B', 'C', 'D']; // Standard ratings
@@ -69,7 +87,7 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
                     </div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.total}</span>
-                        <span className="stat-label">Total Companies</span>
+                        <span className="stat-label">{t('total_companies', 'Total Companies')}</span>
                     </div>
                 </div>
                 <div className="stat-card">
@@ -78,7 +96,7 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
                     </div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.active}</span>
-                        <span className="stat-label">Active Companies</span>
+                        <span className="stat-label">{t('active_companies', 'Active Companies')}</span>
                     </div>
                 </div>
                 <div className="stat-card">
@@ -87,7 +105,7 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
                     </div>
                     <div className="stat-info">
                         <span className="stat-value">{stats.inactive}</span>
-                        <span className="stat-label">Inactive/Other</span>
+                        <span className="stat-label">{t('inactive_companies', 'Inactive/Other')}</span>
                     </div>
                 </div>
             </div>
@@ -99,47 +117,50 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
                             <span className="material-icons-outlined search-icon">search</span>
                             <input
                                 type="text"
-                                placeholder="Search companies by ticker or name..."
+                                placeholder={t('search_placeholder', 'Search companies by ticker or name...')}
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 dir="auto"
                             />
                             {searchQuery && (
-                                <button className="clear-btn" onClick={() => setSearchQuery('')} title="Clear search">
+                                <button className="clear-btn" onClick={() => setSearchQuery('')} title={t('clear_filters', 'Clear search')}>
                                     <span className="material-icons-outlined">clear</span>
                                 </button>
                             )}
                         </div>
                         <div className="filter-controls">
                             <select value={internalRatingFilter} onChange={(e) => setInternalRatingFilter(e.target.value)}>
-                                <option value="">All Internal Ratings</option>
+                                <option value="">{t('all_ratings', 'All Internal Ratings')}</option>
                                 {internalRatings.map(rating => (
                                     <option key={rating} value={rating}>{rating}</option>
                                 ))}
                             </select>
                             <select value={marketIndexFilter} onChange={(e) => setMarketIndexFilter(e.target.value)}>
-                                <option value="">All Market Indices</option>
+                                <option value="">{t('all_indices', 'All Market Indices')}</option>
                                 {marketIndices.map(indexName => (
                                     <option key={indexName} value={indexName}>{indexName}</option>
                                 ))}
                             </select>
                             <select value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)}>
-                                <option value="">All Countries</option>
+                                <option value="">{t('all_countries', 'All Countries')}</option>
                                 {countries.map(country => (
                                     <option key={country} value={country}>{country}</option>
                                 ))}
                             </select>
                             <button className="btn btn-secondary clear-filters-btn" onClick={() => { setSearchQuery(''); setInternalRatingFilter(''); setCountryFilter(''); setMarketIndexFilter(''); }}>
-                                Clear Filters
+                                {t('clear_filters', 'Clear Filters')}
                             </button>
                         </div>
                     </div>
                     <div className="results-info">
-                        Showing {companies.from || 0} to {companies.to || 0} of {companies.total} companies
+                        {t('showing_results', `Showing ${companies.from || 0} to ${companies.to || 0} of ${companies.total} companies`)
+                            .replace(':from', companies.from || 0)
+                            .replace(':to', companies.to || 0)
+                            .replace(':total', companies.total)}
                     </div>
                     <button className="btn btn-primary" onClick={onCreate}>
                         <span className="material-icons-outlined">add</span>
-                        Add New Company
+                        {t('add_new', 'Add New Company')}
                     </button>
                 </div>
 
@@ -147,15 +168,15 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
                     <table className="professional-table">
                         <thead>
                             <tr>
-                                <th>Code</th>
-                                <th>Name (AR)</th>
-                                <th>Name (EN)</th>
-                                <th>Ticker</th>
-                                <th>Country</th>
-                                <th>Currency</th>
-                                <th>Indices</th>
-                                <th>Status</th>
-                                <th>Actions</th>
+                                <th>{t('code', 'Code')}</th>
+                                <th>{t('name_ar', 'Name (AR)')}</th>
+                                <th>{t('name_en', 'Name (EN)')}</th>
+                                <th>{t('ticker', 'Ticker')}</th>
+                                <th>{t('country', 'Country')}</th>
+                                <th>{t('currency', 'Currency')}</th>
+                                <th>{t('indices', 'Indices')}</th>
+                                <th>{t('status', 'Status')}</th>
+                                <th>{t('actions', 'Actions')}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -181,15 +202,15 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
                                         </td>
                                         <td>
                                             <span className={`status-badge ${company.status}`}>
-                                                {company.status ? company.status.charAt(0).toUpperCase() + company.status.slice(1) : '-'}
+                                                {company.status ? t(company.status, company.status.charAt(0).toUpperCase() + company.status.slice(1)) : '-'}
                                             </span>
                                         </td>
                                         <td>
                                             <div className="action-buttons">
-                                                <button onClick={() => onEdit(company)} title="Edit">
+                                                <button onClick={() => onEdit(company)} title={t('edit', 'Edit')}>
                                                     <span className="material-icons-outlined">edit</span>
                                                 </button>
-                                                <button className="delete-btn" onClick={() => onDelete(company.id)} title="Delete">
+                                                <button className="delete-btn" onClick={() => onDelete(company.id)} title={t('delete', 'Delete')}>
                                                     <span className="material-icons-outlined">delete</span>
                                                 </button>
                                             </div>
@@ -199,7 +220,7 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
                             ) : (
                                 <tr>
                                     <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>
-                                        No companies match your search. <button onClick={() => { setSearchQuery(''); setInternalRatingFilter(''); setCountryFilter(''); setMarketIndexFilter(''); }}>Clear filters</button>
+                                        {t('no_companies_found', 'No companies match your search.')} <button onClick={() => { setSearchQuery(''); setInternalRatingFilter(''); setCountryFilter(''); setMarketIndexFilter(''); }}>{t('clear_filters', 'Clear filters')}</button>
                                     </td>
                                 </tr>
                             )}
@@ -242,6 +263,15 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
 };
 
 const FormSection = ({ mode, initialData, countries, currencies, industries, subIndustries, exchanges, marketIndices, states, cities, onBack, onSuccess }) => {
+    const { props } = usePage();
+    const translations = props.localization?.translations || {};
+    const t = (key, fallback) => {
+        const fullKey = `ListedCompanies.${key}`;
+        if (translations[fullKey]) return translations[fullKey];
+        console.warn(`Missing translation: ${fullKey}`);
+        return fallback;
+    };
+
     const isEdit = mode === 'edit';
     const [activeTab, setActiveTab] = useState('general');
     
@@ -319,14 +349,14 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
     };
 
     const tabs = [
-        { id: 'general', label: 'General Info', icon: 'info' },
-        { id: 'classification', label: 'Classification', icon: 'category' },
-        { id: 'location', label: 'Location', icon: 'place' },
-        { id: 'contact', label: 'Contact', icon: 'contact_phone' },
-        { id: 'people', label: 'People', icon: 'people' },
-        { id: 'financials', label: 'Financials', icon: 'account_balance_wallet' },
-        { id: 'listing', label: 'Listing', icon: 'list_alt' },
-        { id: 'relations', label: 'Relations', icon: 'handshake' },
+        { id: 'general', label: t('tab_general', 'General Info'), icon: 'info' },
+        { id: 'classification', label: t('tab_classification', 'Classification'), icon: 'category' },
+        { id: 'location', label: t('tab_location', 'Location'), icon: 'place' },
+        { id: 'contact', label: t('tab_contact', 'Contact'), icon: 'contact_phone' },
+        { id: 'people', label: t('tab_people', 'People'), icon: 'people' },
+        { id: 'financials', label: t('tab_financials', 'Financials'), icon: 'account_balance_wallet' },
+        { id: 'listing', label: t('tab_listing', 'Listing'), icon: 'list_alt' },
+        { id: 'relations', label: t('tab_relations', 'Relations'), icon: 'handshake' },
     ];
 
     return (
@@ -334,12 +364,12 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
             <div className="page-header" style={{ marginBottom: '1.5rem' }}>
                 <div className="page-header-title" style={{ margin: 0 }}>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1f2937' }}>
-                        {isEdit ? 'Edit Listed Company' : 'Create New Listed Company'}
+                        {isEdit ? t('edit_title', 'Edit Listed Company') : t('create_title', 'Create New Listed Company')}
                     </h2>
                 </div>
                 <button className="btn btn-secondary" onClick={onBack}>
                     <span className="material-icons-outlined">arrow_back</span>
-                    Back to List
+                    {t('back_to_list', 'Back to List')}
                 </button>
             </div>
 
@@ -364,62 +394,62 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                             {activeTab === 'general' && (
                                 <div className="form-grid">
                                     <div className="form-group">
-                                        <label>Company Code *</label>
+                                        <label>{t('company_code', 'Company Code')} *</label>
                                         <input type="text" value={data.company_code} onChange={e => setData('company_code', e.target.value)} required readOnly={isEdit} style={isEdit ? { backgroundColor: '#f3f4f6' } : {}} />
                                         {errors.company_code && <div className="error-message">{errors.company_code}</div>}
                                     </div>
                                     <div className="form-group">
-                                        <label>Legal Form *</label>
+                                        <label>{t('legal_form', 'Legal Form')} *</label>
                                         <select value={data.legal_form} onChange={e => setData('legal_form', e.target.value)} required>
-                                            <option value="llc">LLC</option>
-                                            <option value="joint_stock">Joint Stock</option>
-                                            <option value="partnership">Partnership</option>
-                                            <option value="sole_proprietorship">Sole Proprietorship</option>
-                                            <option value="branch">Branch</option>
-                                            <option value="subsidiary">Subsidiary</option>
-                                            <option value="government">Government</option>
-                                            <option value="non_profit">Non-Profit</option>
+                                            <option value="llc">{t('llc', 'LLC')}</option>
+                                            <option value="joint_stock">{t('joint_stock', 'Joint Stock')}</option>
+                                            <option value="partnership">{t('partnership', 'Partnership')}</option>
+                                            <option value="sole_proprietorship">{t('sole_proprietorship', 'Sole Proprietorship')}</option>
+                                            <option value="branch">{t('branch', 'Branch')}</option>
+                                            <option value="subsidiary">{t('subsidiary', 'Subsidiary')}</option>
+                                            <option value="government">{t('government', 'Government')}</option>
+                                            <option value="non_profit">{t('non_profit', 'Non-Profit')}</option>
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>Legal Name (AR) *</label>
+                                        <label>{t('legal_name_ar', 'Legal Name (AR)')} *</label>
                                         <input type="text" value={data.legal_name_ar} onChange={e => setData('legal_name_ar', e.target.value)} required />
                                         {errors.legal_name_ar && <div className="error-message">{errors.legal_name_ar}</div>}
                                     </div>
                                     <div className="form-group">
-                                        <label>Legal Name (EN)</label>
+                                        <label>{t('legal_name_en', 'Legal Name (EN)')}</label>
                                         <input type="text" value={data.legal_name_en} onChange={e => setData('legal_name_en', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Trade Name (AR)</label>
+                                        <label>{t('trade_name_ar', 'Trade Name (AR)')}</label>
                                         <input type="text" value={data.trade_name_ar} onChange={e => setData('trade_name_ar', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Trade Name (EN)</label>
+                                        <label>{t('trade_name_en', 'Trade Name (EN)')}</label>
                                         <input type="text" value={data.trade_name_en} onChange={e => setData('trade_name_en', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Company Size *</label>
+                                        <label>{t('company_size', 'Company Size')} *</label>
                                         <select value={data.company_size} onChange={e => setData('company_size', e.target.value)} required>
-                                            <option value="micro">Micro</option>
-                                            <option value="small">Small</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="large">Large</option>
-                                            <option value="enterprise">Enterprise</option>
+                                            <option value="micro">{t('micro', 'Micro')}</option>
+                                            <option value="small">{t('small', 'Small')}</option>
+                                            <option value="medium">{t('medium', 'Medium')}</option>
+                                            <option value="large">{t('large', 'Large')}</option>
+                                            <option value="enterprise">{t('enterprise', 'Enterprise')}</option>
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>Status *</label>
+                                        <label>{t('status_label', 'Status')} *</label>
                                         <select value={data.status} onChange={e => setData('status', e.target.value)} required>
-                                            <option value="active">Active</option>
-                                            <option value="inactive">Inactive</option>
-                                            <option value="suspended">Suspended</option>
-                                            <option value="bankrupt">Bankrupt</option>
-                                            <option value="dissolved">Dissolved</option>
+                                            <option value="active">{t('active', 'Active')}</option>
+                                            <option value="inactive">{t('inactive', 'Inactive')}</option>
+                                            <option value="suspended">{t('suspended', 'Suspended')}</option>
+                                            <option value="bankrupt">{t('bankrupt', 'Bankrupt')}</option>
+                                            <option value="dissolved">{t('dissolved', 'Dissolved')}</option>
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>Internal Rating *</label>
+                                        <label>{t('internal_rating', 'Internal Rating')} *</label>
                                         <select value={data.internal_rating} onChange={e => setData('internal_rating', e.target.value)} required>
                                             <option value="A">A</option>
                                             <option value="B">B</option>
@@ -433,16 +463,16 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                             {activeTab === 'classification' && (
                                 <div className="form-grid">
                                     <div className="form-group">
-                                        <label>Industry</label>
+                                        <label>{t('industry', 'Industry')}</label>
                                         <select value={data.industry_id} onChange={e => setData('industry_id', e.target.value)}>
-                                            <option value="">Select Industry</option>
+                                            <option value="">{t('select_industry', 'Select Industry')}</option>
                                             {industries.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>Sub-Industry</label>
+                                        <label>{t('sub_industry', 'Sub-Industry')}</label>
                                         <select value={data.sub_industry_id} onChange={e => setData('sub_industry_id', e.target.value)}>
-                                            <option value="">Select Sub-Industry</option>
+                                            <option value="">{t('select_sub_industry', 'Select Sub-Industry')}</option>
                                             {subIndustries.filter(si => !data.industry_id || si.industry_id == data.industry_id).map(si => <option key={si.id} value={si.id}>{si.name}</option>)}
                                         </select>
                                     </div>
@@ -452,32 +482,32 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                             {activeTab === 'location' && (
                                 <div className="form-grid">
                                     <div className="form-group">
-                                        <label>Country *</label>
+                                        <label>{t('country', 'Country')} *</label>
                                         <select value={data.country_id} onChange={e => setData('country_id', e.target.value)} required>
-                                            <option value="">Select Country</option>
+                                            <option value="">{t('select_country', 'Select Country')}</option>
                                             {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>State</label>
+                                        <label>{t('state', 'State')}</label>
                                         <select value={data.state_id} onChange={e => setData('state_id', e.target.value)}>
-                                            <option value="">Select State</option>
+                                            <option value="">{t('select_state', 'Select State')}</option>
                                             {states.filter(s => !data.country_id || s.country_id == data.country_id).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>City</label>
+                                        <label>{t('city', 'City')}</label>
                                         <select value={data.city_id} onChange={e => setData('city_id', e.target.value)}>
-                                            <option value="">Select City</option>
+                                            <option value="">{t('select_city', 'Select City')}</option>
                                             {cities.filter(c => !data.country_id || c.country_id == data.country_id).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                         </select>
                                     </div>
                                     <div className="form-group full-width">
-                                        <label>Address (AR)</label>
+                                        <label>{t('address_ar', 'Address (AR)')}</label>
                                         <input type="text" value={data.address_ar} onChange={e => setData('address_ar', e.target.value)} />
                                     </div>
                                     <div className="form-group full-width">
-                                        <label>Address (EN)</label>
+                                        <label>{t('address_en', 'Address (EN)')}</label>
                                         <input type="text" value={data.address_en} onChange={e => setData('address_en', e.target.value)} />
                                     </div>
                                 </div>
@@ -486,15 +516,15 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                             {activeTab === 'contact' && (
                                 <div className="form-grid">
                                     <div className="form-group">
-                                        <label>Phone</label>
+                                        <label>{t('phone', 'Phone')}</label>
                                         <input type="text" value={data.phone} onChange={e => setData('phone', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Email</label>
+                                        <label>{t('email', 'Email')}</label>
                                         <input type="email" value={data.email} onChange={e => setData('email', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Website</label>
+                                        <label>{t('website', 'Website')}</label>
                                         <input type="url" value={data.website} onChange={e => setData('website', e.target.value)} />
                                     </div>
                                 </div>
@@ -503,19 +533,19 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                             {activeTab === 'people' && (
                                 <div className="form-grid">
                                     <div className="form-group">
-                                        <label>CEO Name (AR)</label>
+                                        <label>{t('ceo_name_ar', 'CEO Name (AR)')}</label>
                                         <input type="text" value={data.ceo_name_ar} onChange={e => setData('ceo_name_ar', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>CEO Name (EN)</label>
+                                        <label>{t('ceo_name_en', 'CEO Name (EN)')}</label>
                                         <input type="text" value={data.ceo_name_en} onChange={e => setData('ceo_name_en', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Chairman (AR)</label>
+                                        <label>{t('chairman_name_ar', 'Chairman Name (AR)')}</label>
                                         <input type="text" value={data.chairman_name_ar} onChange={e => setData('chairman_name_ar', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Chairman (EN)</label>
+                                        <label>{t('chairman_name_en', 'Chairman Name (EN)')}</label>
                                         <input type="text" value={data.chairman_name_en} onChange={e => setData('chairman_name_en', e.target.value)} />
                                     </div>
                                 </div>
@@ -524,22 +554,22 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                             {activeTab === 'financials' && (
                                 <div className="form-grid">
                                     <div className="form-group">
-                                        <label>Reporting Currency</label>
+                                        <label>{t('reporting_currency', 'Reporting Currency')}</label>
                                         <select value={data.reporting_currency_id} onChange={e => setData('reporting_currency_id', e.target.value)}>
-                                            <option value="">Select Currency</option>
+                                            <option value="">{t('select_currency', 'Select Currency')}</option>
                                             {currencies.map(c => <option key={c.id} value={c.id}>{c.code} - {c.name}</option>)}
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>Paid-up Capital</label>
+                                        <label>{t('paid_up_capital', 'Paid-up Capital')}</label>
                                         <input type="number" step="0.01" value={data.paid_up_capital} onChange={e => setData('paid_up_capital', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Authorized Capital</label>
+                                        <label>{t('authorized_capital', 'Authorized Capital')}</label>
                                         <input type="number" step="0.01" value={data.authorized_capital} onChange={e => setData('authorized_capital', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Annual Revenue</label>
+                                        <label>{t('annual_revenue', 'Annual Revenue')}</label>
                                         <input type="number" step="0.01" value={data.annual_revenue} onChange={e => setData('annual_revenue', e.target.value)} />
                                     </div>
                                 </div>
@@ -548,30 +578,30 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                             {activeTab === 'listing' && (
                                 <div className="form-grid">
                                     <div className="form-group">
-                                        <label>Stock Exchange</label>
+                                        <label>{t('exchange', 'Stock Exchange')}</label>
                                         <select value={data.exchange_id} onChange={e => setData('exchange_id', e.target.value)}>
-                                            <option value="">Select Exchange</option>
+                                            <option value="">{t('select_exchange', 'Select Exchange')}</option>
                                             {exchanges.map(ex => <option key={ex.id} value={ex.id}>{ex.name} ({ex.code})</option>)}
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>Ticker Symbol</label>
+                                        <label>{t('ticker_symbol', 'Ticker Symbol')}</label>
                                         <input type="text" value={data.ticker_symbol} onChange={e => setData('ticker_symbol', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>ISIN Code</label>
+                                        <label>{t('isin_code', 'ISIN Code')}</label>
                                         <input type="text" value={data.isin_code} onChange={e => setData('isin_code', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>IPO Date</label>
+                                        <label>{t('ipo_date', 'IPO Date')}</label>
                                         <input type="date" value={data.ipo_date} onChange={e => setData('ipo_date', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Market Cap</label>
+                                        <label>{t('market_cap', 'Market Cap')}</label>
                                         <input type="number" step="0.01" value={data.market_cap} onChange={e => setData('market_cap', e.target.value)} />
                                     </div>
                                     <div className="form-group full-width">
-                                        <label>Market Indices</label>
+                                        <label>{t('market_indices', 'Market Indices')}</label>
                                         <div className="checkbox-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem', background: '#f8f9fa', padding: '1rem', borderRadius: '8px' }}>
                                             {marketIndices.map(mi => (
                                                 <label key={mi.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', margin: 0 }}>
@@ -587,16 +617,16 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                                         </div>
                                     </div>
                                     <div className="form-group">
-                                        <label>Credit Score</label>
+                                        <label>{t('credit_score', 'Credit Score')}</label>
                                         <input type="number" value={data.credit_score} onChange={e => setData('credit_score', e.target.value)} />
                                     </div>
                                     <div className="form-group">
-                                        <label>Rating Outlook *</label>
+                                        <label>{t('rating_outlook', 'Rating Outlook')} *</label>
                                         <select value={data.rating_outlook} onChange={e => setData('rating_outlook', e.target.value)} required>
-                                            <option value="positive">Positive</option>
-                                            <option value="stable">Stable</option>
-                                            <option value="negative">Negative</option>
-                                            <option value="watch">Watch</option>
+                                            <option value="positive">{t('positive', 'Positive')}</option>
+                                            <option value="stable">{t('stable', 'Stable')}</option>
+                                            <option value="negative">{t('negative', 'Negative')}</option>
+                                            <option value="watch">{t('watch', 'Watch')}</option>
                                         </select>
                                     </div>
                                 </div>
@@ -613,11 +643,11 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                                         <input type="text" value={data.commercial_registration} onChange={e => setData('commercial_registration', e.target.value)} />
                                     </div>
                                     <div className="form-group full-width">
-                                        <label>Description</label>
+                                        <label>{t('description', 'Description')}</label>
                                         <textarea value={data.description} onChange={e => setData('description', e.target.value)} rows="3"></textarea>
                                     </div>
                                     <div className="form-group full-width">
-                                         <label>Notes</label>
+                                         <label>{t('notes', 'Notes')}</label>
                                          <textarea value={data.notes} onChange={e => setData('notes', e.target.value)} rows="3"></textarea>
                                      </div>
                                  </div>
@@ -625,9 +655,9 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                          </div>
 
                         <div className="form-actions" style={{ padding: '1.5rem', borderTop: '1px solid #eee' }}>
-                            <button type="button" className="btn btn-secondary" onClick={onBack} disabled={processing}>Cancel</button>
+                            <button type="button" className="btn btn-secondary" onClick={onBack} disabled={processing}>{t('cancel', 'Cancel')}</button>
                             <button type="submit" className="btn btn-primary" disabled={processing}>
-                                {processing ? 'Saving...' : (isEdit ? 'Update Company' : 'Create Company')}
+                                {processing ? t('saving', 'Saving...') : (isEdit ? t('update', 'Update Company') : t('save', 'Save Company'))}
                             </button>
                         </div>
                     </form>
@@ -638,6 +668,19 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
 };
 
 const ListedCompanies = ({ companies, stats, countries, currencies, industries, subIndustries, exchanges, marketIndices, creditRatings, states, cities, filters }) => {
+    const { props } = usePage();
+    if (typeof window !== 'undefined') window.debugTranslations = props.localization?.translations;
+    console.log('Localization Props:', props.localization);
+    console.log('Debug ListedCompanies Key:', props.localization?.debug_listed_companies);
+    const translations = props.localization?.translations || {};
+    console.log('Translation Keys starting with ListedCompanies:', Object.keys(translations).filter(k => k.startsWith('ListedCompanies')));
+    const t = (key, fallback) => {
+        const fullKey = `ListedCompanies.${key}`;
+        if (translations[fullKey]) return translations[fullKey];
+        console.warn(`Missing translation: ${fullKey}`);
+        return fallback;
+    };
+
     const [viewMode, setViewMode] = useState('list');
     const [selectedCompany, setSelectedCompany] = useState(null);
 
@@ -652,7 +695,7 @@ const ListedCompanies = ({ companies, stats, countries, currencies, industries, 
     };
 
     const handleDelete = (id) => {
-        if (confirm('Are you sure you want to delete this company?')) {
+        if (confirm(t('delete_confirm_msg', 'Are you sure you want to delete this company?'))) {
             router.delete(route('admin.investing.companies.destroy', id), {
                 preserveScroll: true,
             });
@@ -661,11 +704,10 @@ const ListedCompanies = ({ companies, stats, countries, currencies, industries, 
 
     return (
         <AdminLayout>
-            <Head title="Listed Companies" />
+            <Head title={t('page_title', 'Listed Companies Management')} />
             <div className="listed-companies-container">
                 <div className="page-header-title">
-                    <h1>Listed Companies Management</h1>
-                    <p>Manage public companies, tickers, and exchange information</p>
+                    <h1>{t('page_title', 'Listed Companies Management')} - {t('test_key', 'FALLBACK')}</h1>
                 </div>
 
                 {viewMode === 'list' && (

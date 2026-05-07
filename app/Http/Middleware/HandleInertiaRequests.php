@@ -19,7 +19,7 @@ class HandleInertiaRequests extends Middleware
         $locale = App::getLocale();
         $fallbackLocale = config('app.fallback_locale');
 
-        return Cache::remember("inertia.translations.{$locale}", 86400, function () use ($locale, $fallbackLocale) {
+        // return Cache::remember("inertia.translations.{$locale}", 86400, function () use ($locale, $fallbackLocale) {
             $safeLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $locale);
             $safeFallbackLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $fallbackLocale);
 
@@ -37,7 +37,7 @@ class HandleInertiaRequests extends Middleware
                 ->toArray();
 
             $fileTranslations = [];
-            $files = ['homepage', 'home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth' ,'verify_email','confirm','reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'FinancialReports', 'TrialBalance', 'Journal'];
+            $files = ['homepage', 'home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth' ,'verify_email','confirm','reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'FinancialReports', 'TrialBalance', 'Journal', 'MarketPrices', 'ListedCompanies'];
 
             foreach ($files as $file) {
                 $path = lang_path("$locale/$file.php");
@@ -51,8 +51,11 @@ class HandleInertiaRequests extends Middleware
                 }
             }
 
-            return array_merge($fileTranslations, $dbTranslations);
-        });
+            $allTranslations = array_merge($fileTranslations, $dbTranslations, ['ListedCompanies.test_key' => 'TEST_ARABIC_VALUE']);
+            $listedKeys = array_filter(array_keys($allTranslations), fn($k) => str_starts_with($k, 'ListedCompanies'));
+            \Log::info("Sharing " . count($allTranslations) . " translations. ListedCompanies keys: " . count($listedKeys) . ". Sample keys: " . implode(', ', array_slice($listedKeys, 0, 5)));
+            return $allTranslations;
+        // });
     }
 
     /**
@@ -103,6 +106,7 @@ class HandleInertiaRequests extends Middleware
                     fn () => Language::orderBy('lang_order', 'asc')->get()
                 ),
                 'translations' => $skipTranslations ? [] : $this->getTranslations(),
+                'debug_listed_companies' => array_key_exists('ListedCompanies.page_title', $this->getTranslations()),
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),

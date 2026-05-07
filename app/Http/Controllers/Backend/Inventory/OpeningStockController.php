@@ -113,8 +113,33 @@ class OpeningStockController extends Controller
     {
         $openingStock->load(['warehouse', 'items.product', 'creator']);
         
-        return Inertia::render('Backend/03-Inventory/OpeningStockShow', [
-            'stock' => $openingStock,
+        $warehouses = \App\Models\Warehouses::query()
+            ->select(['id', 'name'])
+            ->orderBy('id')
+            ->get();
+
+        $products = \App\Models\Products::query()
+            ->select(['id', 'name', 'sku', 'barcode'])
+            ->orderBy('id', 'desc')
+            ->limit(2000)
+            ->get();
+
+        $units = \App\Models\ItemUnit::query()
+            ->select(['id', 'name'])
+            ->where('active', true)
+            ->where('unit_type', 1)
+            ->orderBy('id')
+            ->get();
+        
+        return Inertia::render('Backend/03-Inventory/OpeningStock', [
+            'viewing' => true,
+            'openingStock' => $openingStock,
+            'warehouses' => $warehouses,
+            'products' => $products,
+            'units' => $units,
+            'openingStocks' => [],
+            'pagination' => [],
+            'initialShowForm' => true,
         ]);
     }
 

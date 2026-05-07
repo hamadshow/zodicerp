@@ -591,6 +591,8 @@ Route::group([
             Route::resource('companies', \App\Http\Controllers\Backend\InvestingStack\ListedCompanyController::class);
             Route::resource('brokers', \App\Http\Controllers\Backend\InvestingStack\BrokerController::class);
             Route::resource('prices', \App\Http\Controllers\Backend\InvestingStack\MarketPriceController::class);
+            Route::put('prices/details/{detail}', [\App\Http\Controllers\Backend\InvestingStack\MarketPriceController::class, 'updateDetail'])->name('prices.updateDetail');
+            Route::delete('prices/details/{detail}', [\App\Http\Controllers\Backend\InvestingStack\MarketPriceController::class, 'destroyDetail'])->name('prices.destroyDetail');
             Route::resource('buy-shares', \App\Http\Controllers\Backend\InvestingStack\BuyShareController::class);
             Route::resource('sell-shares', \App\Http\Controllers\Backend\InvestingStack\SellShareController::class);
             Route::get('portfolio', [\App\Http\Controllers\Backend\InvestingStack\PortfolioController::class, 'index'])->name('portfolio.index');

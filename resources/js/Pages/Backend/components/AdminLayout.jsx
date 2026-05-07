@@ -121,7 +121,18 @@ const AdminLayout = ({
         },
       ].filter(Boolean),
     },
-    
+    {
+      icon: 'account_balance',
+      label: translations['sidebar.bank_cash'] || 'Bank and Cash',
+      hasSubmenu: true,
+      submenuItems: [
+        { icon: 'account_balance_wallet', label: translations['sidebar.cash'] || 'Cash', href: getLocalizedRoute('admin.petty-cash.index') },
+        { icon: 'account_balance', label: translations['sidebar.banks'] || 'Banks', href: getLocalizedRoute('admin.banks.index') },
+        { icon: 'payments', label: translations['sidebar.cheque'] || 'Cheque', href: getLocalizedRoute('admin.cheques.index') },
+        { icon: 'swap_horiz', label: translations['sidebar.bank_transactions'] || 'Bank Transactions', href: getLocalizedRoute('admin.bank-transactions.index') },
+        { icon: 'receipt_long', label: translations['sidebar.payment_voucher'] || 'Payment Voucher', href: getLocalizedRoute('admin.payment-vouchers.index') },
+      ],
+    },
     {
       icon: 'inventory_2',
       label: translations['sidebar.inventory'] || 'Inventory',
@@ -194,28 +205,6 @@ const AdminLayout = ({
       ],
     },
     {
-      icon: 'percent',
-      label: translations['sidebar.discounts_taxes'] || 'Discounts & Taxes',
-      hasSubmenu: true,
-      submenuItems: [
-        { icon: 'local_offer', label: translations['sidebar.purchase_discounts'] || 'Purchase Discounts', href: getLocalizedRoute('admin.purchases.discounts.index') },
-        { icon: 'rule', label: translations['sidebar.discount_rules'] || 'Discount Rules', href: getLocalizedRoute('admin.purchases.discounts.rules') },
-        { icon: 'gavel', label: translations['sidebar.tax_management'] || 'Tax Management', href: getLocalizedRoute('admin.purchases.taxes.index') },
-        { icon: 'calculate', label: translations['sidebar.tax_calculations'] || 'Tax Calculations', href: getLocalizedRoute('admin.purchases.taxes.calculations') },
-      ],
-    },
-    {
-      icon: 'monetization_on',
-      label: translations['sidebar.costing_expenses'] || 'Costing & Expenses',
-      hasSubmenu: true,
-      submenuItems: [
-        { icon: 'price_check', label: translations['sidebar.purchase_costing'] || 'Purchase Costing', href: getLocalizedRoute('admin.purchases.costing.index') },
-        { icon: 'receipt_long', label: translations['sidebar.expense_management'] || 'Expense Management', href: getLocalizedRoute('admin.purchases.expenses.index') },
-        { icon: 'flight_land', label: translations['sidebar.landed_costs'] || 'Landed Costs', href: getLocalizedRoute('admin.purchases.landed-costs.index') },
-        { icon: 'pie_chart', label: translations['sidebar.cost_allocation'] || 'Cost Allocation', href: getLocalizedRoute('admin.purchases.cost-allocation.index') },
-      ],
-    },
-    {
       icon: 'account_balance_wallet',
       label: translations['sidebar.budgeting'] || 'Budgeting',
       hasSubmenu: true,
@@ -236,18 +225,6 @@ const AdminLayout = ({
       submenuItems: [
         { icon: 'campaign', label: translations['sidebar.ads'] || 'Ads', href: getLocalizedRoute('admin.ecommerce.ads.index') },
         { icon: 'bolt', label: translations['sidebar.flash_sales'] || 'Flash Sales', href: getLocalizedRoute('admin.client-sales.flash-sales.index') },
-      ],
-    },
-    {
-      icon: 'account_balance',
-      label: translations['sidebar.bank_cash'] || 'Bank and Cash',
-      hasSubmenu: true,
-      submenuItems: [
-          { icon: 'account_balance_wallet', label: translations['sidebar.cash'] || 'Cash', href: getLocalizedRoute('admin.petty-cash.index') },
-          { icon: 'account_balance', label: translations['sidebar.banks'] || 'Banks', href: getLocalizedRoute('admin.banks.index') },
-          { icon: 'payments', label: translations['sidebar.cheque'] || 'Cheque', href: getLocalizedRoute('admin.cheques.index') },
-          { icon: 'swap_horiz', label: translations['sidebar.bank_transactions'] || 'Bank Transactions', href: getLocalizedRoute('admin.bank-transactions.index') },
-          { icon: 'receipt_long', label: translations['sidebar.payment_voucher'] || 'Payment Voucher', href: getLocalizedRoute('admin.payment-vouchers.index') }
       ],
     },
     {

@@ -242,12 +242,13 @@ const FormSection = ({ mode, initialData, parentCategories, accounts, department
 
                         <div className="form-grid">
                             <div className="form-group">
-                                <label>{t('type', 'Category Type')}</label>
+                                <label>{t('type', 'Category Type')} <span style={{ color: 'red' }}>*</span></label>
                                 <input
                                     type="text"
                                     name="category_type"
-                                    defaultValue={initialData?.category_type}
+                                    defaultValue={initialData?.category_type || 'Operational'}
                                     placeholder="e.g. Capital, Operational"
+                                    required
                                 />
                                 {errors.category_type && <div className="error-message">{errors.category_type}</div>}
                             </div>

@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, useForm, router, Link } from '@inertiajs/react';
+import { Head, useForm, router, Link, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
 import { debounce } from 'lodash';
 
 export default function BuyShares({ buyShares, currencies, companies = [], brokers = [], filters = {} }) {
+    const { localization } = usePage().props;
+    const currentLocale = localization?.current_locale || 'ar';
     const [mode, setMode] = useState('list'); // list, create, edit
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
 
@@ -26,21 +28,23 @@ export default function BuyShares({ buyShares, currencies, companies = [], broke
     const companyOptions = useMemo(() => {
         return companies.map(c => ({
             value: c.ticker_symbol,
-            label: `${c.ticker_symbol} - ${c.legal_name_ar}`,
+            label: `${c.ticker_symbol} - ${currentLocale === 'en' ? (c.legal_name_en || c.legal_name_ar) : (c.legal_name_ar || c.legal_name_en)}`,
             code: c.company_code,
             ticker_symbol: c.ticker_symbol,
-            company_name: c.legal_name_ar
+            company_name: currentLocale === 'en' ? (c.legal_name_en || c.legal_name_ar) : (c.legal_name_ar || c.legal_name_en)
         }));
-    }, [companies]);
+    }, [companies, currentLocale]);
 
     const brokerOptions = useMemo(() => {
         return brokers.map(b => ({
             value: b.id,
-            label: `${b.broker_name_ar} / ${b.broker_name_en}`,
+            label: currentLocale === 'ar' 
+                ? (b.broker_name_ar || b.broker_name_en) 
+                : (b.broker_name_en || b.broker_name_ar),
             broker_name_ar: b.broker_name_ar,
             broker_name_en: b.broker_name_en
         }));
-    }, [brokers]);
+    }, [brokers, currentLocale]);
 
     const handleSearch = useMemo(
         () => debounce((value) => {
@@ -54,7 +58,9 @@ export default function BuyShares({ buyShares, currencies, companies = [], broke
     );
 
     useEffect(() => {
-        handleSearch(searchTerm);
+        if (searchTerm !== (filters.search || '')) {
+            handleSearch(searchTerm);
+        }
     }, [searchTerm]);
 
     const handleCreate = () => {

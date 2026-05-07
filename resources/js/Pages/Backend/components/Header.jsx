@@ -30,8 +30,16 @@ const Header = ({ isRtl }) => {
     const currentPath = window.location.pathname;
     const pathSegments = currentPath.split('/').filter(Boolean);
     
-    if (pathSegments.length >= 2) {
-      // Assuming first segment is country and second is language
+    // Check if we are in the investing section
+    const isInvesting = currentPath.includes('/admin/investing');
+    
+    if (isInvesting && pathSegments.length >= 2) {
+      // Specifically handle the switch for investing routes to keep the same page
+      pathSegments[1] = lang;
+      const newPath = '/' + pathSegments.join('/') + window.location.search;
+      router.visit(newPath);
+    } else if (pathSegments.length >= 2) {
+      // Default behavior for other routes
       pathSegments[1] = lang;
       const newPath = '/' + pathSegments.join('/') + window.location.search;
       router.visit(newPath);

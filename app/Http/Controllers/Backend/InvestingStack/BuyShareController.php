@@ -4,10 +4,9 @@ namespace App\Http\Controllers\Backend\InvestingStack;
 
 use App\Http\Controllers\Controller;
 use App\Models\InvestingStack\BuyShare;
+use App\Models\Currency;
 use App\Models\InvestingStack\ListedCompany;
 use App\Models\InvestingStack\Portfolio;
-use App\Models\Currency;
-use App\Models\InvestingStack\Broker;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -15,7 +14,7 @@ class BuyShareController extends Controller
 {
     public function index(Request $request)
     {
-        $query = BuyShare::with(['currency', 'items', 'broker']);
+        $query = BuyShare::with(['currency', 'items']);
 
         if ($request->has('search') && $request->search) {
             $search = $request->search;
@@ -33,13 +32,11 @@ class BuyShareController extends Controller
 
         $currencies = Currency::select('id', 'name', 'code')->get();
         $companies = ListedCompany::select('id', 'company_code', 'ticker_symbol', 'legal_name_ar', 'legal_name_en')->get();
-        $brokers = Broker::select('id', 'broker_name_ar', 'broker_name_en')->get();
 
         return Inertia::render('Backend/InvestingStack/BuyShares', [
             'buyShares' => $buyShares,
             'currencies' => $currencies,
             'companies' => $companies,
-            'brokers' => $brokers,
             'filters' => $request->only(['search']),
         ]);
     }
@@ -49,7 +46,6 @@ class BuyShareController extends Controller
         $validated = $request->validate([
             'purchase_date' => 'required|date',
             'currency_id' => 'nullable|exists:currencies,id',
-            'broker_id' => 'nullable|exists:brokers,id',
             'notes' => 'nullable|string',
             'commission' => 'nullable|numeric|min:0',
             'tax_total' => 'nullable|numeric|min:0',
@@ -65,7 +61,6 @@ class BuyShareController extends Controller
         $buyShare = BuyShare::create([
             'purchase_date' => $validated['purchase_date'],
             'currency_id' => $validated['currency_id'],
-            'broker_id' => $validated['broker_id'],
             'notes' => $validated['notes'],
             'commission' => $validated['commission'] ?? 0,
             'tax_total' => $validated['tax_total'] ?? 0,
@@ -100,7 +95,6 @@ class BuyShareController extends Controller
         $validated = $request->validate([
             'purchase_date' => 'required|date',
             'currency_id' => 'nullable|exists:currencies,id',
-            'broker_id' => 'nullable|exists:brokers,id',
             'notes' => 'nullable|string',
             'commission' => 'nullable|numeric|min:0',
             'tax_total' => 'nullable|numeric|min:0',
@@ -116,7 +110,6 @@ class BuyShareController extends Controller
         $buyShare->update([
             'purchase_date' => $validated['purchase_date'],
             'currency_id' => $validated['currency_id'],
-            'broker_id' => $validated['broker_id'],
             'notes' => $validated['notes'],
             'commission' => $validated['commission'] ?? 0,
             'tax_total' => $validated['tax_total'] ?? 0,

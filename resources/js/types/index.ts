@@ -1,3 +1,5 @@
+import React from 'react';
+
 // User Types
 export interface User {
   id: number;
@@ -45,7 +47,7 @@ export interface Product {
   status: 'active' | 'inactive' | 'draft';
   category_id?: number;
   category?: Category;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -199,7 +201,7 @@ export interface ProductFormData {
   image?: File;
   status: 'active' | 'inactive' | 'draft';
   category_id?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface OrderFormData {

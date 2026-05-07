@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, useForm, router, Link } from '@inertiajs/react';
+import { Head, useForm, router, Link, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
 import { debounce } from 'lodash';
 
 export default function SellShares({ sellShares, currencies, portfolio = [], filters = {} }) {
+    const { localization } = usePage().props;
+    const currentLocale = localization?.current_locale || 'ar';
     const [mode, setMode] = useState('list'); // list, create, edit
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
 
@@ -25,13 +27,13 @@ export default function SellShares({ sellShares, currencies, portfolio = [], fil
     const portfolioOptions = useMemo(() => {
         return portfolio.map(p => ({
             value: p.stock_id,
-            label: `${p.stock?.ticker_symbol} - ${p.stock?.legal_name_ar}`,
+            label: `${p.stock?.ticker_symbol} - ${currentLocale === 'en' ? (p.stock?.legal_name_en || p.stock?.legal_name_ar) : (p.stock?.legal_name_ar || p.stock?.legal_name_en)}`,
             ticker_symbol: p.stock?.ticker_symbol,
-            company_name: p.stock?.legal_name_ar,
+            company_name: currentLocale === 'en' ? (p.stock?.legal_name_en || p.stock?.legal_name_ar) : (p.stock?.legal_name_ar || p.stock?.legal_name_en),
             available_quantity: p.quantity,
             last_price: p.last_price
         }));
-    }, [portfolio]);
+    }, [portfolio, currentLocale]);
 
     const handleSearch = useMemo(
         () => debounce((value) => {
@@ -45,7 +47,9 @@ export default function SellShares({ sellShares, currencies, portfolio = [], fil
     );
 
     useEffect(() => {
-        handleSearch(searchTerm);
+        if (searchTerm !== (filters.search || '')) {
+            handleSearch(searchTerm);
+        }
     }, [searchTerm]);
 
     const handleCreate = () => {

@@ -364,36 +364,6 @@ tr:hover td {
     background-color: #f8fafc;
 }
 
-.icon-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 6px;
-    border-radius: 6px;
-    color: #64748b;
-    transition: all 0.2s ease;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.icon-btn:hover {
-    background-color: #f1f5f9;
-    color: #334155;
-}
-
-.icon-btn.edit:hover {
-    color: #f59e0b;
-}
-
-.icon-btn.view:hover {
-    color: #3b82f6;
-}
-
-.icon-btn.delete:hover {
-    color: #ef4444;
-}
-
 .pagination {
     display: flex;
     justify-content: space-between;
