@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, Link, useForm, usePage } from '@inertiajs/react';
+import * as XLSX from 'xlsx';
 import AdminLayout from '../components/AdminLayout';
 
-const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, countries: countriesData, filters, onEdit, onCreate, onDelete }) => {
+const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, countries: countriesData, filters, onEdit, onCreate, onDelete, onView, setShowImport }) => {
     const { props } = usePage();
     const translations = props.localization?.translations || {};
     const t = (key, fallback) => {
@@ -158,10 +159,16 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
                             .replace(':to', companies.to || 0)
                             .replace(':total', companies.total)}
                     </div>
-                    <button className="btn btn-primary" onClick={onCreate}>
-                        <span className="material-icons-outlined">add</span>
-                        {t('add_new', 'Add New Company')}
-                    </button>
+                    <div className="header-actions" style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button className="btn btn-secondary" onClick={() => setShowImport(true)}>
+                            <span className="material-icons-outlined">upload_file</span>
+                            {t('import_excel', 'Import from Excel')}
+                        </button>
+                        <button className="btn btn-primary" onClick={onCreate}>
+                            <span className="material-icons-outlined">add</span>
+                            {t('add_new', 'Add New Company')}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="table-responsive">
@@ -207,10 +214,28 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
                                         </td>
                                         <td>
                                             <div className="action-buttons">
-                                                <button onClick={() => onEdit(company)} title={t('edit', 'Edit')}>
+                                                <button 
+                                                    type="button" 
+                                                    className="icon-btn view" 
+                                                    onClick={() => onView(company)} 
+                                                    title={t('view', 'View')}
+                                                >
+                                                    <span className="material-icons-outlined">visibility</span>
+                                                </button>
+                                                <button 
+                                                    type="button" 
+                                                    className="icon-btn edit" 
+                                                    onClick={() => onEdit(company)} 
+                                                    title={t('edit', 'Edit')}
+                                                >
                                                     <span className="material-icons-outlined">edit</span>
                                                 </button>
-                                                <button className="delete-btn" onClick={() => onDelete(company.id)} title={t('delete', 'Delete')}>
+                                                <button 
+                                                    type="button" 
+                                                    className="icon-btn delete" 
+                                                    onClick={() => onDelete(company.id)} 
+                                                    title={t('delete', 'Delete')}
+                                                >
                                                     <span className="material-icons-outlined">delete</span>
                                                 </button>
                                             </div>
@@ -273,6 +298,7 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
     };
 
     const isEdit = mode === 'edit';
+    const isView = mode === 'view';
     const [activeTab, setActiveTab] = useState('general');
     
     const { data, setData, post, put, processing, errors, reset } = useForm({
@@ -364,7 +390,7 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
             <div className="page-header" style={{ marginBottom: '1.5rem' }}>
                 <div className="page-header-title" style={{ margin: 0 }}>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1f2937' }}>
-                        {isEdit ? t('edit_title', 'Edit Listed Company') : t('create_title', 'Create New Listed Company')}
+                        {isView ? t('view_title', 'View Listed Company') : (isEdit ? t('edit_title', 'Edit Listed Company') : t('create_title', 'Create New Listed Company'))}
                     </h2>
                 </div>
                 <button className="btn btn-secondary" onClick={onBack}>
@@ -390,7 +416,8 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                     </div>
 
                     <form onSubmit={handleSubmit} className="tabbed-form">
-                        <div className="tab-content">
+                        <fieldset disabled={isView} style={{ border: 'none', padding: 0, margin: 0 }}>
+                            <div className="tab-content">
                             {activeTab === 'general' && (
                                 <div className="form-grid">
                                     <div className="form-group">
@@ -653,12 +680,17 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                                  </div>
                              )}
                          </div>
+                        </fieldset>
 
                         <div className="form-actions" style={{ padding: '1.5rem', borderTop: '1px solid #eee' }}>
-                            <button type="button" className="btn btn-secondary" onClick={onBack} disabled={processing}>{t('cancel', 'Cancel')}</button>
-                            <button type="submit" className="btn btn-primary" disabled={processing}>
-                                {processing ? t('saving', 'Saving...') : (isEdit ? t('update', 'Update Company') : t('save', 'Save Company'))}
+                            <button type="button" className="btn btn-secondary" onClick={onBack} disabled={processing}>
+                                {isView ? t('close', 'Close') : t('cancel', 'Cancel')}
                             </button>
+                            {!isView && (
+                                <button type="submit" className="btn btn-primary" disabled={processing}>
+                                    {processing ? t('saving', 'Saving...') : (isEdit ? t('update', 'Update Company') : t('save', 'Save Company'))}
+                                </button>
+                            )}
                         </div>
                     </form>
                 </div>
@@ -683,6 +715,61 @@ const ListedCompanies = ({ companies, stats, countries, currencies, industries, 
 
     const [viewMode, setViewMode] = useState('list');
     const [selectedCompany, setSelectedCompany] = useState(null);
+    const [showImport, setShowImport] = useState(false);
+    const [importLoading, setImportLoading] = useState(false);
+    const [importProgress, setImportProgress] = useState(0);
+
+    const handleImport = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setImportLoading(true);
+        const reader = new FileReader();
+        reader.onload = async (evt) => {
+            try {
+                const bstr = evt.target.result;
+                const wb = XLSX.read(bstr, { type: 'binary' });
+                const wsname = wb.SheetNames[0];
+                const ws = wb.Sheets[wsname];
+                const data = XLSX.utils.sheet_to_json(ws);
+                
+                if (data.length === 0) {
+                    alert('File is empty');
+                    setImportLoading(false);
+                    return;
+                }
+
+                // Simple bulk import logic using individual store calls (fallback if no bulk route)
+                let successCount = 0;
+                for (let i = 0; i < data.length; i++) {
+                    const row = data[i];
+                    // Map row fields to company fields here if needed
+                    // For now, assume column names match model attributes
+                    await new Promise((resolve) => {
+                        router.post(route('admin.investing.companies.store'), row, {
+                            onSuccess: () => {
+                                successCount++;
+                                setImportProgress(Math.round(((i + 1) / data.length) * 100));
+                                resolve();
+                            },
+                            onError: () => resolve(), // Continue on error
+                        });
+                    });
+                }
+                
+                alert(`Imported ${successCount} companies successfully.`);
+                setShowImport(false);
+                setImportLoading(false);
+                setImportProgress(0);
+                router.reload();
+            } catch (err) {
+                console.error(err);
+                alert('Error processing file.');
+                setImportLoading(false);
+            }
+        };
+        reader.readAsBinaryString(file);
+    };
 
     const handleCreate = () => {
         setSelectedCompany(null);
@@ -692,6 +779,11 @@ const ListedCompanies = ({ companies, stats, countries, currencies, industries, 
     const handleEdit = (company) => {
         setSelectedCompany(company);
         setViewMode('edit');
+    };
+
+    const handleView = (company) => {
+        setSelectedCompany(company);
+        setViewMode('view');
     };
 
     const handleDelete = (id) => {
@@ -712,18 +804,20 @@ const ListedCompanies = ({ companies, stats, countries, currencies, industries, 
 
                 {viewMode === 'list' && (
                     <ViewSection
-             companies={companies}
-             stats={stats}
-             marketIndices={marketIndices}
-             countries={countries}
-             filters={filters}
-             onEdit={handleEdit}
+                        companies={companies}
+                        stats={stats}
+                        marketIndices={marketIndices}
+                        countries={countries}
+                        filters={filters}
+                        onEdit={handleEdit}
                         onCreate={handleCreate}
                         onDelete={handleDelete}
+                        onView={handleView}
+                        setShowImport={setShowImport}
                     />
                 )}
 
-                {(viewMode === 'create' || viewMode === 'edit') && (
+                {(viewMode === 'create' || viewMode === 'edit' || viewMode === 'view') && (
                     <FormSection
                         mode={viewMode}
                         initialData={selectedCompany}
@@ -739,6 +833,40 @@ const ListedCompanies = ({ companies, stats, countries, currencies, industries, 
                         onBack={() => setViewMode('list')}
                         onSuccess={() => setViewMode('list')}
                     />
+                )}
+
+                {showImport && (
+                    <div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000 }}>
+                        <div className="modal-content" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '8px', maxWidth: '500px', width: '90%' }}>
+                            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                                <h3 style={{ margin: 0 }}>{t('import_title', 'Import Companies')}</h3>
+                                <button onClick={() => !importLoading && setShowImport(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.5rem' }}>&times;</button>
+                            </div>
+                            <div className="modal-body">
+                                <p>{t('import_instruction', 'Select an Excel file (.xlsx or .xls) containing company data.')}</p>
+                                <input 
+                                    type="file" 
+                                    accept=".xlsx, .xls" 
+                                    onChange={handleImport} 
+                                    disabled={importLoading}
+                                    style={{ marginTop: '1rem', width: '100%' }}
+                                />
+                                {importLoading && (
+                                    <div style={{ marginTop: '1.5rem' }}>
+                                        <div style={{ width: '100%', height: '8px', backgroundColor: '#eee', borderRadius: '4px', overflow: 'hidden' }}>
+                                            <div style={{ width: `${importProgress}%`, height: '100%', backgroundColor: '#3b82f6', transition: 'width 0.3s' }}></div>
+                                        </div>
+                                        <p style={{ textAlign: 'center', marginTop: '0.5rem', fontSize: '0.875rem' }}>{importProgress}% {t('processing', 'Processing...')}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="modal-footer" style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
+                                <button className="btn btn-secondary" onClick={() => setShowImport(false)} disabled={importLoading}>
+                                    {t('close', 'Close')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
         </AdminLayout>

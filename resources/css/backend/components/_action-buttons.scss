@@ -1,6 +1,12 @@
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
 .icon-btn {
     background: none;
-    border: none;
+    border: 1px solid #e2e8f0;
     cursor: pointer;
     padding: 6px;
     border-radius: 6px;
@@ -9,25 +15,39 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    background-color: #fff;
 
     &:hover {
         background-color: #f1f5f9;
         color: #334155;
+        border-color: #cbd5e1;
     }
 
     &.edit:hover {
         color: #f59e0b;
+        border-color: #f59e0b;
+        background-color: #fffbeb;
     }
 
     &.view:hover {
         color: #3b82f6;
+        border-color: #3b82f6;
+        background-color: #eff6ff;
     }
 
     &.delete:hover {
         color: #ef4444;
+        border-color: #ef4444;
+        background-color: #fef2f2;
     }
 
     .material-icons-outlined {
         font-size: 20px;
+        pointer-events: none;
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 }

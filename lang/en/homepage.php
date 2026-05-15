@@ -59,6 +59,22 @@ return [
     'project_tag_risk' => 'Risk',
     'project_tag_invest' => 'Invest',
 
+    // Career Section
+    'header_career' => 'Career',
+    'career' => 'Career',
+    'career_title' => 'Join Our Team',
+    'career_subtitle' => 'Explore opportunities to grow with us.',
+    'name_label' => 'Full Name',
+    'email_label' => 'Email Address',
+    'phone_label' => 'Phone Number',
+    'job_label' => 'Select Job',
+    'select_job_placeholder' => 'Choose a position...',
+    'cv_label' => 'Attach CV (PDF, DOC)',
+    'message_label' => 'Cover Letter / Message',
+    'submitting_btn' => 'Submitting...',
+    'submit_application_btn' => 'Submit Application',
+    'application_success' => 'Your application has been submitted successfully!',
+
     // Contact Section
     'contact' => 'Contact',
     'contact_title' => 'If You Have Any Query, Please Contact Us',

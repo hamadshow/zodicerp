@@ -171,30 +171,6 @@
       color: $text-muted;
     }
   }
-
-  .action-buttons {
-    display: flex;
-    gap: $spacing-sm;
-
-    button {
-      padding: $spacing-sm;
-      border-radius: $radius-md;
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      @include transition-standard(background, color);
-      color: $text-muted;
-
-      &:hover {
-        background-color: $light-color;
-        color: $primary-color;
-      }
-
-      &.delete-btn:hover {
-        color: $danger-color;
-      }
-    }
-  }
 }
 
 // Form Styles

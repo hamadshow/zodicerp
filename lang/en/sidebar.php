@@ -15,4 +15,5 @@ return [
     'buy_shares' => 'Buy Shares',
     'sell_shares' => 'Sell Shares',
     'portfolio' => 'Portfolio',
+    'careers' => 'Careers',
 ];

@@ -121,10 +121,28 @@ const ViewSection = ({ marketPrices, filters, onEdit, onCreate, onDelete, onShow
                                         <td><span className="badge-source">{price.data_source || '-'}</span></td>
                                         <td>
                                             <div className="action-buttons">
-                                                <button type="button" onClick={() => onEdit(price)} title={t('edit_title', 'Edit')}>
+                                                <button 
+                                                    type="button" 
+                                                    className="icon-btn edit"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        onEdit(price);
+                                                    }} 
+                                                    title={t('edit_title', 'Edit')}
+                                                >
                                                     <span className="material-icons-outlined">edit</span>
                                                 </button>
-                                                <button type="button" className="delete-btn" onClick={() => onDelete(price.id)} title={t('delete_confirm', 'Delete')}>
+                                                <button 
+                                                    type="button" 
+                                                    className="icon-btn delete" 
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        onDelete(price.id);
+                                                    }} 
+                                                    title={t('delete_confirm', 'Delete')}
+                                                >
                                                     <span className="material-icons-outlined">delete</span>
                                                 </button>
                                             </div>
@@ -260,31 +278,30 @@ const DetailsSection = ({ master, onBack, onEditDetail, onDeleteDetail }) => {
                                         <td className="price-value">{detail.close_price}</td>
                                         <td className="price-value">{Number(detail.volume).toLocaleString()}</td>
                                         <td>
-                                            <div className="action-buttons" style={{ position: 'relative', zIndex: 10 }}>
+                                            <div className="action-buttons">
                                                 <button 
                                                     type="button" 
+                                                    className="icon-btn edit"
                                                     onClick={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
                                                         onEditDetail(detail);
                                                     }} 
                                                     title={t('edit_title', 'Edit')}
-                                                    style={{ cursor: 'pointer' }}
                                                 >
-                                                    <span className="material-icons-outlined" style={{ pointerEvents: 'none' }}>edit</span>
+                                                    <span className="material-icons-outlined">edit</span>
                                                 </button>
                                                 <button 
                                                     type="button" 
-                                                    className="delete-btn" 
+                                                    className="icon-btn delete" 
                                                     onClick={(e) => {
                                                         e.preventDefault();
                                                         e.stopPropagation();
                                                         onDeleteDetail(detail.id);
                                                     }} 
                                                     title={t('delete_confirm', 'Delete')}
-                                                    style={{ cursor: 'pointer' }}
                                                 >
-                                                    <span className="material-icons-outlined" style={{ pointerEvents: 'none' }}>delete</span>
+                                                    <span className="material-icons-outlined">delete</span>
                                                 </button>
                                             </div>
                                         </td>

@@ -7,6 +7,8 @@ import { Link, router, usePage } from '@inertiajs/react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const AdminLayout = ({
   children,
@@ -28,6 +30,33 @@ const AdminLayout = ({
   const isRtl = localization?.is_rtl;
   const flashSuccess = props?.flash?.success;
   const flashError = props?.flash?.error;
+
+  useEffect(() => {
+    if (flashSuccess) {
+      toast.success(flashSuccess, {
+        position: "top-right",
+        autoClose: 3000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+      });
+    }
+    if (flashError) {
+      toast.error(flashError, {
+        position: "top-right",
+        autoClose: 4000,
+        hideProgressBar: false,
+        closeOnClick: true,
+        pauseOnHover: true,
+        draggable: true,
+        progress: undefined,
+        theme: "light",
+      });
+    }
+  }, [flashSuccess, flashError]);
 
   useEffect(() => {
     document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
@@ -120,6 +149,23 @@ const AdminLayout = ({
           href: getLocalizedRoute('admin.salary-receipt.index'),
         },
       ].filter(Boolean),
+    },
+    {
+      icon: 'work',
+      label: translations['sidebar.recruitment'] || 'Recruitment',
+      hasSubmenu: true,
+      submenuItems: [
+        {
+          icon: 'work_outline',
+          label: translations['sidebar.careers'] || 'Career',
+          href: getLocalizedRoute('admin.careers.index'),
+        },
+        {
+          icon: 'description',
+          label: translations['sidebar.job_applications'] || 'Job Applications',
+          href: getLocalizedRoute('admin.careers.applications'),
+        },
+      ],
     },
     {
       icon: 'account_balance',
@@ -338,17 +384,7 @@ const AdminLayout = ({
       <div className={`main-wrapper ${isSidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="main-content">
           <Header toggleSidebar={toggleSidebar} isRtl={isRtl} />
-
-          {flashSuccess && (
-            <div className="alert alert-success m-3" role="alert">
-              {flashSuccess}
-            </div>
-          )}
-          {flashError && (
-            <div className="alert alert-danger m-3" role="alert">
-              {flashError}
-            </div>
-          )}
+          <ToastContainer rtl={isRtl} />
 
           <main className="content">{children}</main>
         </div>

@@ -93,10 +93,10 @@ const ViewSection = ({ brokers, filters, onEdit, onCreate, onDelete }) => {
                                         </td>
                                         <td>
                                             <div className="action-buttons">
-                                                <button onClick={() => onEdit(broker)} title="Edit">
+                                                <button type="button" className="icon-btn edit" onClick={() => onEdit(broker)} title="Edit">
                                                     <span className="material-icons-outlined">edit</span>
                                                 </button>
-                                                <button className="delete-btn" onClick={() => onDelete(broker.id)} title="Delete">
+                                                <button type="button" className="icon-btn delete" onClick={() => onDelete(broker.id)} title="Delete">
                                                     <span className="material-icons-outlined">delete</span>
                                                 </button>
                                             </div>

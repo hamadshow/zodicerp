@@ -175,30 +175,6 @@
       color: #374151;
     }
   }
-
-  .action-buttons {
-    display: flex;
-    gap: 0.5rem;
-
-    button {
-      padding: 0.5rem;
-      border-radius: var(--radius-md);
-      border: none;
-      background: transparent;
-      cursor: pointer;
-      transition: background 0.2s;
-      color: var(--text-gray);
-
-      &:hover {
-        background-color: #f3f4f6;
-        color: var(--primary-color);
-      }
-
-      &.delete-btn:hover {
-        color: var(--danger-color);
-      }
-    }
-  }
 }
 
 /* Form Styles */

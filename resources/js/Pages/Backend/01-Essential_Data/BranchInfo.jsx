@@ -3,6 +3,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import { apiService } from '@/services/api';
 import '../../../../css/backend/main.scss';
+import { toast } from 'react-toastify';
 
 const resolveMediaUrl = (value) => {
     if (!value) {
@@ -302,6 +303,7 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
 
         clearErrors();
         if (!validateForm()) {
+            toast.warning('Please check the form for errors');
             const currentErrors = {};
             if (!data.branch_name.trim()) currentErrors.branch_name = true;
             if (!data.company_id) currentErrors.company_id = true;
@@ -328,6 +330,9 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
 
         router.post(submitUrl, payload, {
             forceFormData: true,
+            onStart: () => {
+                toast.info(currentBranch ? 'Updating branch...' : 'Creating branch...', { autoClose: 2000 });
+            },
             onSuccess: () => {
                 if (!currentBranch) {
                     reset();
@@ -337,13 +342,17 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
             },
             onError: (errs) => {
                 setError(errs);
+                toast.error('Failed to save branch information');
             },
         });
     };
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this branch info?')) {
-            router.delete(getLocalizedRoute('admin.branches.destroy', { branch: id }));
+            router.delete(getLocalizedRoute('admin.branches.destroy', { branch: id }), {
+                onStart: () => toast.info('Deleting branch...', { autoClose: 2000 }),
+                onError: () => toast.error('Failed to delete branch'),
+            });
         }
     };
 

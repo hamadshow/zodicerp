@@ -59,6 +59,22 @@ return [
     'project_tag_risk' => 'مخاطر',
     'project_tag_invest' => 'استثمار',
 
+    // Career Section
+    'header_career' => 'الوظائف',
+    'career' => 'الوظائف',
+    'career_title' => 'انضم إلى فريقنا',
+    'career_subtitle' => 'استكشف الفرص المتاحة للنمو معنا.',
+    'name_label' => 'الاسم الكامل',
+    'email_label' => 'عنوان البريد الإلكتروني',
+    'phone_label' => 'رقم الهاتف',
+    'job_label' => 'اختر الوظيفة',
+    'select_job_placeholder' => 'اختر وظيفة...',
+    'cv_label' => 'إرفاق السيرة الذاتية (PDF, DOC)',
+    'message_label' => 'رسالة تعريفية / رسالة',
+    'submitting_btn' => 'جاري الإرسال...',
+    'submit_application_btn' => 'إرسال الطلب',
+    'application_success' => 'تم إرسال طلبك بنجاح!',
+
     // Contact Section
     'contact' => 'اتصل بنا',
     'contact_title' => 'إذا كان لديك أي استفسار، يرجى الاتصال بنا',

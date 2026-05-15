@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
+import { toast } from 'react-toastify';
 
 const Currencies = ({ currencies = [] }) => {
     const { props } = usePage();
@@ -140,11 +141,15 @@ const Currencies = ({ currencies = [] }) => {
 
         if (view === 'edit' && currentCurrency) {
             router.put(getLocalizedRoute('admin.currencies.update', { currency: currentCurrency.id }), data, {
+                onStart: () => toast.info('Updating currency...', { autoClose: 2000 }),
                 onSuccess: () => closeEditor(),
+                onError: () => toast.error('Failed to update currency'),
             });
         } else {
             router.post(getLocalizedRoute('admin.currencies.store'), data, {
+                onStart: () => toast.info('Creating currency...', { autoClose: 2000 }),
                 onSuccess: () => closeEditor(),
+                onError: () => toast.error('Failed to create currency'),
             });
         }
     };
@@ -159,7 +164,10 @@ const Currencies = ({ currencies = [] }) => {
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this currency?')) {
-            router.delete(getLocalizedRoute('admin.currencies.destroy', { currency: id }));
+            router.delete(getLocalizedRoute('admin.currencies.destroy', { currency: id }), {
+                onStart: () => toast.info('Deleting currency...', { autoClose: 2000 }),
+                onError: () => toast.error('Failed to delete currency'),
+            });
         }
     };
 

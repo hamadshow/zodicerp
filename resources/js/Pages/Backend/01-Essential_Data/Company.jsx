@@ -4,6 +4,7 @@ import axios from 'axios';
 import AdminLayout from '../components/AdminLayout';
 import MediaPickerModal from '../Media/MediaPickerModal';
 import '../../../../css/backend/main.scss';
+import { toast } from 'react-toastify';
 
 const resolveMediaUrl = (value) => {
     if (!value) {
@@ -199,6 +200,7 @@ const CompanyForm = ({ company }) => {
         clearErrors();
 
         if (!validateForm()) {
+            toast.warning('Please check the form for errors');
             // Re-calculate for focus logic since state update is async
             const currentErrors = {};
             if (!data.company_name.trim()) currentErrors.company_name = true;
@@ -228,9 +230,15 @@ const CompanyForm = ({ company }) => {
             router.post(getLocalizedRoute('admin.companies.update', { company: company.id }), {
                 ...data,
                 _method: 'put',
+            }, {
+                onStart: () => toast.info('Updating company...', { autoClose: 2000 }),
+                onError: () => toast.error('Failed to update company'),
             });
         } else {
-            post(getLocalizedRoute('admin.companies.store'));
+            post(getLocalizedRoute('admin.companies.store'), {
+                onStart: () => toast.info('Creating company...', { autoClose: 2000 }),
+                onError: () => toast.error('Failed to create company'),
+            });
         }
     };
 
@@ -568,7 +576,10 @@ const Company = ({ companies, company, canCreateCompany }) => {
 
     const handleDelete = (id) => {
         if (confirm('Are you sure you want to delete this company?')) {
-            router.delete(getLocalizedRoute('admin.companies.destroy', { company: id }));
+            router.delete(getLocalizedRoute('admin.companies.destroy', { company: id }), {
+                onStart: () => toast.info('Deleting company...', { autoClose: 2000 }),
+                onError: () => toast.error('Failed to delete company'),
+            });
         }
     };
 

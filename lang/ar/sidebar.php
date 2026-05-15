@@ -25,6 +25,7 @@ return [
     'traffic_violations' => 'المخالفات المرورية',
     'vacations' => 'الإجازات',
     'salary_receipt' => 'مسير الرواتب',
+    'careers' => 'الوظائف',
     
     'inventory' => 'المخزون',
     'warehouses' => 'المستودعات',

@@ -28,6 +28,7 @@ use App\Http\Controllers\Home\CheckoutController;
 // Purchases & Sales Controllers
 use App\Http\Controllers\Home\CompanyRegisterController;
 use App\Http\Controllers\Home\HomeController;
+use App\Http\Controllers\Home\CareerController;
 // Alias to avoid conflict if needed
 use App\Http\Controllers\Suppliers\Auth\SupplierAuthController; // Check usage, seems to be dashboard controller
 // Other Controllers
@@ -109,6 +110,11 @@ Route::group([
     Route::get('/products', [HomeController::class, 'products'])->name('products.index');
     Route::get('/product/{identifier}', [HomeController::class, 'productDetails'])->name('product.details');
     Route::get('/suppliers', [HomeController::class, 'suppliers'])->name('suppliers.index');
+
+    // Career Routes (مسارات الوظائف)
+    Route::get('/career', [CareerController::class, 'index'])->name('career.index');
+    Route::get('/career/{id}', [CareerController::class, 'show'])->name('career.show');
+    Route::post('/career/apply', [CareerController::class, 'apply'])->name('career.apply');
 
     // Shopping Cart (عربة التسوق)
     Route::get('/cart', [HomeController::class, 'cart'])->name('cart.index');
@@ -296,6 +302,13 @@ Route::group([
         Route::resource('nationalities', \App\Http\Controllers\Backend\HumanResource\NationalityController::class);
         Route::resource('departments', \App\Http\Controllers\Backend\HumanResource\DepartmentController::class);
         Route::resource('professions', \App\Http\Controllers\Backend\HumanResource\ProfessionController::class);
+
+        // Careers and Applications
+        Route::resource('careers', \App\Http\Controllers\Backend\HumanResource\CareerController::class);
+        Route::get('career-applications', [\App\Http\Controllers\Backend\HumanResource\CareerController::class, 'applications'])->name('careers.applications');
+        Route::put('career-applications/{application}', [\App\Http\Controllers\Backend\HumanResource\CareerController::class, 'updateApplicationStatus'])->name('careers.applications.update');
+        Route::delete('career-applications/{application}', [\App\Http\Controllers\Backend\HumanResource\CareerController::class, 'destroyApplication'])->name('careers.applications.destroy');
+
         Route::get('attendance', function () {
             $employees = Employee::select('id', 'name', 'position', 'department')->get();
             return Inertia::render('Backend/02_human_resource/Attendance', [

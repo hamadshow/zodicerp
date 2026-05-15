@@ -287,43 +287,12 @@
 
       .change-positive {
         color: var(--success-color);
+        font-weight: 600;
       }
 
       .change-negative {
         color: var(--danger-color);
-      }
-
-      .action-buttons {
-        display: flex;
-        gap: 0.5rem;
-
-        button {
-          padding: 0.4rem;
-          border-radius: var(--radius-md);
-          border: 1px solid var(--border-color);
-          background: white;
-          color: var(--text-gray);
-          cursor: pointer;
-          transition: var(--transition);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-
-          &:hover {
-            background: #f1f5f9;
-            color: var(--primary-color);
-            border-color: var(--primary-color);
-          }
-
-          &.delete-btn:hover {
-            color: var(--danger-color);
-            border-color: var(--danger-color);
-          }
-
-          span {
-            pointer-events: none;
-          }
-        }
+        font-weight: 600;
       }
     }
   }

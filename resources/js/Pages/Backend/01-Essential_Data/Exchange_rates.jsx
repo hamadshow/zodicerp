@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
+import { toast } from 'react-toastify';
 
 
 const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
@@ -165,18 +166,25 @@ const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
 
         if (currentRate) {
             router.put(getLocalizedRoute('admin.exchange-rates.update', { exchange_rate: currentRate.id }), data, {
+                onStart: () => toast.info('Updating exchange rate...', { autoClose: 2000 }),
                 onSuccess: () => closeModal(),
+                onError: () => toast.error('Failed to update exchange rate'),
             });
         } else {
             router.post(getLocalizedRoute('admin.exchange-rates.store'), data, {
+                onStart: () => toast.info('Creating exchange rate...', { autoClose: 2000 }),
                 onSuccess: () => closeModal(),
+                onError: () => toast.error('Failed to create exchange rate'),
             });
         }
     };
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this exchange rate?')) {
-            router.delete(getLocalizedRoute('admin.exchange-rates.destroy', { exchange_rate: id }));
+            router.delete(getLocalizedRoute('admin.exchange-rates.destroy', { exchange_rate: id }), {
+                onStart: () => toast.info('Deleting exchange rate...', { autoClose: 2000 }),
+                onError: () => toast.error('Failed to delete exchange rate'),
+            });
         }
     };
 
@@ -184,7 +192,12 @@ const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
         if (window.confirm('This will fetch current exchange rates from external API. Continue?')) {
             router.post(getLocalizedRoute('admin.exchange-rates.fetch'), {}, {
                 preserveScroll: true,
-                onSuccess: () => window.location.reload(),
+                onStart: () => toast.info('Fetching current rates...', { autoClose: 3000 }),
+                onSuccess: () => {
+                    toast.success('Exchange rates updated successfully');
+                    window.location.reload();
+                },
+                onError: () => toast.error('Failed to fetch exchange rates'),
             });
         }
     };

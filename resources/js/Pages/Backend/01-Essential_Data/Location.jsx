@@ -5,6 +5,7 @@ import L from 'leaflet';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 import * as XLSX from 'xlsx';
+import { toast } from 'react-toastify';
 
 const Location = ({
   countries: initialCountries,
@@ -58,7 +59,6 @@ const Location = ({
     createMissingCities: false,
   });
   const [importProgress, setImportProgress] = useState(0);
-  const [toast, setToast] = useState(null);
   const fileInputRef = useRef(null);
 
   // Form state
@@ -107,8 +107,7 @@ const Location = ({
   });
 
   const showToast = (message, type = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+    toast[type](message);
   };
 
   const resetImportState = () => {
@@ -266,6 +265,7 @@ const Location = ({
     }
 
     router[method](endpoint, locationData, {
+      onStart: () => toast.info('Saving location...', { autoClose: 2000 }),
       onSuccess: () => {
         setViewMode('dashboard');
         resetForm();
@@ -273,7 +273,7 @@ const Location = ({
       },
       onError: (errors) => {
         console.error('Save failed:', errors);
-        alert('Failed to save location. Please check the form data.');
+        toast.error('Failed to save location. Please check the form data.');
       },
     });
   };
@@ -338,6 +338,7 @@ const Location = ({
     }
 
     router.delete(endpoint, {
+      onStart: () => toast.info('Deleting location...', { autoClose: 2000 }),
       onSuccess: () => {
         showToast('Deleted successfully', 'success');
       },
@@ -1652,14 +1653,6 @@ const Location = ({
               )}
             </div>
           </div>
-        </div>
-      )}
-      {toast && (
-        <div className={`toast toast-${toast.type}`}>
-          <span className="material-icons-outlined">
-            {toast.type === 'success' ? 'check_circle' : toast.type === 'error' ? 'error' : 'info'}
-          </span>
-          <span>{toast.message}</span>
         </div>
       )}
     </AdminLayout>

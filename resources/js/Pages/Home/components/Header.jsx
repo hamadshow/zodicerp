@@ -38,30 +38,53 @@ export function FinanzaHeader({
   const showFullNav = variant === 'full';
   const toggleMobileMenu = onToggleMobileMenu || (() => {});
   const closeMobileMenu = onCloseMobileMenu || (() => {});
-  const brandHref = homeHref || (showFullNav ? '#top' : '/');
+
+  const localization = page.props.localization;
+  const countryCode = 
+    localization?.country_code || 
+    (typeof localization?.current_country === 'string' 
+      ? localization.current_country 
+      : localization?.current_country?.code?.toLowerCase?.()) || 
+    'sa';
+  const currentLocale = localization?.current_locale || 'en';
+
+  const isHomePage = route().current('home');
+
+  const brandHref = homeHref || (isHomePage ? '#top' : route('home', { country: countryCode, lang: currentLocale }));
+
+  const resolvedLogoutHref = logoutHref !== '/logout' 
+    ? logoutHref 
+    : route('logout', { country: countryCode, lang: currentLocale });
+
+  const getNavLink = (hash) => {
+    return isHomePage ? hash : `${route('home', { country: countryCode, lang: currentLocale })}${hash}`;
+  };
 
   return (
     <>
       <header className={`finanza-header ${isScrolled ? 'finanza-header--scrolled' : ''}`}>
         <div className="container-fluid finanza-header-inner">
-          <a className="finanza-brand" href={brandHref} aria-label="Finanza home">
+          <Link className="finanza-brand" href={brandHref} aria-label="Finanza home">
             ZodicERP
-          </a>
+          </Link>
           {showFullNav ? (
             <nav className={`finanza-nav ${isMobileMenuOpen ? 'finanza-nav--open' : ''}`} aria-label="Primary">
-              <a className="finanza-nav-link finanza-nav-link--active" href="#top" aria-current="page">
+              <Link className="finanza-nav-link" href={route('home', { country: countryCode, lang: currentLocale })}>
                 {t('header_home', 'Home')}
-              </a>
-              <a className="finanza-nav-link" href="#about">
+              </Link>
+              <a className="finanza-nav-link" href={getNavLink('#about')}>
                 {t('header_about', 'About')}
               </a>
-              <a className="finanza-nav-link" href="#services">
+              <a className="finanza-nav-link" href={getNavLink('#services')}>
                 {t('header_services', 'Services')}
               </a>
-              <a className="finanza-nav-link" href="#projects">
+              <a className="finanza-nav-link" href={getNavLink('#projects')}>
                 {t('header_projects', 'Projects')}
               </a>
-              <a className="finanza-nav-link" href="#contact">
+              <Link className={`finanza-nav-link ${route().current('career.index') ? 'finanza-nav-link--active' : ''}`} href={route('career.index', { country: countryCode, lang: currentLocale })}>
+                {t('header_career', 'Career')}
+              </Link>
+              <a className="finanza-nav-link" href={getNavLink('#contact')}>
                 {t('header_contact', 'Contact')}
               </a>
             </nav>
@@ -81,7 +104,7 @@ export function FinanzaHeader({
                   </Link>
                   <Link
                     className="finanza-userChip-logout"
-                    href={logoutHref}
+                    href={resolvedLogoutHref}
                     method="post"
                     as="button"
                     type="button"
@@ -159,7 +182,7 @@ export function FinanzaHeader({
                   <a className="finanza-btn finanza-btn--ghost" href={dashboardHref}>
                     {t('header_dashboard', 'Dashboard')}
                   </a>
-                  <Link className="finanza-btn finanza-btn--primary" href={logoutHref} method="post" as="button" type="button">
+                  <Link className="finanza-btn finanza-btn--primary" href={resolvedLogoutHref} method="post" as="button" type="button">
                     {t('header_logout', 'Logout')}
                   </Link>
                 </>

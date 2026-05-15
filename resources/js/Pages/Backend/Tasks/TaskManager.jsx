@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import { AddEditTaskModal, ViewTaskModal } from './TaskModals';
 import { apiService } from '../../../services/api.js';
+import { toast } from 'react-toastify';
 
 const resolveMediaUrl = (value) => {
   if (!value) {
@@ -54,7 +55,6 @@ const TaskManager = ({ employees: propEmployees }) => {
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
-  const [toast, setToast] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentFilter, setCurrentFilter] = useState('all');
@@ -120,82 +120,55 @@ const TaskManager = ({ employees: propEmployees }) => {
     } catch {
       // Error handling is done in api.js interceptor, but we can add specific toast here if needed
       // console.error('Error fetching tasks:', error); // api.js already logs it
-      showToast('Error loading tasks. Please try again.', 'error');
+      showToast('Failed to retrieve tasks list.', 'error');
     } finally {
       setLoading(false);
     }
   };
 
   const fetchData = async () => {
-    const isJsonResponse = (res) => {
-      const ct =
-        res?.headers?.['content-type'] || res?.headers?.['Content-Type'] || '';
-      return (
-        typeof res?.data === 'object' || String(ct).includes('application/json')
-      );
-    };
     try {
       // Fetch data sequentially to avoid timeouts on single-threaded dev server
+      toast.info('Loading system data...', { autoClose: 2000 });
       
       const categoriesRes = await apiService.get('/tasks/categories');
-      if (isJsonResponse(categoriesRes)) {
-        const categoriesData = categoriesRes.data;
-        setCategories(categoriesData.data || categoriesData);
-      } else {
-        console.error('Categories response is not JSON');
-      }
+      const categoriesData = categoriesRes.data;
+      setCategories(categoriesData.data || categoriesData);
 
       const prioritiesRes = await apiService.get('/tasks/priorities');
-      if (isJsonResponse(prioritiesRes)) {
-        const prioritiesData = prioritiesRes.data;
-        setPriorities(prioritiesData.data || prioritiesData);
-      } else {
-        console.error('Priorities response is not JSON');
-      }
+      const prioritiesData = prioritiesRes.data;
+      setPriorities(prioritiesData.data || prioritiesData);
 
       const statusesRes = await apiService.get('/tasks/statuses');
-      if (isJsonResponse(statusesRes)) {
-        const statusesData = statusesRes.data;
-        setStatuses(statusesData.data || statusesData);
-      } else {
-        console.error('Statuses response is not JSON');
-      }
+      const statusesData = statusesRes.data;
+      setStatuses(statusesData.data || statusesData);
 
       if (employees.length === 0) {
-        const employeesRes = await apiService.get('/employees', { params: { per_page: 1000 } });
-        if (isJsonResponse(employeesRes)) {
-          const employeesData = employeesRes.data;
-          setEmployees(employeesData.data || employeesData);
-        } else {
-          console.error('Employees response is not JSON');
-        }
+        const employeesRes = await apiService.get('/employees', { per_page: 1000 });
+        const employeesData = employeesRes.data;
+        setEmployees(employeesData.data || employeesData);
       }
 
       const statsRes = await apiService.get('/tasks/statistics');
-      if (isJsonResponse(statsRes)) {
-        const statsData = statsRes.data;
-        setStatsData({
-          totalTasks: statsData.total_tasks,
-          pendingTasks: statsData.pending_tasks,
-          completedTasks: statsData.completed_tasks,
-          overdueTasks: statsData.overdue_tasks,
-        });
-      } else {
-        console.error('Statistics response is not JSON');
-      }
+      const statsData = statsRes.data;
+      setStatsData({
+        totalTasks: statsData.total_tasks,
+        pendingTasks: statsData.pending_tasks,
+        completedTasks: statsData.completed_tasks,
+        overdueTasks: statsData.overdue_tasks,
+      });
 
       await fetchTasks();
     } catch (error) {
       console.error('Error fetching data:', error);
-      showToast('Error loading data. Please try again.', 'error');
+      showToast('Unable to load initial system data. Please refresh the page.', 'error');
       setLoading(false);
     }
   };
 
   // Toast notification
   const showToast = (message, type = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+    toast[type](message);
   };
 
   // Modal handlers
@@ -281,7 +254,7 @@ const TaskManager = ({ employees: propEmployees }) => {
       history.sort((a, b) => new Date(b.date) - new Date(a.date));
       setTaskHistory(history);
     } catch {
-      showToast('Error loading task details. Please try again.', 'error');
+      showToast('Could not load task details. Please try again.', 'error');
     } finally {
       setDetailsLoading(false);
     }
@@ -303,6 +276,7 @@ const TaskManager = ({ employees: propEmployees }) => {
 
     setCommentLoading(true);
     try {
+      toast.info('Adding comment...', { autoClose: 1500 });
       const response = await apiService.post('/comments', {
         task_id: taskDetails.id,
         comment: newComment.trim(),
@@ -342,6 +316,7 @@ const TaskManager = ({ employees: propEmployees }) => {
       formData.append('file_name', file.name);
 
       try {
+        toast.info('Uploading file...', { autoClose: 2000 });
         // apiService.post handles FormData correctly if passed directly
         // axios automatically sets Content-Type to multipart/form-data when data is FormData
         const response = await apiService.post('/attachments', formData);
@@ -462,6 +437,7 @@ const TaskManager = ({ employees: propEmployees }) => {
       }
 
       try {
+        toast.info(editingTask ? 'Updating task...' : 'Creating task...', { autoClose: 2000 });
         const taskData = {
           title: formData.title,
           description: formData.description,
@@ -512,6 +488,7 @@ const TaskManager = ({ employees: propEmployees }) => {
     }
 
     try {
+      toast.info('Deleting task...', { autoClose: 2000 });
       await apiService.delete(`/tasks/${id}`);
 
       showToast('Task deleted successfully!', 'success');
@@ -697,11 +674,6 @@ const TaskManager = ({ employees: propEmployees }) => {
         <title>Task Management System</title>
 
       </Head>
-
-      {/* Toast Notification */}
-      {toast && (
-        <div className={`toast toast-${toast.type}`}>{toast.message}</div>
-      )}
 
       <AdminLayout activeMenu="Tasks">
         {/* Add/Edit Task Modal */}

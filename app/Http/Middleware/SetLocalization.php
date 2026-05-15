@@ -25,25 +25,32 @@ class SetLocalization
 
         if (is_string($countryCode) && strtolower($countryCode) === 'sar') {
             $segments = $request->segments();
-            $segments[0] = 'sa';
+            if (!empty($segments)) {
+                $segments[0] = 'sa';
 
-            $url = $request->getSchemeAndHttpHost().'/'.implode('/', $segments);
-            $queryString = $request->getQueryString();
-            if (is_string($queryString) && $queryString !== '') {
-                $url .= '?'.$queryString;
+                $url = $request->getSchemeAndHttpHost().'/'.implode('/', $segments);
+                $queryString = $request->getQueryString();
+                if (is_string($queryString) && $queryString !== '') {
+                    $url .= '?'.$queryString;
+                }
+
+                return redirect()->to($url);
             }
-
-            return redirect()->to($url);
         }
 
         $supportedLocales = \Illuminate\Support\Facades\Cache::remember('supported_locales', 86400, function () {
             try {
                 $locales = \App\Models\Language::pluck('lang_code')->toArray();
-                return empty($locales) ? ['en', 'ar'] : $locales;
+                $locales = array_filter($locales); // Remove any null/empty values
+                return empty($locales) ? ['en', 'ar'] : array_values($locales);
             } catch (\Exception $e) {
                 return ['en', 'ar'];
             }
         });
+
+        if (!is_array($supportedLocales) || empty($supportedLocales)) {
+            $supportedLocales = ['en', 'ar'];
+        }
 
         $appDefaultLocale = (string) config('app.locale', 'en');
         if (! in_array($appDefaultLocale, $supportedLocales)) {

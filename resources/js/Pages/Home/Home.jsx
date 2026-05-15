@@ -561,8 +561,8 @@ const Home = () => {
               </div>
             </div>
           </section>
-
-          <section id="contact" className="finanza-section finanza-section--alt" aria-label="Contact">
+  
+            <section id="contact" className="finanza-section finanza-section--alt" aria-label="Contact">
           <div className="container-fluid">
             <div className="finanza-contact-grid">
               <div className="finanza-contact-form" data-animate>

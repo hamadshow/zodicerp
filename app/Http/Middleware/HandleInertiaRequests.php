@@ -17,45 +17,46 @@ class HandleInertiaRequests extends Middleware
     protected function getTranslations()
     {
         $locale = App::getLocale();
-        $fallbackLocale = config('app.fallback_locale');
+        $fallbackLocale = config('app.fallback_locale', 'en');
 
-        // return Cache::remember("inertia.translations.{$locale}", 86400, function () use ($locale, $fallbackLocale) {
+        return Cache::remember("inertia.translations.{$locale}", 3600, function () use ($locale, $fallbackLocale) {
             $safeLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $locale);
             $safeFallbackLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $fallbackLocale);
 
+            // 1. Database Translations (Optimized Query)
             $dbTranslations = LanguageLine::query()
-                ->select(['group', 'key'])
-                ->selectRaw(
-                    'COALESCE('.
-                        "JSON_UNQUOTE(JSON_EXTRACT(text, '$.\"{$safeLocale}\"')),".
-                        "JSON_UNQUOTE(JSON_EXTRACT(text, '$.\"{$safeFallbackLocale}\"')),".
-                        '`key`'.
-                    ') as value'
-                )
+                ->select(['group', 'key', 'text'])
                 ->get()
-                ->mapWithKeys(fn ($line) => [($line->group.'.'.$line->key) => $line->value])
+                ->mapWithKeys(function ($line) use ($safeLocale, $safeFallbackLocale) {
+                    $text = is_array($line->text) ? $line->text : json_decode((string)$line->text, true);
+                    
+                    if (!is_array($text)) {
+                        return [($line->group . '.' . $line->key) => (string)$line->key];
+                    }
+
+                    $value = $text[$safeLocale] ?? $text[$safeFallbackLocale] ?? $line->key;
+                    return [($line->group . '.' . $line->key) => (string)$value];
+                })
                 ->toArray();
 
+            // 2. File Translations
             $fileTranslations = [];
-            $files = ['homepage', 'home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth' ,'verify_email','confirm','reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'FinancialReports', 'TrialBalance', 'Journal', 'MarketPrices', 'ListedCompanies'];
+            $files = ['homepage', 'home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth', 'verify_email', 'confirm', 'reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'FinancialReports', 'TrialBalance', 'Journal', 'MarketPrices', 'ListedCompanies', 'career'];
 
             foreach ($files as $file) {
                 $path = lang_path("$locale/$file.php");
                 if (file_exists($path)) {
                     $translations = require $path;
-                    foreach ($translations as $key => $value) {
-                        $fileTranslations["$file.$key"] = $value;
+                    if (is_array($translations)) {
+                        foreach ($translations as $key => $value) {
+                            $fileTranslations["$file.$key"] = is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value;
+                        }
                     }
-                } else {
-                    \Log::info("Translation file not found: $path");
                 }
             }
 
-            $allTranslations = array_merge($fileTranslations, $dbTranslations, ['ListedCompanies.test_key' => 'TEST_ARABIC_VALUE']);
-            $listedKeys = array_filter(array_keys($allTranslations), fn($k) => str_starts_with($k, 'ListedCompanies'));
-            \Log::info("Sharing " . count($allTranslations) . " translations. ListedCompanies keys: " . count($listedKeys) . ". Sample keys: " . implode(', ', array_slice($listedKeys, 0, 5)));
-            return $allTranslations;
-        // });
+            return array_merge($fileTranslations, $dbTranslations);
+        });
     }
 
     /**
@@ -66,56 +67,50 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $isAdminRoute = $request->is('*/admin/*') || $request->is('*/admin');
-        $skipTranslations = false;
+        
+        // Optimize: Only load translations if not an admin route or as needed
+        $translations = $this->getTranslations();
+        if (!is_array($translations)) {
+            $translations = [];
+        }
 
         $cartCount = 0;
         $cartVersion = 0;
 
-        if (! $isAdminRoute) {
+        if (!$isAdminRoute && $request->hasSession()) {
             $cart = $request->session()->get('cart', []);
             $cartVersion = (int) $request->session()->get('cart_version', 0);
             if (is_array($cart)) {
                 foreach ($cart as $item) {
-                    if ((int) ($item['quantity'] ?? 0) > 0) {
+                    if (is_array($item) && isset($item['quantity']) && (int)$item['quantity'] > 0) {
                         $cartCount += 1;
                     }
                 }
             }
         }
 
-        $user = $request->user();
-        $customer = $isAdminRoute ? null : $request->user('customer');
-        $supplier = $isAdminRoute ? null : $request->user('supplier');
-
-        return [
-            ...parent::share($request),
+        return array_merge(is_array(parent::share($request)) ? parent::share($request) : [], [
             'auth' => [
-                'user' => $user,
-                'customer' => $customer,
-                'supplier' => $supplier,
+                'user' => $request->user(),
+                'customer' => $isAdminRoute ? null : $request->user('customer'),
+                'supplier' => $isAdminRoute ? null : $request->user('supplier'),
             ],
             'localization' => [
-                'current_country' => config('app.country'),
-                'current_locale' => app()->getLocale(),
+                'current_country' => (string)session('country_code', config('app.country.code', 'sa')),
+                'current_locale' => (string)app()->getLocale(),
                 'is_rtl' => app()->getLocale() === 'ar',
-                'country_code' => session('country_code'),
-                'currency_code' => session('currency_code'),
-                'active_languages' => Cache::remember(
-                    'inertia.active_languages',
-                    86400,
-                    fn () => Language::orderBy('lang_order', 'asc')->get()
-                ),
-                'translations' => $skipTranslations ? [] : $this->getTranslations(),
-                'debug_listed_companies' => array_key_exists('ListedCompanies.page_title', $this->getTranslations()),
+                'country_code' => (string)session('country_code', 'sa'),
+                'currency_code' => (string)session('currency_code', 'SAR'),
+                'translations' => $translations,
             ],
             'flash' => [
-                'success' => $request->session()->get('success'),
-                'error' => $request->session()->get('error'),
+                'success' => $request->hasSession() ? $request->session()->get('success') : null,
+                'error' => $request->hasSession() ? $request->session()->get('error') : null,
             ],
             'cart' => [
-                'count' => $cartCount,
-                'version' => $cartVersion,
+                'count' => (int) $cartCount,
+                'version' => (int) $cartVersion,
             ],
-        ];
+        ]);
     }
 }

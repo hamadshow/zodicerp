@@ -2,6 +2,13 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Backend\Tasks\TaskController;
+use App\Http\Controllers\Backend\Tasks\TaskCategoryController;
+use App\Http\Controllers\Backend\Tasks\TaskPriorityController;
+use App\Http\Controllers\Backend\Tasks\TaskStatusController;
+use App\Http\Controllers\Backend\Tasks\TaskAssignmentController;
+use App\Http\Controllers\Backend\Tasks\TaskAttachmentController;
+use App\Http\Controllers\Backend\Tasks\TaskCommentController;
 
 // Authenticated API Routes
 Route::middleware(['web', 'auth'])->group(function () {
@@ -69,6 +76,16 @@ Route::middleware(['web', 'auth'])->group(function () {
     // Category Management API Routes
     Route::get('/categories/tree', [App\Http\Controllers\Api\CategoryController::class, 'tree']);
     Route::apiResource('categories', App\Http\Controllers\Api\CategoryController::class);
+
+    // Task Management API Routes
+    Route::get('tasks/categories', [TaskCategoryController::class, 'index']);
+    Route::get('tasks/priorities', [TaskPriorityController::class, 'index']);
+    Route::get('tasks/statuses', [TaskStatusController::class, 'index']);
+    Route::get('tasks/statistics', [TaskController::class, 'statistics']);
+    Route::apiResource('tasks', TaskController::class);
+    Route::apiResource('assignments', TaskAssignmentController::class);
+    Route::apiResource('attachments', TaskAttachmentController::class);
+    Route::apiResource('comments', TaskCommentController::class);
 
     // Role and Permission Management API Routes
     Route::apiResource('roles', App\Http\Controllers\Api\RoleController::class);
