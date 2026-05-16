@@ -25,7 +25,9 @@ return [
     'traffic_violations' => 'المخالفات المرورية',
     'vacations' => 'الإجازات',
     'salary_receipt' => 'مسير الرواتب',
+    'recruitment' => 'التوظيف',
     'careers' => 'الوظائف',
+    'job_applications' => 'طلبات التوظيف',
     
     'inventory' => 'المخزون',
     'warehouses' => 'المستودعات',
@@ -66,6 +68,7 @@ return [
     'budget_dashboard' => 'لوحة تحكم الموازنة',
     'budget_categories' => 'فئات الموازنة',
     'budgets_list' => 'قائمة الموازنات',
+    'budget_items' => 'عناصر الموازنة',
     'budget_monitoring' => 'مراقبة الموازنة',
     'budget_commitments' => 'التزامات الموازنة',
     'budget_forecasts' => 'توقعات الموازنة',
@@ -98,6 +101,7 @@ return [
     'banks' => 'البنوك',
     'cheque' => 'الشيكات',
     'bank_transactions' => 'حركات البنوك',
+    'payment_voucher' => 'سندات الصرف',
     
     'tax_vat' => 'الضرائب والقيمة المضافة',
     'tax_types' => 'أنواع الضرائب',

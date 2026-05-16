@@ -22,7 +22,7 @@
 @use 'pages/AssetCategory';
 @use 'pages/Assets';
 @use 'pages/bank';
-@use 'pages/BankTransactions';
+@use 'pages/BankTransactions'; // Optimized for mobile transitions
 @use 'pages/Brands';
 @use 'pages/Brokers';
 @use 'pages/CacheManagement';
@@ -31,10 +31,10 @@
 @use 'pages/BudgetCategory';
 @use 'pages/BudgetCommitment';
 @use 'pages/BudgetForecast';
+@use 'pages/BudgetItems';
 @use 'pages/BudgetMonitoring';
 @use 'pages/BudgetTransfer';
 @use 'pages/Cheque';
-@use 'pages/ChequeCE';
 @use 'pages/COAReport';
 @use 'pages/Deductions';
 @use 'pages/Departments';

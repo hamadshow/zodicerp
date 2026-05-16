@@ -89,7 +89,7 @@ const BudgetTransfer = ({ transfers, budgets, filters }) => {
     const getAvailableBalance = () => {
         if (!data.from_budget_item_id || fromItems.length === 0) return 0;
         const item = fromItems.find(i => i.id == data.from_budget_item_id);
-        return item ? parseFloat(item.available_balance) : 0;
+        return item ? parseInt(item.available_balance) : 0;
     };
 
     const renderList = () => (
@@ -320,8 +320,8 @@ const BudgetTransfer = ({ transfers, budgets, filters }) => {
                                 value={data.from_amount} 
                                 onChange={e => setData('from_amount', e.target.value)}
                                 required
-                                min="0.01"
-                                step="0.01"
+                                min="1"
+                                step="1"
                             />
                             {errors.from_amount && <span className="text-red-500 text-xs">{errors.from_amount}</span>}
                         </div>
@@ -369,8 +369,8 @@ const BudgetTransfer = ({ transfers, budgets, filters }) => {
                                 value={data.to_amount} 
                                 onChange={e => setData('to_amount', e.target.value)}
                                 required
-                                min="0.01"
-                                step="0.01"
+                                min="1"
+                                step="1"
                                 readOnly={data.transfer_type !== 'supplemental'}
                                 className={data.transfer_type !== 'supplemental' ? 'bg-gray-100' : ''}
                             />

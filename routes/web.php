@@ -88,6 +88,8 @@ Route::get('/Home', function () {
 Route::get('/Auth', fn () => redirect('/'.session('country_code', 'sa').'/'.session('locale', config('app.locale', 'en')).'/Auth'));
 Route::get('/auth', fn () => redirect('/'.session('country_code', 'sa').'/'.session('locale', config('app.locale', 'en')).'/Auth'));
 Route::get('/login', fn () => redirect('/'.session('country_code', 'sa').'/'.session('locale', config('app.locale', 'en')).'/Auth'));
+Route::get('/dashboard', fn () => redirect('/'.session('country_code', 'sa').'/'.session('locale', config('app.locale', 'en')).'/dashboard'));
+Route::get('/logout', fn () => redirect('/'.session('country_code', 'sa').'/'.session('locale', config('app.locale', 'en')).'/logout'));
 Route::get('/register', fn () => redirect('/'.session('country_code', 'sa').'/'.session('locale', config('app.locale', 'en')).'/register'));
 Route::get('/admin', fn () => redirect('/'.session('country_code', 'sa').'/'.session('locale', config('app.locale', 'en')).'/admin'));
 
@@ -519,7 +521,7 @@ Route::group([
             Route::delete('accounts/{bankAccount}', [\App\Http\Controllers\Backend\Cash\BankController::class, 'destroyAccount'])->name('accounts.destroy');
         });
         Route::resource('petty-cash', \App\Http\Controllers\Backend\Cash\PettyCashController::class);
-        Route::resource('cheques', \App\Http\Controllers\Backend\Cash\ChequeController::class);
+        Route::resource('cheques', \App\Http\Controllers\Backend\Cash\ChequeController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::resource('bank-transactions', \App\Http\Controllers\Backend\Cash\BankTransactionController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::get('payment-vouchers', function (\Illuminate\Http\Request $request) {
             $search = trim((string) $request->input('search', ''));
@@ -633,6 +635,13 @@ Route::group([
                 'store' => 'store',
                 'update' => 'update',
                 'destroy' => 'destroy',
+            ]);
+
+            Route::resource('items', \App\Http\Controllers\Backend\Budget\BudgetItemController::class)->names([
+                'index' => 'items.index',
+                'store' => 'items.store',
+                'update' => 'items.update',
+                'destroy' => 'items.destroy',
             ]);
 
             Route::prefix('commitments')->name('commitments.')->group(function () {

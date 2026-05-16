@@ -51,6 +51,12 @@ export default function Career({ careers }) {
             forceFormData: true,
             onSuccess: () => {
                 reset();
+                // Reset file inputs manually as well to be sure
+                const fileInputs = document.querySelectorAll('input[type="file"]');
+                fileInputs.forEach(input => {
+                    input.value = '';
+                });
+                
                 setSuccessMessage(t('application_success', 'تم إرسال طلبك بنجاح!'));
                 setTimeout(() => setSuccessMessage(''), 5000);
                 window.scrollTo({ top: 0, behavior: 'smooth' });

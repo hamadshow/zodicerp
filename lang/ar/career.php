@@ -2,12 +2,35 @@
 
 return [
     'career_title' => 'الوظائف',
-    'title' => 'الوظائف',
+    'title' => 'إدارة الوظائف',
     'subtitle' => 'انضم إلى فريق ZodicERP',
     'application_form_title' => 'طلب توظيف',
     'application_success' => 'تم إرسال طلبك بنجاح!',
     
-    // أقسام النموذج
+    // إحصائيات الإدارة (Backend)
+    'total_jobs' => 'إجمالي الوظائف',
+    'active_postings' => 'الوظائف النشطة',
+    'full_time_jobs' => 'وظائف الدوام الكامل',
+    'add_job' => 'إضافة وظيفة',
+    'edit_job' => 'تعديل الوظيفة',
+    'job_title' => 'المسمى الوظيفي',
+    'location' => 'الموقع',
+    'type' => 'النوع',
+    'salary' => 'الراتب',
+    'salary_range' => 'نطاق الراتب',
+    'status' => 'الحالة',
+    'description' => 'الوصف الوظيفي',
+    'requirements' => 'المتطلبات',
+    'responsibilities' => 'المسؤوليات',
+    
+    // أنواع الدوام
+    'full_time' => 'دوام كامل',
+    'part_time' => 'دوام جزئي',
+    'contract' => 'عقد',
+    'remote' => 'عن بعد',
+    'internship' => 'تدريب',
+
+    // أقسام النموذج (Frontend)
     'personal_info_section' => 'المعلومات الشخصية',
     'address_info_section' => 'معلومات السكن',
     'education_info_section' => 'المعلومات التعليمية والخبرة',
@@ -71,16 +94,12 @@ return [
     'submit_application_btn' => 'إرسال الطلب',
     'submitting_btn' => 'جاري الإرسال...',
 
-    // المفاتيح الموجودة مسبقاً
+    // المفاتيح الإضافية
     'search_placeholder' => 'البحث عن وظائف...',
     'all_locations' => 'جميع المواقع',
     'all_types' => 'جميع الأنواع',
     'apply_now' => 'قدم الآن',
     'no_jobs_found' => 'لم يتم العثور على وظائف تطابق معاييرك.',
     'job_details' => 'تفاصيل الوظيفة',
-    'requirements' => 'المتطلبات',
-    'responsibilities' => 'المسؤوليات',
-    'location' => 'الموقع',
-    'type' => 'النوع',
     'posted_date' => 'تاريخ النشر',
 ];

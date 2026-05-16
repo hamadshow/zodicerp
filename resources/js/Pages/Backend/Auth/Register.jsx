@@ -4,6 +4,7 @@ import { FinanzaFooter, FinanzaHeader } from '@/Pages/Home/Home';
 import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Register() {
+  const isOnHold = true; // Set to false to unhold
   const { localization } = usePage().props;
   const { t } = useTranslation();
   const country = localization?.country_code || 'sa';
@@ -17,6 +18,46 @@ export default function Register() {
       ...params
     });
   };
+
+  if (isOnHold) {
+    return (
+      <div id="top" className="finanza-landing" dir={dir}>
+        <Head title={t('auth.hold_title', 'Registration is temporarily suspended')} />
+        <div className="registerShell">
+          <FinanzaHeader
+            variant="minimal"
+            homeHref={getLocalizedRoute('home')}
+            loginHref={getLocalizedRoute('login')}
+            registerHref={getLocalizedRoute('register')}
+            dashboardHref={getLocalizedRoute('dashboard')}
+            logoutHref={getLocalizedRoute('logout')}
+          />
+          <main id="main-content" className="auth-page registerPage">
+            <div className="registerPage-grid">
+              <div className="registerPage-visual" aria-hidden="true" />
+              <section className="registerPage-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div className="registerCard" style={{ textAlign: 'center', padding: '40px' }}>
+                  <span className="material-icons-outlined" style={{ fontSize: '64px', color: '#f59e0b', marginBottom: '20px' }}>
+                    construction
+                  </span>
+                  <div className="registerCard-title">{t('auth.hold_message_title', 'Registration is on Hold')}</div>
+                  <div className="registerCard-subtitle" style={{ marginTop: '15px' }}>
+                    {t('auth.hold_message_body', 'We are currently updating our registration system. Please check back later.')}
+                  </div>
+                  <div style={{ marginTop: '30px' }}>
+                    <Link href={getLocalizedRoute('home')} className="registerSubmit" style={{ textDecoration: 'none', display: 'inline-block' }}>
+                      {t('auth.back_home', 'Back to Home')}
+                    </Link>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </main>
+          <FinanzaFooter />
+        </div>
+      </div>
+    );
+  }
 
   const { data, setData, post, processing, errors, reset, transform } = useForm({
     name: '',

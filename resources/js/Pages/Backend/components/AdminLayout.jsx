@@ -258,6 +258,7 @@ const AdminLayout = ({
         { icon: 'dashboard', label: translations['sidebar.budget_dashboard'] || 'Budget Dashboard', href: getLocalizedRoute('admin.budget.dashboard') },
         { icon: 'category', label: translations['sidebar.budget_categories'] || 'Budget Categories', href: getLocalizedRoute('admin.budget.categories.index') },
         { icon: 'list_alt', label: translations['sidebar.budgets_list'] || 'Budgets List', href: getLocalizedRoute('admin.budget.index') },
+        { icon: 'list_alt', label: translations['sidebar.budget_items'] || 'Budget Items', href: getLocalizedRoute('admin.budget.items.index') },
         { icon: 'monitoring', label: translations['sidebar.budget_monitoring'] || 'Budget Monitoring', href: getLocalizedRoute('admin.budget.monitoring.index') },
         { icon: 'handshake', label: translations['sidebar.budget_commitments'] || 'Budget Commitments', href: getLocalizedRoute('admin.budget.commitments.index') },
         { icon: 'trending_up', label: translations['sidebar.budget_forecasts'] || 'Budget Forecasts', href: getLocalizedRoute('admin.budget.forecasts.index') },

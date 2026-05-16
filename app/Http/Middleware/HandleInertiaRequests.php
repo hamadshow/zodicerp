@@ -19,7 +19,7 @@ class HandleInertiaRequests extends Middleware
         $locale = App::getLocale();
         $fallbackLocale = config('app.fallback_locale', 'en');
 
-        return Cache::remember("inertia.translations.{$locale}", 3600, function () use ($locale, $fallbackLocale) {
+        return Cache::remember("inertia.translations.{$locale}.v2", 3600, function () use ($locale, $fallbackLocale) {
             $safeLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $locale);
             $safeFallbackLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $fallbackLocale);
 
@@ -41,7 +41,7 @@ class HandleInertiaRequests extends Middleware
 
             // 2. File Translations
             $fileTranslations = [];
-            $files = ['homepage', 'home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth', 'verify_email', 'confirm', 'reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'FinancialReports', 'TrialBalance', 'Journal', 'MarketPrices', 'ListedCompanies', 'career'];
+            $files = ['homepage', 'home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth', 'verify_email', 'confirm', 'reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'BudgetItems', 'FinancialReports', 'TrialBalance', 'Journal', 'MarketPrices', 'ListedCompanies', 'career', 'dashboard', 'applications', 'Bank', 'BankTransactions'];
 
             foreach ($files as $file) {
                 $path = lang_path("$locale/$file.php");

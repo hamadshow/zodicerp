@@ -278,11 +278,11 @@ const useMonitoringDrawer = (t) => {
  */
 const useMonitoringStats = (data) => {
     return useMemo(() => {
-        const totalActual = data.reduce((sum, r) => sum + parseFloat(r.actual_amount || 0), 0);
-        const totalBudget = data.reduce((sum, r) => sum + (parseFloat(r.actual_amount || 0) + parseFloat(r.available_amount || 0) + parseFloat(r.committed_amount || 0)), 0);
+        const totalActual = data.reduce((sum, r) => sum + parseInt(r.actual_amount || 0), 0);
+        const totalBudget = data.reduce((sum, r) => sum + (parseInt(r.actual_amount || 0) + parseInt(r.available_amount || 0) + parseInt(r.committed_amount || 0)), 0);
         const activeAlerts = data.filter(r => r.threshold_breached).length;
         const avgVariance = data.length > 0 
-            ? (data.reduce((sum, r) => sum + parseFloat(r.variance_percent || 0), 0) / data.length)
+            ? (data.reduce((sum, r) => sum + parseInt(r.variance_percent || 0), 0) / data.length)
             : 0;
         const pendingActions = data.filter(r => r.action_required && !r.acknowledged_by).length;
 
@@ -321,7 +321,7 @@ const ReportDashboard = React.memo(({ stats, formatCurrency, t }) => (
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
             <h3 className="text-gray-500 dark:text-gray-400 text-xs uppercase font-semibold tracking-wider">{t('avg_variance', 'Avg Variance')}</h3>
             <div className="mt-2 text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                {stats.avgVariance.toFixed(1)}%
+                {Math.round(stats.avgVariance)}%
             </div>
             <div className="mt-1 text-xs text-gray-400">{t('avg_variance_desc', 'Average percentage across page')}</div>
         </div>
@@ -365,7 +365,7 @@ const MonitoringRow = React.memo(({
                 </div>
             </td>
             <td className="amount-col">
-                {formatCurrency((parseFloat(row.actual_amount) + parseFloat(row.available_amount) + parseFloat(row.committed_amount)))} 
+                {formatCurrency((parseInt(row.actual_amount) + parseInt(row.available_amount) + parseInt(row.committed_amount)))} 
             </td>
             <td className="amount-col text-gray-900 font-bold">{formatCurrency(row.actual_amount)}</td>
             <td className="amount-col text-gray-600">{formatCurrency(row.committed_amount)}</td>

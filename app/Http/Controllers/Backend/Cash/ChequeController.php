@@ -53,18 +53,12 @@ class ChequeController extends Controller
             'total_amount' => Cheque::sum('amount'),
         ];
 
+        $accounts = CashAccount::select('id', 'name', 'account_code')->get();
+
         return Inertia::render('Backend/06-Cash/Cheque', [
             'cheques' => $cheques,
             'filters' => $request->only(['search', 'status', 'type', 'date_from', 'date_to']),
             'stats' => $stats,
-        ]);
-    }
-
-    public function create()
-    {
-        $accounts = CashAccount::select('id', 'name', 'account_code')->get();
-
-        return Inertia::render('Backend/06-Cash/ChequeCE', [
             'accounts' => $accounts,
         ]);
     }
@@ -102,17 +96,6 @@ class ChequeController extends Controller
         });
 
         return redirect()->route('admin.cheques.index')->with('success', 'Cheque created successfully.');
-    }
-
-    public function edit(Cheque $cheque)
-    {
-        $accounts = CashAccount::select('id', 'name', 'account_code')->get();
-        $cheque->load('transactions.creator', 'transactions.account');
-
-        return Inertia::render('Backend/06-Cash/ChequeCE', [
-            'cheque' => $cheque,
-            'accounts' => $accounts,
-        ]);
     }
 
     public function update(Request $request, Cheque $cheque)

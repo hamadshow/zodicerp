@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell, Legend 
@@ -16,6 +16,11 @@ import {
 } from '../../utils/date';
 
 const Dashboard = () => {
+  const { props } = usePage();
+  const localization = props.localization;
+  const translations = localization?.translations || {};
+  const t = (key, fallback) => translations[`dashboard.${key}`] || translations[`common.${key}`] || fallback;
+
   const todayYyyyMmDd = getCurrentDateYyyyMmDd();
   const todayDdMmYyyy = getCurrentDateDdMmYyyy();
 
@@ -312,27 +317,27 @@ const Dashboard = () => {
   };
 
   const columns = [
-    { header: 'ID', key: 'id', sortable: true },
-    { header: 'ORDER #', key: 'order_number', sortable: true, render: (row) => <a href={`/admin/orders/${row.id}`} className="table-link">{row.order_number}</a> },
-    { header: 'CUSTOMER', key: 'customer', render: (row) => row.customer?.name || 'N/A' },
-    { header: 'TOTAL', key: 'total_amount', sortable: true, render: (row) => `$${row.total_amount}` },
-    { header: 'DATE', key: 'created_at', sortable: true },
-    { header: 'STATUS', key: 'status', sortable: true, render: (row) => <span className={`status status-${row.status.toLowerCase()}`}>{row.status}</span> }
+    { header: t('id', 'ID'), key: 'id', sortable: true },
+    { header: t('order_number', 'ORDER #'), key: 'order_number', sortable: true, render: (row) => <a href={`/admin/orders/${row.id}`} className="table-link">{row.order_number}</a> },
+    { header: t('customer', 'CUSTOMER'), key: 'customer', render: (row) => row.customer?.name || 'N/A' },
+    { header: t('amount', 'TOTAL'), key: 'total_amount', sortable: true, render: (row) => `$${row.total_amount}` },
+    { header: t('created_at', 'DATE'), key: 'created_at', sortable: true },
+    { header: t('status', 'STATUS'), key: 'status', sortable: true, render: (row) => <span className={`status status-${row.status.toLowerCase()}`}>{row.status}</span> }
   ];
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
   if (loading && tableData.length === 0) {
-    return <div className="loading-container"><div className="spinner"></div><p>Loading...</p></div>;
+    return <div className="loading-container"><div className="spinner"></div><p>{t('loading', 'Loading...')}</p></div>;
   }
 
   return (
     <AdminLayout activeMenu="Dashboard">
-      <Head><title>Admin Dashboard</title></Head>
+      <Head><title>{t('dashboard', 'Admin Dashboard')}</title></Head>
 
       <div className="dashboard-filters" style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '24px', alignItems: 'flex-end' }}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <label htmlFor="dashboard-from-date" style={{ fontSize: '0.85rem', marginBottom: '4px', color: '#4b5563' }}>From</label>
+          <label htmlFor="dashboard-from-date" style={{ fontSize: '0.85rem', marginBottom: '4px', color: '#4b5563' }}>{t('from', 'From')}</label>
           <input
             id="dashboard-from-date"
             type="text"
@@ -344,7 +349,7 @@ const Dashboard = () => {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <label htmlFor="dashboard-to-date" style={{ fontSize: '0.85rem', marginBottom: '4px', color: '#4b5563' }}>To</label>
+          <label htmlFor="dashboard-to-date" style={{ fontSize: '0.85rem', marginBottom: '4px', color: '#4b5563' }}>{t('to', 'To')}</label>
           <input
             id="dashboard-to-date"
             type="text"
@@ -368,7 +373,7 @@ const Dashboard = () => {
           }}
           style={{ height: '38px' }}
         >
-          Reset to today
+          {t('reset_to_today', 'Reset to today')}
         </button>
 
         <button
@@ -377,17 +382,17 @@ const Dashboard = () => {
           onClick={handleApplyDateRange}
           style={{ height: '38px' }}
         >
-          Apply range
+          {t('apply_range', 'Apply range')}
         </button>
       </div>
 
       {/* Stats Cards */}
       <div className="dashboard-stats" style={{ marginBottom: '24px' }}>
         {[
-          { icon: 'payments', color: 'bg-purple-500', label: 'Net Sales', val: `$${stats.totalRevenue.toLocaleString()}` },
-          { icon: 'inventory_2', color: 'bg-blue-500', label: 'Net Purchases', val: `$${stats.totalNetPurchases.toLocaleString()}` },
-          { icon: 'shopping_cart', color: 'bg-green-500', label: 'Orders', val: stats.totalOrders },
-          { icon: 'inventory', color: 'bg-orange-500', label: 'Products', val: stats.totalProducts }
+          { icon: 'payments', color: 'bg-purple-500', label: t('net_sales', 'Net Sales'), val: `$${stats.totalRevenue.toLocaleString()}` },
+          { icon: 'inventory_2', color: 'bg-blue-500', label: t('net_purchases', 'Net Purchases'), val: `$${stats.totalNetPurchases.toLocaleString()}` },
+          { icon: 'shopping_cart', color: 'bg-green-500', label: t('orders', 'Orders'), val: stats.totalOrders },
+          { icon: 'inventory', color: 'bg-orange-500', label: t('products', 'Products'), val: stats.totalProducts }
         ].map((s, i) => (
           <div key={i} className="stat-card">
             <div className={`stat-icon ${s.color}`}><span className="material-icons-outlined">{s.icon}</span></div>
@@ -399,7 +404,7 @@ const Dashboard = () => {
       {/* Charts Section */}
       <div className="dashboard-grid charts-grid" style={{ marginBottom: '24px' }}>
         <div className="card chart-card">
-          <div className="card-header"><h2>Sales & Net Sales Overview</h2></div>
+          <div className="card-header"><h2>{t('sales_net_sales_overview', 'Sales & Net Sales Overview')}</h2></div>
           <div className="card-body" style={{ height: '300px', minHeight: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={salesData}>
@@ -416,7 +421,7 @@ const Dashboard = () => {
         </div>
 
         <div className="card chart-card">
-          <div className="card-header"><h2>Order Distribution</h2></div>
+          <div className="card-header"><h2>{t('order_distribution', 'Order Distribution')}</h2></div>
           <div className="card-body" style={{ height: '300px', minHeight: '300px' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -435,8 +440,8 @@ const Dashboard = () => {
       <div className="dashboard-grid triple-grid" style={{ marginBottom: '24px' }}>
         <div className="card">
           <div className="card-header">
-            <h2>Product Categories</h2>
-            <a href="/admin/categories" className="text-sm">Manage</a>
+            <h2>{t('product_categories', 'Product Categories')}</h2>
+            <a href="/admin/categories" className="text-sm">{t('manage', 'Manage')}</a>
           </div>
           <div className="card-body">
             <div className="simple-list">
@@ -444,7 +449,7 @@ const Dashboard = () => {
                 <div key={cat.id} className="list-item">
                   <div className="item-info">
                     <strong>{cat.name}</strong>
-                    <p>{cat.count || 0} Products</p>
+                    <p>{cat.count || 0} {t('products', 'Products')}</p>
                   </div>
                   <span className="material-icons-outlined text-gray-400">chevron_right</span>
                 </div>
@@ -454,13 +459,13 @@ const Dashboard = () => {
         </div>
 
         <div className="card">
-          <div className="card-header"><h2>Top Selling Products</h2></div>
+          <div className="card-header"><h2>{t('top_products', 'Top Selling Products')}</h2></div>
           <div className="card-body">
             <div className="simple-list">
               {topProducts.map(p => (
                 <div key={p.id} className="list-item">
-                  <div className="item-info"><strong>{p.name}</strong><p>{p.sales} units sold</p></div>
-                  <div className={`item-badge ${p.stock < 10 ? 'badge-danger' : 'badge-success'}`}>{p.stock} in stock</div>
+                  <div className="item-info"><strong>{p.name}</strong><p>{p.sales} {t('units_sold', 'units sold')}</p></div>
+                  <div className={`item-badge ${p.stock < 10 ? 'badge-danger' : 'badge-success'}`}>{p.stock} {t('in_stock', 'in stock')}</div>
                 </div>
               ))}
             </div>
@@ -468,13 +473,13 @@ const Dashboard = () => {
         </div>
 
         <div className="card">
-          <div className="card-header"><h2>Low Stock Alerts</h2></div>
+          <div className="card-header"><h2>{t('low_stock_alerts', 'Low Stock Alerts')}</h2></div>
           <div className="card-body">
             <div className="simple-list">
               {lowStockAlerts.map(p => (
                 <div key={p.id} className="list-item alert-item">
                   <span className="material-icons-outlined text-danger">warning</span>
-                  <div className="item-info"><strong>{p.name}</strong><p>Only {p.stock} remaining (Threshold: {p.threshold})</p></div>
+                  <div className="item-info"><strong>{p.name}</strong><p>{t('only', 'Only')} {p.stock} {t('remaining', 'remaining')} ({t('threshold', 'Threshold')}: {p.threshold})</p></div>
                 </div>
               ))}
             </div>
@@ -485,13 +490,13 @@ const Dashboard = () => {
       {/* Activity and Management Grid */}
       <div className="dashboard-grid charts-grid" style={{ marginBottom: '24px' }}>
         <div className="card">
-          <div className="card-header"><h2>Recent Activity</h2></div>
+          <div className="card-header"><h2>{t('recent_activity', 'Recent Activity')}</h2></div>
           <div className="card-body">
             <div className="activity-list">
               {recentActivity.map(a => (
                 <div key={a.id} className="activity-item">
                   <div className="activity-icon"><span className="material-icons-outlined">notifications</span></div>
-                  <div className="activity-content"><p><strong>{a.action}</strong> by {a.user}</p><span className="activity-time">{a.time}</span></div>
+                  <div className="activity-content"><p><strong>{a.action}</strong> {t('by', 'by')} {a.user}</p><span className="activity-time">{a.time}</span></div>
                 </div>
               ))}
             </div>
@@ -499,13 +504,13 @@ const Dashboard = () => {
         </div>
 
         <div className="card">
-          <div className="card-header"><h2>System Management</h2></div>
+          <div className="card-header"><h2>{t('system_management', 'System Management')}</h2></div>
           <div className="card-body">
             <div className="simple-list">
               {[
-                { label: 'User Management', icon: 'person', href: '/admin/users' },
-                { label: 'Roles & Permissions', icon: 'security', href: '/admin/roles' },
-                { label: 'Inventory Control', icon: 'inventory_2', href: '/admin/inventory' }
+                { label: t('user_management', 'User Management'), icon: 'person', href: '/admin/users' },
+                { label: t('roles_permissions', 'Roles & Permissions'), icon: 'security', href: '/admin/roles' },
+                { label: t('inventory_control', 'Inventory Control'), icon: 'inventory_2', href: '/admin/inventory' }
               ].map((item, idx) => (
                 <a key={idx} href={item.href} className="list-item" style={{ textDecoration: 'none' }}>
                   <div className="item-info" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -522,7 +527,7 @@ const Dashboard = () => {
 
       {/* Main Table Section */}
       <div className="pages-section">
-        <div className="section-header"><h2>Recent Orders</h2><a href="/admin/orders">View All</a></div>
+        <div className="section-header"><h2>{t('recent_orders', 'Recent Orders')}</h2><a href="/admin/orders">{t('view_all', 'View All')}</a></div>
         <div className="card">
           <div className="card-header">
             <div className="actions">
@@ -531,17 +536,17 @@ const Dashboard = () => {
                 onChange={(e) => handleBulkAction(e.target.value)}
                 value=""
               >
-                <option value="" disabled>Bulk Actions</option>
-                <option value="ship">Ship Selected</option>
-                <option value="cancel">Cancel Selected</option>
-                <option value="delete">Delete Selected</option>
+                <option value="" disabled>{t('bulk_actions', 'Bulk Actions')}</option>
+                <option value="ship">{t('ship_selected', 'Ship Selected')}</option>
+                <option value="cancel">{t('cancel_selected', 'Cancel Selected')}</option>
+                <option value="delete">{t('delete_selected', 'Delete Selected')}</option>
               </select>
-              <button className="btn btn-outline"><span className="material-icons-outlined">filter_list</span><span>Filters</span></button>
-              <div className="search-bar light"><input type="text" placeholder="Search orders..." value={searchQuery} onChange={handleSearchChange} /><button><span className="material-icons-outlined">search</span></button></div>
+              <button className="btn btn-outline"><span className="material-icons-outlined">filter_list</span><span>{t('filters', 'Filters')}</span></button>
+              <div className="search-bar light"><input type="text" placeholder={t('search_orders', 'Search orders...')} value={searchQuery} onChange={handleSearchChange} /><button><span className="material-icons-outlined">search</span></button></div>
             </div>
             <div className="actions">
-              <button className="btn btn-primary" onClick={handleCreateOrder}><span className="material-icons-outlined">add</span><span>Create Order</span></button>
-              <button className="btn btn-outline" onClick={handleReload}><span className="material-icons-outlined">refresh</span><span>Reload</span></button>
+              <button className="btn btn-primary" onClick={handleCreateOrder}><span className="material-icons-outlined">add</span><span>{t('create_order', 'Create Order')}</span></button>
+              <button className="btn btn-outline" onClick={handleReload}><span className="material-icons-outlined">refresh</span><span>{t('reload', 'Reload')}</span></button>
             </div>
           </div>
           <Table tableData={tableData} columns={columns} handleRowSelect={handleRowSelect} selectAll={selectAll} handleSelectAll={handleSelectAll} onEdit={handleEditOrder} onDelete={handleDeleteOrder} />

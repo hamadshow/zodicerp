@@ -20,17 +20,21 @@ const JobApplications = ({ applications: propApplications }) => {
     
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [selectedApplication, setSelectedApplication] = useState(null);
+    const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
+    const [previewDoc, setPreviewDoc] = useState(null);
+    const [showDetails, setShowDetails] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const [filteredApplications, setFilteredApplications] = useState(applicationsData);
 
     useEffect(() => {
-        let filtered = applicationsData;
+        let result = [...applicationsData];
         
         if (searchTerm) {
             const lowerTerm = searchTerm.toLowerCase();
-            filtered = filtered.filter(app => 
+            result = result.filter(app => 
                 (app.name && app.name.toLowerCase().includes(lowerTerm)) ||
                 (app.email && app.email.toLowerCase().includes(lowerTerm)) ||
                 (app.phone && app.phone.toLowerCase().includes(lowerTerm)) ||
@@ -39,11 +43,35 @@ const JobApplications = ({ applications: propApplications }) => {
         }
 
         if (statusFilter !== 'all') {
-            filtered = filtered.filter(app => app.status === statusFilter);
+            result = result.filter(app => app.status === statusFilter);
         }
 
-        setFilteredApplications(filtered);
-    }, [propApplications, searchTerm, statusFilter]);
+        if (sortConfig.key) {
+            result.sort((a, b) => {
+                if (a[sortConfig.key] < b[sortConfig.key]) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (a[sortConfig.key] > b[sortConfig.key]) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+
+        setFilteredApplications(result);
+        setCurrentPage(1); // Reset to first page when filters change
+    }, [propApplications, searchTerm, statusFilter, sortConfig]);
+
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentItems = filteredApplications.slice(indexOfFirstItem, indexOfLastItem);
+    const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
+
+    const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+    const requestSort = (key) => {
+        let direction = 'asc';
+        if (sortConfig.key === key && sortConfig.direction === 'asc') {
+            direction = 'desc';
+        }
+        setSortConfig({ key, direction });
+    };
 
     const stats = {
         total: applicationsData.length,
@@ -57,14 +85,25 @@ const JobApplications = ({ applications: propApplications }) => {
         setSearchTerm(e.target.value);
     };
 
-    const openViewModal = (application) => {
+    const openDetails = (application) => {
         setSelectedApplication(application);
-        setIsViewModalOpen(true);
+        setShowDetails(true);
+        setPreviewDoc(null);
     };
 
-    const closeViewModal = () => {
-        setIsViewModalOpen(false);
+    const backToList = () => {
+        setShowDetails(false);
         setSelectedApplication(null);
+        setPreviewDoc(null);
+    };
+
+    const handleViewDoc = (path, title) => {
+        const cleanPath = path.startsWith('storage/') ? path.replace('storage/', '') : path;
+        const url = `/storage/${cleanPath}`;
+        const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(path);
+        const isPdf = /\.pdf$/i.test(path);
+        
+        setPreviewDoc({ url, title, isImage, isPdf });
     };
 
     const handleUpdateStatus = (id, newStatus) => {
@@ -93,152 +132,209 @@ const JobApplications = ({ applications: propApplications }) => {
             <div className="breadcrumb">
                 <Link href={getLocalizedRoute('admin.dashboard')}>{translations['sidebar.Dashboard'] || 'Dashboard'}</Link>
                 <span>/</span>
-                <a href="#">{translations['sidebar.recruitment'] || 'Recruitment'}</a>
+                <a href="#" onClick={(e) => { e.preventDefault(); backToList(); }}>{translations['sidebar.recruitment'] || 'Recruitment'}</a>
                 <span>/</span>
                 <span>{translations['sidebar.job_applications'] || 'Job Applications'}</span>
+                {showDetails && (
+                    <>
+                        <span>/</span>
+                        <span>{selectedApplication?.name}</span>
+                    </>
+                )}
             </div>
 
-            {/* Quick Stats */}
-            <div className="stats-cards">
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
-                        <span className="material-icons-outlined">assignment</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.total}</div>
-                        <div className="stat-label">{translations['applications.total'] || 'Total Applications'}</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--warning-color)' }}>
-                        <span className="material-icons-outlined">pending_actions</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.pending}</div>
-                        <div className="stat-label">{translations['applications.pending'] || 'Pending'}</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
-                        <span className="material-icons-outlined">check_circle</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.accepted}</div>
-                        <div className="stat-label">{translations['applications.accepted'] || 'Accepted'}</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--danger-color)' }}>
-                        <span className="material-icons-outlined">cancel</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.rejected}</div>
-                        <div className="stat-label">{translations['applications.rejected'] || 'Rejected'}</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Card */}
-            <div className="applications-card fade-in">
-                <div className="card-header">
-                    <div className="applications-actions">
-                        <div className="search-bar light">
-                            <input 
-                                type="text" 
-                                placeholder={translations['common.search'] || 'Search applications...'}
-                                value={searchTerm}
-                                onChange={handleSearch}
-                            />
-                            <button>
-                                <span className="material-icons-outlined">search</span>
-                            </button>
+            {!showDetails ? (
+                <div className="fade-in">
+                    {/* Quick Stats */}
+                    <div className="stats-cards">
+                        <div className="stat-card">
+                            <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
+                                <span className="material-icons-outlined">assignment</span>
+                            </div>
+                            <div className="stat-content">
+                                <div className="stat-value">{stats.total}</div>
+                                <div className="stat-label">{translations['applications.total'] || 'Total Applications'}</div>
+                            </div>
                         </div>
-                        <div className="filter-group">
-                            <select 
-                                className="form-control" 
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                            >
-                                <option value="all">{translations['common.all_status'] || 'All Status'}</option>
-                                <option value="pending">{translations['applications.pending'] || 'Pending'}</option>
-                                <option value="reviewed">{translations['applications.reviewed'] || 'Reviewed'}</option>
-                                <option value="accepted">{translations['applications.accepted'] || 'Accepted'}</option>
-                                <option value="rejected">{translations['applications.rejected'] || 'Rejected'}</option>
-                            </select>
+                        <div className="stat-card">
+                            <div className="stat-icon" style={{ backgroundColor: 'var(--warning-color)' }}>
+                                <span className="material-icons-outlined">pending_actions</span>
+                            </div>
+                            <div className="stat-content">
+                                <div className="stat-value">{stats.pending}</div>
+                                <div className="stat-label">{translations['applications.pending'] || 'Pending'}</div>
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
+                                <span className="material-icons-outlined">check_circle</span>
+                            </div>
+                            <div className="stat-content">
+                                <div className="stat-value">{stats.accepted}</div>
+                                <div className="stat-label">{translations['applications.accepted'] || 'Accepted'}</div>
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-icon" style={{ backgroundColor: 'var(--danger-color)' }}>
+                                <span className="material-icons-outlined">cancel</span>
+                            </div>
+                            <div className="stat-content">
+                                <div className="stat-value">{stats.rejected}</div>
+                                <div className="stat-label">{translations['applications.rejected'] || 'Rejected'}</div>
+                            </div>
                         </div>
                     </div>
-                    <div className="actions">
-                        <button className="btn btn-outline" onClick={() => router.reload()}>
-                            <span className="material-icons-outlined">refresh</span>
-                            <span>{translations['common.refresh'] || 'Refresh'}</span>
-                        </button>
-                    </div>
-                </div>
 
-                <div className="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th><input type="checkbox" /></th>
-                                <th>ID</th>
-                                <th>{translations['applications.applicant'] || 'APPLICANT'}</th>
-                                <th>{translations['applications.job_title'] || 'JOB TITLE'}</th>
-                                <th>{translations['applications.date'] || 'DATE'}</th>
-                                <th>{translations['applications.status'] || 'STATUS'}</th>
-                                <th>{translations['common.operations'] || 'OPERATIONS'}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredApplications.map(app => (
-                                <tr key={app.id}>
-                                    <td><input type="checkbox" className="application-checkbox" /></td>
-                                    <td>{app.id.toString().padStart(3, '0')}</td>
-                                    <td>
-                                        <div className="applicant-info">
-                                            <div className="applicant-name">{app.name}</div>
-                                            <div className="applicant-contact">{app.email}</div>
-                                        </div>
-                                    </td>
-                                    <td>{app.career?.title || 'N/A'}</td>
-                                    <td>{new Date(app.created_at).toLocaleDateString()}</td>
-                                    <td>
-                                        <span className={`application-status status-${app.status}`}>
-                                            {translations[`applications.${app.status}`] || app.status}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <button className="icon-btn view" onClick={() => openViewModal(app)}>
-                                            <span className="material-icons-outlined">visibility</span>
+                    {/* Main Card */}
+                    <div className="applications-card">
+                        <div className="card-header">
+                            <div className="applications-actions">
+                                <div className="search-bar light">
+                                    <input 
+                                        type="text" 
+                                        placeholder={translations['common.search'] || 'Search applications...'}
+                                        value={searchTerm}
+                                        onChange={handleSearch}
+                                    />
+                                    <button>
+                                        <span className="material-icons-outlined">search</span>
+                                    </button>
+                                </div>
+                                <div className="filter-group">
+                                    <select 
+                                        className="form-control" 
+                                        value={statusFilter}
+                                        onChange={(e) => setStatusFilter(e.target.value)}
+                                    >
+                                        <option value="all">{translations['common.all_status'] || 'All Status'}</option>
+                                        <option value="pending">{translations['applications.pending'] || 'Pending'}</option>
+                                        <option value="reviewed">{translations['applications.reviewed'] || 'Reviewed'}</option>
+                                        <option value="accepted">{translations['applications.accepted'] || 'Accepted'}</option>
+                                        <option value="rejected">{translations['applications.rejected'] || 'Rejected'}</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="actions">
+                                <button className="btn btn-outline" onClick={() => router.reload()}>
+                                    <span className="material-icons-outlined">refresh</span>
+                                    <span>{translations['common.refresh'] || 'Refresh'}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th><input type="checkbox" /></th>
+                                        <th onClick={() => requestSort('id')} style={{ cursor: 'pointer' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                ID
+                                                <span className="material-icons-outlined" style={{ fontSize: '16px' }}>
+                                                    {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'sort'}
+                                                </span>
+                                            </div>
+                                        </th>
+                                        <th>{translations['applications.applicant'] || 'APPLICANT'}</th>
+                                        <th>{translations['applications.job_title'] || 'JOB TITLE'}</th>
+                                        <th>{translations['applications.date'] || 'DATE'}</th>
+                                        <th>{translations['applications.status'] || 'STATUS'}</th>
+                                        <th>{translations['common.operations'] || 'OPERATIONS'}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {currentItems.map(app => (
+                                        <tr key={app.id}>
+                                            <td><input type="checkbox" className="application-checkbox" /></td>
+                                            <td>{app.id.toString().padStart(3, '0')}</td>
+                                            <td>
+                                                <div className="applicant-info">
+                                                    <div className="applicant-name">{app.name}</div>
+                                                    <div className="applicant-contact">{app.email}</div>
+                                                </div>
+                                            </td>
+                                            <td>{app.career?.title || 'N/A'}</td>
+                                            <td>{new Date(app.created_at).toLocaleDateString()}</td>
+                                            <td>
+                                                <span className={`application-status status-${app.status}`}>
+                                                    {translations[`applications.${app.status}`] || app.status}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <button className="icon-btn view" onClick={() => openDetails(app)}>
+                                                    <span className="material-icons-outlined">visibility</span>
+                                                </button>
+                                                <button className="icon-btn delete" onClick={() => handleDelete(app.id)}>
+                                                    <span className="material-icons-outlined">delete</span>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {currentItems.length === 0 && (
+                                        <tr>
+                                            <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
+                                                {translations['common.no_data'] || 'No applications found.'}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="pagination-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px' }}>
+                                <div className="pagination-info">
+                                    {translations['common.showing'] || 'Showing'} {indexOfFirstItem + 1} {translations['common.to'] || 'to'} {Math.min(indexOfLastItem, filteredApplications.length)} {translations['common.of'] || 'of'} {filteredApplications.length} {translations['common.entries'] || 'entries'}
+                                </div>
+                                <div className="pagination-actions" style={{ display: 'flex', gap: '5px' }}>
+                                    <button 
+                                        className="btn btn-outline btn-sm" 
+                                        disabled={currentPage === 1}
+                                        onClick={() => paginate(currentPage - 1)}
+                                    >
+                                        <span className="material-icons-outlined">chevron_left</span>
+                                    </button>
+                                    {[...Array(totalPages)].map((_, i) => (
+                                        <button 
+                                            key={i} 
+                                            className={`btn btn-sm ${currentPage === i + 1 ? 'btn-primary' : 'btn-outline'}`}
+                                            onClick={() => paginate(i + 1)}
+                                        >
+                                            {i + 1}
                                         </button>
-                                        <button className="icon-btn delete" onClick={() => handleDelete(app.id)}>
-                                            <span className="material-icons-outlined">delete</span>
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {filteredApplications.length === 0 && (
-                                <tr>
-                                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
-                                        {translations['common.no_data'] || 'No applications found.'}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                                    ))}
+                                    <button 
+                                        className="btn btn-outline btn-sm" 
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => paginate(currentPage + 1)}
+                                    >
+                                        <span className="material-icons-outlined">chevron_right</span>
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
-            </div>
-
-            {/* View Modal */}
-            {isViewModalOpen && selectedApplication && (
-                <div className={`modal-overlay active`} onClick={(e) => { if(e.target.className.includes('modal-overlay')) closeViewModal(); }}>
-                    <div className="modal modal-xl">
-                        <div className="modal-header">
-                            <h3 className="modal-title">{translations['applications.details'] || 'Application Details'} - {selectedApplication.name}</h3>
-                            <button className="modal-close" onClick={closeViewModal}>
-                                <span className="material-icons-outlined">close</span>
-                            </button>
+            ) : (
+                /* Application Details View */
+                <div className="fade-in">
+                    <div className="card">
+                        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                <button className="btn btn-outline btn-sm" onClick={backToList}>
+                                    <span className="material-icons-outlined">arrow_back</span>
+                                    <span>{translations['common.back'] || 'Back'}</span>
+                                </button>
+                                <h2 style={{ margin: 0 }}>{translations['applications.details'] || 'Application Details'} - {selectedApplication.name}</h2>
+                            </div>
+                            <div className="status-badge-container">
+                                <span className={`application-status status-${selectedApplication.status}`}>
+                                    {translations[`applications.${selectedApplication.status}`] || selectedApplication.status}
+                                </span>
+                            </div>
                         </div>
-                        <div className="modal-body">
+                        <div className="card-body" style={{ padding: '30px' }}>
                             <div className="application-details-grid">
                                 <div className="details-section">
                                     <h4 className="section-title">{translations['applications.personal_info'] || 'Personal Information'}</h4>
@@ -331,19 +427,58 @@ const JobApplications = ({ applications: propApplications }) => {
                                 <div className="details-section full-width">
                                     <h4 className="section-title">{translations['applications.files_message'] || 'Files & Message'}</h4>
                                     <div className="files-container">
-                                        <a href={`/storage/${selectedApplication.cv_path}`} target="_blank" rel="noopener noreferrer" className="file-link">
+                                        <button 
+                                            type="button"
+                                            className={`file-link ${previewDoc?.url?.includes(selectedApplication.cv_path) ? 'active' : ''}`}
+                                            onClick={() => handleViewDoc(selectedApplication.cv_path, translations['applications.view_cv'] || 'View CV')}
+                                        >
                                             <span className="material-icons-outlined">description</span>
                                             <span>{translations['applications.view_cv'] || 'View CV'}</span>
-                                        </a>
+                                        </button>
                                         {selectedApplication.certificates_path && (
-                                            <a href={`/storage/${selectedApplication.certificates_path}`} target="_blank" rel="noopener noreferrer" className="file-link">
+                                            <button 
+                                                type="button"
+                                                className={`file-link ${previewDoc?.url?.includes(selectedApplication.certificates_path) ? 'active' : ''}`}
+                                                onClick={() => handleViewDoc(selectedApplication.certificates_path, translations['applications.view_certificates'] || 'View Certificates')}
+                                            >
                                                 <span className="material-icons-outlined">workspace_premium</span>
                                                 <span>{translations['applications.view_certificates'] || 'View Certificates'}</span>
-                                            </a>
+                                            </button>
                                         )}
                                     </div>
+
+                                    {/* Document Preview Area */}
+                                    {previewDoc && (
+                                        <div className="doc-preview-container fade-in">
+                                            <div className="preview-header">
+                                                <span>{previewDoc.title}</span>
+                                                <div className="preview-actions">
+                                                    <a href={previewDoc.url} download className="icon-btn" title="Download">
+                                                        <span className="material-icons-outlined">download</span>
+                                                    </a>
+                                                    <button type="button" className="icon-btn" onClick={() => setPreviewDoc(null)}>
+                                                        <span className="material-icons-outlined">close</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div className="preview-content">
+                                                {previewDoc.isImage ? (
+                                                    <img src={previewDoc.url} alt={previewDoc.title} />
+                                                ) : previewDoc.isPdf ? (
+                                                    <iframe src={previewDoc.url} title={previewDoc.title}></iframe>
+                                                ) : (
+                                                    <div className="unsupported-format">
+                                                        <span className="material-icons-outlined">error_outline</span>
+                                                        <p>Preview not available for this format. Please download to view.</p>
+                                                        <a href={previewDoc.url} download className="btn btn-primary">Download File</a>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {selectedApplication.message && (
-                                        <div className="message-box">
+                                        <div className="message-box" style={{ marginTop: '20px' }}>
                                             <label>{translations['applications.message'] || 'Message'}:</label>
                                             <p>{selectedApplication.message}</p>
                                         </div>
@@ -351,10 +486,10 @@ const JobApplications = ({ applications: propApplications }) => {
                                 </div>
                             </div>
                         </div>
-                        <div className="modal-footer">
-                            <div className="status-update-actions">
-                                <label>{translations['applications.update_status'] || 'Update Status'}:</label>
-                                <div className="btn-group">
+                        <div className="card-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 30px', borderTop: '1px solid #eee' }}>
+                            <div className="status-update-actions" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                <label style={{ fontWeight: 600 }}>{translations['applications.update_status'] || 'Update Status'}:</label>
+                                <div className="btn-group" style={{ display: 'flex', gap: '8px' }}>
                                     <button 
                                         className={`btn btn-sm ${selectedApplication.status === 'reviewed' ? 'btn-info' : 'btn-outline'}`}
                                         onClick={() => handleUpdateStatus(selectedApplication.id, 'reviewed')}
@@ -375,7 +510,7 @@ const JobApplications = ({ applications: propApplications }) => {
                                     </button>
                                 </div>
                             </div>
-                            <button type="button" className="btn btn-secondary" onClick={closeViewModal}>
+                            <button type="button" className="btn btn-secondary" onClick={backToList}>
                                 {translations['common.close'] || 'Close'}
                             </button>
                         </div>

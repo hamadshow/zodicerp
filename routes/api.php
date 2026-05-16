@@ -65,6 +65,15 @@ Route::middleware(['web', 'auth'])->group(function () {
         return App\Models\Branch::all();
     });
 
+    // Human Resource API Routes (Extended)
+    Route::apiResource('deductions', App\Http\Controllers\Backend\HumanResource\DeductionController::class);
+    Route::apiResource('rewards', App\Http\Controllers\Backend\HumanResource\RewardController::class);
+    Route::apiResource('attendances', App\Http\Controllers\Backend\HumanResource\AttendanceController::class);
+    Route::apiResource('payroll-advances', App\Http\Controllers\Backend\HumanResource\PayrollAdvanceController::class);
+    Route::apiResource('traffic-violations', App\Http\Controllers\Backend\HumanResource\TrafficViolationController::class);
+    Route::apiResource('nationalities', App\Http\Controllers\Backend\HumanResource\NationalityController::class);
+    Route::apiResource('professions', App\Http\Controllers\Backend\HumanResource\ProfessionController::class);
+
     // Accounting API Routes
     Route::get('/accounts/tree', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'tree']);
     Route::get('/accounts', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'index']);

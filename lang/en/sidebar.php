@@ -15,5 +15,17 @@ return [
     'buy_shares' => 'Buy Shares',
     'sell_shares' => 'Sell Shares',
     'portfolio' => 'Portfolio',
+    'recruitment' => 'Recruitment',
     'careers' => 'Careers',
+    'job_applications' => 'Job Applications',
+    
+    'budgeting' => 'Budgeting',
+    'budget_dashboard' => 'Budget Dashboard',
+    'budget_categories' => 'Budget Categories',
+    'budgets_list' => 'Budgets List',
+    'budget_items' => 'Budget Items',
+    'budget_monitoring' => 'Budget Monitoring',
+    'budget_commitments' => 'Budget Commitments',
+    'budget_forecasts' => 'Budget Forecasts',
+    'budget_transfers' => 'Budget Transfers',
 ];
