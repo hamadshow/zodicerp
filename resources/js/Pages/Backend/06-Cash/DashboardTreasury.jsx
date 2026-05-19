@@ -1,35 +1,58 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import { useTranslation } from '@/hooks/useTranslation';
-import { 
+import { formatDate } from '@/utils/date';
+import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { 
-    Wallet, ArrowUpRight, ArrowDownRight, Building2, Clock, 
-    FileText, Calculator, TrendingUp, AlertCircle, 
-    PlusCircle, MinusCircle, RefreshCcw, Landmark, 
+import {
+    Wallet, ArrowUpRight, ArrowDownRight, Building2, Clock,
+    FileText, Calculator, TrendingUp, AlertCircle,
+    PlusCircle, MinusCircle, RefreshCcw, Landmark,
     ArrowLeftRight, Search, Filter
 } from 'lucide-react';
 
-// --- Sub-components ---
+const formatMoney = (amount, decimals = 2) =>
+    new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+    }).format(Number(amount || 0));
 
-const StatCard = ({ title, value, trend, isUp, icon, color }) => {
+const formatTrend = (value) => {
+    const num = Number(value || 0);
+    const prefix = num > 0 ? '+' : '';
+    return `${prefix}${num}%`;
+};
+
+const formatLastTx = (dateStr, t) => {
+    if (!dateStr) return t('DashboardTreasury.no_activity');
+    return formatDate(dateStr);
+};
+
+const formatWithCurrency = (amount, currency) => {
+    const code = currency?.code || 'SAR';
+    const symbol = currency?.symbol || code;
+    return `${formatMoney(amount)} ${symbol}`;
+};
+
+const StatCard = ({ title, value, subCurrency, trend, isUp, icon, color }) => {
     const IconComponent = icon;
     return (
         <div className={`stat-card ${color}`}>
             <div className="stat-header">
                 <div className="stat-icon-wrapper">
-                    <IconComponent size={24} />
+                    <IconComponent size={22} />
                 </div>
                 <div className={`trend-badge ${isUp ? 'trend-up' : 'trend-down'}`}>
-                    {isUp ? <TrendingUp size={14} /> : <TrendingUp size={14} style={{ transform: 'rotate(180deg)' }} />}
+                    {isUp ? <TrendingUp size={13} /> : <TrendingUp size={13} style={{ transform: 'rotate(180deg)' }} />}
                     {trend}
                 </div>
             </div>
             <div className="stat-body">
                 <div className="stat-label">{title}</div>
                 <div className="stat-value">{value}</div>
+                {subCurrency && <span className="stat-currency">{subCurrency}</span>}
             </div>
         </div>
     );
@@ -38,18 +61,39 @@ const StatCard = ({ title, value, trend, isUp, icon, color }) => {
 const QuickAction = ({ label, icon, onClick }) => {
     const IconComponent = icon;
     return (
-        <div className="action-card" onClick={onClick}>
+        <div className="action-card" onClick={onClick} role="button" tabIndex={0}>
             <IconComponent className="action-icon" />
             <div className="action-label">{label}</div>
         </div>
     );
 };
 
+const CurrencyChip = ({ item, t }) => (
+    <div className="currency-chip">
+        <span className="chip-code">{item.code}</span>
+        <div className="chip-details">
+            <div className="chip-total">{formatMoney(item.total)} {item.symbol || item.code}</div>
+            <div className="chip-meta">
+                {formatMoney(item.cash)} {t('DashboardTreasury.cash')} · {formatMoney(item.bank)} {t('DashboardTreasury.bank')}
+            </div>
+        </div>
+    </div>
+);
+
 const TreasuryAccountCard = ({ account, t }) => (
     <div className="account-mini-card">
+        <span className={`account-type-pill type-${account.type}`}>
+            {account.type === 'bank' ? t('DashboardTreasury.bank') : t('DashboardTreasury.cash')}
+        </span>
         <div className="account-info">
-            <span className="name">{account.name}</span>
-            <span className="balance">{account.balance}</span>
+            <div className="name-block">
+                <span className="name" title={account.name}>{account.name}</span>
+                {account.accountCode && <span className="account-code">{account.accountCode}</span>}
+            </div>
+            <div className="balance-block">
+                <span className="balance">{account.balance}</span>
+                <span className="currency-badge">{account.currencyCode}</span>
+            </div>
         </div>
         <div className="liquidity-bar-wrapper">
             <div className="bar-label">
@@ -57,155 +101,225 @@ const TreasuryAccountCard = ({ account, t }) => (
                 <span>{account.liquidity}%</span>
             </div>
             <div className="progress-bg">
-                <div className="progress-fill" style={{ width: `${account.liquidity}%` }}></div>
+                <div className="progress-fill" style={{ width: `${Math.min(account.liquidity, 100)}%` }} />
             </div>
         </div>
         <div className="account-footer">
-            <span><Clock size={12} style={{ marginLeft: '4px' }} /> {account.lastTx}</span>
-            <span className="status-pill completed">{account.status}</span>
+            <span><Clock size={12} /> {account.lastTx}</span>
+            <span className={`status-pill ${account.statusKey}`}>{account.status}</span>
         </div>
     </div>
 );
 
-const TreasuryDashboard = () => {
+const TreasuryDashboard = ({
+    stats = {},
+    accounts = [],
+    chartData = [],
+    recentTransactions = [],
+    performance = {},
+}) => {
     const { props } = usePage();
     const isArabic = props.localization?.current_locale === 'ar';
     const { t } = useTranslation();
 
-    // --- Mock Data for the Dashboard (Moved inside for translation) ---
-    const statsData = [
-        { title: t('DashboardTreasury.total_balance'), value: `450,230.00 ${t('DashboardTreasury.sar')}`, trend: '+12.5%', isUp: true, icon: Wallet, color: 'stat-emerald' },
-        { title: t('DashboardTreasury.receipts_today'), value: `12,450.00 ${t('DashboardTreasury.sar')}`, trend: '+5.2%', isUp: true, icon: ArrowUpRight, color: 'stat-blue' },
-        { title: t('DashboardTreasury.payments_today'), value: `8,320.00 ${t('DashboardTreasury.sar')}`, trend: '-2.1%', isUp: false, icon: ArrowDownRight, color: 'stat-rose' },
-        { title: t('DashboardTreasury.bank_balances'), value: `1,280,000.00 ${t('DashboardTreasury.sar')}`, trend: '+0.8%', isUp: true, icon: Landmark, color: 'stat-indigo' },
-    ];
+    const primaryCurrency = stats.primary_currency || performance.primary_currency || { code: 'SAR', symbol: 'SAR' };
+    const balancesByCurrency = stats.balances_by_currency || [];
+    const hasMultipleCurrencies = balancesByCurrency.length > 1;
 
-    const chartData = [
-        { name: t('DashboardTreasury.sat'), incoming: 4000, outgoing: 2400 },
-        { name: t('DashboardTreasury.sun'), incoming: 3000, outgoing: 1398 },
-        { name: t('DashboardTreasury.mon'), incoming: 2000, outgoing: 9800 },
-        { name: t('DashboardTreasury.tue'), incoming: 2780, outgoing: 3908 },
-        { name: t('DashboardTreasury.wed'), incoming: 1890, outgoing: 4800 },
-        { name: t('DashboardTreasury.thu'), incoming: 2390, outgoing: 3800 },
-        { name: t('DashboardTreasury.fri'), incoming: 3490, outgoing: 4300 },
-    ];
+    const formatAmount = (amount, currency = primaryCurrency) =>
+        formatWithCurrency(amount, currency);
 
-    const accountsData = [
-        { name: t('DashboardTreasury.main_treasury'), balance: `150,000 ${t('DashboardTreasury.sar')}`, liquidity: 85, lastTx: t('DashboardTreasury.mins_ago').replace(':time', '10'), status: t('DashboardTreasury.completed') },
-        { name: t('DashboardTreasury.jeddah_treasury'), balance: `45,200 ${t('DashboardTreasury.sar')}`, liquidity: 40, lastTx: t('DashboardTreasury.hours_ago').replace(':time', '2'), status: t('DashboardTreasury.completed') },
-        { name: t('DashboardTreasury.petty_cash_treasury'), balance: `12,500 ${t('DashboardTreasury.sar')}`, liquidity: 15, lastTx: t('DashboardTreasury.yesterday'), status: t('DashboardTreasury.completed') },
-    ];
+    const statsData = useMemo(() => {
+        const trends = stats.trends || {};
+        const currencyLabel = hasMultipleCurrencies
+            ? t('DashboardTreasury.multi_currency')
+            : primaryCurrency.code;
 
-    const transactionsData = [
-        { id: 'V-2024-001', date: '2024-05-19', treasury: t('DashboardTreasury.main_treasury'), type: t('DashboardTreasury.receipt'), amount: '5,000.00', user: t('DashboardTreasury.user_ahmed'), status: 'completed' },
-        { id: 'V-2024-002', date: '2024-05-19', treasury: t('DashboardTreasury.jeddah_treasury'), type: t('DashboardTreasury.payment'), amount: '1,200.00', user: t('DashboardTreasury.user_sara'), status: 'pending' },
-        { id: 'V-2024-003', date: '2024-05-18', treasury: t('DashboardTreasury.main_treasury'), type: t('DashboardTreasury.transfer'), amount: '10,000.00', user: t('DashboardTreasury.user_ahmed'), status: 'completed' },
-        { id: 'V-2024-004', date: '2024-05-18', treasury: t('DashboardTreasury.petty_cash_treasury'), type: t('DashboardTreasury.deposit'), amount: '2,500.00', user: t('DashboardTreasury.user_khaled'), status: 'completed' },
-    ];
+        return [
+            {
+                title: t('DashboardTreasury.total_balance'),
+                value: formatAmount(stats.total_balance),
+                subCurrency: currencyLabel,
+                trend: formatTrend(trends.total_balance),
+                isUp: (trends.total_balance ?? 0) >= 0,
+                icon: Wallet,
+                color: 'stat-emerald',
+            },
+            {
+                title: t('DashboardTreasury.receipts_today'),
+                value: formatAmount(stats.receipts_today),
+                subCurrency: primaryCurrency.code,
+                trend: formatTrend(trends.receipts_today),
+                isUp: (trends.receipts_today ?? 0) >= 0,
+                icon: ArrowUpRight,
+                color: 'stat-blue',
+            },
+            {
+                title: t('DashboardTreasury.payments_today'),
+                value: formatAmount(stats.payments_today),
+                subCurrency: primaryCurrency.code,
+                trend: formatTrend(trends.payments_today),
+                isUp: (trends.payments_today ?? 0) <= 0,
+                icon: ArrowDownRight,
+                color: 'stat-rose',
+            },
+            {
+                title: t('DashboardTreasury.bank_balances'),
+                value: formatAmount(stats.bank_balances),
+                subCurrency: primaryCurrency.code,
+                trend: formatTrend(trends.bank_balances),
+                isUp: (trends.bank_balances ?? 0) >= 0,
+                icon: Landmark,
+                color: 'stat-indigo',
+            },
+        ];
+    }, [stats, t, primaryCurrency, hasMultipleCurrencies]);
+
+    const accountsData = useMemo(() =>
+        accounts.map((acc) => ({
+            id: acc.id,
+            name: acc.name,
+            type: acc.type,
+            accountCode: acc.account_code,
+            balance: formatWithCurrency(acc.balance, acc.currency),
+            currencyCode: acc.currency?.code || 'SAR',
+            liquidity: acc.liquidity ?? 0,
+            lastTx: formatLastTx(acc.last_tx_at, t),
+            status: acc.status === 'active' ? t('DashboardTreasury.active') : acc.status,
+            statusKey: acc.status === 'active' ? 'completed' : 'pending',
+        })),
+    [accounts, t]);
+
+    const transactionsData = useMemo(() =>
+        recentTransactions.map((tx) => ({
+            ...tx,
+            typeLabel: tx.type === 'receipt' ? t('DashboardTreasury.receipt') : t('DashboardTreasury.payment'),
+            amountFormatted: formatMoney(tx.amount),
+            currencyCode: tx.currency?.code || 'SAR',
+            date: tx.date ? formatDate(tx.date) : '-',
+        })),
+    [recentTransactions, t]);
 
     return (
         <AdminLayout activeMenu="Treasury">
             <Head title={`${t('DashboardTreasury.title')} - ZodicERP`} />
-            
+
             <div className="treasury-dashboard">
-                {/* Internal Page Header */}
-                <div className="flex justify-between items-center mb-6">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-800">{t('DashboardTreasury.title')}</h1>
-                        <p className="text-slate-500 text-sm">{t('DashboardTreasury.subtitle')}</p>
+                <header className="treasury-page-header">
+                    <div className="header-text">
+                        <h1>{t('DashboardTreasury.title')}</h1>
+                        <p>{t('DashboardTreasury.subtitle')}</p>
                     </div>
-                    <div className="flex gap-3">
-                        <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-all">
-                            <Filter size={18} />
+                    <div className="header-actions">
+                        <button type="button" className="td-btn">
+                            <Filter size={17} />
                             {t('DashboardTreasury.filter')}
                         </button>
-                        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-md transition-all">
-                            <PlusCircle size={18} />
+                        <button type="button" className="td-btn td-btn--primary">
+                            <PlusCircle size={17} />
                             {t('DashboardTreasury.new_voucher')}
                         </button>
                     </div>
-                </div>
+                </header>
 
-                {/* Statistics Grid */}
-                <div className="stats-grid">
-                    {statsData.map((stat, i) => (
-                        <StatCard key={i} {...stat} />
+                {balancesByCurrency.length > 0 && (
+                    <section className="currency-breakdown" aria-label={t('DashboardTreasury.balances_by_currency')}>
+                        {balancesByCurrency.map((item) => (
+                            <CurrencyChip key={item.code} item={item} t={t} />
+                        ))}
+                    </section>
+                )}
+
+                <section className="stats-grid">
+                    {statsData.map((stat) => (
+                        <StatCard key={stat.title} {...stat} />
                     ))}
-                </div>
+                </section>
 
-                {/* Quick Actions */}
-                <div className="quick-actions-grid">
+                <section className="quick-actions-grid">
                     <QuickAction label={t('DashboardTreasury.receipt_voucher')} icon={PlusCircle} />
                     <QuickAction label={t('DashboardTreasury.payment_voucher')} icon={MinusCircle} />
                     <QuickAction label={t('DashboardTreasury.treasury_transfer')} icon={ArrowLeftRight} />
                     <QuickAction label={t('DashboardTreasury.bank_deposit')} icon={Landmark} />
                     <QuickAction label={t('DashboardTreasury.currency_exchange')} icon={RefreshCcw} />
                     <QuickAction label={t('DashboardTreasury.daily_closing')} icon={Calculator} />
-                </div>
+                </section>
 
-                {/* Main Content Area */}
                 <div className="dashboard-main-grid">
-                    {/* Left Column: Charts and Tables */}
-                    <div className="flex flex-col gap-6">
-                        {/* Area Chart Card */}
+                    <div className="dashboard-column">
                         <div className="dashboard-card">
                             <div className="card-header">
                                 <div className="card-title">
-                                    <TrendingUp size={20} className="text-indigo-500" />
+                                    <TrendingUp size={18} style={{ color: '#4f46e5' }} />
                                     {t('DashboardTreasury.cash_flow')}
                                 </div>
                                 <div className="card-actions">
-                                    <select className="bg-slate-50 border-none text-xs font-semibold rounded p-1 text-slate-600">
-                                        <option>{t('DashboardTreasury.weekly')}</option>
-                                        <option>{t('DashboardTreasury.monthly')}</option>
+                                    <select defaultValue="weekly" aria-label={t('DashboardTreasury.weekly')}>
+                                        <option value="weekly">{t('DashboardTreasury.weekly')}</option>
+                                        <option value="monthly">{t('DashboardTreasury.monthly')}</option>
                                     </select>
                                 </div>
                             </div>
                             <div className="card-body">
-                                <div className="chart-container" style={{ minHeight: '350px' }}>
-                                    <ResponsiveContainer width="100%" height={350}>
+                                <div className="chart-container">
+                                    <ResponsiveContainer width="100%" height={320}>
                                         <AreaChart data={chartData}>
                                             <defs>
-                                                <linearGradient id="colorIn" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
-                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                                <linearGradient id="tdColorIn" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
+                                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                                                 </linearGradient>
-                                                <linearGradient id="colorOut" x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.1}/>
-                                                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
+                                                <linearGradient id="tdColorOut" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.15} />
+                                                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
                                                 </linearGradient>
                                             </defs>
-                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-                                            <YAxis axisLine={false} tickLine={false} tick={{fontSize: 12, fill: '#64748b'}} />
-                                            <Tooltip 
-                                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} 
-                                                formatter={(value, name) => [value, name === 'incoming' ? t('DashboardTreasury.incoming') : t('DashboardTreasury.outgoing')]}
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                                            <Tooltip
+                                                contentStyle={{ borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 10px 24px rgba(15,23,42,0.08)' }}
+                                                formatter={(value, name) => [
+                                                    formatMoney(value),
+                                                    name === 'incoming' ? t('DashboardTreasury.incoming') : t('DashboardTreasury.outgoing'),
+                                                ]}
                                             />
-                                            <Area type="monotone" dataKey="incoming" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorIn)" />
-                                            <Area type="monotone" dataKey="outgoing" stroke="#f43f5e" strokeWidth={3} fillOpacity={1} fill="url(#colorOut)" />
+                                            <Area type="monotone" dataKey="incoming" stroke="#059669" strokeWidth={2.5} fill="url(#tdColorIn)" />
+                                            <Area type="monotone" dataKey="outgoing" stroke="#e11d48" strokeWidth={2.5} fill="url(#tdColorOut)" />
                                         </AreaChart>
                                     </ResponsiveContainer>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Recent Transactions Table */}
                         <div className="dashboard-card">
                             <div className="card-header">
                                 <div className="card-title">
-                                    <FileText size={20} className="text-blue-500" />
+                                    <FileText size={18} style={{ color: '#2563eb' }} />
                                     {t('DashboardTreasury.recent_transactions')}
                                 </div>
                                 <div className="card-actions">
-                                    <div className="relative">
-                                        <Search size={14} className={`absolute ${isArabic ? 'right-2' : 'left-2'} top-1/2 -translate-y-1/2 text-slate-400`} />
-                                        <input type="text" placeholder={t('DashboardTreasury.search')} className={`bg-slate-50 border border-slate-200 rounded-md py-1 ${isArabic ? 'pr-8 pl-3' : 'pl-8 pr-3'} text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500`} />
+                                    <div style={{ position: 'relative' }}>
+                                        <Search
+                                            size={14}
+                                            style={{
+                                                position: 'absolute',
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                [isArabic ? 'right' : 'left']: '8px',
+                                                color: '#94a3b8',
+                                            }}
+                                        />
+                                        <input
+                                            type="text"
+                                            placeholder={t('DashboardTreasury.search')}
+                                            style={{ paddingInlineStart: isArabic ? '0.75rem' : '1.75rem', paddingInlineEnd: isArabic ? '1.75rem' : '0.75rem' }}
+                                        />
                                     </div>
                                 </div>
                             </div>
-                            <div className="card-body p-0 overflow-hidden">
-                                <div className="overflow-x-auto">
+                            <div className="card-body card-body--flush">
+                                <div style={{ overflowX: 'auto' }}>
                                     <table className="dashboard-table">
                                         <thead>
                                             <tr>
@@ -214,27 +328,37 @@ const TreasuryDashboard = () => {
                                                 <th>{t('DashboardTreasury.treasury')}</th>
                                                 <th>{t('DashboardTreasury.type')}</th>
                                                 <th>{t('DashboardTreasury.amount')}</th>
+                                                <th>{t('DashboardTreasury.currency')}</th>
                                                 <th>{t('DashboardTreasury.user')}</th>
                                                 <th>{t('DashboardTreasury.status')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {transactionsData.map((tx, i) => (
-                                                <tr key={i}>
-                                                    <td className="font-mono text-xs">{tx.id}</td>
+                                            {transactionsData.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan="8">
+                                                        <div className="empty-state">{t('DashboardTreasury.no_transactions')}</div>
+                                                    </td>
+                                                </tr>
+                                            ) : transactionsData.map((tx) => (
+                                                <tr key={`${tx.type}-${tx.id}`}>
+                                                    <td style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{tx.id}</td>
                                                     <td>{tx.date}</td>
                                                     <td>{tx.treasury}</td>
                                                     <td>
-                                                        <div className={`type-indicator ${tx.type === t('DashboardTreasury.receipt') ? 'receipt' : 'payment'}`}>
-                                                            {tx.type === t('DashboardTreasury.receipt') ? <PlusCircle size={14} /> : <MinusCircle size={14} />}
-                                                            {tx.type}
-                                                        </div>
+                                                        <span className={`type-indicator ${tx.type === 'receipt' ? 'receipt' : 'payment'}`}>
+                                                            {tx.type === 'receipt' ? <PlusCircle size={14} /> : <MinusCircle size={14} />}
+                                                            {tx.typeLabel}
+                                                        </span>
                                                     </td>
-                                                    <td className="font-bold">{tx.amount}</td>
+                                                    <td className="amount-cell">{tx.amountFormatted}</td>
+                                                    <td><span className="currency-badge">{tx.currencyCode}</span></td>
                                                     <td>{tx.user}</td>
                                                     <td>
                                                         <span className={`status-pill ${tx.status}`}>
-                                                            {tx.status === 'completed' ? t('DashboardTreasury.completed') : t('DashboardTreasury.pending')}
+                                                            {tx.status === 'completed'
+                                                                ? t('DashboardTreasury.completed')
+                                                                : t('DashboardTreasury.pending')}
                                                         </span>
                                                     </td>
                                                 </tr>
@@ -246,55 +370,56 @@ const TreasuryDashboard = () => {
                         </div>
                     </div>
 
-                    {/* Right Column: Accounts and Alerts */}
-                    <div className="flex flex-col gap-6">
-                        {/* Treasury Accounts Summary */}
+                    <div className="dashboard-column">
                         <div className="dashboard-card">
                             <div className="card-header">
                                 <div className="card-title">
-                                    <Building2 size={20} className="text-amber-500" />
+                                    <Building2 size={18} style={{ color: '#d97706' }} />
                                     {t('DashboardTreasury.accounts_summary')}
                                 </div>
                             </div>
                             <div className="card-body">
-                                <div className="flex flex-col gap-4">
-                                    {accountsData.map((acc, i) => (
-                                        <TreasuryAccountCard key={i} account={acc} t={t} />
-                                    ))}
-                                </div>
-                                <button className="w-full mt-6 py-2 bg-slate-50 text-slate-600 rounded-lg text-sm font-semibold hover:bg-slate-100 transition-all">
+                                {accountsData.length === 0 ? (
+                                    <div className="empty-state">{t('DashboardTreasury.no_accounts')}</div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                        {accountsData.map((acc) => (
+                                            <TreasuryAccountCard key={acc.id} account={acc} t={t} />
+                                        ))}
+                                    </div>
+                                )}
+                                <button type="button" className="td-link-btn">
                                     {t('DashboardTreasury.view_all_accounts')}
                                 </button>
                             </div>
                         </div>
 
-                        {/* Alerts and Notifications */}
                         <div className="dashboard-card">
                             <div className="card-header">
                                 <div className="card-title">
-                                    <AlertCircle size={20} className="text-rose-500" />
+                                    <AlertCircle size={18} style={{ color: '#e11d48' }} />
                                     {t('DashboardTreasury.important_alerts')}
                                 </div>
                             </div>
                             <div className="card-body">
                                 <div className="alerts-panel">
                                     <div className="alert-item alert-danger">
-                                        <AlertCircle size={20} className="alert-icon" />
-                                        <div className="alert-content">
+                                        <AlertCircle size={18} className="alert-icon" />
+                                        <div>
                                             <div className="alert-title">{t('DashboardTreasury.low_balance')}</div>
                                             <div className="alert-desc">{t('DashboardTreasury.low_balance_desc')}</div>
                                         </div>
                                     </div>
                                     <div className="alert-item alert-warning">
-                                        <Clock size={20} className="alert-icon" />
-                                        <div className="alert-content">
+                                        <Clock size={18} className="alert-icon" />
+                                        <div>
                                             <div className="alert-title">{t('DashboardTreasury.daily_closing_alert')}</div>
                                             <div className="alert-desc">{t('DashboardTreasury.daily_closing_desc')}</div>
                                         </div>
                                     </div>
                                     <div className="alert-item alert-info">
-                                        <Landmark size={20} className="alert-icon" />
-                                        <div className="alert-content">
+                                        <Landmark size={18} className="alert-icon" />
+                                        <div>
                                             <div className="alert-title">{t('DashboardTreasury.bank_transfer')}</div>
                                             <div className="alert-desc">{t('DashboardTreasury.bank_transfer_desc')}</div>
                                         </div>
@@ -303,27 +428,32 @@ const TreasuryDashboard = () => {
                             </div>
                         </div>
 
-                        {/* Performance Mini Analytics */}
                         <div className="dashboard-card">
                             <div className="card-header">
                                 <div className="card-title">
-                                    <Calculator size={20} className="text-indigo-500" />
+                                    <Calculator size={18} style={{ color: '#4f46e5' }} />
                                     {t('DashboardTreasury.performance_analytics')}
                                 </div>
                             </div>
                             <div className="card-body">
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm text-slate-500">{t('DashboardTreasury.highest_balance_today')}</span>
-                                        <span className="text-sm font-bold text-slate-800">150,000</span>
+                                <div className="performance-list">
+                                    <div className="performance-row">
+                                        <span className="label">{t('DashboardTreasury.highest_balance_today')}</span>
+                                        <span className="value">
+                                            {formatWithCurrency(performance.highest_balance, primaryCurrency)}
+                                        </span>
                                     </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm text-slate-500">{t('DashboardTreasury.largest_expense')}</span>
-                                        <span className="text-sm font-bold text-rose-500">3,400</span>
+                                    <div className="performance-row">
+                                        <span className="label">{t('DashboardTreasury.largest_expense')}</span>
+                                        <span className="value value--danger">
+                                            {formatWithCurrency(performance.largest_expense_today, primaryCurrency)}
+                                        </span>
                                     </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm text-slate-500">{t('DashboardTreasury.monthly_growth')}</span>
-                                        <span className="text-sm font-bold text-emerald-500">+14%</span>
+                                    <div className="performance-row">
+                                        <span className="label">{t('DashboardTreasury.monthly_growth')}</span>
+                                        <span className={`value ${(performance.monthly_growth ?? 0) >= 0 ? 'value--success' : 'value--danger'}`}>
+                                            {formatTrend(performance.monthly_growth)}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -336,5 +466,3 @@ const TreasuryDashboard = () => {
 };
 
 export default TreasuryDashboard;
-
-

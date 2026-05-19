@@ -1,6 +1,7 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Head, router, useForm, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
+import { formatDate } from '@/utils/date';
 import '../../../../css/backend/main.scss';
 
 // --- Styles from mockup ---
@@ -317,7 +318,7 @@ const Breadcrumbs = ({ t, showForm, viewingTransaction, editingTransaction, back
     </div>
 );
 
-const ListView = ({ t, receipts, payments, transactions, activeTab, setActiveTab, searchTerm, setSearchTerm, openCreate, filtered, accountsMap, formatAmount, openDetails, openEdit, handleDelete }) => (
+const ListView = ({ t, receipts, payments, transactions, activeTab, setActiveTab, searchTerm, setSearchTerm, openCreate, filtered, accountsMap, formatAmount, formatDate, openDetails, openEdit, handleDelete }) => (
     <div className="fade-in bank-transactions-container">
         <section className="stats-grid-custom"> 
             <div className="stat-card-custom"> 
@@ -412,7 +413,7 @@ const ListView = ({ t, receipts, payments, transactions, activeTab, setActiveTab
                                     <td>
                                         <span className={`type-badge-custom type-${item.type}`}>{item.label}</span>
                                     </td>
-                                    <td>{item.date}</td>
+                                    <td>{formatDate(item.date)}</td>
                                     <td>
                                         <div style={{ fontWeight: '500' }}>{item.bank_account?.bank_name || '-'}</div>
                                         <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{item.bank_account?.account_number || ''}</div>
@@ -494,7 +495,9 @@ const FormView = ({ t, editingTransaction, backToList, handleSubmit, data, setDa
                         <select value={data.bank_account_id} onChange={(e) => setData('bank_account_id', e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
                             <option value="">{t('select_bank_account', 'اختر الحساب البنكي')}</option>
                             {bankAccounts.map((account) => (
-                                <option key={account.id} value={account.id}>{account.bank?.name} - {account.account_name} ({account.account_number})</option>
+                                <option key={account.id} value={account.id}>
+                                    {account.bank_name} - {account.account_name} ({account.account_number})
+                                </option>
                             ))}
                         </select>
                         {errors.bank_account_id && <div style={{ color: 'var(--red-accent)', fontSize: '0.75rem', marginTop: '4px' }}>{errors.bank_account_id}</div>}
@@ -551,7 +554,7 @@ const FormView = ({ t, editingTransaction, backToList, handleSubmit, data, setDa
     );
 };
 
-const DetailsView = ({ t, viewingTransaction, backToList, openEdit, accountsMap, formatAmount }) => (
+const DetailsView = ({ t, viewingTransaction, backToList, openEdit, accountsMap, formatAmount, formatDate }) => (
     <div className="fade-in bank-transactions-container">
         <section className="data-section-custom" style={{ maxWidth: '600px', margin: '0 auto', width: '100%' }}>
             <div className="search-action-bar-custom">
@@ -579,7 +582,7 @@ const DetailsView = ({ t, viewingTransaction, backToList, openEdit, accountsMap,
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', borderBottom: '1px solid var(--border-light)' }}>
                     <span style={{ color: 'var(--text-muted)' }}>{t('date', 'التاريخ')}</span>
-                    <span>{viewingTransaction?.date}</span>
+                    <span>{formatDate(viewingTransaction?.date)}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', borderBottom: '1px solid var(--border-light)' }}>
                     <span style={{ color: 'var(--text-muted)' }}>{t('amount', 'المبلغ')}</span>
@@ -629,6 +632,7 @@ const BankTransactions = ({ payments = [], receipts = [], bankAccounts = [], acc
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         id: null,
         type: 'receipt',
+        original_type: null,
         code: '',
         bank_account_id: '',
         counterparty_account_id: '',
@@ -682,27 +686,22 @@ const BankTransactions = ({ payments = [], receipts = [], bankAccounts = [], acc
         });
     }, [transactions, activeTab, searchTerm]);
 
-    // --- Side Effects ---
-
-    useEffect(() => {
-        if (editingTransaction) {
-            setData({
-                id: editingTransaction.id || null,
-                type: editingTransaction.type || 'receipt',
-                code: editingTransaction.code || '',
-                bank_account_id: editingTransaction.bank_account_id || '',
-                counterparty_account_id: editingTransaction.counterparty_account_id || '',
-                amount: editingTransaction.amount || '',
-                date: editingTransaction.date || new Date().toISOString().split('T')[0],
-                status: editingTransaction.status || 'posted',
-                reference: editingTransaction.reference || '',
-                notes: editingTransaction.notes || '',
-            });
-        } else {
-            reset();
-            clearErrors();
-        }
-    }, [editingTransaction]);
+    const populateFormFromTransaction = (item) => {
+        setData({
+            id: item.id ?? null,
+            type: item.type || 'receipt',
+            original_type: item.type || 'receipt',
+            code: item.code || '',
+            bank_account_id: item.bank_account_id ? String(item.bank_account_id) : '',
+            counterparty_account_id: item.counterparty_account_id ? String(item.counterparty_account_id) : '',
+            amount: item.amount ?? '',
+            date: item.date ? String(item.date).split('T')[0] : new Date().toISOString().split('T')[0],
+            status: item.status || 'posted',
+            reference: item.reference || '',
+            notes: item.notes || '',
+        });
+        clearErrors();
+    };
 
     // --- Handlers ---
 
@@ -721,6 +720,7 @@ const BankTransactions = ({ payments = [], receipts = [], bankAccounts = [], acc
     };
 
     const openEdit = (item) => {
+        populateFormFromTransaction(item);
         setEditingTransaction(item);
         setViewingTransaction(null);
         setShowForm(true);
@@ -734,8 +734,7 @@ const BankTransactions = ({ payments = [], receipts = [], bankAccounts = [], acc
 
     const handleDelete = (item) => {
         if (confirm(t('delete_confirmation', 'هل أنت متأكد من حذف هذه العملية؟'))) {
-            router.delete(route('admin.bank-transactions.destroy', item.id), {
-                data: { type: item.type },
+            router.delete(route('admin.bank-transactions.destroy', { type: item.type, transaction: item.id }), {
                 onSuccess: () => {
                     showToast(t('deleted_success', 'تم حذف العملية بنجاح'), 'success');
                     backToList();
@@ -746,14 +745,24 @@ const BankTransactions = ({ payments = [], receipts = [], bankAccounts = [], acc
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const routeName = editingTransaction ? 'admin.bank-transactions.update' : 'admin.bank-transactions.store';
-        const method = editingTransaction ? put : post;
-        
-        method(route(routeName, data.id), {
+        if (editingTransaction) {
+            put(route('admin.bank-transactions.update', {
+                type: data.original_type,
+                transaction: data.id,
+            }), {
+                onSuccess: () => {
+                    showToast(t('updated_success', 'تم الحفظ بنجاح'), 'success');
+                    backToList();
+                },
+            });
+            return;
+        }
+
+        post(route('admin.bank-transactions.store'), {
             onSuccess: () => {
-                showToast(t(editingTransaction ? 'updated_success' : 'created_success', 'تم الحفظ بنجاح'), 'success');
+                showToast(t('created_success', 'تم الحفظ بنجاح'), 'success');
                 backToList();
-            }
+            },
         });
     };
 
@@ -788,6 +797,7 @@ const BankTransactions = ({ payments = [], receipts = [], bankAccounts = [], acc
                         filtered={filtered}
                         accountsMap={accountsMap}
                         formatAmount={formatAmount}
+                        formatDate={formatDate}
                         openDetails={openDetails}
                         openEdit={openEdit}
                         handleDelete={handleDelete}
@@ -815,6 +825,7 @@ const BankTransactions = ({ payments = [], receipts = [], bankAccounts = [], acc
                         openEdit={openEdit}
                         accountsMap={accountsMap}
                         formatAmount={formatAmount}
+                        formatDate={formatDate}
                     />
                 )}
             </div>

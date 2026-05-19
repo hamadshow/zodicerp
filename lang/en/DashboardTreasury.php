@@ -88,4 +88,15 @@ return [
     'user_ahmed' => 'Ahmed Ali',
     'user_sara' => 'Sara Mohamed',
     'user_khaled' => 'Khaled Youssef',
+
+    'no_activity' => 'No activity',
+    'no_transactions' => 'No recent transactions',
+    'no_accounts' => 'No treasury accounts found',
+
+    'currency' => 'Currency',
+    'balances_by_currency' => 'Balances by currency',
+    'multi_currency' => 'Multiple currencies',
+    'bank' => 'Bank',
+    'cash' => 'Cash',
+    'active' => 'Active',
 ];

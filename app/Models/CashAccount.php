@@ -16,6 +16,7 @@ class CashAccount extends Model
         'type',
         'bank_id',
         'currency',
+        'gl_account_id',
         'opening_balance',
         'current_balance',
         'status',
@@ -38,6 +39,11 @@ class CashAccount extends Model
     public function currencyInfo()
     {
         return $this->belongsTo(Currency::class, 'currency', 'id');
+    }
+
+    public function glAccount()
+    {
+        return $this->belongsTo(Account::class, 'gl_account_id', 'AccID');
     }
 
     public function payments()

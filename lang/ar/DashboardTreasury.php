@@ -88,4 +88,15 @@ return [
     'user_ahmed' => 'أحمد علي',
     'user_sara' => 'سارة محمد',
     'user_khaled' => 'خالد يوسف',
+
+    'no_activity' => 'لا يوجد نشاط',
+    'no_transactions' => 'لا توجد معاملات حديثة',
+    'no_accounts' => 'لا توجد حسابات خزينة',
+
+    'currency' => 'العملة',
+    'balances_by_currency' => 'الأرصدة حسب العملة',
+    'multi_currency' => 'عملات متعددة',
+    'bank' => 'بنك',
+    'cash' => 'نقدية',
+    'active' => 'نشط',
 ];

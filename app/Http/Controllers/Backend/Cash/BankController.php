@@ -36,7 +36,7 @@ class BankController extends Controller
         // Get GL Accounts for dropdowns (assets/cash/bank type accounts ideally)
         // For now, fetching all or filtering by type if known.
         // Assuming we want leaf accounts.
-        $glAccounts = Account::where('Nature', 'bank')
+        $glAccounts = Account::whereIn('Nature', ['cash', 'bank'])
             ->where('AccType', 1)
             ->where('AccStopped', false)
             ->select('AccID', 'AccName', 'AccCode')

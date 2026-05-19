@@ -513,9 +513,8 @@ Route::group([
         Route::get('financial-reports/cash-flow', [FinancialReportController::class, 'cashFlow'])->name('financial-reports.cash-flow');
 
         // 9. Cash & Banks (النقدية والبنوك)
-        Route::get('treasury/dashboard', function () {
-            return Inertia::render('Backend/06-Cash/DashboardTreasury');
-        })->name('treasury.dashboard');
+        Route::get('treasury/dashboard', [\App\Http\Controllers\Backend\Cash\TreasuryDashboardController::class, 'index'])
+            ->name('treasury.dashboard');
         Route::resource('banks', \App\Http\Controllers\Backend\Cash\BankController::class);
         Route::prefix('banks')->name('banks.')->group(function () {
             Route::get('{bank}/accounts', [\App\Http\Controllers\Backend\Cash\BankController::class, 'getAccounts'])->name('accounts.index');
@@ -525,7 +524,12 @@ Route::group([
         });
         Route::resource('petty-cash', \App\Http\Controllers\Backend\Cash\PettyCashController::class);
         Route::resource('cheques', \App\Http\Controllers\Backend\Cash\ChequeController::class)->only(['index', 'store', 'update', 'destroy']);
-        Route::resource('bank-transactions', \App\Http\Controllers\Backend\Cash\BankTransactionController::class)->only(['index', 'store', 'update', 'destroy']);
+        Route::prefix('bank-transactions')->name('bank-transactions.')->controller(\App\Http\Controllers\Backend\Cash\BankTransactionController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::put('{type}/{transaction}', 'update')->whereIn('type', ['payment', 'receipt'])->name('update');
+            Route::delete('{type}/{transaction}', 'destroy')->whereIn('type', ['payment', 'receipt'])->name('destroy');
+        });
         Route::get('payment-vouchers', function (\Illuminate\Http\Request $request) {
             $search = trim((string) $request->input('search', ''));
             $status = trim((string) $request->input('status', ''));
@@ -569,10 +573,43 @@ Route::group([
                 ->get();
 
             $bankAccounts = \App\Models\BankAccount::query()
-                ->select('id', 'account_name', 'account_number', 'currency', 'status')
+                ->with('glAccount')
+                ->whereHas('glAccount', function ($query) {
+                    $query->where(function ($q) {
+                        $q->where('Nature', 'bank')
+                          ->orWhere('Nature', 'cash');
+                    })
+                    ->where('AccType', 1);
+                })
                 ->where('status', 'active')
-                ->orderBy('account_name')
                 ->get();
+
+            $cashAccounts = \App\Models\CashAccount::query()
+                ->with('glAccount')
+                ->whereHas('glAccount', function ($query) {
+                    $query->where(function ($q) {
+                        $q->where('Nature', 'cash');
+                    })
+                    ->where('AccType', 1);
+                })
+                ->where('status', 'active')
+                ->get();
+
+            $combinedAccounts = $bankAccounts->map(function ($account) {
+                return [
+                    'id' => $account->id,
+                    'account_name' => $account->account_name,
+                    'account_number' => $account->account_number,
+                    'currency' => $account->currency,
+                ];
+            })->concat($cashAccounts->map(function ($account) {
+                return [
+                    'id' => 'cash_' . $account->id, // Prefix to differentiate from bank accounts
+                    'account_name' => $account->name,
+                    'account_number' => $account->account_code,
+                    'currency' => $account->currency,
+                ];
+            }))->sortBy('account_name')->values()->all();
 
             $openInvoices = \App\Models\Vendor_Purchases\PurchaseInvoice::query()
                 ->with('currency:id,code,name')

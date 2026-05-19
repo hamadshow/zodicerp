@@ -1,526 +1,1084 @@
-/* Bank.css */
+
+/*
+* Bank Management SCSS
+*
+* This stylesheet provides a modern, enterprise-grade UI/UX for the Banking Management page.
+* It focuses on clean design, professional spacing, responsive layouts, and smooth interactions,
+* adhering to a fintech aesthetic with soft shadows and elegant gradients.
+*
+* Design Principles:
+* - Clean banking dashboard
+* - Enterprise ERP aesthetic
+* - Modern fintech UI
+* - Soft shadows
+* - Rounded corners (12px–18px)
+* - Elegant blue/purple gradients
+* - Professional spacing
+* - Minimal but premium look
+* - Modern hover interactions
+* - Sticky table header
+* - Responsive split panels
+* - Compact but readable tables
+*/
+
+// -----------------------------------------------------------------------------
+// Variables
+// -----------------------------------------------------------------------------
+$primary-color: #4A67FF; // A vibrant blue for primary actions
+$secondary-color: #6C757D; // Muted grey for secondary actions
+$accent-blue: #007bff; // Standard blue
+$accent-purple: #6f42c1; // Standard purple
+$text-dark: #212529;
+$text-medium: #495057;
+$text-light: #6c757d;
+$bg-light: #f8f9fa;
+$border-color: #e9ecef;
+$success-color: #28a745;
+$danger-color: #dc3545;
+$warning-color: #ffc107;
+$info-color: #17a2b8;
+
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-xxl: 48px;
+
+$border-radius-sm: 8px;
+$border-radius-md: 12px;
+$border-radius-lg: 18px; // As per user requirement
+
+$shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04);
+$shadow-md: 0 4px 8px rgba(0, 0, 0, 0.08);
+$shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.12);
+$shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.17); // Light glassmorphism shadow
+
+$transition-speed: 0.3s;
+$transition-ease: ease-in-out;
+
+// Breakpoints
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
+
+// -----------------------------------------------------------------------------
+// Base Styles
+// -----------------------------------------------------------------------------
 .bank-page {
-    padding: 20px;
-    background-color: #f8fafc;
+    padding: $spacing-lg;
+    background-color: $bg-light;
     min-height: 100vh;
+    font-family: 'Inter', sans-serif; // Modern sans-serif font
+    color: $text-dark;
+
+    // Professional scrollbar styling
+    &::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: lighten($bg-light, 2%);
+        border-radius: $border-radius-sm;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: darken($bg-light, 15%);
+        border-radius: $border-radius-sm;
+        &:hover {
+            background: darken($bg-light, 25%);
+        }
+    }
 }
 
-/* Stats Cards */
+// Typography improvements
+h1, h2, h3, h4, h5, h6 {
+    color: $text-dark;
+    font-weight: 600;
+    margin-bottom: $spacing-md;
+}
+
+p {
+    line-height: 1.6;
+    color: $text-medium;
+}
+
+.text-red-500 { // Assuming this is for form errors
+    color: $danger-color;
+    font-size: 0.875rem;
+    margin-top: $spacing-xs;
+}
+
+.text-gray-500 {
+    color: $text-light;
+}
+
+.text-4xl {
+    font-size: 2.25rem; // 36px
+}
+
+.mb-2 {
+    margin-bottom: $spacing-sm;
+}
+
+
+// -----------------------------------------------------------------------------
+// Layout & Structure
+// -----------------------------------------------------------------------------
+.bank-management-container {
+    display: grid;
+    grid-template-columns: 1fr; // Default to single column
+    gap: $spacing-xl;
+    margin-top: $spacing-xl;
+
+    @media (min-width: $breakpoint-lg) {
+        grid-template-columns: 2fr 1fr; // Responsive split panels for larger screens
+    }
+}
+
+.banks-section, .accounts-section {
+    background: white;
+    border-radius: $border-radius-lg;
+    box-shadow: $shadow-md;
+    overflow: hidden;
+    transition: all $transition-speed $transition-ease;
+    display: flex;
+    flex-direction: column;
+
+    &:hover {
+        box-shadow: $shadow-lg;
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Stats Cards
+// -----------------------------------------------------------------------------
 .stats-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 20px;
-    margin-bottom: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: $spacing-md;
+    margin-bottom: $spacing-xl;
+
+    @media (min-width: $breakpoint-md) {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
 }
 
 .stat-card {
-    background: white;
-    border-radius: 12px;
-    padding: 20px;
+    background: linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%); // Subtle gradient
+    border-radius: $border-radius-md;
+    padding: $spacing-lg;
     display: flex;
     align-items: center;
-    gap: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s, box-shadow 0.2s;
+    gap: $spacing-md;
+    box-shadow: $shadow-sm;
+    transition: transform $transition-speed $transition-ease, box-shadow $transition-speed $transition-ease;
+    position: relative;
+    overflow: hidden; // For pseudo-elements
+
+    &:hover {
+        transform: translateY(-5px);
+        box-shadow: $shadow-lg;
+        &::after { // Hover effect for gradient background
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    // Elegant blue/purple gradients for hover or active states (optional, could be used for backgrounds)
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(45deg, rgba($primary-color, 0.05), rgba($accent-purple, 0.05));
+        border-radius: $border-radius-md;
+        opacity: 0;
+        transform: scale(0.98);
+        transition: all $transition-speed $transition-ease;
+        z-index: 0;
+    }
+
+    .stat-icon {
+        width: 56px; // Slightly larger
+        height: 56px;
+        border-radius: $border-radius-md;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 28px;
+        position: relative;
+        z-index: 1;
+        
+        // Gradient backgrounds for icons
+        &.bg-blue-500 { background: linear-gradient(45deg, #6a82fb, #fc5c7d); } // Elegant blue/pink
+        &.bg-green-500 { background: linear-gradient(45deg, #2ED06E, #3EE782); } // Vibrant green
+        &.bg-purple-500 { background: linear-gradient(45deg, #8A2387, #E94057, #F27121); } // Deep purple/orange
+        
+        .material-icons-outlined {
+            font-size: 28px;
+        }
+    }
+
+    .stat-info { // Adjusted to match JSX
+        flex: 1;
+        position: relative;
+        z-index: 1;
+        h3 {
+            font-size: 28px; // Larger value
+            font-weight: 700;
+            color: $text-dark;
+            line-height: 1.2;
+            margin: 0;
+        }
+        p {
+            font-size: 14px;
+            color: $text-light;
+            margin: ($spacing-xs / 2) 0 0 0;
+        }
+    }
 }
 
-.stat-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-}
-
-.stat-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-}
-
-.stat-content {
-    flex: 1;
-}
-
-.stat-value {
-    font-size: 24px;
-    font-weight: 700;
-    color: #1e293b;
-    line-height: 1.2;
-}
-
-.stat-label {
-    font-size: 14px;
-    color: #64748b;
-    margin-top: 4px;
-}
-
-/* Filter Tabs */
-.filter-tabs {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
-    overflow-x: auto;
-    padding-bottom: 4px;
-}
-
-.filter-tab {
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #64748b;
-    cursor: pointer;
-    transition: all 0.2s;
-    background: white;
-    border: 1px solid #e2e8f0;
-    white-space: nowrap;
-}
-
-.filter-tab:hover {
-    background: #f1f5f9;
-}
-
-.filter-tab.active {
-    background: #2563eb;
-    color: white !important;
-    border-color: #2563eb;
-    font-weight: 600;
-    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
-}
-
-/* Bank Card & Table */
-.bank-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    overflow: hidden;
-}
-
+// -----------------------------------------------------------------------------
+// Card Header & Actions
+// -----------------------------------------------------------------------------
 .card-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid #e2e8f0;
+    padding: $spacing-md $spacing-lg;
+    border-bottom: 1px solid $border-color;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 16px;
+    gap: $spacing-md;
+    background-color: #ffffff;
+    border-top-left-radius: $border-radius-lg;
+    border-top-right-radius: $border-radius-lg;
+
+    h2 {
+        font-size: 20px;
+        font-weight: 600;
+        color: $text-dark;
+        margin: 0; // Override default h2 margin
+    }
+
+    .header-actions {
+        display: flex;
+        gap: $spacing-sm;
+        align-items: center;
+        flex-wrap: wrap;
+    }
 }
 
-.actions {
+// -----------------------------------------------------------------------------
+// Search Bar
+// -----------------------------------------------------------------------------
+.search-bar {
     display: flex;
-    gap: 12px;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-sm;
+    overflow: hidden;
+    transition: all $transition-speed $transition-ease;
+    background-color: $bg-light; // Light background for contrast
+    max-width: 280px; // Compact size
+
+    &:focus-within {
+        border-color: $primary-color;
+        box-shadow: 0 0 0 2px rgba($primary-color, 0.2);
+    }
+
+    input {
+        border: none;
+        padding: $spacing-sm $spacing-md;
+        flex-grow: 1;
+        font-size: 14px;
+        color: $text-dark;
+        background-color: transparent; // Inherit from parent
+        &:focus {
+            outline: none;
+        }
+        &::placeholder {
+            color: $text-light;
+        }
+    }
+
+    button {
+        background-color: transparent;
+        border: none;
+        padding: $spacing-sm;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: $text-light;
+        transition: color $transition-speed $transition-ease;
+
+        &:hover {
+            color: $primary-color;
+        }
+    }
 }
 
+
+// -----------------------------------------------------------------------------
+// Tables
+// -----------------------------------------------------------------------------
 .table-container {
     overflow-x: auto;
+    flex-grow: 1; // Allow table container to take remaining space
+    position: relative; // For sticky header
 }
 
 table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate; // For rounded corners on cells
+    border-spacing: 0; // Remove default spacing for collapse effect
+    
+    thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #ffffff; // Ensure header is visible when sticky
+        box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.04); // Subtle shadow for sticky header
+    }
+
+    th {
+        background: $bg-light;
+        padding: $spacing-md $spacing-lg;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 700; // Bolder header
+        color: $text-medium;
+        text-transform: uppercase;
+        letter-spacing: 0.8px; // Increased letter spacing
+        border-bottom: 1px solid $border-color;
+        white-space: nowrap; // Prevent text wrapping in headers
+
+        // Rounded corners for first/last th
+        &:first-child { border-top-left-radius: $border-radius-sm; }
+        &:last-child { border-top-right-radius: $border-radius-sm; }
+
+        .flex {
+            display: flex;
+            align-items: center;
+            gap: $spacing-sm / 2;
+        }
+
+        .material-icons-outlined {
+            font-size: 16px;
+            color: $text-light;
+        }
+    }
+
+    td {
+        padding: $spacing-md $spacing-lg;
+        border-bottom: 1px solid $border-color;
+        color: $text-dark;
+        font-size: 14px;
+        vertical-align: middle; // Align content vertically
+    }
+
+    tr {
+        transition: background-color $transition-speed $transition-ease;
+
+        &:last-child td {
+            border-bottom: none;
+        }
+
+        &:hover {
+            background-color: rgba($primary-color, 0.05); // Light blue hover
+        }
+    }
+
+    .selected-row {
+        background-color: rgba($primary-color, 0.1); // More prominent selection
+        border-left: 4px solid $primary-color; // Highlight with a border
+        td {
+            font-weight: 500;
+        }
+        &:hover {
+            background-color: rgba($primary-color, 0.15); // Slightly darker on hover
+        }
+    }
+
+    .bank-info {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        cursor: pointer; // Indicate clickable
+        padding: $spacing-xs 0; // Add some padding for clickable area
+    }
+
+    .bank-logo {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%; // Circular logo
+        object-fit: contain;
+        background-color: #f1f5f9; // Fallback background
+        border: 1px solid $border-color;
+        padding: $spacing-xs / 2; // Small padding inside for logos
+    }
+
+    .bank-name-details {
+        display: flex;
+        flex-direction: column;
+        strong {
+            font-weight: 600;
+            color: $text-dark;
+        }
+        span {
+            font-size: 12px;
+            color: $text-light;
+        }
+    }
+
+    .prefix-info {
+        display: flex;
+        flex-direction: column;
+        span {
+            font-weight: 500;
+            color: $text-dark;
+        }
+        small {
+            font-size: 11px;
+            color: $text-light;
+        }
+    }
+
+    .account-info {
+        display: flex;
+        flex-direction: column;
+        strong {
+            font-weight: 600;
+            color: $text-dark;
+        }
+    }
+
+    .number-info {
+        display: flex;
+        flex-direction: column;
+        span {
+            font-weight: 500;
+            color: $text-dark;
+        }
+        small {
+            font-size: 11px;
+            color: $text-light;
+        }
+    }
+
+    .balance-info {
+        strong {
+            font-family: 'Inter', sans-serif; // Consistent font
+            font-weight: 600;
+            color: $text-dark;
+        }
+    }
+
+    .default-tag {
+        display: inline-block;
+        margin-left: $spacing-sm;
+        padding: 2px $spacing-sm;
+        border-radius: $border-radius-sm / 2;
+        background-color: rgba($primary-color, 0.1);
+        color: $primary-color;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
 }
 
-th {
-    background: #f8fafc;
-    padding: 12px 20px;
-    text-align: left;
-    font-size: 12px;
-    font-weight: 600;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border-bottom: 1px solid #e2e8f0;
-}
-
-td {
-    padding: 16px 20px;
-    border-bottom: 1px solid #e2e8f0;
-    color: #334155;
-    font-size: 14px;
-}
-
-tr:last-child td {
-    border-bottom: none;
-}
-
-tr:hover td {
-    background: #f8fafc;
-}
-
-/* Badges */
+// -----------------------------------------------------------------------------
+// Status Badges
+// -----------------------------------------------------------------------------
 .status-badge {
-    padding: 4px 12px;
-    border-radius: 20px;
+    padding: 6px $spacing-md;
+    border-radius: $border-radius-lg; // More rounded
     font-size: 12px;
-    font-weight: 500;
+    font-weight: 600; // Bolder text
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: $spacing-sm / 2;
+    text-transform: capitalize; // Nicer presentation
 }
 
 .status-active {
-    background: #dcfce7;
-    color: #166534;
+    background: lighten($success-color, 40%);
+    color: darken($success-color, 10%);
 }
 
 .status-inactive {
-    background: #f1f5f9;
-    color: #475569;
+    background: lighten($secondary-color, 40%);
+    color: darken($secondary-color, 10%);
 }
 
-/* Action Buttons */
+// -----------------------------------------------------------------------------
+// Action Buttons (Table & General)
+// -----------------------------------------------------------------------------
+.action-buttons {
+    display: flex;
+    gap: $spacing-sm / 2;
+    justify-content: flex-end; // Align to the right in table cells
+}
+
 .icon-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 6px;
+    width: 36px; // Slightly larger for better touch target
+    height: 36px;
+    border-radius: 50%; // Circular buttons
     border: none;
     background: transparent;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s;
-    color: #64748b;
+    color: $text-light;
+    transition: all $transition-speed $transition-ease;
+    box-shadow: $shadow-sm; // Subtle shadow
+
+    &:hover {
+        background: #f1f5f9;
+        color: $primary-color; // Primary color on hover
+        box-shadow: $shadow-md;
+        transform: translateY(-2px);
+    }
+
+    &.edit:hover {
+        background: rgba($accent-blue, 0.1);
+        color: $accent-blue;
+    }
+
+    &.delete:hover {
+        background: rgba($danger-color, 0.1);
+        color: $danger-color;
+    }
+
+    &.view:hover {
+        background: rgba($success-color, 0.1);
+        color: $success-color;
+    }
+
+    .material-icons-outlined {
+        font-size: 18px; // Consistent icon size
+    }
 }
 
-.icon-btn:hover {
-    background: #f1f5f9;
-    color: #1e293b;
+// General buttons
+.btn {
+    padding: 10px 20px;
+    border-radius: $border-radius-sm;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: $spacing-sm / 2;
+    transition: all $transition-speed $transition-ease;
+    border: 1px solid transparent;
+    box-shadow: $shadow-sm;
+
+    &:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: $shadow-md;
+    }
+
+    &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .material-icons-outlined {
+        font-size: 18px;
+    }
 }
 
-.icon-btn.edit:hover {
-    background: #eff6ff;
-    color: #2563eb;
+.btn-primary {
+    background: $primary-color;
+    color: white;
+    &:hover:not(:disabled) {
+        background: darken($primary-color, 8%);
+    }
 }
 
-.icon-btn.delete:hover {
-    background: #fef2f2;
-    color: #ef4444;
+.btn-secondary {
+    background: white;
+    border-color: $border-color;
+    color: $text-medium;
+    &:hover:not(:disabled) {
+        background: $bg-light;
+        border-color: darken($border-color, 5%);
+        color: $text-dark;
+    }
 }
 
-.icon-btn.view:hover {
-    background: #f0fdf4;
-    color: #166534;
+.btn-danger {
+    background: $danger-color;
+    color: white;
+    &:hover:not(:disabled) {
+        background: darken($danger-color, 8%);
+    }
 }
 
-/* Modal */
+.btn-sm { // Smaller buttons for modal headers etc.
+    padding: 6px 12px; // Adjusted to match inline style
+    font-size: 12px;
+    .material-icons-outlined {
+        font-size: 16px;
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// Modals
+// -----------------------------------------------------------------------------
 .modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6); // Darker overlay
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 1000;
     opacity: 0;
     visibility: hidden;
-    transition: all 0.3s;
-}
+    transition: all $transition-speed $transition-ease;
+    backdrop-filter: blur(5px); // Glassmorphism effect for overlay
 
-.modal-overlay.active {
-    opacity: 1;
-    visibility: visible;
+    &.active {
+        opacity: 1;
+        visibility: visible;
+    }
 }
 
 .modal-content {
-    background: white;
-    border-radius: 16px;
+    background: #ffffff;
+    border-radius: $border-radius-lg;
     width: 90%;
-    max-width: 600px;
+    max-width: 680px; // Slightly wider default
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    transform: scale(0.95);
-    transition: transform 0.3s;
-}
+    box-shadow: $shadow-glass; // Use glassmorphism shadow
+    transform: scale(0.9); // Start smaller for animation
+    transition: transform $transition-speed $transition-ease, opacity $transition-speed $transition-ease;
+    position: relative; // For absolute positioning of close button if needed
 
-.modal-overlay.active .modal-content {
-    transform: scale(1);
-}
+    .modal-overlay.active & {
+        transform: scale(1);
+        opacity: 1;
+    }
 
-.modal-content.large {
-    max-width: 900px;
+    &.large {
+        max-width: 95vw; // Even wider for large modals
+        @media (min-width: $breakpoint-md) {
+            max-width: 960px;
+        }
+    }
 }
 
 .modal-header {
-    padding: 20px 24px;
-    border-bottom: 1px solid #e2e8f0;
+    padding: $spacing-lg $spacing-xl;
+    border-bottom: 1px solid $border-color;
     display: flex;
     justify-content: space-between;
     align-items: center;
-}
+    background-color: $bg-light; // Light header background
+    border-top-left-radius: $border-radius-lg;
+    border-top-right-radius: $border-radius-lg;
 
-.modal-header h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #1e293b;
-    margin: 0;
-}
+    h2 {
+        font-size: 22px; // Larger modal title
+        font-weight: 700;
+        color: $text-dark;
+        margin: 0;
+    }
 
-.close-btn {
-    background: transparent;
-    border: none;
-    color: #94a3b8;
-    cursor: pointer;
-    padding: 4px;
-    border-radius: 4px;
-    transition: all 0.2s;
-}
+    .close-btn {
+        background: transparent;
+        border: none;
+        color: $text-light;
+        cursor: pointer;
+        padding: $spacing-sm / 2;
+        border-radius: 50%; // Circular close button
+        transition: all $transition-speed $transition-ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
 
-.close-btn:hover {
-    background: #f1f5f9;
-    color: #64748b;
+        &:hover {
+            background: $border-color;
+            color: $text-dark;
+            transform: rotate(90deg); // Subtle rotation on hover
+        }
+
+        .material-icons-outlined {
+            font-size: 20px;
+        }
+    }
 }
 
 .modal-body {
-    padding: 24px;
+    padding: $spacing-xl;
 }
 
 .modal-footer {
-    padding: 20px 24px;
-    border-top: 1px solid #e2e8f0;
+    padding: $spacing-lg $spacing-xl;
+    border-top: 1px solid $border-color;
     display: flex;
     justify-content: flex-end;
-    gap: 12px;
+    gap: $spacing-sm;
+    background-color: $bg-light;
+    border-bottom-left-radius: $border-radius-lg;
+    border-bottom-right-radius: $border-radius-lg;
 }
 
-/* Forms */
+// -----------------------------------------------------------------------------
+// Forms
+// -----------------------------------------------------------------------------
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: $spacing-lg;
 }
 
 .form-label {
     display: block;
     font-size: 14px;
-    font-weight: 500;
-    color: #334155;
-    margin-bottom: 8px;
+    font-weight: 600; // Bolder label
+    color: $text-medium;
+    margin-bottom: $spacing-sm;
 }
 
 .form-input, .form-select, .form-textarea {
     width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 14px;
-    color: #1e293b;
-    transition: border-color 0.2s;
+    padding: 12px $spacing-md; // More vertical padding
+    border: 1px solid $border-color;
+    border-radius: $border-radius-sm;
+    font-size: 15px; // Slightly larger font
+    color: $text-dark;
+    transition: all $transition-speed $transition-ease;
+    background-color: #ffffff;
+
+    &:focus {
+        border-color: $primary-color;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba($primary-color, 0.2); // Primary color focus ring
+        background-color: #fcfdff;
+    }
+
+    &::placeholder {
+        color: $text-light;
+    }
 }
 
-.form-input:focus, .form-select:focus, .form-textarea:focus {
-    border-color: #3b82f6;
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+.form-select {
+    appearance: none; // Remove default select arrow
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right $spacing-md center;
+    background-size: 12px;
 }
 
 .form-row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
+    grid-template-columns: 1fr; // Default to single column for mobile
+    gap: $spacing-lg;
+    margin-bottom: $spacing-lg;
+
+    @media (min-width: $breakpoint-sm) {
+        grid-template-columns: 1fr 1fr; // Two columns for larger screens
+    }
 }
 
-/* Buttons */
-.btn {
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    display: inline-flex;
+.flex.items-end.mb-4 { // For checkbox alignment in form-row
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: $spacing-md;
+    @media (min-width: $breakpoint-sm) {
+        margin-bottom: 0; // Remove margin on larger screens if part of form-row
+    }
+}
+
+.flex.items-center.gap-2.cursor-pointer {
+    display: flex;
     align-items: center;
-    gap: 8px;
-    transition: all 0.2s;
-    border: 1px solid transparent;
+    gap: $spacing-sm;
+    cursor: pointer;
+    color: $text-dark;
+    font-weight: 500;
+
+    input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        border: 1px solid $border-color;
+        border-radius: 4px;
+        appearance: none;
+        background-color: #ffffff;
+        transition: all $transition-speed $transition-ease;
+        cursor: pointer;
+        position: relative;
+
+        &:checked {
+            background-color: $primary-color;
+            border-color: $primary-color;
+            &::after {
+                content: '✔';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                font-size: 12px;
+                line-height: 1;
+            }
+        }
+        &:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba($primary-color, 0.2);
+        }
+    }
 }
 
-.btn-primary {
-    background: #2563eb;
-    color: white;
-}
 
-.btn-primary:hover {
-    background: #1d4ed8;
-}
-
-.btn-secondary {
-    background: white;
-    border-color: #e2e8f0;
-    color: #64748b;
-}
-
-.btn-secondary:hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-    color: #334155;
-}
-
-.btn-danger {
-    background: #ef4444;
-    color: white;
-}
-
-.btn-danger:hover {
-    background: #dc2626;
-}
-
-/* Loading */
-.loading-spinner {
+// -----------------------------------------------------------------------------
+// Loading & Empty States
+// -----------------------------------------------------------------------------
+.loading-state, .select-bank-prompt {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 40px;
-    color: #64748b;
+    padding: $spacing-xxl;
+    color: $text-light;
+    text-align: center;
+    min-height: 200px; // Ensure visible space
+    border-radius: $border-radius-lg;
+    background-color: #fcfdff; // Light background for empty states
+    border: 1px dashed $border-color; // Dashed border
+
+    .material-icons-outlined {
+        font-size: 48px;
+        color: $text-light;
+        margin-bottom: $spacing-md;
+    }
+
+    p {
+        font-size: 16px;
+        color: $text-medium;
+    }
 }
 
 .spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid #e2e8f0;
-    border-top-color: #3b82f6;
+    width: 48px; // Larger spinner
+    height: 48px;
+    border: 4px solid rgba($primary-color, 0.2);
+    border-top-color: $primary-color;
     border-radius: 50%;
     animation: spin 1s linear infinite;
-    margin-bottom: 16px;
+    margin-bottom: $spacing-lg;
 }
 
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
 
-/* Bank Details View */
+// -----------------------------------------------------------------------------
+// Bank Details View (inside Modal)
+// -----------------------------------------------------------------------------
 .bank-details-grid {
     display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 24px;
+    grid-template-columns: 1fr;
+    gap: $spacing-xl;
+
+    @media (min-width: $breakpoint-md) {
+        grid-template-columns: 280px 1fr; // Sidebar on left
+    }
 }
 
 .bank-info-sidebar {
-    background: #f8fafc;
-    padding: 20px;
-    border-radius: 12px;
+    background: #fcfdff;
+    padding: $spacing-lg;
+    border-radius: $border-radius-md;
     height: fit-content;
+    box-shadow: $shadow-sm;
 }
 
 .bank-logo-preview {
-    width: 100px;
-    height: 100px;
+    width: 120px; // Larger logo preview
+    height: 120px;
     background: white;
-    border-radius: 12px;
+    border-radius: $border-radius-md;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 16px;
-    border: 1px solid #e2e8f0;
+    margin-bottom: $spacing-lg;
+    border: 1px solid $border-color;
     overflow: hidden;
-}
+    box-shadow: $shadow-sm;
 
-.bank-logo-preview img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
+    img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+    }
+    .material-icons-outlined {
+        font-size: 60px; // Larger icon fallback
+        color: $border-color;
+    }
 }
 
 .info-item {
-    margin-bottom: 16px;
+    margin-bottom: $spacing-md;
+    &:last-child {
+        margin-bottom: 0;
+    }
 }
 
 .info-label {
     font-size: 12px;
-    color: #64748b;
-    margin-bottom: 4px;
+    color: $text-light;
+    margin-bottom: $spacing-xs / 2;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .info-value {
-    font-size: 14px;
-    color: #1e293b;
-    font-weight: 500;
+    font-size: 15px;
+    color: $text-dark;
+    font-weight: 600;
 }
 
-/* Accounts Table inside Modal */
 .accounts-section {
-    margin-top: 0;
+    margin-top: 0; // Override default margin if any
+    display: flex;
+    flex-direction: column; // Ensure content flows correctly
 }
 
 .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
-}
+    margin-bottom: $spacing-md;
 
-.section-title {
-    font-size: 16px;
-    font-weight: 600;
-    color: #1e293b;
+    .section-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: $text-dark;
+    }
 }
 
 .accounts-table {
     width: 100%;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    overflow: hidden;
+    border: 1px solid $border-color;
+    border-radius: $border-radius-md;
+    overflow: hidden; // Ensures rounded corners are visible
+    background-color: #ffffff;
+
+    th {
+        background: $bg-light;
+        padding: $spacing-sm $spacing-md;
+        font-size: 12px;
+        font-weight: 700;
+        color: $text-medium;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+    }
+
+    td {
+        padding: $spacing-sm $spacing-md;
+        font-size: 13px;
+    }
+
+    .currency-badge {
+        padding: 4px $spacing-sm;
+        border-radius: $border-radius-sm / 2;
+        background: rgba($primary-color, 0.1);
+        color: $primary-color;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .balance-value {
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        color: $text-dark;
+    }
 }
 
-.accounts-table th {
-    background: #f1f5f9;
-    padding: 10px 16px;
-}
-
-.accounts-table td {
-    padding: 12px 16px;
-}
-
-.currency-badge {
-    padding: 2px 8px;
-    border-radius: 4px;
-    background: #eff6ff;
-    color: #2563eb;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.balance-value {
-    font-family: 'Monaco', 'Consolas', monospace;
-    font-weight: 600;
-}
-
-/* Pagination */
+// -----------------------------------------------------------------------------
+// Pagination (if applicable, based on existing styles)
+// -----------------------------------------------------------------------------
 .pagination {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 20px;
-    border-top: 1px solid #e2e8f0;
+    padding: $spacing-md $spacing-lg;
+    border-top: 1px solid $border-color;
+    margin-top: auto; // Push pagination to the bottom if table is short
+    background-color: #ffffff;
+    border-bottom-left-radius: $border-radius-lg;
+    border-bottom-right-radius: $border-radius-lg;
 }
 
 .page-btn {
-    padding: 6px 12px;
-    border: 1px solid #e2e8f0;
+    padding: $spacing-sm $spacing-md;
+    border: 1px solid $border-color;
     background: white;
-    border-radius: 6px;
+    border-radius: $border-radius-sm;
     font-size: 14px;
-    color: #64748b;
+    color: $text-medium;
     cursor: pointer;
-    margin: 0 4px;
+    margin: 0 $spacing-xs / 2;
+    transition: all $transition-speed $transition-ease;
+
+    &:hover:not(:disabled) {
+        background: $bg-light;
+        border-color: darken($border-color, 5%);
+        color: $primary-color;
+    }
+
+    &.active {
+        background: $primary-color;
+        color: white;
+        border-color: $primary-color;
+        font-weight: 600;
+        box-shadow: $shadow-sm;
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
 }
 
-.page-btn:hover:not(:disabled) {
-    background: #f1f5f9;
-    color: #1e293b;
-}
+// -----------------------------------------------------------------------------
+// RTL Adjustments (Conceptual, will depend on actual RTL implementation)
+// -----------------------------------------------------------------------------
+[dir="rtl"] {
+    .text-align-left { text-align: right; }
+    .text-align-right { text-align: left; }
+    .ml-auto { margin-left: unset; margin-right: auto; }
+    .mr-auto { margin-right: unset; margin-left: auto; }
+    
+    .bank-info {
+        flex-direction: row-reverse;
+    }
 
-.page-btn.active {
-    background: #2563eb;
-    color: white;
-    border-color: #2563eb;
-}
+    .bank-name-details {
+        text-align: right;
+    }
 
-.page-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+    .action-buttons {
+        justify-content: flex-start;
+    }
+
+    .form-select {
+        background-position: left $spacing-md center;
+    }
 }

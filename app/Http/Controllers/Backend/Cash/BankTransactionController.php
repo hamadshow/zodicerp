@@ -72,16 +72,52 @@ class BankTransactionController extends Controller
                 ];
             });
 
-        $bankAccounts = BankAccount::with('bank')
+        $bankAccounts = BankAccount::with(['bank', 'glAccount'])
+            ->whereHas('glAccount', function ($query) {
+                $query->where(function ($q) {
+                    $q->where('Nature', 'bank')
+                      ->orWhere('Nature', 'cash');
+                })
+                ->where('AccType', 1);
+            })
             ->where('status', 'active')
             ->get(['id', 'bank_id', 'account_name', 'account_number', 'gl_account_id']);
+
+        $cashAccounts = \App\Models\CashAccount::query()
+            ->with('glAccount')
+            ->whereHas('glAccount', function ($query) {
+                $query->where(function ($q) {
+                    $q->where('Nature', 'cash');
+                })
+                ->where('AccType', 1);
+            })
+            ->where('status', 'active')
+            ->get();
+
+        $combinedAccounts = $bankAccounts->map(function ($account) {
+            return [
+                'id' => $account->id,
+                'account_name' => $account->account_name,
+                'account_number' => $account->account_number,
+                'currency' => $account->currency,
+                'bank_name' => $account->bank?->name, // Include bank name for display
+            ];
+        })->concat($cashAccounts->map(function ($account) {
+            return [
+                'id' => 'cash_' . $account->id, // Prefix to differentiate from bank accounts
+                'account_name' => $account->name,
+                'account_number' => $account->account_code,
+                'currency' => $account->currency,
+                'bank_name' => 'Cash Account', // Indicate it's a cash account
+            ];
+        }))->sortBy('account_name')->values()->all();
 
         $accounts = Account::select('AccID', 'AccCode', 'AccName', 'AccType')->get();
 
         return Inertia::render('Backend/06-Cash/BankTransactions', [
             'payments' => $payments,
             'receipts' => $receipts,
-            'bankAccounts' => $bankAccounts,
+            'bankAccounts' => $combinedAccounts,
             'accounts' => $accounts,
         ]);
     }
@@ -127,53 +163,31 @@ class BankTransactionController extends Controller
         });
     }
 
-    public function update(Request $request, int $transaction)
+    public function update(Request $request, string $type, int $transaction)
     {
-        $validated = $this->validatePayload($request, true);
+        $validated = $this->validatePayload($request);
+        $originalType = $type;
+        $newType = $validated['type'];
 
-        return DB::transaction(function () use ($validated, $transaction) {
-            if ($validated['type'] === 'payment') {
-                $record = BankPayment::findOrFail($transaction);
-                $code = $record->payment_no;
-                $record->update([
-                    'bank_account_id' => $validated['bank_account_id'],
-                    'payment_date' => $validated['date'],
-                    'payee_type' => 'other',
-                    'payee_id' => $validated['counterparty_account_id'],
-                    'amount' => $validated['amount'],
-                    'reference' => $validated['reference'],
-                    'notes' => $validated['notes'],
-                    'status' => $validated['status'],
-                ]);
+        return DB::transaction(function () use ($validated, $transaction, $originalType, $newType) {
+            if ($originalType !== $newType) {
+                $code = $this->migrateTransactionType($originalType, $newType, $transaction, $validated);
             } else {
-                $record = BankReceipt::findOrFail($transaction);
-                $code = $record->receipt_no;
-                $record->update([
-                    'bank_account_id' => $validated['bank_account_id'],
-                    'receipt_date' => $validated['date'],
-                    'payer_type' => 'other',
-                    'payer_id' => $validated['counterparty_account_id'],
-                    'amount' => $validated['amount'],
-                    'reference' => $validated['reference'],
-                    'notes' => $validated['notes'],
-                    'status' => $validated['status'],
-                ]);
+                $code = $this->updateTransactionRecord($originalType, $transaction, $validated);
             }
 
-            $this->syncJournalEntry($validated['type'], $code, $validated);
+            $this->syncJournalEntry($newType, $code, $validated);
 
             return redirect()->back()->with('success', 'Bank transaction updated successfully.');
         });
     }
 
-    public function destroy(Request $request, int $transaction)
+    public function destroy(Request $request, string $type, int $transaction)
     {
-        $validated = $request->validate([
-            'type' => 'required|in:payment,receipt',
-        ]);
+        abort_unless(in_array($type, ['payment', 'receipt'], true), 404);
 
-        return DB::transaction(function () use ($validated, $transaction) {
-            if ($validated['type'] === 'payment') {
+        return DB::transaction(function () use ($type, $transaction) {
+            if ($type === 'payment') {
                 $record = BankPayment::findOrFail($transaction);
                 $code = $record->payment_no;
                 $record->delete();
@@ -183,13 +197,13 @@ class BankTransactionController extends Controller
                 $record->delete();
             }
 
-            $this->deleteJournalEntry($validated['type'], $code);
+            $this->deleteJournalEntry($type, $code);
 
             return redirect()->back()->with('success', 'Bank transaction deleted successfully.');
         });
     }
 
-    protected function validatePayload(Request $request, bool $isUpdate = false): array
+    protected function validatePayload(Request $request): array
     {
         return $request->validate([
             'type' => 'required|in:payment,receipt',
@@ -202,6 +216,84 @@ class BankTransactionController extends Controller
             'reference' => 'nullable|string|max:150',
             'notes' => 'nullable|string',
         ]);
+    }
+
+    protected function updateTransactionRecord(string $type, int $transaction, array $validated): string
+    {
+        if ($type === 'payment') {
+            $record = BankPayment::findOrFail($transaction);
+            $code = $record->payment_no;
+            $record->update([
+                'bank_account_id' => $validated['bank_account_id'],
+                'payment_date' => $validated['date'],
+                'payee_type' => 'other',
+                'payee_id' => $validated['counterparty_account_id'],
+                'amount' => $validated['amount'],
+                'reference' => $validated['reference'],
+                'notes' => $validated['notes'],
+                'status' => $validated['status'],
+            ]);
+        } else {
+            $record = BankReceipt::findOrFail($transaction);
+            $code = $record->receipt_no;
+            $record->update([
+                'bank_account_id' => $validated['bank_account_id'],
+                'receipt_date' => $validated['date'],
+                'payer_type' => 'other',
+                'payer_id' => $validated['counterparty_account_id'],
+                'amount' => $validated['amount'],
+                'reference' => $validated['reference'],
+                'notes' => $validated['notes'],
+                'status' => $validated['status'],
+            ]);
+        }
+
+        return $code;
+    }
+
+    protected function migrateTransactionType(string $originalType, string $newType, int $transaction, array $validated): string
+    {
+        if ($originalType === 'payment') {
+            $record = BankPayment::findOrFail($transaction);
+            $code = $record->payment_no;
+            $createdBy = $record->created_by;
+            $record->delete();
+            $this->deleteJournalEntry('payment', $code);
+
+            BankReceipt::create([
+                'bank_account_id' => $validated['bank_account_id'],
+                'receipt_no' => $code,
+                'receipt_date' => $validated['date'],
+                'payer_type' => 'other',
+                'payer_id' => $validated['counterparty_account_id'],
+                'amount' => $validated['amount'],
+                'reference' => $validated['reference'],
+                'notes' => $validated['notes'],
+                'status' => $validated['status'],
+                'created_by' => $createdBy ?? Auth::id(),
+            ]);
+        } else {
+            $record = BankReceipt::findOrFail($transaction);
+            $code = $record->receipt_no;
+            $createdBy = $record->created_by;
+            $record->delete();
+            $this->deleteJournalEntry('receipt', $code);
+
+            BankPayment::create([
+                'bank_account_id' => $validated['bank_account_id'],
+                'payment_no' => $code,
+                'payment_date' => $validated['date'],
+                'payee_type' => 'other',
+                'payee_id' => $validated['counterparty_account_id'],
+                'amount' => $validated['amount'],
+                'reference' => $validated['reference'],
+                'notes' => $validated['notes'],
+                'status' => $validated['status'],
+                'created_by' => $createdBy ?? Auth::id(),
+            ]);
+        }
+
+        return $code;
     }
 
     protected function syncJournalEntry(string $type, string $code, array $payload): void
