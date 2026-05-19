@@ -1,19 +1,26 @@
-@use 'base/variables';
-@use 'base/mixins';
+@use 'base/variables' as *;
+@use 'base/mixins' as *;
 @use 'base/base';
 
 // Layout
 @use 'layout/sidebar';
 @use 'layout/navbar';
 @use 'layout/footer';
+@use 'layout/mobile_nav';
 
 // Components
 @use 'components/notifications';
 @use 'components/stats';
 @use 'components/pagination';
 @use 'components/table';
+@use 'components/stats-cards';
+@use 'components/filter-tabs';
+@use 'components/BlankPage';
+@use 'components/search-bar';
+@use 'components/NavigationLink';
 @use 'components/SearchableComboBox';
 @use 'components/action-buttons';
+@use 'components/ActionsCell';
 @use 'components/CRUD-Actions';
 
 // Page-specific styles
@@ -153,3 +160,66 @@
     .ml-auto { margin-right: auto; margin-left: 0; }
     .mr-auto { margin-left: auto; margin-right: 0; }
 }
+
+// Internal Page Navigation Styles
+.internal-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    background: #{$white};
+    border-radius: #{$radius-xl} #{$radius-xl} 0 0;
+    border-bottom: 1px solid #{$border-color};
+    margin-bottom: 0;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .back-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: #{$radius-lg};
+        border: 1px solid #{$border-color};
+        background: #{$white};
+        color: #{$text-muted};
+        cursor: pointer;
+        transition: all $transition-fast;
+        font-weight: #{$font-weight-medium};
+
+        &:hover {
+            background: #{$light-color};
+            color: #{$text-primary};
+            transform: translateX(-2px);
+        }
+    }
+
+    .view-title {
+        font-size: 1.25rem;
+        font-weight: #{$font-weight-bold};
+        color: #{$text-primary};
+        margin: 0;
+    }
+}
+
+.view-card {
+    background: #{$white};
+    border-radius: #{$radius-xl};
+    box-shadow: #{$shadow-sm};
+    overflow: hidden;
+    margin-bottom: 2rem;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+

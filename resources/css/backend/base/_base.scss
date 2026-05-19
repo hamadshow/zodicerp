@@ -40,9 +40,19 @@ body {
     width: calc(100% - #{$sidebar-width});
     @include transition-standard;
 
+    @media (max-width: 768px) {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        width: 100% !important;
+    }
+
     @include rtl {
         margin-left: 0;
         margin-right: $sidebar-width;
+
+        @media (max-width: 768px) {
+            margin-right: 0 !important;
+        }
     }
 
     &.collapsed {
@@ -67,5 +77,23 @@ body {
 .mirror-rtl {
     @include rtl {
         transform: scaleX(-1);
+    }
+}
+
+/* Responsive Utilities */
+.desktop-only {
+    @media (max-width: 768px) {
+        display: none !important;
+    }
+}
+
+.mobile-only {
+    display: none;
+    @media (max-width: 768px) {
+        display: block;
+        
+        &.flex {
+            display: flex;
+        }
     }
 }

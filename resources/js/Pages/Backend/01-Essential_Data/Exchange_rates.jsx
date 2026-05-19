@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import { toast } from 'react-toastify';
 
@@ -229,51 +230,52 @@ const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
         };
     }, [autoUpdate, autoInterval]);
 
+    const breadcrumbs = [
+        { label: 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+        { label: 'Essential Data' },
+        { label: 'Exchange Rates' }
+    ];
+
+    const statsContent = (
+        <div className="stats-cards">
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
+                    <span className="material-icons-outlined">currency_exchange</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.total}</div>
+                    <div className="stat-label">Total Rates</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
+                    <span className="material-icons-outlined">today</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.today}</div>
+                    <div className="stat-label">Added Today</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
+                    <span className="material-icons-outlined">compare_arrows</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.pairs}</div>
+                    <div className="stat-label">Active Pairs</div>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <AdminLayout activeMenu="Exchange Rates">
             <Head title="Exchange Rates - ZodicERP" />
-            <div className="breadcrumb">
-                <a href="#">Dashboard</a>
-                <span>/</span>
-                <a href="#">Essential Data</a>
-                <span>/</span>
-                <span>Exchange Rates</span>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="stats-cards">
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
-                        <span className="material-icons-outlined">currency_exchange</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.total}</div>
-                        <div className="stat-label">Total Rates</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
-                        <span className="material-icons-outlined">today</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.today}</div>
-                        <div className="stat-label">Added Today</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
-                        <span className="material-icons-outlined">compare_arrows</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.pairs}</div>
-                        <div className="stat-label">Active Pairs</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Card */}
-            <div className="exchange-rates-card fade-in">
-                <div className="card-header">
+            
+            <BlankPage breadcrumbs={breadcrumbs} stats={statsContent}>
+                {/* Main Card */}
+                <div className="exchange-rates-card fade-in">
+                    <div className="card-header">
                     <div className="exchange-rates-actions">
                         <button className="btn btn-outline" onClick={() => window.location.reload()}>
                             <span className="material-icons-outlined">refresh</span>
@@ -486,7 +488,8 @@ const Exchange_rates = ({ exchangeRates = [], currencies = [] }) => {
                     </form>
                 </div>
             </div>
-        </AdminLayout>
+    </BlankPage>
+</AdminLayout>
     );
 };
 

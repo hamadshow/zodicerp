@@ -15,9 +15,9 @@ const ListView = ({ items, t, localization, onCreate, onEdit, onView, onDelete }
         if (!searchTerm) return items.data || [];
         const lowerTerm = searchTerm.toLowerCase();
         return (items.data || []).filter(item => 
-            (localization?.current_locale === 'ar' ? item.category?.name_ar : item.category?.name_en || '').toLowerCase().includes(lowerTerm) ||
-            (localization?.current_locale === 'ar' ? item.account?.AccName_ar || item.account?.AccName : item.account?.AccName || '').toLowerCase().includes(lowerTerm) ||
-            item.budget?.budget_number?.toLowerCase().includes(lowerTerm)
+            ((localization?.current_locale === 'ar' ? item.category?.name_ar : item.category?.name_en) || '').toLowerCase().includes(lowerTerm) ||
+            ((localization?.current_locale === 'ar' ? (item.account?.AccName_ar || item.account?.AccName) : item.account?.AccName) || '').toLowerCase().includes(lowerTerm) ||
+            (item.budget?.budget_number || '').toLowerCase().includes(lowerTerm)
         );
     }, [searchTerm, items.data, localization?.current_locale]);
 
@@ -136,12 +136,10 @@ const ListView = ({ items, t, localization, onCreate, onEdit, onView, onDelete }
 
 // --- Form View Component ---
 const FormView = ({ 
-    mode, data, setData, errors, processing, t, localization, 
+    data, setData, errors, processing, t, localization, 
     budgets, categories, accounts, taxes,
     activeTab, setActiveTab, onSave, onBack 
 }) => {
-    const isEdit = mode === 'edit';
-
     const budgetOptions = useMemo(() => budgets.map(b => ({ value: String(b.id), label: b.budget_number })), [budgets]);
     const categoryOptions = useMemo(() => categories.map(c => ({ value: String(c.id), label: localization?.current_locale === 'ar' ? c.name_ar : c.name_en })), [categories, localization]);
     const accountOptions = useMemo(() => accounts.map(a => ({ value: String(a.AccID), label: `${a.AccCode ? a.AccCode + ' - ' : ''}${localization?.current_locale === 'ar' ? a.AccName_ar || a.AccName : a.AccName}` })), [accounts, localization]);
@@ -314,7 +312,7 @@ const FormView = ({
 };
 
 // --- Details View Component ---
-const DetailsView = ({ item, t, localization, onBack, onEdit }) => {
+const DetailsView = ({ item, t, localization, onEdit }) => {
     return (
         <div className="animate-fade-slide">
             <div className="content-card">

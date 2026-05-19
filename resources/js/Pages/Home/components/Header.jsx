@@ -6,8 +6,6 @@ export function FinanzaHeader({
   isScrolled = false,
   isMobileMenuOpen = false,
   onToggleMobileMenu,
-  onCloseMobileMenu,
-  onOpenAuth,
   loginHref = '/login',
   registerHref = '/register',
   logoutHref = '/logout',
@@ -15,6 +13,7 @@ export function FinanzaHeader({
   customerFirstName = null,
   homeHref,
   t = (k, f) => f || k,
+  navLinks = []
 }) {
   const page = usePage();
   const auth = page?.props?.auth || null;
@@ -37,7 +36,6 @@ export function FinanzaHeader({
   const isAuthenticated = Boolean(authUser || authCustomer || authSupplier || customerFirstName);
   const showFullNav = variant === 'full';
   const toggleMobileMenu = onToggleMobileMenu || (() => {});
-  const closeMobileMenu = onCloseMobileMenu || (() => {});
 
   const localization = page.props.localization;
   const countryCode = 
@@ -69,24 +67,17 @@ export function FinanzaHeader({
           </Link>
           {showFullNav ? (
             <nav className={`finanza-nav ${isMobileMenuOpen ? 'finanza-nav--open' : ''}`} aria-label="Primary">
-              <Link className="finanza-nav-link" href={route('home', { country: countryCode, lang: currentLocale })}>
-                {t('header_home', 'Home')}
-              </Link>
-              <a className="finanza-nav-link" href={getNavLink('#about')}>
-                {t('header_about', 'About')}
-              </a>
-              <a className="finanza-nav-link" href={getNavLink('#services')}>
-                {t('header_services', 'Services')}
-              </a>
-              <a className="finanza-nav-link" href={getNavLink('#projects')}>
-                {t('header_projects', 'Projects')}
-              </a>
-              <Link className={`finanza-nav-link ${route().current('career.index') ? 'finanza-nav-link--active' : ''}`} href={route('career.index', { country: countryCode, lang: currentLocale })}>
-                {t('header_career', 'Career')}
-              </Link>
-              <a className="finanza-nav-link" href={getNavLink('#contact')}>
-                {t('header_contact', 'Contact')}
-              </a>
+              {navLinks.map((link) => (
+                link.type === 'hash' ? (
+                  <a key={link.name} className="finanza-nav-link" href={getNavLink(link.href)}>
+                    {link.name}
+                  </a>
+                ) : (
+                  <Link key={link.name} className="finanza-nav-link" href={link.href}>
+                    {link.name}
+                  </Link>
+                )
+              ))}
             </nav>
           ) : null}
           <div className="finanza-header-actions" aria-label="Actions">
@@ -142,64 +133,6 @@ export function FinanzaHeader({
           </div>
         </div>
       </header>
-
-      {showFullNav && isMobileMenuOpen ? (
-        <div
-          className="finanza-mobileMenu"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Mobile menu"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeMobileMenu();
-          }}
-        >
-          <div className="finanza-mobileMenu-panel">
-            <div className="finanza-mobileMenu-top">
-              <div className="finanza-mobileMenu-title">Menu</div>
-              <button type="button" className="finanza-mobileMenu-close" aria-label="Close menu" onClick={closeMobileMenu}>
-                <i className="fa-solid fa-xmark" />
-              </button>
-            </div>
-            <a className="finanza-mobileMenu-link" href="#top" onClick={closeMobileMenu}>
-              {t('header_home', 'Home')}
-            </a>
-            <a className="finanza-mobileMenu-link" href="#about" onClick={closeMobileMenu}>
-              {t('header_about', 'About')}
-            </a>
-            <a className="finanza-mobileMenu-link" href="#services" onClick={closeMobileMenu}>
-              {t('header_services', 'Services')}
-            </a>
-            <a className="finanza-mobileMenu-link" href="#projects" onClick={closeMobileMenu}>
-              {t('header_projects', 'Projects')}
-            </a>
-            <a className="finanza-mobileMenu-link" href="#contact" onClick={closeMobileMenu}>
-              {t('header_contact', 'Contact')}
-            </a>
-
-            <div className="finanza-mobileMenu-actions">
-              {isAuthenticated ? (
-                <>
-                  <a className="finanza-btn finanza-btn--ghost" href={dashboardHref}>
-                    {t('header_dashboard', 'Dashboard')}
-                  </a>
-                  <Link className="finanza-btn finanza-btn--primary" href={resolvedLogoutHref} method="post" as="button" type="button">
-                    {t('header_logout', 'Logout')}
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <button type="button" className="finanza-btn finanza-btn--ghost" onClick={() => onOpenAuth?.('login')}>
-                    {t('header_login', 'Login')}
-                  </button>
-                  <button type="button" className="finanza-btn finanza-btn--primary" onClick={() => onOpenAuth?.('register')}>
-                    {t('header_register', 'Register')}
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }

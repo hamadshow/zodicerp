@@ -7,6 +7,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
+import { MobileBackendNav } from './MobileBackendNav';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -23,7 +24,19 @@ const AdminLayout = ({
   });
   const [activeMenu, setActiveMenu] = useState(initialActiveMenu);
   const [openSubmenus, setOpenSubmenus] = useState({});
+  const [isMobile, setIsMobile] = useState(false);
   const { props, url } = page;
+
+  // Handle screen resize to detect mobile
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    handleResize(); // Initial check
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const user = props?.auth?.user;
   const localization = props?.localization;
   const translations = localization?.translations || {};
@@ -368,23 +381,35 @@ const AdminLayout = ({
 
   return (
     <div className={`dashboard-container ${isRtl ? 'is-rtl' : ''}`}>
-      <Sidebar
-        sidebarOpen={sidebarOpen}
-        isCollapsed={isSidebarCollapsed}
-        toggleCollapse={toggleSidebarCollapse}
-        menuItems={menuItems}
-        activeMenu={activeMenu}
-        openSubmenus={openSubmenus}
-        handleMenuClick={handleMenuClick}
-        toggleSubmenu={toggleSubmenu}
-        toggleSidebar={toggleSidebar}
-        isUrlActive={isUrlActive}
-        isRtl={isRtl}
-      />
+      {/* Conditional Rendering: Desktop Sidebar vs Mobile Bottom Nav */}
+      {!isMobile ? (
+        <Sidebar
+          sidebarOpen={sidebarOpen}
+          isCollapsed={isSidebarCollapsed}
+          toggleCollapse={toggleSidebarCollapse}
+          menuItems={menuItems}
+          activeMenu={activeMenu}
+          openSubmenus={openSubmenus}
+          handleMenuClick={handleMenuClick}
+          toggleSubmenu={toggleSubmenu}
+          toggleSidebar={toggleSidebar}
+          isUrlActive={isUrlActive}
+          isRtl={isRtl}
+        />
+      ) : (
+        <MobileBackendNav
+          menuItems={menuItems}
+          translations={translations}
+          isRtl={isRtl}
+          currentUrl={url}
+        />
+      )}
 
-      <div className={`main-wrapper ${isSidebarCollapsed ? 'collapsed' : ''}`}>
+      <div className={`main-wrapper ${isSidebarCollapsed && !isMobile ? 'collapsed' : ''} ${isMobile ? 'mobile-view' : ''}`}>
         <div className="main-content">
-          <Header toggleSidebar={toggleSidebar} isRtl={isRtl} />
+          {/* Header is only for Desktop */}
+          {!isMobile && <Header toggleSidebar={toggleSidebar} isRtl={isRtl} />}
+          
           <ToastContainer rtl={isRtl} />
 
           <main className="content">{children}</main>

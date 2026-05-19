@@ -1,3 +1,7 @@
+@use 'sass:color';
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
 /* AssetAttribute-specific styles (Copied from Warehouses.scss) */
 .warehouses-card {
     background-color: white;

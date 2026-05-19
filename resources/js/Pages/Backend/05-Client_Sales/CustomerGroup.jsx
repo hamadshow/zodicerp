@@ -1,84 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import BlankPage from '@/Components/BlankPage';
 
 // --- View Section Component ---
 const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filteredGroups, setFilteredGroups] = useState(groups);
-
-    // Update stats
-    const stats = useMemo(() => {
-        const total = filteredGroups.length;
-        const active = filteredGroups.filter(g => g.is_active).length;
-        const inactive = total - active;
-        return { total, active, inactive };
-    }, [filteredGroups]);
-
-    useEffect(() => {
-        if (!searchTerm) {
-            setFilteredGroups(groups);
-        } else {
-            const lowerTerm = searchTerm.toLowerCase();
-            setFilteredGroups(groups.filter(g => 
-                g.name_ar.toLowerCase().includes(lowerTerm) ||
-                (g.name_en && g.name_en.toLowerCase().includes(lowerTerm)) ||
-                (g.code && g.code.toLowerCase().includes(lowerTerm))
-            ));
-        }
-    }, [searchTerm, groups]);
-
     return (
         <div className="animate-fade-slide">
-            {/* Quick Stats */}
-            <div className="stats-grid">
-                <div className="stat-card">
-                    <div className="stat-icon blue">
-                        <span className="material-icons-outlined">groups</span>
-                    </div>
-                    <div className="stat-info">
-                        <span className="stat-value">{stats.total}</span>
-                        <span className="stat-label">Total Groups</span>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon green">
-                        <span className="material-icons-outlined">check_circle</span>
-                    </div>
-                    <div className="stat-info">
-                        <span className="stat-value">{stats.active}</span>
-                        <span className="stat-label">Active Groups</span>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon gray">
-                        <span className="material-icons-outlined">cancel</span>
-                    </div>
-                    <div className="stat-info">
-                        <span className="stat-value">{stats.inactive}</span>
-                        <span className="stat-label">Inactive Groups</span>
-                    </div>
-                </div>
-            </div>
-
             {/* Content Card */}
             <div className="content-card">
-                <div className="page-header" style={{ marginBottom: '1.5rem' }}>
-                    <div className="search-box">
-                        <span className="material-icons-outlined search-icon">search</span>
-                        <input
-                            type="text"
-                            placeholder="Search groups..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                    <button className="btn btn-primary" onClick={onCreate}>
-                        <span className="material-icons-outlined">add</span>
-                        Add New Group
-                    </button>
-                </div>
-
                 <div className="table-responsive">
                     <table className="professional-table">
                         <thead>
@@ -93,8 +23,8 @@ const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredGroups.length > 0 ? (
-                                filteredGroups.map(group => (
+                            {groups.length > 0 ? (
+                                groups.map(group => (
                                     <tr key={group.id}>
                                         <td>{group.code}</td>
                                         <td>{group.name_ar}</td>
@@ -297,6 +227,7 @@ const CustomerGroups = ({ groups = [], parentGroups = [] }) => {
 
     const [mode, setMode] = useState('view'); // 'view', 'create', 'edit'
     const [selectedGroup, setSelectedGroup] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -313,6 +244,23 @@ const CustomerGroups = ({ groups = [], parentGroups = [] }) => {
             setSelectedGroup(null);
         }
     }, [flash, groups]);
+
+    const filteredGroups = useMemo(() => {
+        if (!searchTerm) return groups;
+        const lowerTerm = searchTerm.toLowerCase();
+        return groups.filter(g => 
+            g.name_ar.toLowerCase().includes(lowerTerm) ||
+            (g.name_en && g.name_en.toLowerCase().includes(lowerTerm)) ||
+            (g.code && g.code.toLowerCase().includes(lowerTerm))
+        );
+    }, [searchTerm, groups]);
+
+    const stats = useMemo(() => {
+        const total = filteredGroups.length;
+        const active = filteredGroups.filter(g => g.is_active).length;
+        const inactive = total - active;
+        return { total, active, inactive };
+    }, [filteredGroups]);
 
     const handleCreateClick = () => {
         setMode('create');
@@ -356,56 +304,105 @@ const CustomerGroups = ({ groups = [], parentGroups = [] }) => {
         }
     };
 
+    const breadcrumbs = [
+        { label: 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+        { label: 'Client & Sales', href: '#' },
+        { label: 'Customer Groups', onClick: handleBackClick }
+    ];
+
+    if (mode === 'create') breadcrumbs.push({ label: 'New Group' });
+    if (mode === 'edit') breadcrumbs.push({ label: 'Edit Group' });
+
+    const statsContent = mode === 'view' && (
+        <div className="stats-grid">
+            <div className="stat-card">
+                <div className="stat-icon blue">
+                    <span className="material-icons-outlined">groups</span>
+                </div>
+                <div className="stat-info">
+                    <span className="stat-value">{stats.total}</span>
+                    <span className="stat-label">Total Groups</span>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon green">
+                    <span className="material-icons-outlined">check_circle</span>
+                </div>
+                <div className="stat-info">
+                    <span className="stat-value">{stats.active}</span>
+                    <span className="stat-label">Active Groups</span>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon gray">
+                    <span className="material-icons-outlined">cancel</span>
+                </div>
+                <div className="stat-info">
+                    <span className="stat-value">{stats.inactive}</span>
+                    <span className="stat-label">Inactive Groups</span>
+                </div>
+            </div>
+        </div>
+    );
+
+    const filtersContent = mode === 'view' && (
+        <div className="page-header" style={{ marginBottom: '0' }}>
+            <div className="search-box">
+                <span className="material-icons-outlined search-icon">search</span>
+                <input
+                    type="text"
+                    placeholder="Search groups..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+            <button className="btn btn-primary" onClick={handleCreateClick}>
+                <span className="material-icons-outlined">add</span>
+                Add New Group
+            </button>
+        </div>
+    );
 
     return (
         <AdminLayout activeMenu="Customer Groups">
             <Head title="Customer Groups - ZodicERP" />
             
-            <div className="customer-groups-container">
-                {/* Fixed Page Header Title based on Mode */}
-                <div className="page-header">
-                    <h1>
-                        {mode === 'view' && 'Customer Groups'}
-                        {mode === 'create' && 'New Customer Group'}
-                        {mode === 'edit' && 'Edit Customer Group'}
-                    </h1>
-                    {mode !== 'view' && (
-                        <button className="btn btn-secondary" onClick={handleBackClick}>
-                            <span className="material-icons-outlined mirror-rtl">arrow_back</span>
-                            Back to List
-                        </button>
+            <BlankPage 
+                breadcrumbs={breadcrumbs} 
+                stats={statsContent}
+                filters={filtersContent}
+            >
+                <div className="customer-groups-container">
+                    {/* Main Content Area with Transitions */}
+                    {mode === 'view' && (
+                        <ViewSection 
+                            groups={filteredGroups} 
+                            onCreate={handleCreateClick} 
+                            onEdit={handleEditClick}
+                            onDelete={handleDelete}
+                        />
+                    )}
+
+                    {mode === 'create' && (
+                        <FormSection 
+                            mode="create" 
+                            parentGroups={parentGroups} 
+                            onBack={handleBackClick} 
+                            onSubmit={handleFormSubmit}
+                        />
+                    )}
+
+                    {mode === 'edit' && (
+                        <FormSection 
+                            mode="edit" 
+                            initialData={selectedGroup} 
+                            parentGroups={parentGroups} 
+                            onBack={handleBackClick} 
+                            onSubmit={handleFormSubmit}
+                        />
                     )}
                 </div>
-
-                {/* Main Content Area with Transitions */}
-                {mode === 'view' && (
-                    <ViewSection 
-                        groups={groups} 
-                        onCreate={handleCreateClick} 
-                        onEdit={handleEditClick}
-                        onDelete={handleDelete}
-                    />
-                )}
-
-                {mode === 'create' && (
-                    <FormSection 
-                        mode="create" 
-                        parentGroups={parentGroups} 
-                        onBack={handleBackClick} 
-                        onSubmit={handleFormSubmit}
-                    />
-                )}
-
-                {mode === 'edit' && (
-                    <FormSection 
-                        mode="edit" 
-                        initialData={selectedGroup} 
-                        parentGroups={parentGroups} 
-                        onBack={handleBackClick} 
-                        onSubmit={handleFormSubmit}
-                    />
-                )}
-            </div>
+            </BlankPage>
         </AdminLayout>
     );
 };

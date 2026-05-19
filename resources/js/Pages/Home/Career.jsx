@@ -7,7 +7,6 @@ import '../../../css/homepage/_career.scss';
 
 export default function Career({ careers }) {
     const { localization, auth, flash } = usePage().props;
-    const isRtl = localization?.is_rtl;
     const countryCode = 
         localization?.country_code || 
         (typeof localization?.current_country === 'string' 

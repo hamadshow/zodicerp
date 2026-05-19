@@ -3,6 +3,7 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import '../../../css/homepage/rtl.scss';
 import { FinanzaFooter } from './components/Footer';
 import { FinanzaHeader } from './components/Header';
+import { MobileNavigation } from './components/MobileNavigation';
 
 export { FinanzaFooter, FinanzaHeader };
 
@@ -337,6 +338,15 @@ const Home = () => {
 
   const closeAuth = () => setAuthModal(null);
 
+  const navLinks = useMemo(() => [
+    { name: t('header_home', 'Home'), href: '#top', type: 'hash' },
+    { name: t('header_about', 'About'), href: '#about', type: 'hash' },
+    { name: t('header_services', 'Services'), href: '#services', type: 'hash' },
+    { name: t('header_projects', 'Projects'), href: '#projects', type: 'hash' },
+    { name: t('header_career', 'Career'), href: route('career.index', { country: countryCode, lang: locale }), type: 'route' },
+    { name: t('header_contact', 'Contact'), href: '#contact', type: 'hash' },
+  ], [t, countryCode, locale]);
+
   return (
     <>
       <Head title="Home" />
@@ -359,6 +369,21 @@ const Home = () => {
           dashboardHref={dashboardHref}
           customerFirstName={customerFirstName}
           t={t}
+          navLinks={navLinks}
+        />
+
+        <MobileNavigation
+          isAuthenticated={Boolean(auth?.user || auth?.customer || auth?.supplier)}
+          loginHref={loginHref}
+          registerHref={registerHref}
+          logoutHref={logoutHref}
+          dashboardHref={dashboardHref}
+          t={t}
+          countryCode={countryCode}
+          currentLocale={locale}
+          isOpen={isMobileMenuOpen}
+          onToggle={() => setIsMobileMenuOpen((v) => !v)}
+          navLinks={navLinks}
         />
 
         <main id="main-content">

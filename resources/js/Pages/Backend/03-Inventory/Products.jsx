@@ -5,6 +5,8 @@ import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AdminLayout from '../components/AdminLayout';
+import ActionsCell from '@/Components/ActionsCell';
+import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import MediaPickerModal from '../Media/MediaPickerModal';
 
@@ -535,25 +537,60 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
         );
     };
 
+    const breadcrumbs = [
+        { label: t('dashboard', 'Dashboard'), href: getLocalizedRoute('admin.dashboard') },
+        { label: t('inventory', 'Inventory') },
+        { label: t('products', 'Products') }
+    ];
+
+    const statsContent = (
+        <div className="stats-cards">
+            <div className="stat-card">
+                <div className="stat-icon blue-gradient">
+                    <span className="material-icons-outlined">inventory_2</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{safeProducts.total}</div>
+                    <div className="stat-label">{t('total_products', 'Total Products')}</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon green-gradient">
+                    <span className="material-icons-outlined">category</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{safeCategories.length}</div>
+                    <div className="stat-label">{t('total_categories', 'Total Categories')}</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon indigo-gradient">
+                    <span className="material-icons-outlined">branding_watermark</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{safeBrands.length}</div>
+                    <div className="stat-label">{t('total_brands', 'Total Brands')}</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon amber-gradient">
+                    <span className="material-icons-outlined">attach_money</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">$0.00</div>
+                    <div className="stat-label">{t('total_value', 'Total Value')}</div>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <AdminLayout activeMenu="Inventory">
             <Head title={t('products', 'Products')} />
             <ToastContainer position="top-right" autoClose={3000} />
             {renderImportModal()}
             
-            <div className="products-page">
-                <div className="content-area">
-                <div className="page-header-section">
-                    <div className="breadcrumb">
-                        <Link href={getLocalizedRoute('admin.dashboard')}>{t('dashboard', 'Dashboard')}</Link>
-                        <span>/</span>
-                        <span>{t('inventory', 'Inventory')}</span>
-                        <span>/</span>
-                        <span className="current">{t('products', 'Products')}</span>
-                    </div>
-                    <h1 className="page-title">{t('products', 'Products')}</h1>
-                </div>
-
+            <BlankPage breadcrumbs={breadcrumbs} stats={statsContent}>
                 {flash.success && (
                     <div className="alert alert-success">
                         {flash.success}
@@ -564,46 +601,6 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                         {flash.error}
                     </div>
                 )}
-
-                {/* Stats Cards */}
-                <div className="stats-cards">
-                    <div className="stat-card">
-                        <div className="stat-icon blue-gradient">
-                            <span className="material-icons-outlined">inventory_2</span>
-                        </div>
-                        <div className="stat-content">
-                            <div className="stat-value">{safeProducts.total}</div>
-                            <div className="stat-label">{t('total_products', 'Total Products')}</div>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-icon green-gradient">
-                            <span className="material-icons-outlined">category</span>
-                        </div>
-                        <div className="stat-content">
-                            <div className="stat-value">{safeCategories.length}</div>
-                            <div className="stat-label">{t('total_categories', 'Total Categories')}</div>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-icon indigo-gradient">
-                            <span className="material-icons-outlined">branding_watermark</span>
-                        </div>
-                        <div className="stat-content">
-                            <div className="stat-value">{safeBrands.length}</div>
-                            <div className="stat-label">{t('total_brands', 'Total Brands')}</div>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-icon amber-gradient">
-                            <span className="material-icons-outlined">attach_money</span>
-                        </div>
-                        <div className="stat-content">
-                            <div className="stat-value">$0.00</div>
-                            <div className="stat-label">{t('total_value', 'Total Value')}</div>
-                        </div>
-                    </div>
-                </div>
 
                 <div className="card">
                     <div className="card-header d-flex justify-between align-items-center">
@@ -731,19 +728,13 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                                                 </span>
                                             </td>
                                             <td>
-                                                <div className="actions-cell">
-                                                    <button
-                                                        className="icon-btn edit"
-                                                        onClick={() => router.get(getLocalizedRoute('admin.inventory.products.edit', { product: product.id }))}
-                                                        title={t('edit', 'Edit')}
-                                                    >
-                                                        <span className="material-icons-outlined">edit</span>
-                                                    </button>
-                                                    <button className="icon-btn delete" onClick={() => handleDelete(product.id)} title={t('delete', 'Delete')}>
-                                                        <span className="material-icons-outlined">delete</span>
-                                                    </button>
-                                                </div>
-                                            </td>
+    <ActionsCell 
+        onEdit={() => router.get(getLocalizedRoute('admin.inventory.products.edit', { product: product.id }))}
+        onDelete={() => handleDelete(product.id)}
+        editTitle={t('edit', 'Edit')}
+        deleteTitle={t('delete', 'Delete')}
+    />
+</td>
                                         </tr>
                                     ))
                                 ) : (
@@ -775,9 +766,8 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                         </div>
                     )}
                 </div>
-            </div>
-        </div>
-    </AdminLayout>
+            </BlankPage>
+        </AdminLayout>
     );
 };
 
@@ -1475,22 +1465,18 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
 
     const pageTitle = product ? t('edit_product', 'Edit Product') : t('add_new_product', 'Add New Product');
 
+    const breadcrumbs = [
+        { label: t('dashboard', 'Dashboard'), href: getLocalizedRoute('admin.dashboard') },
+        { label: t('inventory', 'Inventory') },
+        { label: t('products', 'Products'), href: getLocalizedRoute('admin.inventory.products.index') },
+        { label: pageTitle }
+    ];
+
     return (
         <AdminLayout activeMenu="Inventory">
             <Head title={`${pageTitle} - ZodicERP`} />
-            <div className="products-ce-page">
-                <div className="breadcrumb">
-                    <Link href={getLocalizedRoute('admin.dashboard')}>{t('dashboard', 'Dashboard')}</Link>
-                    <span>/</span>
-                    <span>{t('inventory', 'Inventory')}</span>
-                    <span>/</span>
-                    <Link href={getLocalizedRoute('admin.inventory.products.index')}>
-                        {t('products', 'Products')}
-                    </Link>
-                    <span>/</span>
-                    <span>{pageTitle}</span>
-                </div>
-
+            
+            <BlankPage breadcrumbs={breadcrumbs}>
                 <form onSubmit={handleSubmit}>
                     <div className="products-ce-card">
                         <div className="products-ce-header">
@@ -3027,7 +3013,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                     multiple={mediaPickerMode !== 'single'}
                     allowedTypes={['image']}
                 />
-            </div>
+            </BlankPage>
         </AdminLayout>
     );
 };

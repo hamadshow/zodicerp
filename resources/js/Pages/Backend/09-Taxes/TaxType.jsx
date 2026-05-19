@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import ActionsCell from '@/Components/ActionsCell';
 
 const TaxType = ({ taxTypes = [], countries = [] }) => {
     const { props } = usePage();
@@ -455,18 +456,15 @@ const TaxType = ({ taxTypes = [], countries = [] }) => {
                                                 </span>
                                             </td>
                                             <td>
-                                                <div className="actions-cell">
-                                                    <button className="btn-icon" onClick={() => openViewForm(taxType)} title="View">
-                                                        <span className="material-icons-outlined">visibility</span>
-                                                    </button>
-                                                    <button className="btn-icon" onClick={() => openEditForm(taxType)} title="Edit">
-                                                        <span className="material-icons-outlined">edit</span>
-                                                    </button>
-                                                    <button className="btn-icon delete" onClick={() => handleDelete(taxType.id)} title="Delete">
-                                                        <span className="material-icons-outlined">delete</span>
-                                                    </button>
-                                                </div>
-                                            </td>
+    <ActionsCell 
+        onView={() => openViewForm(taxType)}
+        onEdit={() => openEditForm(taxType)}
+        onDelete={() => handleDelete(taxType.id)}
+        viewTitle="View"
+        editTitle="Edit"
+        deleteTitle="Delete"
+    />
+</td>
                                         </tr>
                                     ))
                                 ) : (

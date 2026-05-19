@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AdminLayout from '../components/AdminLayout';
+import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import Pagination from '../components/Pagination';
 
@@ -548,179 +549,193 @@ export default function Customers({ customers, groups, countries, cities, curren
         );
     };
 
+    const breadcrumbs = [
+        { label: 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+        { label: 'Client & Sales', href: '#' },
+        { label: 'Customers', onClick: () => setMode('list') }
+    ];
+
+    if (mode === 'create') breadcrumbs.push({ label: 'Add New' });
+    if (mode === 'edit') breadcrumbs.push({ label: 'Edit Customer' });
+
     return (
         <AdminLayout>
             <Head title="Customers Management" />
             <ToastContainer position="top-right" autoClose={3000} />
             {renderImportModal()}
             
-            <div className="customers-module">
-                <div className="customers-module__header">
-                    <div className="header-title">
-                        {mode !== 'list' && (
-                            <button 
-                                className="btn-back" 
-                                onClick={() => setMode('list')}
-                                title="Back to List"
-                            >
-                                <span className="material-icons-outlined mirror-rtl">arrow_back</span>
-                            </button>
-                        )}
-                        <h1>
-                            {mode === 'list' ? 'Customers Management' : 
-                             mode === 'create' ? 'Add New Customer' : 'Edit Customer'}
-                        </h1>
-                    </div>
+            <BlankPage breadcrumbs={breadcrumbs}>
+                <div className="customers-module">
                     {mode === 'list' && (
-                        <div className="header-actions">
-                            <form className="search-box" onSubmit={handleSearch}>
-                                <span className="material-icons-outlined search-icon">search</span>
-                                <input 
-                                    type="text" 
-                                    placeholder="Search customers..." 
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                />
-                                {search && (
-                                    <button type="button" className="clear-search" onClick={() => { setSearch(''); router.get(getLocalizedRoute('admin.client-sales.customers.index'), {}, { preserveState: true }); }}>
-                                        <span className="material-icons-outlined">close</span>
-                                    </button>
-                                )}
-                            </form>
-
-                            <div className="excel-dropdown-container" ref={excelMenuRef}>
-                                <button
-                                    type="button"
-                                    className="btn-excel-main"
-                                    onClick={() => setShowExcelMenu(!showExcelMenu)}
-                                >
-                                    <span className="material-icons-outlined">table_view</span>
-                                    <span>Excel Options</span>
-                                    <span className={`material-icons-outlined arrow ${showExcelMenu ? 'up' : ''}`}>expand_more</span>
-                                </button>
-                                {showExcelMenu && (
-                                    <div className="excel-dropdown-menu">
-                                        <button
-                                            type="button"
-                                            className="dropdown-item import"
-                                            onClick={() => {
-                                                setShowImport(true);
-                                                setShowExcelMenu(false);
-                                            }}
-                                        >
-                                            <span className="material-icons-outlined">upload_file</span>
-                                            <div className="item-content">
-                                                <span className="title">Import Excel</span>
-                                                <span className="desc">Upload bulk customers</span>
-                                            </div>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            className="dropdown-item export"
-                                            onClick={() => {
-                                                handleExportExcel();
-                                                setShowExcelMenu(false);
-                                            }}
-                                        >
-                                            <span className="material-icons-outlined">download</span>
-                                            <div className="item-content">
-                                                <span className="title">Export Excel</span>
-                                                <span className="desc">Download all customers</span>
-                                            </div>
-                                        </button>
-                                    </div>
-                                )}
+                        <div className="customers-module__header">
+                            <div className="header-title">
+                                <h1>Customers Management</h1>
                             </div>
+                            <div className="header-actions">
+                                <form className="search-box" onSubmit={handleSearch}>
+                                    <span className="material-icons-outlined search-icon">search</span>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Search customers..." 
+                                        value={search}
+                                        onChange={(e) => setSearch(e.target.value)}
+                                    />
+                                    {search && (
+                                        <button type="button" className="clear-search" onClick={() => { setSearch(''); router.get(getLocalizedRoute('admin.client-sales.customers.index'), {}, { preserveState: true }); }}>
+                                            <span className="material-icons-outlined">close</span>
+                                        </button>
+                                    )}
+                                </form>
 
-                            <button className="btn-add" onClick={handleCreate}>
-                                <span className="material-icons-outlined">person_add</span>
-                                <span>Add Customer</span>
-                            </button>
+                                <div className="excel-dropdown-container" ref={excelMenuRef}>
+                                    <button
+                                        type="button"
+                                        className="btn-excel-main"
+                                        onClick={() => setShowExcelMenu(!showExcelMenu)}
+                                    >
+                                        <span className="material-icons-outlined">table_view</span>
+                                        <span>Excel Options</span>
+                                        <span className={`material-icons-outlined arrow ${showExcelMenu ? 'up' : ''}`}>expand_more</span>
+                                    </button>
+                                    {showExcelMenu && (
+                                        <div className="excel-dropdown-menu">
+                                            <button
+                                                type="button"
+                                                className="dropdown-item import"
+                                                onClick={() => {
+                                                    setShowImport(true);
+                                                    setShowExcelMenu(false);
+                                                }}
+                                            >
+                                                <span className="material-icons-outlined">upload_file</span>
+                                                <div className="item-content">
+                                                    <span className="title">Import Excel</span>
+                                                    <span className="desc">Upload bulk customers</span>
+                                                </div>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="dropdown-item export"
+                                                onClick={() => {
+                                                    handleExportExcel();
+                                                    setShowExcelMenu(false);
+                                                }}
+                                            >
+                                                <span className="material-icons-outlined">download</span>
+                                                <div className="item-content">
+                                                    <span className="title">Export Excel</span>
+                                                    <span className="desc">Download all customers</span>
+                                                </div>
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <button className="btn-add" onClick={handleCreate}>
+                                    <span className="material-icons-outlined">person_add</span>
+                                    <span>Add Customer</span>
+                                </button>
+                            </div>
                         </div>
                     )}
 
-                </div>
-                {flash.success && (
-                    <div className="alert alert--success">
-                        {flash.success}
-                    </div>
-                )}
-                {flash.error && (
-                    <div className="alert alert--error">
-                        {flash.error}
-                    </div>
-                )}
-
-                {mode === 'list' ? (
-                    <div className="customers-module__table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Code</th>
-                                    <th>Name (EN)</th>
-                                    <th>Group</th>
-                                    <th>Phone</th>
-                                    <th>Email</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {customers.data.map((customer) => (
-                                    <tr key={customer.id}>
-                                        <td>{customer.customer_code}</td>
-                                        <td>{customer.name_en}</td>
-                                        <td>{customer.group?.name_en || '-'}</td>
-                                        <td>{customer.primary_phone}</td>
-                                        <td>{customer.email}</td>
-                                        <td>
-                                            <span className={`status-badge ${customer.is_active ? 'active' : 'inactive'}`}>
-                                                {customer.is_active ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td className="actions">
-                                            <button className="btn-icon edit" onClick={() => handleEdit(customer)} title="Edit">
-                                                <span className="material-icons-outlined">edit</span>
-                                            </button>
-                                            <button className="btn-icon delete" onClick={() => handleDelete(customer.id)} title="Delete">
-                                                <span className="material-icons-outlined">delete</span>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {customers.data.length === 0 && (
-                                    <tr>
-                                        <td colSpan="7" className="empty-state">No customers found.</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                        <Pagination
-                            currentPage={customers.current_page}
-                            totalPages={customers.last_page}
-                            totalRecords={customers.total}
-                            recordsPerPage={customers.per_page}
-                            onPageChange={(page) => router.get(getLocalizedRoute('admin.client-sales.customers.index'), { search, page, per_page: customers.per_page }, { preserveState: true })}
-                            onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.client-sales.customers.index'), { search, page: 1, per_page: perPage }, { preserveState: true })}
-                        />
-                    </div>
-                ) : (
-                    <form onSubmit={handleSubmit} className="customers-module__form-container">
-                        <div className="customers-module__tabs">
-                            {['general', 'addresses', 'contacts', 'opening_balance'].map(tab => (
-                                <button
-                                    key={tab}
-                                    type="button"
-                                    className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-                                    onClick={() => setActiveTab(tab)}
-                                >
-                                    {tab.replace('_', ' ').toUpperCase()}
-                                </button>
-                            ))}
+                    {flash.success && (
+                        <div className="alert alert--success">
+                            {flash.success}
                         </div>
+                    )}
+                    {flash.error && (
+                        <div className="alert alert--error">
+                            {flash.error}
+                        </div>
+                    )}
 
-                        {/* GENERAL TAB */}
-                        <div className={`customers-module__tab-content ${activeTab === 'general' ? 'active' : ''}`}>
+                    {mode === 'list' ? (
+                        <div className="customers-module__table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Code</th>
+                                        <th>Name (EN)</th>
+                                        <th>Group</th>
+                                        <th>Phone</th>
+                                        <th>Email</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {customers.data.map((customer) => (
+                                        <tr key={customer.id}>
+                                            <td>{customer.customer_code}</td>
+                                            <td>{customer.name_en}</td>
+                                            <td>{customer.group?.name_en || '-'}</td>
+                                            <td>{customer.primary_phone}</td>
+                                            <td>{customer.email}</td>
+                                            <td>
+                                                <span className={`status-badge ${customer.is_active ? 'active' : 'inactive'}`}>
+                                                    {customer.is_active ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td className="actions">
+                                                <button className="btn-icon edit" onClick={() => handleEdit(customer)} title="Edit">
+                                                    <span className="material-icons-outlined">edit</span>
+                                                </button>
+                                                <button className="btn-icon delete" onClick={() => handleDelete(customer.id)} title="Delete">
+                                                    <span className="material-icons-outlined">delete</span>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {customers.data.length === 0 && (
+                                        <tr>
+                                            <td colSpan="7" className="empty-state">No customers found.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                            <Pagination
+                                currentPage={customers.current_page}
+                                totalPages={customers.last_page}
+                                totalRecords={customers.total}
+                                recordsPerPage={customers.per_page}
+                                onPageChange={(page) => router.get(getLocalizedRoute('admin.client-sales.customers.index'), { search, page, per_page: customers.per_page }, { preserveState: true })}
+                                onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.client-sales.customers.index'), { search, page: 1, per_page: perPage }, { preserveState: true })}
+                            />
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSubmit} className="customers-module__form-container">
+                            <div className="customers-module__header" style={{ marginBottom: '20px' }}>
+                                <div className="header-title">
+                                    <button 
+                                        type="button"
+                                        className="btn-back" 
+                                        onClick={() => setMode('list')}
+                                        title="Back to List"
+                                    >
+                                        <span className="material-icons-outlined mirror-rtl">arrow_back</span>
+                                    </button>
+                                    <h1>
+                                        {mode === 'create' ? 'Add New Customer' : 'Edit Customer'}
+                                    </h1>
+                                </div>
+                            </div>
+
+                            <div className="customers-module__tabs">
+                                {['general', 'addresses', 'contacts', 'opening_balance'].map(tab => (
+                                    <button
+                                        key={tab}
+                                        type="button"
+                                        className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+                                        onClick={() => setActiveTab(tab)}
+                                    >
+                                        {tab.replace('_', ' ').toUpperCase()}
+                                     </button>
+                                 ))}
+                             </div>
+ 
+                             {/* GENERAL TAB */}
+                             <div className={`customers-module__tab-content ${activeTab === 'general' ? 'active' : ''}`}>
                             <div className="customers-module__grid">
                                 <div className="customers-module__group">
                                     <label>Customer Code <span className="required">*</span></label>
@@ -1060,6 +1075,7 @@ export default function Customers({ customers, groups, countries, cities, curren
                     </form>
                 )}
             </div>
+            </BlankPage>
         </AdminLayout>
     );
 }

@@ -1,13 +1,15 @@
+@use '../base/variables' as *;
+
 .Essential-Data-Container {
     padding: 20px;
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    background: $white;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
 }
 
 .tabs {
     display: flex;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid $border-color;
     margin-bottom: 20px;
     overflow-x: auto;
 }
@@ -16,18 +18,18 @@
     padding: 10px 20px;
     cursor: pointer;
     border-bottom: 2px solid transparent;
-    font-weight: 500;
-    color: #64748b;
+    font-weight: $font-weight-medium;
+    color: $text-muted;
     white-space: nowrap;
 }
 
 .tab:hover {
-    color: #0f172a;
+    color: $text-primary;
 }
 
 .tab.active {
-    color: #3b82f6;
-    border-bottom-color: #3b82f6;
+    color: $info-color;
+    border-bottom-color: $info-color;
 }
 
 .tab-content {
@@ -62,9 +64,9 @@
 .form-label {
     display: block;
     margin-bottom: 5px;
-    font-weight: 500;
-    color: #334155;
-    font-size: 0.9rem;
+    font-weight: $font-weight-medium;
+    color: $text-secondary;
+    font-size: $font-size-sm;
 }
 
 .form-input,
@@ -72,18 +74,18 @@
 .form-textarea {
     width: 100%;
     padding: 8px 12px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
+    border: 1px solid $border-color;
+    border-radius: $radius-md;
     font-size: 0.95rem;
-    transition: border-color 0.2s;
+    transition: border-color $transition-fast;
 }
 
 .form-input:focus,
 .form-select:focus,
 .form-textarea:focus {
     outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    border-color: $info-color;
+    box-shadow: 0 0 0 3px $info-light;
 }
 
 .form-textarea {
@@ -92,32 +94,32 @@
 }
 
 .section-header {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #1e293b;
+    font-size: $font-size-lg;
+    font-weight: $font-weight-semibold;
+    color: $text-primary;
     margin-bottom: 15px;
     padding-bottom: 10px;
-    border-bottom: 1px dashed #e2e8f0;
+    border-bottom: 1px dashed $border-color;
 }
 
 .logo-container {
     width: 200px;
     height: 200px;
-    border: 2px dashed #cbd5e1;
-    border-radius: 8px;
+    border: 2px dashed $border-color;
+    border-radius: $radius-lg;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s;
-    background: #f8fafc;
+    transition: all $transition-fast;
+    background: $bg-color;
     position: relative;
     overflow: hidden;
 }
 
 .logo-container:hover {
-    border-color: #3b82f6;
-    background: #eff6ff;
+    border-color: $info-color;
+    background: $info-light;
 }
 
 .logo-upload {
@@ -126,7 +128,7 @@
 
 .logo-placeholder {
     text-align: center;
-    color: #64748b;
+    color: $text-muted;
 }
 
 .logo-preview {
@@ -148,36 +150,36 @@
     gap: 8px;
     padding: 10px 20px;
     border: none;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 0.875rem;
+    border-radius: $radius-lg;
+    font-weight: $font-weight-semibold;
+    font-size: $font-size-sm;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all $transition-base;
     text-decoration: none;
     justify-content: center;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: $shadow-xs;
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-    color: white;
+    background: linear-gradient(135deg, $info-color, $secondary-color);
+    color: $white;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #2563eb, #1e40af);
+    background: linear-gradient(135deg, darken($info-color, 5%), darken($secondary-color, 5%));
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .btn-outline {
     background-color: transparent;
-    border: 1px solid #cbd5e1;
-    color: #1e293b;
+    border: 1px solid $border-color;
+    color: $text-primary;
 }
 
 .btn-outline:hover {
-    background-color: #f1f5f9;
-    border-color: #94a3b8;
+    background-color: $light-color;
+    border-color: $text-light;
     transform: translateY(-1px);
 }
 
@@ -189,13 +191,13 @@
 }
 
 .stat-card {
-    background: white;
-    border-radius: 16px;
+    background: $white;
+    border-radius: $radius-xl;
     padding: 24px;
     display: flex;
     align-items: center;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: $shadow-md;
+    transition: transform $transition-base, box-shadow $transition-base;
     border: 1px solid rgba(226, 232, 240, 0.5);
     position: relative;
     overflow: hidden;
@@ -208,25 +210,25 @@
     left: 0;
     right: 0;
     height: 4px;
-    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    background: linear-gradient(90deg, $info-color, #8b5cf6);
 }
 
 .stat-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: $shadow-lg;
 }
 
 .stat-icon {
     width: 64px;
     height: 64px;
-    border-radius: 16px;
+    border-radius: $radius-xl;
     display: flex;
     align-items: center;
     justify-content: center;
     margin-right: 20px;
-    color: white;
+    color: $white;
     font-size: 28px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: $shadow-md;
 }
 
 .stat-content {
@@ -235,35 +237,35 @@
 
 .stat-value {
     font-size: 2rem;
-    font-weight: 700;
-    color: #1e293b;
+    font-weight: $font-weight-bold;
+    color: $text-primary;
     margin-bottom: 4px;
     line-height: 1.2;
 }
 
 .stat-label {
     font-size: 0.95rem;
-    color: #64748b;
-    font-weight: 500;
+    color: $text-muted;
+    font-weight: $font-weight-medium;
 }
 
 .tasks-card {
-    background: white;
-    border-radius: 16px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+    background: $white;
+    border-radius: $radius-xl;
+    box-shadow: $shadow-lg;
     border: 1px solid rgba(226, 232, 240, 0.5);
     overflow: hidden;
     animation: fadeIn 0.4s ease-out;
-    transition: box-shadow 0.3s ease;
+    transition: box-shadow $transition-base;
 }
 
 .tasks-card:hover {
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    box-shadow: $shadow-xl;
 }
 
 .card-header {
     padding: 20px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid $border-color;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -273,9 +275,9 @@
 
 .card-header h3 {
     margin: 0;
-    font-size: 1.1rem;
-    color: #1e293b;
-    font-weight: 600;
+    font-size: $font-size-lg;
+    color: $text-primary;
+    font-weight: $font-weight-semibold;
 }
 
 .tasks-actions {
@@ -289,9 +291,9 @@
     position: relative;
     display: flex;
     align-items: center;
-    background: #f8fafc;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
+    background: $bg-color;
+    border-radius: $radius-lg;
+    border: 1px solid $border-color;
     overflow: hidden;
 }
 
@@ -300,7 +302,7 @@
     border: none;
     background: transparent;
     width: 200px;
-    font-size: 0.875rem;
+    font-size: $font-size-sm;
     outline: none;
 }
 
@@ -309,12 +311,12 @@
     border: none;
     background: transparent;
     cursor: pointer;
-    color: #64748b;
+    color: $text-muted;
 }
 
 .search-bar.light {
-    background: white;
-    border: 1px solid #e2e8f0;
+    background: $white;
+    border: 1px solid $border-color;
 }
 
 .table-container {
@@ -335,9 +337,9 @@ td {
 }
 
 th {
-    background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
-    font-weight: 700;
-    color: #334155;
+    background: linear-gradient(to bottom, $bg-color, #f1f5f9);
+    font-weight: $font-weight-bold;
+    color: $text-secondary;
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -351,17 +353,17 @@ th::after {
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    background: linear-gradient(90deg, $info-color, #8b5cf6);
 }
 
 td {
-    font-size: 0.9rem;
-    color: #1e293b;
-    transition: background-color 0.2s ease;
+    font-size: $font-size-sm;
+    color: $text-primary;
+    transition: background-color $transition-fast;
 }
 
 tr:hover td {
-    background-color: #f8fafc;
+    background-color: $bg-color;
 }
 
 .icon-btn {
@@ -369,9 +371,9 @@ tr:hover td {
     border: none;
     cursor: pointer;
     padding: 6px;
-    border-radius: 6px;
-    color: #64748b;
-    transition: all 0.2s ease;
+    border-radius: $radius-md;
+    color: $text-muted;
+    transition: all $transition-fast;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -379,19 +381,19 @@ tr:hover td {
 
 .icon-btn:hover {
     background-color: #f1f5f9;
-    color: #334155;
+    color: $text-primary;
 }
 
 .icon-btn.edit:hover {
-    color: #f59e0b;
+    color: $warning-color;
 }
 
 .icon-btn.view:hover {
-    color: #3b82f6;
+    color: $info-color;
 }
 
 .icon-btn.delete:hover {
-    color: #ef4444;
+    color: $danger-color;
 }
 
 .pagination {
@@ -399,7 +401,7 @@ tr:hover td {
     justify-content: space-between;
     align-items: center;
     padding: 20px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid $border-color;
     flex-wrap: wrap;
     gap: 16px;
 }
@@ -408,16 +410,16 @@ tr:hover td {
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 0.875rem;
-    color: #64748b;
+    font-size: $font-size-sm;
+    color: $text-muted;
 }
 
 .select-dropdown {
     padding: 6px 8px;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    background: white;
-    font-size: 0.875rem;
+    border: 1px solid $border-color;
+    border-radius: $radius-md;
+    background: $white;
+    font-size: $font-size-sm;
 }
 
 .pagination-controls {
@@ -428,23 +430,23 @@ tr:hover td {
 
 .page-btn {
     padding: 8px 12px;
-    border: 1px solid #cbd5e1;
-    background: white;
-    border-radius: 6px;
+    border: 1px solid $border-color;
+    background: $white;
+    border-radius: $radius-md;
     cursor: pointer;
-    font-size: 0.875rem;
-    transition: all 0.2s ease;
+    font-size: $font-size-sm;
+    transition: all $transition-fast;
 }
 
 .page-btn:hover:not(:disabled) {
     background-color: #f1f5f9;
-    border-color: #94a3b8;
+    border-color: $text-light;
 }
 
 .page-btn.active {
-    background-color: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
+    background-color: $info-color;
+    color: $white;
+    border-color: $info-color;
 }
 
 .page-btn:disabled {

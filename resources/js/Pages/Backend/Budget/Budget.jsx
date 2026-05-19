@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
+import ActionsCell from '@/Components/ActionsCell';
 import '../../../../css/backend/main.scss';
 
 // --- Helper Functions ---
@@ -121,18 +122,15 @@ const ListView = ({ budgets, t, localization, onCreate, onEdit, onView, onDelete
                                     </td>
                                     <td style={{ fontWeight: 600 }}>{Number(budget.total_expense).toLocaleString()}</td>
                                     <td>
-                                        <div className="actions-cell">
-                                            <button className="action-btn btn-view" onClick={() => onView(budget)} title={t('view', 'عرض')}>
-                                                <i className="fa-solid fa-eye"></i>
-                                            </button>
-                                            <button className="action-btn btn-edit" onClick={() => onEdit(budget)} title={t('edit', 'تعديل')}>
-                                                <i className="fa-solid fa-pen-to-square"></i>
-                                            </button>
-                                            <button className="action-btn btn-delete" onClick={() => onDelete(budget.id)} title={t('delete', 'حذف')}>
-                                                <i className="fa-solid fa-trash-can"></i>
-                                            </button>
-                                        </div>
-                                    </td>
+    <ActionsCell 
+        onView={() => onView(budget)}
+        onEdit={() => onEdit(budget)}
+        onDelete={() => onDelete(budget.id)}
+        viewTitle={t('view', 'عرض')}
+        editTitle={t('edit', 'تعديل')}
+        deleteTitle={t('delete', 'حذف')}
+    />
+</td>
                                 </tr>
                             ))
                         ) : (
@@ -151,11 +149,10 @@ const ListView = ({ budgets, t, localization, onCreate, onEdit, onView, onDelete
 
 // --- Form View Component ---
 const FormView = ({ 
-    mode, data, setData, errors, processing, t, localization, 
-    departments, branches, currencies, categories, accounts, projects, costCenters,
+    data, setData, errors, processing, t, localization, 
+    departments, currencies, categories, accounts,
     activeTab, setActiveTab, onSave, onBack 
 }) => {
-    const isEdit = mode === 'edit';
     const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
     const categoryOptions = useMemo(() => 
@@ -458,7 +455,7 @@ const FormView = ({
 };
 
 // --- Details View Component ---
-const DetailsView = ({ budget, t, localization, onBack, onEdit }) => {
+const DetailsView = ({ budget, t, localization, onEdit }) => {
     const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
     
     return (

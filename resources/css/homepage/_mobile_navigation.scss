@@ -1,0 +1,227 @@
+/* Backdrop / Overlay */
+.mobile-sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+
+  &.open {
+    display: block;
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* Sidebar */
+.mobile-sidebar {
+  display: none;
+  position: fixed;
+  top: 0;
+  right: 0; /* Default for RTL */
+  width: 280px;
+  height: 100%;
+  background: #fff;
+  z-index: 1000;
+  transform: translateX(100%); /* Start hidden on the right */
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-direction: column;
+  box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+
+  &.open {
+    display: flex;
+    transform: translateX(0);
+  }
+}
+
+.mobile-bottom-nav {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  /* Hide standard header elements if needed */
+  .finanza-burger, .finanza-mobileMenu {
+    display: none !important;
+  }
+
+  .mobile-sidebar-overlay, .mobile-sidebar {
+    display: block;
+  }
+  
+  .mobile-sidebar.open {
+    display: flex;
+  }
+
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 65px;
+    background: #fff;
+    justify-content: space-around;
+    align-items: center;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    z-index: 1001;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  }
+
+    .mobile-sidebar-header {
+      background-color: #355efc; /* Primary Blue */
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+      
+      h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 600;
+      }
+    }
+
+    .mobile-sidebar-nav {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 80px; /* Space for bottom nav */
+
+      ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+
+        li {
+          border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+
+          a, .accordion-header {
+            display: flex;
+            align-items: center;
+            padding: 15px 20px;
+            color: #333;
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: background 0.2s;
+
+            &:active {
+              background-color: #f8f9fa;
+            }
+          }
+
+          &.has-accordion {
+            .accordion-header {
+              cursor: pointer;
+              display: flex;
+              flex-direction: row-reverse; /* Put + on the left for RTL */
+              justify-content: space-between;
+              align-items: center;
+
+              .accordion-icon {
+                font-size: 1.2rem;
+                font-weight: 300;
+                color: #999;
+              }
+            }
+
+            .accordion-body {
+              max-height: 0;
+              overflow: hidden;
+              background-color: #fdfdfd;
+              transition: max-height 0.3s ease-out;
+              border-bottom: none;
+
+              li {
+                border-bottom: none;
+                a {
+                  padding: 12px 40px;
+                  font-size: 0.9rem;
+                  color: #666;
+                }
+              }
+            }
+
+            &.expanded {
+              .accordion-body {
+                max-height: 500px; /* Arbitrary large height */
+              }
+            }
+          }
+
+          &.nav-divider {
+            height: 10px;
+            background-color: #f4f4f4;
+            border: none;
+          }
+
+          .nav-with-icon {
+            display: flex;
+            gap: 12px;
+            
+            i {
+              font-size: 1.1rem;
+              color: #777;
+              width: 20px;
+              text-align: center;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /* Bottom Navigation */
+  .mobile-bottom-nav {
+    .bottom-nav-item {
+      background: none;
+      border: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      color: #777;
+      padding: 5px;
+      flex: 1;
+      cursor: pointer;
+      transition: color 0.2s;
+
+      i {
+        font-size: 1.2rem;
+      }
+
+      span {
+        font-size: 0.75rem;
+        font-weight: 500;
+      }
+
+      &.active {
+        color: #355efc;
+      }
+    }
+  }
+
+
+/* Ensure LTR support if needed, but user specifically asked for RTL/Arabic compatibility */
+[dir="ltr"] {
+  @media (max-width: 768px) {
+    .mobile-sidebar {
+      right: auto;
+      left: 0;
+      transform: translateX(-100%);
+      box-shadow: 5px 0 15px rgba(0, 0, 0, 0.1);
+
+      &.open {
+        transform: translateX(0);
+      }
+
+      .mobile-sidebar-nav ul li.has-accordion .accordion-header {
+        flex-direction: row;
+      }
+    }
+  }
+}

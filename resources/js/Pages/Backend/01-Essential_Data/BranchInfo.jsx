@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import BlankPage from '@/Components/BlankPage';
 import { apiService } from '@/services/api';
 import '../../../../css/backend/main.scss';
 import { toast } from 'react-toastify';
@@ -356,10 +357,65 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
         }
     };
 
+    const breadcrumbs = [
+        { label: 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+        { label: 'Essential Data' },
+        { label: 'Branch Information', href: !isFormOpen ? null : getLocalizedRoute('admin.branches.index') }
+    ];
+
+    if (isFormOpen) {
+        breadcrumbs.push({
+            label: isViewMode ? 'View Branch' : currentBranch ? 'Edit Branch' : 'Add Branch'
+        });
+    }
+
     return (
         <AdminLayout activeMenu="Branch Info">
             <Head title="Branch Information - ZodicERP" />
-            <div className="Essential-Data-Container">
+            
+            <BlankPage 
+                breadcrumbs={breadcrumbs}
+                stats={!isFormOpen ? (
+                    <div className="stats-cards">
+                        <div className="stat-card">
+                            <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
+                                <span className="material-icons-outlined">account_tree</span>
+                            </div>
+                            <div className="stat-content">
+                                <div className="stat-value">{stats.total}</div>
+                                <div className="stat-label">Total Branches</div>
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
+                                <span className="material-icons-outlined">business</span>
+                            </div>
+                            <div className="stat-content">
+                                <div className="stat-value">{stats.withCompany}</div>
+                                <div className="stat-label">With Company</div>
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
+                                <span className="material-icons-outlined">public</span>
+                            </div>
+                            <div className="stat-content">
+                                <div className="stat-value">{stats.withCountry}</div>
+                                <div className="stat-label">With Country</div>
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-icon" style={{ backgroundColor: 'var(--warning-color)' }}>
+                                <span className="material-icons-outlined">email</span>
+                            </div>
+                            <div className="stat-content">
+                                <div className="stat-value">{stats.withEmail}</div>
+                                <div className="stat-label">With Email</div>
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
+            >
                 {isFormOpen ? (
                     <div className="tasks-card">
                         <div className="card-header">
@@ -904,49 +960,6 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
                     </div>
                 ) : (
                     <>
-                        <div className="page-header">
-                            <h1 className="text-2xl font-bold text-gray-800">Branch Information</h1>
-                        </div>
-
-                        <div className="stats-cards">
-                            <div className="stat-card">
-                                <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
-                                    <span className="material-icons-outlined">account_tree</span>
-                                </div>
-                                <div className="stat-content">
-                                    <div className="stat-value">{stats.total}</div>
-                                    <div className="stat-label">Total Branches</div>
-                                </div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
-                                    <span className="material-icons-outlined">business</span>
-                                </div>
-                                <div className="stat-content">
-                                    <div className="stat-value">{stats.withCompany}</div>
-                                    <div className="stat-label">With Company</div>
-                                </div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
-                                    <span className="material-icons-outlined">public</span>
-                                </div>
-                                <div className="stat-content">
-                                    <div className="stat-value">{stats.withCountry}</div>
-                                    <div className="stat-label">With Country</div>
-                                </div>
-                            </div>
-                            <div className="stat-card">
-                                <div className="stat-icon" style={{ backgroundColor: 'var(--warning-color)' }}>
-                                    <span className="material-icons-outlined">email</span>
-                                </div>
-                                <div className="stat-content">
-                                    <div className="stat-value">{stats.withEmail}</div>
-                                    <div className="stat-label">With Email</div>
-                                </div>
-                            </div>
-                        </div>
-
                         <div className="tasks-card">
                             <div className="card-header">
                                 <div className="tasks-actions">
@@ -1056,7 +1069,7 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
                         </div>
                     </>
                 )}
-            </div>
+            </BlankPage>
         </AdminLayout>
     );
 };

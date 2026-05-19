@@ -292,11 +292,6 @@
         color: $sidebar-accent;
         background-color: transparent;
     }
-
-    // Specific item style for Exchange Rates
-    &[href*="/exchange-rates"] {
-        box-shadow: 0px 4px 8px 0px rgba(0, 0, 0, 0.25), 0px 4px 8px 0px rgba(0, 0, 0, 0.25);
-    }
 }
 
 .submenu-icon {

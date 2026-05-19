@@ -63,7 +63,7 @@ export interface Category {
   children?: Category[];
   sort_order: number;
   is_active: boolean;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -163,7 +163,7 @@ export interface Activity {
 }
 
 // API Response Types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   data: T;
@@ -262,7 +262,7 @@ export interface TableColumn<T> {
   key: keyof T | string;
   label: string;
   sortable?: boolean;
-  render?: (value: any, item: T) => React.ReactNode;
+  render?: (value: unknown, item: T) => React.ReactNode;
   width?: string;
 }
 
@@ -278,12 +278,12 @@ export interface FormFieldProps {
   label: string;
   name: string;
   type?: string;
-  value?: any;
-  onChange?: (value: any) => void;
+  value?: unknown;
+  onChange?: (value: unknown) => void;
   error?: string;
   required?: boolean;
   placeholder?: string;
-  options?: Array<{ value: any; label: string }>;
+  options?: Array<{ value: unknown; label: string }>;
 }
 
 // Utility Types

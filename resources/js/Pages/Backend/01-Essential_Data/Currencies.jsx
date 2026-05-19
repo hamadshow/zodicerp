@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import { toast } from 'react-toastify';
 
@@ -179,64 +180,63 @@ const Currencies = ({ currencies = [] }) => {
         return colors[Math.abs(hash) % colors.length];
     };
 
+    const breadcrumbs = [
+        { label: 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+        { label: 'Essential Data' },
+        { label: view === 'list' ? 'Currencies' : 'Currency Management', href: view === 'list' ? null : getLocalizedRoute('admin.currencies.index') }
+    ];
+
+    if (view !== 'list') {
+        breadcrumbs.push({ label: view === 'edit' ? 'Edit Currency' : 'Create Currency' });
+    }
+
+    const statsContent = view === 'list' ? (
+        <div className="stats-cards">
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
+                    <span className="material-icons-outlined">monetization_on</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.total}</div>
+                    <div className="stat-label">Total Currencies</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
+                    <span className="material-icons-outlined">check_circle</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.active}</div>
+                    <div className="stat-label">Active Currencies</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
+                    <span className="material-icons-outlined">flag</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value" style={{ fontSize: '1.2rem' }}>{stats.baseCurrency}</div>
+                    <div className="stat-label">Base Currency</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--warning-color)' }}>
+                    <span className="material-icons-outlined">archive</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.inactive}</div>
+                    <div className="stat-label">Inactive/Archived</div>
+                </div>
+            </div>
+        </div>
+    ) : null;
+
     return (
         <AdminLayout activeMenu="Currencies">
             <Head title="Currencies - ZodicERP" />
-            <div className="breadcrumb">
-                <a href="#">Dashboard</a>
-                <span>/</span>
-                <a href="#">Essential Data</a>
-                <span>/</span>
-                <span>
-                    {view === 'list'
-                        ? 'Currencies'
-                        : view === 'edit'
-                            ? 'Edit Currency'
-                            : 'Create Currency'}
-                </span>
-            </div>
-
-            {view === 'list' ? (
-                <>
-                    <div className="stats-cards">
-                        <div className="stat-card">
-                            <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
-                                <span className="material-icons-outlined">monetization_on</span>
-                            </div>
-                            <div className="stat-content">
-                                <div className="stat-value">{stats.total}</div>
-                                <div className="stat-label">Total Currencies</div>
-                            </div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
-                                <span className="material-icons-outlined">check_circle</span>
-                            </div>
-                            <div className="stat-content">
-                                <div className="stat-value">{stats.active}</div>
-                                <div className="stat-label">Active Currencies</div>
-                            </div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
-                                <span className="material-icons-outlined">flag</span>
-                            </div>
-                            <div className="stat-content">
-                                <div className="stat-value" style={{ fontSize: '1.2rem' }}>{stats.baseCurrency}</div>
-                                <div className="stat-label">Base Currency</div>
-                            </div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-icon" style={{ backgroundColor: 'var(--warning-color)' }}>
-                                <span className="material-icons-outlined">archive</span>
-                            </div>
-                            <div className="stat-content">
-                                <div className="stat-value">{stats.inactive}</div>
-                                <div className="stat-label">Inactive/Archived</div>
-                            </div>
-                        </div>
-                    </div>
-
+            
+            <BlankPage breadcrumbs={breadcrumbs} stats={statsContent}>
+                {view === 'list' ? (
                     <div className="currencies-card fade-in">
                         <div className="card-header">
                             <div className="currencies-actions">
@@ -340,7 +340,6 @@ const Currencies = ({ currencies = [] }) => {
                             </table>
                         </div>
                     </div>
-                </>
             ) : (
                 <div className="currencies-card currency-editor-card fade-in">
                     <div className="card-header">
@@ -461,6 +460,7 @@ const Currencies = ({ currencies = [] }) => {
                     </form>
                 </div>
             )}
+            </BlankPage>
         </AdminLayout>
     );
 };

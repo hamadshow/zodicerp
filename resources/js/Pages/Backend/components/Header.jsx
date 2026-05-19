@@ -47,7 +47,7 @@ const Header = ({ isRtl }) => {
   };
 
   return (
-    <header className="header">
+    <header className="header desktop-only">
       <div className="header-actions">
         <div className="language-switcher">
           <button 

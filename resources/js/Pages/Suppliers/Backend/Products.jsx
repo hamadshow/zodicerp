@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import SupplierLayout from './Layout/SupplierLayout';
+import ActionsCell from '@/Components/ActionsCell';
 import '../../../../css/suppliers/Backend/main.scss';
 
 // ==========================================
@@ -242,14 +243,14 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                                                 </span>
                                             </td>
                                             <td>{new Date(product.created_at).toLocaleDateString()}</td>
-                                            <td className="actions-cell">
-                                                <Link href={route('supplier.products.edit', product.id)} className="btn-icon" title="Edit">
-                                                    <span className="material-icons-outlined">edit</span>
-                                                </Link>
-                                                <button onClick={() => handleDelete(product.id)} className="btn-icon delete" title="Delete">
-                                                    <span className="material-icons-outlined">delete</span>
-                                                </button>
-                                            </td>
+                                            <td>
+    <ActionsCell 
+        onEdit={() => router.get(route('supplier.products.edit', product.id))}
+        onDelete={() => handleDelete(product.id)}
+        editTitle="Edit"
+        deleteTitle="Delete"
+    />
+</td>
                                         </tr>
                                     ))
                                 ) : (

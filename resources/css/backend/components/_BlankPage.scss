@@ -1,0 +1,56 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   Blank Page (Universal Page Container)
+   ========================================================================== */
+
+.blank-page-wrapper {
+    padding: 24px;
+    background-color: transparent; 
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100%;
+    animation: fadeIn 0.4s ease-out;
+    border-radius: #{$radius-xl};
+    background-color: #{$white};
+    box-shadow: #{$shadow-sm};
+    border: 1px solid #{$border-color};
+    margin: 10px; // Add some margin to show the border radius if it's inside another container
+
+    /* Breadcrumb spacing is handled via margin-bottom: 1.5rem in NavigationLink */
+    
+    .page-stats-section {
+        /* StatsCards already handles its own grid and spacing */
+    }
+
+    .page-filters-section {
+        /* FilterTabs handles its own spacing */
+    }
+
+    .page-content-area {
+        flex: 1;
+        width: 100%;
+        
+        /* Default card container style inside a page */
+        .bank-card {
+            background: #{$white};
+            border-radius: #{$radius-xl};
+            box-shadow: #{$shadow-sm};
+            overflow: hidden;
+            border: 1px solid #{$border-color};
+        }
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* RTL Adjustments */
+[dir="rtl"] .blank-page-wrapper {
+    text-align: right;
+}

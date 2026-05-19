@@ -326,7 +326,6 @@ const EditDetailModal = ({ detail, isOpen, onClose, onUpdate }) => {
     const { props } = usePage();
     const translations = props.localization?.translations || {};
     const t = (key, fallback) => translations[`MarketPrices.${key}`] || fallback;
-    const { errors } = props;
 
     const [formData, setFormData] = useState({
         price_date: detail?.price_date || '',

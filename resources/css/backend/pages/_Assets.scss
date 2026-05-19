@@ -1,11 +1,15 @@
+@use 'sass:color';
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
 :root {
-    --asset-primary: #3b82f6;
-    --asset-primary-hover: #2563eb;
-    --asset-danger: #ef4444;
-    --asset-danger-hover: #dc2626;
-    --asset-success: #22c55e;
-    --asset-warning: #f59e0b;
-    --asset-gray-50: #f8fafc;
+    --asset-primary: #{$info-color};
+    --asset-primary-hover: #{color.scale($info-color, $lightness: -10%)};
+    --asset-danger: #{$danger-color};
+    --asset-danger-hover: #{color.scale($danger-color, $lightness: -10%)};
+    --asset-success: #{$success-color};
+    --asset-warning: #{$warning-color};
+    --asset-gray-50: #{$bg-color};
 }
 
 /* ---------------------------------------------------
@@ -108,10 +112,10 @@
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.stat-icon.blue-gradient { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-.stat-icon.green-gradient { background: linear-gradient(135deg, #10b981, #059669); }
+.stat-icon.blue-gradient { background: linear-gradient(135deg, #{$info-color}, #{color.scale($info-color, $lightness: -10%)}); }
+.stat-icon.green-gradient { background: linear-gradient(135deg, #{$success-color}, #{color.scale($success-color, $lightness: -10%)}); }
 .stat-icon.indigo-gradient { background: linear-gradient(135deg, #6366f1, #4f46e5); }
-.stat-icon.amber-gradient { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.stat-icon.amber-gradient { background: linear-gradient(135deg, #{$warning-color}, #{color.scale($warning-color, $lightness: -10%)}); }
 
 .stat-content {
     flex: 1;
@@ -149,12 +153,12 @@
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    background: linear-gradient(135deg, #{$info-color}, #{$secondary-color});
     color: white;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #2563eb, #1e40af);
+    background: linear-gradient(135deg, #{color.scale($info-color, $lightness: -10%)}, #{$primary-color});
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
@@ -169,34 +173,6 @@
     background-color: #f1f5f9;
     border-color: #94a3b8;
     transform: translateY(-1px);
-}
-
-/* Search Bar */
-.search-bar {
-    position: relative;
-    display: flex;
-    align-items: center;
-    background: #f8fafc;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    overflow: hidden;
-}
-
-.search-bar input {
-    padding: 8px 12px;
-    border: none;
-    background: transparent;
-    width: 200px;
-    font-size: 0.875rem;
-    outline: none;
-}
-
-.search-bar button {
-    padding: 8px 12px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    color: #64748b;
 }
 
 .filter-bar {

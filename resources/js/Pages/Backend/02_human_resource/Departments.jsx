@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Head, useForm, router, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import ActionsCell from '@/Components/ActionsCell';
+import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 
 const Departments = ({ departments: propDepartments, employees: propEmployees }) => {
@@ -137,59 +139,22 @@ const Departments = ({ departments: propDepartments, employees: propEmployees })
         }
     };
 
-    const renderBreadcrumbs = () => (
-        <div className="breadcrumb">
-            <Link href={getLocalizedRoute('admin.dashboard')}>{getTranslation('dashboard', 'Dashboard')}</Link>
-            <span>/</span>
-            <a href="#" onClick={(e) => { e.preventDefault(); backToList(); }}>{getTranslation('human_resources', 'Human Resources')}</a>
-            <span>/</span>
-            <span>{getTranslation('departments', 'Departments')}</span>
-            {currentView !== 'list' && (
-                <>
-                    <span>/</span>
-                    <span>
-                        {currentView === 'create' ? getTranslation('add_department', 'Add Department') : 
-                         currentView === 'edit' ? getTranslation('edit_department', 'Edit Department') : 
-                         getTranslation('department_details', 'Department Details')}
-                    </span>
-                </>
-            )}
-        </div>
-    );
+    const breadcrumbs = [
+        { label: getTranslation('dashboard', 'Dashboard'), href: getLocalizedRoute('admin.dashboard') },
+        { label: getTranslation('human_resources', 'Human Resources'), onClick: backToList },
+        { label: getTranslation('departments', 'Departments'), onClick: currentView !== 'list' ? backToList : null }
+    ];
+
+    if (currentView !== 'list') {
+        breadcrumbs.push({
+            label: currentView === 'create' ? getTranslation('add_department', 'Add Department') : 
+                   currentView === 'edit' ? getTranslation('edit_department', 'Edit Department') : 
+                   getTranslation('department_details', 'Department Details')
+        });
+    }
 
     const renderListView = () => (
         <div className="fade-in">
-            {/* Quick Stats */}
-            <div className="stats-cards">
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
-                        <span className="material-icons-outlined">business</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.total}</div>
-                        <div className="stat-label">{getTranslation('total_departments', 'Total Departments')}</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
-                        <span className="material-icons-outlined">check_circle</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.active}</div>
-                        <div className="stat-label">{getTranslation('active_departments', 'Active Departments')}</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
-                        <span className="material-icons-outlined">people</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.employees}</div>
-                        <div className="stat-label">{getTranslation('total_employees', 'Total Employees')}</div>
-                    </div>
-                </div>
-            </div>
-
             {/* Main Card */}
             <div className="departments-card">
                 <div className="card-header">
@@ -254,16 +219,12 @@ const Departments = ({ departments: propDepartments, employees: propEmployees })
                                         </span>
                                     </td>
                                     <td>
-                                        <button className="icon-btn view" onClick={() => openDetailsView(dept)}>
-                                            <span className="material-icons-outlined">visibility</span>
-                                        </button>
-                                        <button className="icon-btn edit" onClick={() => openEditView(dept)}>
-                                            <span className="material-icons-outlined">edit</span>
-                                        </button>
-                                        <button className="icon-btn delete" onClick={() => handleDelete(dept.id)}>
-                                            <span className="material-icons-outlined">delete</span>
-                                        </button>
-                                    </td>
+    <ActionsCell 
+        onView={() => openDetailsView(dept)}
+        onEdit={() => openEditView(dept)}
+        onDelete={() => handleDelete(dept.id)}
+    />
+</td>
                                 </tr>
                             ))}
                             {filteredDepartments.length === 0 && (
@@ -428,11 +389,45 @@ const Departments = ({ departments: propDepartments, employees: propEmployees })
     return (
         <AdminLayout activeMenu="Departments">
             <Head title={getTranslation('departments', 'Departments')} />
-            {renderBreadcrumbs()}
-
-            {currentView === 'list' && renderListView()}
-            {(currentView === 'create' || currentView === 'edit') && renderFormView()}
-            {currentView === 'details' && renderDetailsView()}
+            
+            <BlankPage 
+                breadcrumbs={breadcrumbs}
+                stats={currentView === 'list' ? (
+                    <div className="stats-cards">
+                        <div className="stat-card">
+                            <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
+                                <span className="material-icons-outlined">business</span>
+                            </div>
+                            <div className="stat-content">
+                                <div className="stat-value">{stats.total}</div>
+                                <div className="stat-label">{getTranslation('total_departments', 'Total Departments')}</div>
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
+                                <span className="material-icons-outlined">check_circle</span>
+                            </div>
+                            <div className="stat-content">
+                                <div className="stat-value">{stats.active}</div>
+                                <div className="stat-label">{getTranslation('active_departments', 'Active Departments')}</div>
+                            </div>
+                        </div>
+                        <div className="stat-card">
+                            <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
+                                <span className="material-icons-outlined">people</span>
+                            </div>
+                            <div className="stat-content">
+                                <div className="stat-value">{stats.employees}</div>
+                                <div className="stat-label">{getTranslation('total_employees', 'Total Employees')}</div>
+                            </div>
+                        </div>
+                    </div>
+                ) : null}
+            >
+                {currentView === 'list' && renderListView()}
+                {(currentView === 'create' || currentView === 'edit') && renderFormView()}
+                {currentView === 'details' && renderDetailsView()}
+            </BlankPage>
         </AdminLayout>
     );
 };

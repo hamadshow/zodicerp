@@ -1,0 +1,41 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 25px;
+    font-size: 14px;
+    color: #666;
+
+    a {
+        color: #3b82f6;
+        text-decoration: none;
+        transition: all 0.2s;
+
+        &:hover {
+            text-decoration: underline;
+            color: #2563eb;
+        }
+    }
+
+    span {
+        color: #999;
+        
+        &:last-child {
+            color: #334155;
+            font-weight: 500;
+        }
+    }
+
+    // Support for Inertia Link and Buttons
+    .breadcrumb-item {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: inherit;
+    }
+}

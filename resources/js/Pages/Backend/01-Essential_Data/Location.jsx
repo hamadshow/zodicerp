@@ -3,6 +3,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import AdminLayout from '../components/AdminLayout';
+import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
@@ -938,105 +939,107 @@ const Location = ({
 
   const paginationInfo = updatePagination();
 
+  const breadcrumbs = [
+    { label: 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+    { label: 'Essential Data' },
+    { label: 'Location Management' }
+  ];
+
+  const statsContent = viewMode === 'dashboard' ? (
+    <div className="stats-cards">
+      <div className="stat-card">
+        <div
+          className="stat-icon"
+          style={{ backgroundColor: 'var(--primary-color)' }}
+        >
+          <span className="material-icons-outlined">public</span>
+        </div>
+        <div className="stat-content">
+          <div className="stat-value" id="totalCountries">
+            {stats.totalCountries}
+          </div>
+          <div className="stat-label">Countries</div>
+        </div>
+      </div>
+      <div className="stat-card">
+        <div
+          className="stat-icon"
+          style={{ backgroundColor: 'var(--success-color)' }}
+        >
+          <span className="material-icons-outlined">location_city</span>
+        </div>
+        <div className="stat-content">
+          <div className="stat-value" id="totalCities">
+            {stats.totalCities}
+          </div>
+          <div className="stat-label">Cities</div>
+        </div>
+      </div>
+      <div className="stat-card">
+        <div
+          className="stat-icon"
+          style={{ backgroundColor: 'var(--info-color)' }}
+        >
+          <span className="material-icons-outlined">map</span>
+        </div>
+        <div className="stat-content">
+          <div className="stat-value" id="totalAreas">
+            {stats.totalAreas}
+          </div>
+          <div className="stat-label">Areas</div>
+        </div>
+      </div>
+      <div className="stat-card">
+        <div
+          className="stat-icon"
+          style={{ backgroundColor: 'var(--warning-color)' }}
+        >
+          <span className="material-icons-outlined">check_circle</span>
+        </div>
+        <div className="stat-content">
+          <div className="stat-value" id="activeLocations">
+            {stats.activeLocations}
+          </div>
+          <div className="stat-label">Active Locations</div>
+        </div>
+      </div>
+    </div>
+  ) : null;
+
   return (
     <AdminLayout activeMenu={'Location'}>
-
       <Head title="Location Management" />
-      <div className="breadcrumb">
-        <a href={getLocalizedRoute('admin.dashboard')}>Dashboard</a>
-        <span>/</span>
-        <a href={getLocalizedRoute('admin.location.index')}>Location Management</a>
-      </div>
+      
+      <BlankPage breadcrumbs={breadcrumbs} stats={statsContent}>
+        {viewMode === 'dashboard' && (
+          <>
+            {/* Action Buttons */}
+            <div className="action-buttons">
+              <button className="btn btn-primary" onClick={addCountry}>
+                <span className="material-icons-outlined">add</span>
+                Add Country
+              </button>
+              <button className="btn btn-secondary" onClick={addCity}>
+                <span className="material-icons-outlined">add</span>
+                Add City
+              </button>
+              <button className="btn btn-secondary" onClick={addArea}>
+                <span className="material-icons-outlined">add</span>
+                Add Area
+              </button>
+              <div className="spacer"></div>
+              <button className="btn btn-outline" onClick={openImportModal}>
+                <span className="material-icons-outlined">upload</span>
+                Import Excel
+              </button>
+              <button className="btn btn-outline" onClick={handleExport}>
+                <span className="material-icons-outlined">download</span>
+                Export Excel
+              </button>
+            </div>
 
-      {viewMode === 'dashboard' && (
-        <>
-          {/* Quick Stats */}
-          <div className="stats-cards">
-            <div className="stat-card">
-              <div
-                className="stat-icon"
-                style={{ backgroundColor: 'var(--primary-color)' }}
-              >
-                <span className="material-icons-outlined">public</span>
-              </div>
-              <div className="stat-content">
-                <div className="stat-value" id="totalCountries">
-                  {stats.totalCountries}
-                </div>
-                <div className="stat-label">Countries</div>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div
-                className="stat-icon"
-                style={{ backgroundColor: 'var(--success-color)' }}
-              >
-                <span className="material-icons-outlined">location_city</span>
-              </div>
-              <div className="stat-content">
-                <div className="stat-value" id="totalCities">
-                  {stats.totalCities}
-                </div>
-                <div className="stat-label">Cities</div>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div
-                className="stat-icon"
-                style={{ backgroundColor: 'var(--info-color)' }}
-              >
-                <span className="material-icons-outlined">map</span>
-              </div>
-              <div className="stat-content">
-                <div className="stat-value" id="totalAreas">
-                  {stats.totalAreas}
-                </div>
-                <div className="stat-label">Areas</div>
-              </div>
-            </div>
-            <div className="stat-card">
-              <div
-                className="stat-icon"
-                style={{ backgroundColor: 'var(--warning-color)' }}
-              >
-                <span className="material-icons-outlined">check_circle</span>
-              </div>
-              <div className="stat-content">
-                <div className="stat-value" id="activeLocations">
-                  {stats.activeLocations}
-                </div>
-                <div className="stat-label">Active Locations</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="action-buttons">
-            <button className="btn btn-primary" onClick={addCountry}>
-              <span className="material-icons-outlined">add</span>
-              Add Country
-            </button>
-            <button className="btn btn-secondary" onClick={addCity}>
-              <span className="material-icons-outlined">add</span>
-              Add City
-            </button>
-            <button className="btn btn-secondary" onClick={addArea}>
-              <span className="material-icons-outlined">add</span>
-              Add Area
-            </button>
-            <div className="spacer"></div>
-            <button className="btn btn-outline" onClick={openImportModal}>
-              <span className="material-icons-outlined">upload</span>
-              Import Excel
-            </button>
-            <button className="btn btn-outline" onClick={handleExport}>
-              <span className="material-icons-outlined">download</span>
-              Export Excel
-            </button>
-          </div>
-
-          {/* Main Content */}
-          <div className="card">
+            {/* Main Content */}
+            <div className="card">
             <div className="card-header">
               <div className="tabs">
                 <button
@@ -1655,6 +1658,7 @@ const Location = ({
           </div>
         </div>
       )}
+      </BlankPage>
     </AdminLayout>
   );
 };

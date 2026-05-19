@@ -84,8 +84,10 @@
 
 .filter-tab.active {
     background: #2563eb;
-    color: white;
+    color: white !important;
     border-color: #2563eb;
+    font-weight: 600;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
 }
 
 /* Bank Card & Table */
@@ -109,34 +111,6 @@
 .actions {
     display: flex;
     gap: 12px;
-}
-
-.search-bar {
-    position: relative;
-    width: 300px;
-}
-
-.search-bar input {
-    width: 100%;
-    padding: 10px 16px 10px 40px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.search-bar input:focus {
-    border-color: #3b82f6;
-}
-
-.search-bar span {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #94a3b8;
-    font-size: 20px;
 }
 
 .table-container {

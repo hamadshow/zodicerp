@@ -1,0 +1,51 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   Filter Tabs Component
+   ========================================================================== */
+
+.filter-tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 24px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+    
+    &::-webkit-scrollbar {
+        height: 4px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+        background: #{$border-color};
+        border-radius: #{$radius-full};
+    }
+}
+
+.filter-tab {
+    padding: 10px 20px;
+    border-radius: #{$radius-lg};
+    font-size: #{$font-size-sm};
+    font-weight: #{$font-weight-medium};
+    color: #{$text-muted};
+    cursor: pointer;
+    transition: all $transition-fast;
+    background: #{$white};
+    border: 1px solid #{$border-color};
+    white-space: nowrap;
+    user-select: none;
+
+    &:hover {
+        background: #{$light-color};
+        color: #{$text-primary};
+    }
+
+    &.active {
+        background: #{$info-color};
+        color: #{$white} !important;
+        border-color: #{$info-color};
+        font-weight: #{$font-weight-semibold};
+        box-shadow: #{$shadow-sm};
+    }
+}

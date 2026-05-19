@@ -103,7 +103,7 @@ const Sidebar = ({
 
       {/* Sidebar Container */}
       <aside 
-        className={`new-sidebar ${isCollapsed ? 'collapsed' : ''} ${sidebarOpen ? 'mobile-open' : ''}`}
+        className={`new-sidebar ${isCollapsed ? 'collapsed' : ''} ${sidebarOpen ? 'mobile-open' : ''} ${isRtl ? 'is-rtl' : ''} desktop-only`}
         id="sidebar"
         ref={sidebarRef}
       >

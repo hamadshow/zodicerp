@@ -1,0 +1,61 @@
+@use '../base/variables' as *;
+
+.actions-cell {
+    display: flex;
+    gap: $spacing-sm;
+    align-items: center;
+    justify-content: flex-start;
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        border-radius: $radius-md;
+        cursor: pointer;
+        transition: all $transition-fast;
+        background-color: transparent;
+
+        i {
+            font-size: 0.9rem;
+        }
+
+        &.btn-view {
+            color: $info-color;
+            background-color: $info-light;
+            &:hover {
+                background-color: $info-color;
+                color: $white;
+            }
+        }
+
+        &.btn-edit {
+            color: $warning-color;
+            background-color: $warning-light;
+            &:hover {
+                background-color: $warning-color;
+                color: $white;
+            }
+        }
+
+        &.btn-delete {
+            color: $danger-color;
+            background-color: $danger-light;
+            &:hover {
+                background-color: $danger-color;
+                color: $white;
+            }
+        }
+
+        &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            &:hover {
+                background-color: inherit;
+                color: inherit;
+            }
+        }
+    }
+}

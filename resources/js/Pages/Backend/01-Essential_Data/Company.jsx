@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import AdminLayout from '../components/AdminLayout';
+import BlankPage from '@/Components/BlankPage';
 import MediaPickerModal from '../Media/MediaPickerModal';
 import '../../../../css/backend/main.scss';
 import { toast } from 'react-toastify';
@@ -295,10 +296,18 @@ const CompanyForm = ({ company }) => {
         </div>
     );
 
+    const breadcrumbs = [
+        { label: 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+        { label: 'Essential Data' },
+        { label: 'Companies', href: getLocalizedRoute('admin.companies.index') },
+        { label: isEdit ? 'Edit Company' : 'Add Company' }
+    ];
+
     return (
         <AdminLayout activeMenu="Companies">
             <Head title={isEdit ? "Edit Company" : "Add Company"} />
-            <div className="Essential-Data-Container">
+            
+            <BlankPage breadcrumbs={breadcrumbs}>
                 <div className="tasks-card">
                     <div className="card-header">
                         <h1 className="text-2xl font-bold text-gray-800">
@@ -545,7 +554,8 @@ const CompanyForm = ({ company }) => {
                         </div>
                     </form>
                 </div>
-            </div>
+                </BlankPage>
+
 
             <MediaPickerModal
                 isOpen={isMediaPickerOpen}
@@ -632,65 +642,70 @@ const Company = ({ companies, company, canCreateCompany }) => {
         });
     }, [companies, searchTerm]);
 
+    const breadcrumbs = [
+        { label: 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+        { label: 'Essential Data' },
+        { label: 'Company Information' }
+    ];
+
+    const statsContent = (
+        <div className="stats-cards">
+            <div className="stat-card">
+                <div
+                    className="stat-icon"
+                    style={{ backgroundColor: 'var(--primary-color)' }}
+                >
+                    <span className="material-icons-outlined">apartment</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.totalCompanies}</div>
+                    <div className="stat-label">Total Companies</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div
+                    className="stat-icon"
+                    style={{ backgroundColor: 'var(--success-color)' }}
+                >
+                    <span className="material-icons-outlined">public</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.totalCountries}</div>
+                    <div className="stat-label">Countries</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div
+                    className="stat-icon"
+                    style={{ backgroundColor: 'var(--info-color)' }}
+                >
+                    <span className="material-icons-outlined">image</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.withLogo}</div>
+                    <div className="stat-label">With Logo</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div
+                    className="stat-icon"
+                    style={{ backgroundColor: 'var(--warning-color)' }}
+                >
+                    <span className="material-icons-outlined">mark_email_read</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.withContact}</div>
+                    <div className="stat-label">With Contact Email</div>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <AdminLayout activeMenu="Companies">
             <Head title="Company Information" />
-            <div className="Essential-Data-Container">
-                <div className="page-header">
-                    <h1 className="text-2xl font-bold text-gray-800">Company Information</h1>
-                </div>
-
-                <div className="stats-cards">
-                    <div className="stat-card">
-                        <div
-                            className="stat-icon"
-                            style={{ backgroundColor: 'var(--primary-color)' }}
-                        >
-                            <span className="material-icons-outlined">apartment</span>
-                        </div>
-                        <div className="stat-content">
-                            <div className="stat-value">{stats.totalCompanies}</div>
-                            <div className="stat-label">Total Companies</div>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div
-                            className="stat-icon"
-                            style={{ backgroundColor: 'var(--success-color)' }}
-                        >
-                            <span className="material-icons-outlined">public</span>
-                        </div>
-                        <div className="stat-content">
-                            <div className="stat-value">{stats.totalCountries}</div>
-                            <div className="stat-label">Countries</div>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div
-                            className="stat-icon"
-                            style={{ backgroundColor: 'var(--info-color)' }}
-                        >
-                            <span className="material-icons-outlined">image</span>
-                        </div>
-                        <div className="stat-content">
-                            <div className="stat-value">{stats.withLogo}</div>
-                            <div className="stat-label">With Logo</div>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div
-                            className="stat-icon"
-                            style={{ backgroundColor: 'var(--warning-color)' }}
-                        >
-                            <span className="material-icons-outlined">mark_email_read</span>
-                        </div>
-                        <div className="stat-content">
-                            <div className="stat-value">{stats.withContact}</div>
-                            <div className="stat-label">With Contact Email</div>
-                        </div>
-                    </div>
-                </div>
-
+            
+            <BlankPage breadcrumbs={breadcrumbs} stats={statsContent}>
                 <div className="tasks-card">
                     <div className="card-header">
                         <div className="tasks-actions">
@@ -792,7 +807,7 @@ const Company = ({ companies, company, canCreateCompany }) => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </BlankPage>
         </AdminLayout>
     );
 };

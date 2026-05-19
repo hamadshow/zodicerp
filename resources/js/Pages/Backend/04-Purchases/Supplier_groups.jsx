@@ -1,87 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import BlankPage from '@/Components/BlankPage';
 
 // --- View Section Component ---
 const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filteredGroups, setFilteredGroups] = useState(groups);
     const { auth } = usePage().props;
     const isRtl = auth?.user?.lang === 'ar' || document.dir === 'rtl';
     const t = (ar, en) => isRtl ? ar : en;
 
-    // Update stats
-    const stats = useMemo(() => {
-        const total = groups.length;
-        const active = groups.filter(g => g.is_active).length;
-        const inactive = total - active;
-        return { total, active, inactive };
-    }, [groups]);
-
-    useEffect(() => {
-        if (!searchTerm) {
-            setFilteredGroups(groups);
-        } else {
-            const lowerTerm = searchTerm.toLowerCase();
-            setFilteredGroups(groups.filter(g => 
-                g.name_ar.toLowerCase().includes(lowerTerm) ||
-                (g.name_en && g.name_en.toLowerCase().includes(lowerTerm)) ||
-                (g.code && g.code.toLowerCase().includes(lowerTerm))
-            ));
-        }
-    }, [searchTerm, groups]);
-
     return (
         <div className="animate-fade-slide">
-            {/* Quick Stats */}
-            <div className="stats-grid">
-                <div className="stat-card">
-                    <div className="stat-icon blue">
-                        <span className="material-icons-outlined">groups</span>
-                    </div>
-                    <div className="stat-info">
-                        <span className="stat-value">{stats.total}</span>
-                        <span className="stat-label">{t('إجمالي المجموعات', 'Total Groups')}</span>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon green">
-                        <span className="material-icons-outlined">check_circle</span>
-                    </div>
-                    <div className="stat-info">
-                        <span className="stat-value">{stats.active}</span>
-                        <span className="stat-label">{t('المجموعات النشطة', 'Active Groups')}</span>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon gray">
-                        <span className="material-icons-outlined">cancel</span>
-                    </div>
-                    <div className="stat-info">
-                        <span className="stat-value">{stats.inactive}</span>
-                        <span className="stat-label">{t('المجموعات غير النشطة', 'Inactive Groups')}</span>
-                    </div>
-                </div>
-            </div>
-
             {/* Content Card */}
             <div className="content-card">
-                <div className="page-header" style={{ marginBottom: '1.5rem' }}>
-                    <div className="search-box">
-                        <span className="material-icons-outlined search-icon">search</span>
-                        <input
-                            type="text"
-                            placeholder={t('البحث في المجموعات...', 'Search groups...')}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                    <button className="btn btn-primary" onClick={onCreate}>
-                        <span className="material-icons-outlined">add</span>
-                        {t('إضافة مجموعة جديدة', 'Add New Group')}
-                    </button>
-                </div>
-
                 <div className="table-responsive">
                     <table className="professional-table">
                         <thead>
@@ -96,8 +27,8 @@ const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredGroups.length > 0 ? (
-                                filteredGroups.map(group => (
+                            {groups.length > 0 ? (
+                                groups.map(group => (
                                     <tr key={group.id}>
                                         <td>{group.code}</td>
                                         <td>{group.name_ar}</td>
@@ -333,18 +264,33 @@ const SupplierGroups = ({ groups = [], parentGroups = [], accounts = [] }) => {
 
     const [mode, setMode] = useState('view'); // 'view' | 'create' | 'edit'
     const [selectedGroup, setSelectedGroup] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
     const isRtl = auth?.user?.lang === 'ar' || document.dir === 'rtl';
     const t = (ar, en) => isRtl ? ar : en;
 
-    // Reset mode to view on successful Inertia navigation if strictly needed, 
-    // but we control mode locally for smoother experience.
-    // However, since Inertia reloads props, we might want to watch for success messages.
     useEffect(() => {
         if (flash?.success) {
             setMode('view');
             setSelectedGroup(null);
         }
-    }, [flash, groups]); // groups dependency ensures we update when data changes
+    }, [flash, groups]);
+
+    const filteredGroups = useMemo(() => {
+        if (!searchTerm) return groups;
+        const lowerTerm = searchTerm.toLowerCase();
+        return groups.filter(g => 
+            g.name_ar.toLowerCase().includes(lowerTerm) ||
+            (g.name_en && g.name_en.toLowerCase().includes(lowerTerm)) ||
+            (g.code && g.code.toLowerCase().includes(lowerTerm))
+        );
+    }, [searchTerm, groups]);
+
+    const stats = useMemo(() => {
+        const total = filteredGroups.length;
+        const active = filteredGroups.filter(g => g.is_active).length;
+        const inactive = total - active;
+        return { total, active, inactive };
+    }, [filteredGroups]);
 
     const handleCreateClick = () => {
         setSelectedGroup(null);
@@ -374,59 +320,109 @@ const SupplierGroups = ({ groups = [], parentGroups = [], accounts = [] }) => {
         }
     };
 
+    const breadcrumbs = [
+        { label: t('لوحة التحكم', 'Dashboard'), href: route('admin.dashboard') },
+        { label: t('المشتريات', 'Purchases'), href: '#' },
+        { label: t('مجموعات الموردين', 'Supplier Groups'), onClick: handleBackClick }
+    ];
+
+    if (mode === 'create') breadcrumbs.push({ label: t('مجموعة جديدة', 'New Group') });
+    if (mode === 'edit') breadcrumbs.push({ label: t('تعديل المجموعة', 'Edit Group') });
+
+    const statsContent = mode === 'view' && (
+        <div className="stats-grid">
+            <div className="stat-card">
+                <div className="stat-icon blue">
+                    <span className="material-icons-outlined">groups</span>
+                </div>
+                <div className="stat-info">
+                    <span className="stat-value">{stats.total}</span>
+                    <span className="stat-label">{t('إجمالي المجموعات', 'Total Groups')}</span>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon green">
+                    <span className="material-icons-outlined">check_circle</span>
+                </div>
+                <div className="stat-info">
+                    <span className="stat-value">{stats.active}</span>
+                    <span className="stat-label">{t('المجموعات النشطة', 'Active Groups')}</span>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon gray">
+                    <span className="material-icons-outlined">cancel</span>
+                </div>
+                <div className="stat-info">
+                    <span className="stat-value">{stats.inactive}</span>
+                    <span className="stat-label">{t('المجموعات غير النشطة', 'Inactive Groups')}</span>
+                </div>
+            </div>
+        </div>
+    );
+
+    const filtersContent = mode === 'view' && (
+        <div className="page-header" style={{ marginBottom: '0' }}>
+            <div className="search-box">
+                <span className="material-icons-outlined search-icon">search</span>
+                <input
+                    type="text"
+                    placeholder={t('البحث في المجموعات...', 'Search groups...')}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+            <button className="btn btn-primary" onClick={handleCreateClick}>
+                <span className="material-icons-outlined">add</span>
+                {t('إضافة مجموعة جديدة', 'Add New Group')}
+            </button>
+        </div>
+    );
+
     return (
         <AdminLayout activeMenu="Supplier Groups">
             <Head title={t('مجموعات الموردين - ZodicERP', 'Supplier Groups - ZodicERP')} />
             
-            <div className="supplier-groups-container">
-                {/* Fixed Page Header Title based on Mode */}
-                <div className="page-header">
-                    <h1>
-                        {mode === 'view' && t('مجموعات الموردين', 'Supplier Groups')}
-                        {mode === 'create' && t('مجموعة موردين جديدة', 'New Supplier Group')}
-                        {mode === 'edit' && t('تعديل مجموعة موردين', 'Edit Supplier Group')}
-                    </h1>
-                    {mode !== 'view' && (
-                        <button className="btn btn-secondary" onClick={handleBackClick}>
-                            <span className="material-icons-outlined">arrow_back</span>
-                            {t('العودة للقائمة', 'Back to List')}
-                        </button>
+            <BlankPage 
+                breadcrumbs={breadcrumbs} 
+                stats={statsContent}
+                filters={filtersContent}
+            >
+                <div className="supplier-groups-container">
+                    {/* Main Content Area with Transitions */}
+                    {mode === 'view' && (
+                        <ViewSection 
+                            groups={filteredGroups} 
+                            onCreate={handleCreateClick} 
+                            onEdit={handleEditClick}
+                            onDelete={handleDelete}
+                        />
+                    )}
+
+                    {mode === 'create' && (
+                        <FormSection 
+                            mode="create" 
+                            parentGroups={parentGroups} 
+                            accounts={accounts}
+                            onBack={handleBackClick} 
+                            onSuccess={handleSuccess}
+                            getLocalizedRoute={getLocalizedRoute}
+                        />
+                    )}
+
+                    {mode === 'edit' && (
+                        <FormSection 
+                            mode="edit" 
+                            initialData={selectedGroup} 
+                            parentGroups={parentGroups} 
+                            accounts={accounts}
+                            onBack={handleBackClick} 
+                            onSuccess={handleSuccess}
+                            getLocalizedRoute={getLocalizedRoute}
+                        />
                     )}
                 </div>
-
-                {/* Main Content Area with Transitions */}
-                {mode === 'view' && (
-                    <ViewSection 
-                        groups={groups} 
-                        onCreate={handleCreateClick} 
-                        onEdit={handleEditClick}
-                        onDelete={handleDelete}
-                    />
-                )}
-
-                {mode === 'create' && (
-                    <FormSection 
-                        mode="create" 
-                        parentGroups={parentGroups} 
-                        accounts={accounts}
-                        onBack={handleBackClick} 
-                        onSuccess={handleSuccess}
-                        getLocalizedRoute={getLocalizedRoute}
-                    />
-                )}
-
-                {mode === 'edit' && (
-                    <FormSection 
-                        mode="edit" 
-                        initialData={selectedGroup} 
-                        parentGroups={parentGroups} 
-                        accounts={accounts}
-                        onBack={handleBackClick} 
-                        onSuccess={handleSuccess}
-                        getLocalizedRoute={getLocalizedRoute}
-                    />
-                )}
-            </div>
+            </BlankPage>
         </AdminLayout>
     );
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, usePage, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import ActionsCell from '@/Components/ActionsCell';
 
 const RolesAndPermissions = ({ roles, availablePermissions }) => {
   const { localization } = usePage().props;
@@ -301,18 +302,11 @@ const RolesAndPermissions = ({ roles, availablePermissions }) => {
                         ) : '-'}
                       </td>
                       <td>
-                        <div className="actions-cell">
-                          <button className="action-btn edit-btn" onClick={() => handleEditClick(role)}>
-                            <span className="material-icons-outlined">edit</span>
-                          </button>
-                          <button 
-                            className="action-btn delete-btn" 
-                            onClick={() => handleDelete(role)}
-                          >
-                            <span className="material-icons-outlined">delete</span>
-                          </button>
-                        </div>
-                      </td>
+    <ActionsCell 
+        onEdit={() => handleEditClick(role)}
+        onDelete={() => handleDelete(role)}
+    />
+</td>
                     </tr>
                   ))}
                   {roles.length === 0 && (

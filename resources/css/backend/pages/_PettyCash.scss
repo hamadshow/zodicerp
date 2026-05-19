@@ -1,7 +1,11 @@
+@use 'sass:color';
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
 /* PettyCash.css - Copied from Bank.css */
 .bank-page {
     padding: 20px;
-    background-color: #f8fafc;
+    background-color: #{$white};
     min-height: 100vh;
 }
 
@@ -14,29 +18,29 @@
 }
 
 .stat-card {
-    background: white;
-    border-radius: 12px;
+    background: #{$white};
+    border-radius: #{$radius-xl};
     padding: 20px;
     display: flex;
     align-items: center;
     gap: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: #{$shadow-sm};
+    transition: transform $transition-fast, box-shadow $transition-fast;
 }
 
 .stat-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    box-shadow: #{$shadow-md};
 }
 
 .stat-icon {
     width: 48px;
     height: 48px;
-    border-radius: 12px;
+    border-radius: #{$radius-xl};
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: #{$text-primary};
 }
 
 .stat-content {
@@ -45,14 +49,14 @@
 
 .stat-value {
     font-size: 24px;
-    font-weight: 700;
-    color: #1e293b;
+    font-weight: #{$font-weight-bold};
+    color: #{$text-primary};
     line-height: 1.2;
 }
 
 .stat-label {
-    font-size: 14px;
-    color: #64748b;
+    font-size: #{$font-size-sm};
+    color: #{$text-muted};      
     margin-top: 4px;
 }
 
@@ -67,38 +71,40 @@
 
 .filter-tab {
     padding: 8px 16px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    color: #64748b;
+    border-radius: #{$radius-lg};
+    font-size: #{$font-size-sm};
+    font-weight: #{$font-weight-medium};
+    color: #{$text-muted};  
     cursor: pointer;
-    transition: all 0.2s;
-    background: white;
-    border: 1px solid #e2e8f0;
+    transition: all $transition-fast;
+    background: #{$white};
+    border: 1px solid #{$border-color};
     white-space: nowrap;
 }
 
 .filter-tab:hover {
-    background: #f1f5f9;
+    background: #{$light-color};
 }
 
 .filter-tab.active {
-    background: #2563eb;
-    color: white;
-    border-color: #2563eb;
+    background: #{$info-color};
+    color: #{$white} !important;
+    border-color: #{$info-color};
+    font-weight: #{$font-weight-semibold};
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2), 0 2px 4px -1px rgba(59, 130, 246, 0.1);
 }
 
 /* Bank Card & Table */
 .bank-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    background: #{$white};
+    border-radius: #{$radius-xl};
+    box-shadow: #{$shadow-sm};
     overflow: hidden;
 }
 
 .card-header {
     padding: 16px 20px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #{$border-color};
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -111,34 +117,6 @@
     gap: 12px;
 }
 
-.search-bar {
-    position: relative;
-    width: 300px;
-}
-
-.search-bar input {
-    width: 100%;
-    padding: 10px 16px 10px 40px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 14px;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.search-bar input:focus {
-    border-color: #3b82f6;
-}
-
-.search-bar span {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #94a3b8;
-    font-size: 20px;
-}
-
 .table-container {
     overflow-x: auto;
 }
@@ -149,22 +127,22 @@ table {
 }
 
 th {
-    background: #f8fafc;
+    background: #{$light-color};
     padding: 12px 20px;
     text-align: left;
     font-size: 12px;
-    font-weight: 600;
-    color: #64748b;
+    font-weight: #{$font-weight-semibold};
+    color: #{$text-muted};
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #{$border-color};
 }
 
 td {
     padding: 16px 20px;
-    border-bottom: 1px solid #e2e8f0;
-    color: #334155;
-    font-size: 14px;
+    border-bottom: 1px solid #{$border-color};        
+    color: #{$text-primary};
+    font-size: #{$font-size-sm};
 }
 
 tr:last-child td {
@@ -172,63 +150,63 @@ tr:last-child td {
 }
 
 tr:hover td {
-    background: #f8fafc;
+    background: #{$light-color};
 }
 
 /* Badges */
 .status-badge {
     padding: 4px 12px;
-    border-radius: 20px;
+    border-radius: #{$radius-full};
     font-size: 12px;
-    font-weight: 500;
+    font-weight: #{$font-weight-medium};
     display: inline-flex;
     align-items: center;
     gap: 6px;
 }
 
 .status-active {
-    background: #dcfce7;
-    color: #166534;
+    background: #{$success-light};
+    color: #{$success-color};
 }
 
 .status-inactive {
-    background: #f1f5f9;
-    color: #475569;
+    background: #{$light-color};
+    color: #{$text-secondary};
 }
 
 /* Action Buttons */
 .icon-btn {
     width: 32px;
     height: 32px;
-    border-radius: 6px;
+    border-radius: #{$radius-sm};
     border: none;
     background: transparent;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s;
-    color: #64748b;
+    transition: background $transition-fast;
+    color: #{$text-muted};
 }
 
 .icon-btn:hover {
-    background: #f1f5f9;
-    color: #1e293b;
+    background: #{$light-color};
+    color: #{$text-primary};
 }
 
 .icon-btn.edit:hover {
-    background: #eff6ff;
-    color: #2563eb;
+    background: #{$light-color};   
+    color: #{$text-primary};
 }
 
 .icon-btn.delete:hover {
-    background: #fef2f2;
-    color: #ef4444;
+    background: #{$light-color};
+    color: #{$text-primary};
 }
 
 .icon-btn.view:hover {
-    background: #f0fdf4;
-    color: #166534;
+    background: #{$light-color};
+    color: #{$text-primary};
 }
 
 /* Modal */
@@ -238,14 +216,14 @@ tr:hover td {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(30, 41, 59, 0.5); /* Semi-transparent dark overlay */
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: #{$z-index-modal-backdrop};
     opacity: 0;
     visibility: hidden;
-    transition: all 0.3s;
+    transition: all $transition-normal;
 }
 
 .modal-overlay.active {
@@ -254,15 +232,15 @@ tr:hover td {
 }
 
 .modal-content {
-    background: white;
-    border-radius: 16px;
+    background: #{$white};
+    border-radius: #{$radius-xl};
     width: 90%;
     max-width: 600px;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    box-shadow: #{$shadow-lg};
     transform: scale(0.95);
-    transition: transform 0.3s;
+    transition: transform $transition-normal;
 }
 
 .modal-overlay.active .modal-content {
@@ -275,7 +253,7 @@ tr:hover td {
 
 .modal-header {
     padding: 20px 24px;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid #{$border-color};
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -283,24 +261,24 @@ tr:hover td {
 
 .modal-header h2 {
     font-size: 20px;
-    font-weight: 600;
-    color: #1e293b;
+    font-weight: #{$font-weight-semibold};
+    color: #{$text-primary};
     margin: 0;
 }
 
 .close-btn {
     background: transparent;
     border: none;
-    color: #94a3b8;
+    color: #{$text-light};
     cursor: pointer;
     padding: 4px;
-    border-radius: 4px;
-    transition: all 0.2s;
+    border-radius: #{$radius-sm};
+    transition: all $transition-fast;
 }
 
 .close-btn:hover {
-    background: #f1f5f9;
-    color: #64748b;
+    background: #{$light-color};
+    color: #{$text-muted};
 }
 
 .modal-body {
@@ -309,7 +287,7 @@ tr:hover td {
 
 .modal-footer {
     padding: 20px 24px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid #{$border-color};
     display: flex;
     justify-content: flex-end;
     gap: 12px;
@@ -322,26 +300,26 @@ tr:hover td {
 
 .form-label {
     display: block;
-    font-size: 14px;
-    font-weight: 500;
-    color: #334155;
+    font-size: #{$font-size-sm};
+    font-weight: #{$font-weight-medium};
+    color: #{$text-muted};
     margin-bottom: 8px;
 }
 
 .form-input, .form-select, .form-textarea {
     width: 100%;
     padding: 10px 12px;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    font-size: 14px;
-    color: #1e293b;
-    transition: border-color 0.2s;
+    border: 1px solid #{$border-color};
+    border-radius: #{$radius-lg};
+    font-size: #{$font-size-sm};
+    color: #{$text-primary};
+    transition: border-color $transition-fast;
 }
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
-    border-color: #3b82f6;
+    border-color: #{$info-color};
     outline: none;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px #{$info-light};
 }
 
 .form-row {
@@ -353,45 +331,45 @@ tr:hover td {
 /* Buttons */
 .btn {
     padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
+    border-radius: #{$radius-lg};
+    font-size: #{$font-size-sm};
+    font-weight: #{$font-weight-medium};
     cursor: pointer;
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    transition: all 0.2s;
+    transition: all $transition-fast;
     border: 1px solid transparent;
 }
 
 .btn-primary {
-    background: #2563eb;
-    color: white;
+    background: #{$info-color};
+    color: #{$white};
 }
 
 .btn-primary:hover {
-    background: #1d4ed8;
+    background: #{color.scale($info-color, $lightness: -10%)};
 }
 
 .btn-secondary {
-    background: white;
-    border-color: #e2e8f0;
-    color: #64748b;
+    background: #{$white};
+    border-color: #{$border-color};
+    color: #{$text-muted};
 }
 
 .btn-secondary:hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-    color: #334155;
+    background: #{$light-color};
+    border-color: #{$text-light};
+    color: #{$text-primary};
 }
 
 .btn-danger {
-    background: #ef4444;
-    color: white;
+    background: #{$danger-color};
+    color: #{$white};
 }
 
 .btn-danger:hover {
-    background: #dc2626;
+    background: #{color.scale($danger-color, $lightness: -10%)};
 }
 
 /* Loading */
@@ -401,15 +379,15 @@ tr:hover td {
     align-items: center;
     justify-content: center;
     padding: 40px;
-    color: #64748b;
+    color: #{$text-muted};
 }
 
 .spinner {
     width: 40px;
     height: 40px;
-    border: 3px solid #e2e8f0;
-    border-top-color: #3b82f6;
-    border-radius: 50%;
+    border: 3px solid #{$border-color};
+    border-top-color: #{$info-color};
+    border-radius: #{$radius-full};
     animation: spin 1s linear infinite;
     margin-bottom: 16px;
 }
@@ -426,22 +404,22 @@ tr:hover td {
 }
 
 .bank-info-sidebar {
-    background: #f8fafc;
+    background: #{$light-color};
     padding: 20px;
-    border-radius: 12px;
+    border-radius: #{$radius-xl};
     height: fit-content;
 }
 
 .bank-logo-preview {
     width: 100px;
     height: 100px;
-    background: white;
-    border-radius: 12px;
+    background: #{$white};
+    border-radius: #{$radius-xl};
     display: flex;
     align-items: center;
     justify-content: center;
     margin-bottom: 16px;
-    border: 1px solid #e2e8f0;
+    border: 1px solid #{$border-color};
     overflow: hidden;
 }
 
@@ -457,14 +435,14 @@ tr:hover td {
 
 .info-label {
     font-size: 12px;
-    color: #64748b;
+    color: #{$text-muted};
     margin-bottom: 4px;
 }
 
 .info-value {
-    font-size: 14px;
-    color: #1e293b;
-    font-weight: 500;
+    font-size: #{$font-size-sm};
+    color: #{$text-primary};
+    font-weight: #{$font-weight-medium};
 }
 
 /* Accounts Table inside Modal */
@@ -481,19 +459,19 @@ tr:hover td {
 
 .section-title {
     font-size: 16px;
-    font-weight: 600;
-    color: #1e293b;
+    font-weight: #{$font-weight-semibold};
+    color: #{$text-primary};
 }
 
 .accounts-table {
     width: 100%;
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border: 1px solid #{$border-color};
+    border-radius: #{$radius-lg};
     overflow: hidden;
 }
 
 .accounts-table th {
-    background: #f1f5f9;
+    background: #{$light-color};
     padding: 10px 16px;
 }
 
@@ -503,16 +481,16 @@ tr:hover td {
 
 .currency-badge {
     padding: 2px 8px;
-    border-radius: 4px;
-    background: #eff6ff;
-    color: #2563eb;
+    border-radius: #{$radius-sm};
+    background: #{$info-light};
+    color: #{$info-color};
     font-size: 12px;
-    font-weight: 600;
+    font-weight: #{$font-weight-semibold};
 }
 
 .balance-value {
-    font-family: 'Monaco', 'Consolas', monospace;
-    font-weight: 600;
+    font-family: #{$font-family-mono};
+    font-weight: #{$font-weight-semibold};
 }
 
 /* Pagination */
@@ -521,29 +499,29 @@ tr:hover td {
     justify-content: space-between;
     align-items: center;
     padding: 16px 20px;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid #{$border-color};
 }
 
 .page-btn {
     padding: 6px 12px;
-    border: 1px solid #e2e8f0;
-    background: white;
-    border-radius: 6px;
-    font-size: 14px;
-    color: #64748b;
+    border: 1px solid #{$border-color};
+    background: #{$white};
+    border-radius: #{$radius-sm};
+    font-size: #{$font-size-sm};
+    color: #{$text-muted};
     cursor: pointer;
     margin: 0 4px;
 }
 
 .page-btn:hover:not(:disabled) {
-    background: #f1f5f9;
-    color: #1e293b;
+    background: #{$light-color};
+    color: #{$text-primary};
 }
 
 .page-btn.active {
-    background: #2563eb;
-    color: white;
-    border-color: #2563eb;
+    background: #{$info-color};
+    color: #{$white};
+    border-color: #{$info-color};
 }
 
 .page-btn:disabled {

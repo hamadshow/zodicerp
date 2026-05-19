@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import BlankPage from '@/Components/BlankPage';
 import SearchableComboBox from '../components/SearchableComboBox';
 import { formatDate } from '@/utils/date';
 import * as XLSX from 'xlsx';
@@ -317,480 +318,496 @@ export default function PurchaseOrder({ orders, vendors, currencies, products, u
         XLSX.writeFile(workbook, `PurchaseOrder_${data.po_number || 'New'}.xlsx`);
     };
 
+    const breadcrumbs = [
+        { label: 'Dashboard', href: route('admin.dashboard') },
+        { label: 'Purchases', href: '#' },
+        { label: 'Purchase Orders', onClick: () => setMode('list') }
+    ];
+
+    if (mode === 'create') breadcrumbs.push({ label: 'New Order' });
+    if (mode === 'edit') breadcrumbs.push({ label: `Edit Order ${data.po_number || ''}` });
+
+    const filtersContent = (
+        <div className="purchase-orders-module__header">
+            <h1>
+                {mode === 'list' ? 'Purchase Orders' : 
+                 mode === 'create' ? 'Create New Order' : 'Edit Order'}
+            </h1>
+            {mode === 'list' && (
+                <button className="btn-add" onClick={handleCreate}>
+                    + Create Order
+                </button>
+            )}
+            {mode !== 'list' && (
+                <div className="header-actions" style={{display: 'flex', gap: '10px'}}>
+                    <button type="button" className="btn-action btn-print" onClick={handlePrint} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                        <span>🖨</span> Print
+                    </button>
+                    <button type="button" className="btn-action btn-pdf" onClick={handleExportPDF} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                        <span>📄</span> PDF
+                    </button>
+                    <button type="button" className="btn-action btn-excel" onClick={handleExportExcel} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
+                        <span>📊</span> Excel
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+
     return (
         <AdminLayout>
             <Head title="Purchase Orders" />
             
-            <div className="purchase-orders-module">
-                <div className="purchase-orders-module__header">
-                    <h1>Purchase Orders</h1>
-                    {mode === 'list' && (
-                    <button className="btn-add" onClick={handleCreate}>
-                        + Create Order
-                    </button>
-                )}
-                {mode !== 'list' && (
-                    <div className="header-actions" style={{display: 'flex', gap: '10px'}}>
-                        <button type="button" className="btn-action btn-print" onClick={handlePrint} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                            <span>🖨</span> Print
-                        </button>
-                        <button type="button" className="btn-action btn-pdf" onClick={handleExportPDF} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                            <span>📄</span> PDF
-                        </button>
-                        <button type="button" className="btn-action btn-excel" onClick={handleExportExcel} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                            <span>📊</span> Excel
-                        </button>
-                    </div>
-                )}
-            </div>
+            <BlankPage breadcrumbs={breadcrumbs} filters={filtersContent}>
+                <div className="purchase-orders-module">
+                    {flash.success && (
+                        <div className="alert alert-success">{flash.success}</div>
+                    )}
+                    {flash.error && (
+                        <div className="alert alert-error">{flash.error}</div>
+                    )}
 
-                {flash.success && (
-                    <div className="alert alert-success">{flash.success}</div>
-                )}
-                {flash.error && (
-                    <div className="alert alert-error">{flash.error}</div>
-                )}
-
-                {mode === 'list' ? (
-                    <div className="purchase-orders-module__table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Ref #</th>
-                                    <th>Date</th>
-                                    <th>Vendor</th>
-                                    <th>Status</th>
-                                    <th>Total</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {orders.data.map((order) => (
-                                    <tr key={order.id}>
-                                        <td>{order.po_number}</td>
-                                        <td>{formatDate(order.po_date)}</td>
-                                        <td>{order.vendor?.name_en || order.vendor?.name_ar}</td>
-                                        <td>
-                                            <span className={`status-badge status-${order.status}`}>
-                                                {order.status.replace('_', ' ')}
-                                            </span>
-                                        </td>
-                                        <td>{order.grand_total} {order.currency?.code}</td>
-                                        <td className="actions">
-                                            <button className="edit" onClick={() => handleEdit(order)}>Edit</button>
-                                            <button className="delete" onClick={() => handleDelete(order.id)}>Delete</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {orders.data.length === 0 && (
+                    {mode === 'list' ? (
+                        <div className="purchase-orders-module__table-container">
+                            <table>
+                                <thead>
                                     <tr>
-                                        <td colSpan="6" style={{ textAlign: 'center' }}>No orders found.</td>
+                                        <th>Ref #</th>
+                                        <th>Date</th>
+                                        <th>Vendor</th>
+                                        <th>Status</th>
+                                        <th>Total</th>
+                                        <th>Actions</th>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                ) : (
-                    <>
-                    <form ref={invoiceRef} onSubmit={handleSubmit} className="invoice-container">
-                        
-                        {/* 1. Invoice Header */}
-                        <div className="invoice-header">
-                            <div className="company-info">
-                                <h2>PURCHASE ORDER</h2>
-                                <p>Zodic ERP System</p>
-                            </div>
-                            <div className="invoice-meta">
-                                <label>Order #</label>
-                                <input type="text" value={data.po_number} disabled placeholder="Auto-generated" />
-                                
-                                <label>Date <span className="required">*</span></label>
-                                <input 
-                                    type="date" 
-                                    value={data.po_date} 
-                                    onChange={e => setData('po_date', e.target.value)}
-                                    className={errors.po_date ? 'error' : ''}
-                                />
-                                
-                                <label>Expected Delivery</label>
-                                <input 
-                                    type="date" 
-                                    value={data.expected_delivery_date} 
-                                    onChange={e => setData('expected_delivery_date', e.target.value)} 
-                                />
-                            </div>
+                                </thead>
+                                <tbody>
+                                    {orders.data.map((order) => (
+                                        <tr key={order.id}>
+                                            <td>{order.po_number}</td>
+                                            <td>{formatDate(order.po_date)}</td>
+                                            <td>{order.vendor?.name_en || order.vendor?.name_ar}</td>
+                                            <td>
+                                                <span className={`status-badge status-${order.status}`}>
+                                                    {order.status.replace('_', ' ')}
+                                                </span>
+                                            </td>
+                                            <td>{order.grand_total} {order.currency?.code}</td>
+                                            <td className="actions">
+                                                <button className="edit" onClick={() => handleEdit(order)}>Edit</button>
+                                                <button className="delete" onClick={() => handleDelete(order.id)}>Delete</button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {orders.data.length === 0 && (
+                                        <tr>
+                                            <td colSpan="6" style={{ textAlign: 'center' }}>No orders found.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
-
-                        {/* 2. Info Grid (Vendor, Currency, Status) */}
-                        <div className="invoice-info-grid">
-                            <div className="info-section">
-                                <h3>Vendor Details</h3>
-                                <div className="form-group">
-                                    <label>Vendor Name <span className="required">*</span></label>
-                                    <select 
-                                        value={data.vendor_id} 
-                                        onChange={e => setData('vendor_id', e.target.value)}
-                                        className={errors.vendor_id ? 'error' : ''}
-                                    >
-                                        <option value="">Select Vendor</option>
-                                        {vendors.map(v => (
-                                            <option key={v.id} value={v.id}>{v.name_en} - {v.name_ar}</option>
-                                        ))}
-                                    </select>
-                                    {errors.vendor_id && <span className="error-msg">{errors.vendor_id}</span>}
+                    ) : (
+                        <>
+                        <form ref={invoiceRef} onSubmit={handleSubmit} className="invoice-container">
+                            
+                            {/* 1. Invoice Header */}
+                            <div className="invoice-header">
+                                <div className="company-info">
+                                    <h2>PURCHASE ORDER</h2>
+                                    <p>Zodic ERP System</p>
                                 </div>
-                                <div className="form-group" style={{marginTop: '1rem'}}>
-                                    <label>Notes</label>
-                                    <textarea 
-                                        value={data.notes} 
-                                        onChange={e => setData('notes', e.target.value)} 
-                                        rows="2"
-                                        placeholder="Internal notes..."
-                                    ></textarea>
+                                <div className="invoice-meta">
+                                    <label>Order #</label>
+                                    <input type="text" value={data.po_number} disabled placeholder="Auto-generated" />
+                                    
+                                    <label>Date <span className="required">*</span></label>
+                                    <input 
+                                        type="date" 
+                                        value={data.po_date} 
+                                        onChange={e => setData('po_date', e.target.value)}
+                                        className={errors.po_date ? 'error' : ''}
+                                    />
+                                    
+                                    <label>Expected Delivery</label>
+                                    <input 
+                                        type="date" 
+                                        value={data.expected_delivery_date} 
+                                        onChange={e => setData('expected_delivery_date', e.target.value)} 
+                                    />
                                 </div>
                             </div>
 
-                            <div className="info-section">
-                                <h3>Settings & Currency</h3>
-                                <div className="form-grid">
+                            {/* 2. Info Grid (Vendor, Currency, Status) */}
+                            <div className="invoice-info-grid">
+                                <div className="info-section">
+                                    <h3>Vendor Details</h3>
                                     <div className="form-group">
-                                        <label>Currency</label>
-                                        <select value={data.currency_id} onChange={e => setData('currency_id', e.target.value)}>
-                                            <option value="">Select Currency</option>
-                                            {currencies.map(c => (
-                                                <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
+                                        <label>Vendor Name <span className="required">*</span></label>
+                                        <select 
+                                            value={data.vendor_id} 
+                                            onChange={e => setData('vendor_id', e.target.value)}
+                                            className={errors.vendor_id ? 'error' : ''}
+                                        >
+                                            <option value="">Select Vendor</option>
+                                            {vendors.map(v => (
+                                                <option key={v.id} value={v.id}>{v.name_en} - {v.name_ar}</option>
                                             ))}
                                         </select>
+                                        {errors.vendor_id && <span className="error-msg">{errors.vendor_id}</span>}
                                     </div>
-                                    <div className="form-group">
-                                        <label>Exchange Rate</label>
-                                        <input type="number" step="0.000001" value={data.exchange_rate} onChange={e => setData('exchange_rate', e.target.value)} />
+                                    <div className="form-group" style={{marginTop: '1rem'}}>
+                                        <label>Notes</label>
+                                        <textarea 
+                                            value={data.notes} 
+                                            onChange={e => setData('notes', e.target.value)} 
+                                            rows="2"
+                                            placeholder="Internal notes..."
+                                        ></textarea>
                                     </div>
-                                    <div className="form-group">
-                                        <label>Status</label>
-                                        <select value={data.status} onChange={e => setData('status', e.target.value)}>
-                                            <option value="draft">Draft</option>
-                                            <option value="pending_approval">Pending Approval</option>
-                                            <option value="approved">Approved</option>
-                                            <option value="sent_to_vendor">Sent to Vendor</option>
-                                            <option value="partially_received">Partially Received</option>
-                                            <option value="fully_received">Fully Received</option>
-                                            <option value="invoiced">Invoiced</option>
-                                            <option value="closed">Closed</option>
-                                            <option value="cancelled">Cancelled</option>
-                                        </select>
-                                    </div>
-                                     <div className="form-group">
-                                        <label>Priority</label>
-                                        <select value={data.priority} onChange={e => setData('priority', e.target.value)}>
-                                            <option value="low">Low</option>
-                                            <option value="medium">Medium</option>
-                                            <option value="high">High</option>
-                                        </select>
+                                </div>
+
+                                <div className="info-section">
+                                    <h3>Settings & Currency</h3>
+                                    <div className="form-grid">
+                                        <div className="form-group">
+                                            <label>Currency</label>
+                                            <select value={data.currency_id} onChange={e => setData('currency_id', e.target.value)}>
+                                                <option value="">Select Currency</option>
+                                                {currencies.map(c => (
+                                                    <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Exchange Rate</label>
+                                            <input type="number" step="0.000001" value={data.exchange_rate} onChange={e => setData('exchange_rate', e.target.value)} />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Status</label>
+                                            <select value={data.status} onChange={e => setData('status', e.target.value)}>
+                                                <option value="draft">Draft</option>
+                                                <option value="pending_approval">Pending Approval</option>
+                                                <option value="approved">Approved</option>
+                                                <option value="sent_to_vendor">Sent to Vendor</option>
+                                                <option value="partially_received">Partially Received</option>
+                                                <option value="fully_received">Fully Received</option>
+                                                <option value="invoiced">Invoiced</option>
+                                                <option value="closed">Closed</option>
+                                                <option value="cancelled">Cancelled</option>
+                                            </select>
+                                        </div>
+                                         <div className="form-group">
+                                            <label>Priority</label>
+                                            <select value={data.priority} onChange={e => setData('priority', e.target.value)}>
+                                                <option value="low">Low</option>
+                                                <option value="medium">Medium</option>
+                                                <option value="high">High</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* 3. Items Table */}
-                        <div className="invoice-items-section">
-                            <div className="items-table-wrapper">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th className="text-center" style={{width: '50px'}}>#</th>
-                                            <th style={{width: '25%'}}>Product</th>
-                                            <th>Description</th>
-                                            <th className="text-center" style={{width: '80px'}}>Qty</th>
-                                            <th style={{width: '100px'}}>Unit</th>
-                                            <th className="text-right" style={{width: '120px'}}>Price</th>
-                                            <th className="text-right" style={{width: '100px'}}>Discount</th>
-                                            <th className="text-center" style={{width: '80px'}}>Tax %</th>
-                                            <th className="text-right" style={{width: '100px'}}>Tax Amt</th>
-                                            <th className="text-right" style={{width: '120px'}}>Total</th>
-                                            <th className="text-center" style={{width: '50px'}}></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {data.items.map((item, index) => (
-                                            <tr key={index}>
-                                                <td className="text-center">{index + 1}</td>
-                                                <td>
-                                                    <SearchableComboBox
-                                                        options={productOptions}
-                                                        value={item.product_id ? String(item.product_id) : ''}
-                                                        onChange={(val) => handleItemChange(index, 'product_id', val)}
-                                                        placeholder="Select Product"
-                                                    />
-                                                </td>
-                                                <td>
-                                                    <input 
-                                                        type="text" 
-                                                        placeholder="Description" 
-                                                        value={item.item_name_ar} 
-                                                        onChange={e => handleItemChange(index, 'item_name_ar', e.target.value)}
-                                                    />
-                                                </td>
-                                                <td>
-                                                    <input 
-                                                        type="number" 
-                                                        className="text-center"
-                                                        value={item.quantity} 
-                                                        onChange={e => handleItemChange(index, 'quantity', e.target.value)}
-                                                    />
-                                                </td>
-                                                <td>
-                                                    <SearchableComboBox
-                                                        options={unitOptions}
-                                                        value={item.unit_id ? String(item.unit_id) : ''}
-                                                        onChange={(val) => handleItemChange(index, 'unit_id', val)}
-                                                        placeholder="Unit"
-                                                    />
-                                                </td>
-                                                <td>
-                                                    <input 
-                                                        type="number" 
-                                                        className="text-right"
-                                                        value={item.unit_price} 
-                                                        onChange={e => handleItemChange(index, 'unit_price', e.target.value)}
-                                                    />
-                                                </td>
-                                                <td>
-                                                    <input 
-                                                        type="number" 
-                                                        className="text-right"
-                                                        value={item.discount_amount} 
-                                                        onChange={e => handleItemChange(index, 'discount_amount', e.target.value)}
-                                                    />
-                                                </td>
-                                                <td>
-                                                    <input 
-                                                        type="number" 
-                                                        className="text-center"
-                                                        value={item.tax_percent} 
-                                                        onChange={e => handleItemChange(index, 'tax_percent', e.target.value)}
-                                                    />
-                                                </td>
-                                                <td className="text-right">
-                                                    {Number(item.tax_amount || 0).toFixed(2)}
-                                                </td>
-                                                <td className="text-right font-bold">
-                                                    {Number(item.line_total || 0).toFixed(2)}
-                                                </td>
-                                                <td className="text-center">
-                                                    <button type="button" className="btn-remove" onClick={() => removeItem(index)} style={{color: 'var(--danger-color)', border:'none', background:'none', cursor:'pointer', fontSize:'1.2rem'}}>×</button>
-                                                </td>
+                            {/* 3. Items Table */}
+                            <div className="invoice-items-section">
+                                <div className="items-table-wrapper">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th className="text-center" style={{width: '50px'}}>#</th>
+                                                <th style={{width: '25%'}}>Product</th>
+                                                <th>Description</th>
+                                                <th className="text-center" style={{width: '80px'}}>Qty</th>
+                                                <th style={{width: '100px'}}>Unit</th>
+                                                <th className="text-right" style={{width: '120px'}}>Price</th>
+                                                <th className="text-right" style={{width: '100px'}}>Discount</th>
+                                                <th className="text-center" style={{width: '80px'}}>Tax %</th>
+                                                <th className="text-right" style={{width: '100px'}}>Tax Amt</th>
+                                                <th className="text-right" style={{width: '120px'}}>Total</th>
+                                                <th className="text-center" style={{width: '50px'}}></th>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                                        </thead>
+                                        <tbody>
+                                            {data.items.map((item, index) => (
+                                                <tr key={index}>
+                                                    <td className="text-center">{index + 1}</td>
+                                                    <td>
+                                                        <SearchableComboBox
+                                                            options={productOptions}
+                                                            value={item.product_id ? String(item.product_id) : ''}
+                                                            onChange={(val) => handleItemChange(index, 'product_id', val)}
+                                                            placeholder="Select Product"
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="Description" 
+                                                            value={item.item_name_ar} 
+                                                            onChange={e => handleItemChange(index, 'item_name_ar', e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input 
+                                                            type="number" 
+                                                            className="text-center"
+                                                            value={item.quantity} 
+                                                            onChange={e => handleItemChange(index, 'quantity', e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <SearchableComboBox
+                                                            options={unitOptions}
+                                                            value={item.unit_id ? String(item.unit_id) : ''}
+                                                            onChange={(val) => handleItemChange(index, 'unit_id', val)}
+                                                            placeholder="Unit"
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input 
+                                                            type="number" 
+                                                            className="text-right"
+                                                            value={item.unit_price} 
+                                                            onChange={e => handleItemChange(index, 'unit_price', e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input 
+                                                            type="number" 
+                                                            className="text-right"
+                                                            value={item.discount_amount} 
+                                                            onChange={e => handleItemChange(index, 'discount_amount', e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td>
+                                                        <input 
+                                                            type="number" 
+                                                            className="text-center"
+                                                            value={item.tax_percent} 
+                                                            onChange={e => handleItemChange(index, 'tax_percent', e.target.value)}
+                                                        />
+                                                    </td>
+                                                    <td className="text-right">
+                                                        {Number(item.tax_amount || 0).toFixed(2)}
+                                                    </td>
+                                                    <td className="text-right font-bold">
+                                                        {Number(item.line_total || 0).toFixed(2)}
+                                                    </td>
+                                                    <td className="text-center">
+                                                        <button type="button" className="btn-remove" onClick={() => removeItem(index)} style={{color: 'var(--danger-color)', border:'none', background:'none', cursor:'pointer', fontSize:'1.2rem'}}>×</button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div className="add-item-row">
+                                    <button type="button" className="btn-add-item" onClick={addItem}>
+                                        <span>+ Add Line Item</span>
+                                    </button>
+                                </div>
                             </div>
-                            <div className="add-item-row">
-                                <button type="button" className="btn-add-item" onClick={addItem}>
-                                    <span>+ Add Line Item</span>
+
+                            {/* 4. Footer Section (Terms & Totals) */}
+                            <div className="invoice-footer-section">
+                                <div className="invoice-terms">
+                                    <h4>Terms & Conditions</h4>
+                                    <div className="terms-grid">
+                                        <div className="form-group">
+                                            <label>Payment Terms</label>
+                                            <select 
+                                                value={data.payment_terms_id} 
+                                                onChange={e => setData('payment_terms_id', e.target.value)}
+                                            >
+                                                <option value="">Select Terms</option>
+                                                {paymentTerms && paymentTerms.map(t => (
+                                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Delivery Terms</label>
+                                            <select 
+                                                value={data.delivery_terms_id} 
+                                                onChange={e => setData('delivery_terms_id', e.target.value)}
+                                            >
+                                                <option value="">Select Terms</option>
+                                                {deliveryTerms && deliveryTerms.map(t => (
+                                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Shipping Method</label>
+                                        <input 
+                                            type="text" 
+                                            value={data.shipping_method} 
+                                            onChange={e => setData('shipping_method', e.target.value)} 
+                                            placeholder="e.g. Air Freight"
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Additional Terms</label>
+                                        <textarea 
+                                            value={data.terms_and_conditions} 
+                                            onChange={e => setData('terms_and_conditions', e.target.value)} 
+                                            placeholder="Enter any specific terms and conditions..."
+                                        ></textarea>
+                                    </div>
+                                </div>
+
+                                <div className="invoice-totals">
+                                    <div className="total-row">
+                                        <span className="label">Subtotal</span>
+                                        <span>{Number(data.subtotal || 0).toFixed(2)}</span>
+                                    </div>
+                                    <div className="total-row">
+                                        <span className="label">Tax</span>
+                                        <span>{Number(data.tax_amount || 0).toFixed(2)}</span>
+                                    </div>
+                                    <div className="total-row">
+                                        <span className="label">Discount</span>
+                                        <input 
+                                            type="number" 
+                                            value={data.discount_amount} 
+                                            onChange={e => setData('discount_amount', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="total-row">
+                                        <span className="label">Shipping</span>
+                                        <input 
+                                            type="number" 
+                                            value={data.shipping_charges} 
+                                            onChange={e => setData('shipping_charges', e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="total-row grand-total">
+                                        <span className="label">Grand Total</span>
+                                        <input type="text" value={Number(data.grand_total || 0).toFixed(2)} readOnly />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 5. Sticky Actions Footer */}
+                            <div className="sticky-actions-footer">
+                                <button type="button" className="btn btn-cancel" onClick={() => setMode('list')}>Cancel</button>
+                                <button type="submit" className="btn btn-save" disabled={processing}>
+                                    {processing ? 'Saving...' : 'Save Order'}
                                 </button>
                             </div>
-                        </div>
+                        </form>
 
-                        {/* 4. Footer Section (Terms & Totals) */}
-                        <div className="invoice-footer-section">
-                            <div className="invoice-terms">
-                                <h4>Terms & Conditions</h4>
-                                <div className="terms-grid">
-                                    <div className="form-group">
-                                        <label>Payment Terms</label>
-                                        <select 
-                                            value={data.payment_terms_id} 
-                                            onChange={e => setData('payment_terms_id', e.target.value)}
-                                        >
-                                            <option value="">Select Terms</option>
-                                            {paymentTerms && paymentTerms.map(t => (
-                                                <option key={t.id} value={t.id}>{t.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-group">
-                                        <label>Delivery Terms</label>
-                                        <select 
-                                            value={data.delivery_terms_id} 
-                                            onChange={e => setData('delivery_terms_id', e.target.value)}
-                                        >
-                                            <option value="">Select Terms</option>
-                                            {deliveryTerms && deliveryTerms.map(t => (
-                                                <option key={t.id} value={t.id}>{t.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                        {/* HIDDEN PRINTABLE INVOICE - Only Visible on Print/PDF */}
+                        <div className="printable-invoice" ref={printRef}>
+                            {/* Header */}
+                            <div className="print-header">
+                                <div className="company-branding">
+                                    <h1>Zodic ERP System</h1>
+                                    <p>123 Business Road, City, Country</p>
+                                    <p>Phone: +1 234 567 890</p>
                                 </div>
-                                <div className="form-group">
-                                    <label>Shipping Method</label>
-                                    <input 
-                                        type="text" 
-                                        value={data.shipping_method} 
-                                        onChange={e => setData('shipping_method', e.target.value)} 
-                                        placeholder="e.g. Air Freight"
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label>Additional Terms</label>
-                                    <textarea 
-                                        value={data.terms_and_conditions} 
-                                        onChange={e => setData('terms_and_conditions', e.target.value)} 
-                                        placeholder="Enter any specific terms and conditions..."
-                                    ></textarea>
+                                <div className="doc-info">
+                                    <h2>PURCHASE ORDER</h2>
+                                    <div className="meta-row"><span className="label">Order #:</span> {data.po_number || 'DRAFT'}</div>
+                                    <div className="meta-row"><span className="label">Date:</span> {data.po_date}</div>
+                                    <div className="meta-row"><span className="label">Expected Delivery:</span> {data.expected_delivery_date}</div>
                                 </div>
                             </div>
 
-                            <div className="invoice-totals">
-                                <div className="total-row">
-                                    <span className="label">Subtotal</span>
-                                    <span>{Number(data.subtotal || 0).toFixed(2)}</span>
+                            {/* Meta Grid */}
+                            <div className="print-meta-grid">
+                                <div className="meta-box">
+                                    <h3>Vendor Details</h3>
+                                    <p><strong>Name:</strong> {vendors.find(v => v.id == data.vendor_id)?.name_en || 'N/A'}</p>
+                                    <p><strong>Phone:</strong> {vendors.find(v => v.id == data.vendor_id)?.phone || 'N/A'}</p>
+                                    <p><strong>Address:</strong> {vendors.find(v => v.id == data.vendor_id)?.address || 'N/A'}</p>
                                 </div>
-                                <div className="total-row">
-                                    <span className="label">Tax</span>
-                                    <span>{Number(data.tax_amount || 0).toFixed(2)}</span>
-                                </div>
-                                <div className="total-row">
-                                    <span className="label">Discount</span>
-                                    <input 
-                                        type="number" 
-                                        value={data.discount_amount} 
-                                        onChange={e => setData('discount_amount', e.target.value)}
-                                    />
-                                </div>
-                                <div className="total-row">
-                                    <span className="label">Shipping</span>
-                                    <input 
-                                        type="number" 
-                                        value={data.shipping_charges} 
-                                        onChange={e => setData('shipping_charges', e.target.value)}
-                                    />
-                                </div>
-                                <div className="total-row grand-total">
-                                    <span className="label">Grand Total</span>
-                                    <input type="text" value={Number(data.grand_total || 0).toFixed(2)} readOnly />
+                                <div className="meta-box" style={{textAlign: 'right'}}>
+                                    <h3>Order Details</h3>
+                                    <p><strong>Currency:</strong> {currencies.find(c => c.id == data.currency_id)?.code || 'N/A'}</p>
+                                    <p><strong>Exchange Rate:</strong> {data.exchange_rate}</p>
+                                    <p><strong>Status:</strong> <span style={{textTransform: 'uppercase'}}>{data.status}</span></p>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* 5. Sticky Actions Footer */}
-                        <div className="sticky-actions-footer">
-                            <button type="button" className="btn btn-cancel" onClick={() => setMode('list')}>Cancel</button>
-                            <button type="submit" className="btn btn-save" disabled={processing}>
-                                {processing ? 'Saving...' : 'Save Order'}
-                            </button>
-                        </div>
-                    </form>
-
-                    {/* HIDDEN PRINTABLE INVOICE - Only Visible on Print/PDF */}
-                    <div className="printable-invoice" ref={printRef}>
-                        {/* Header */}
-                        <div className="print-header">
-                            <div className="company-branding">
-                                <h1>Zodic ERP System</h1>
-                                <p>123 Business Road, City, Country</p>
-                                <p>Phone: +1 234 567 890</p>
-                            </div>
-                            <div className="doc-info">
-                                <h2>PURCHASE ORDER</h2>
-                                <div className="meta-row"><span className="label">Order #:</span> {data.po_number || 'DRAFT'}</div>
-                                <div className="meta-row"><span className="label">Date:</span> {data.po_date}</div>
-                                <div className="meta-row"><span className="label">Expected Delivery:</span> {data.expected_delivery_date}</div>
-                            </div>
-                        </div>
-
-                        {/* Meta Grid */}
-                        <div className="print-meta-grid">
-                            <div className="meta-box">
-                                <h3>Vendor Details</h3>
-                                <p><strong>Name:</strong> {vendors.find(v => v.id == data.vendor_id)?.name_en || 'N/A'}</p>
-                                <p><strong>Phone:</strong> {vendors.find(v => v.id == data.vendor_id)?.phone || 'N/A'}</p>
-                                <p><strong>Address:</strong> {vendors.find(v => v.id == data.vendor_id)?.address || 'N/A'}</p>
-                            </div>
-                            <div className="meta-box" style={{textAlign: 'right'}}>
-                                <h3>Order Details</h3>
-                                <p><strong>Currency:</strong> {currencies.find(c => c.id == data.currency_id)?.code || 'N/A'}</p>
-                                <p><strong>Exchange Rate:</strong> {data.exchange_rate}</p>
-                                <p><strong>Status:</strong> <span style={{textTransform: 'uppercase'}}>{data.status}</span></p>
-                            </div>
-                        </div>
-
-                        {/* Table */}
-                        <table className="print-table">
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>Product / Description</th>
-                                    <th className="text-center">Qty</th>
-                                    <th className="text-center">Unit</th>
-                                    <th className="text-right">Price</th>
-                                    <th className="text-right">Disc.</th>
-                                    <th className="text-center">Tax %</th>
-                                    <th className="text-right">Tax Amt</th>
-                                    <th className="text-right">Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {data.items.map((item, index) => (
-                                    <tr key={index}>
-                                        <td>{index + 1}</td>
-                                        <td>
-                                            <div className="font-bold">{products.find(p => p.id == item.product_id)?.name_en || ''}</div>
-                                            <div style={{fontSize: '9pt', color: '#666'}}>{item.item_name_ar}</div>
-                                        </td>
-                                        <td className="text-center">{Number(item.quantity)}</td>
-                                        <td className="text-center">{units.find(u => u.id == item.unit_id)?.name_en || ''}</td>
-                                        <td className="text-right">{Number(item.unit_price).toFixed(2)}</td>
-                                        <td className="text-right">{Number(item.discount_amount).toFixed(2)}</td>
-                                        <td className="text-center">{Number(item.tax_percent)}%</td>
-                                        <td className="text-right">{Number(item.tax_amount).toFixed(2)}</td>
-                                        <td className="text-right font-bold">{Number(item.line_total).toFixed(2)}</td>
+                            {/* Table */}
+                            <table className="print-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Product / Description</th>
+                                        <th className="text-center">Qty</th>
+                                        <th className="text-center">Unit</th>
+                                        <th className="text-right">Price</th>
+                                        <th className="text-right">Disc.</th>
+                                        <th className="text-center">Tax %</th>
+                                        <th className="text-right">Tax Amt</th>
+                                        <th className="text-right">Total</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    {data.items.map((item, index) => (
+                                        <tr key={index}>
+                                            <td>{index + 1}</td>
+                                            <td>
+                                                <div className="font-bold">{products.find(p => p.id == item.product_id)?.name_en || ''}</div>
+                                                <div style={{fontSize: '9pt', color: '#666'}}>{item.item_name_ar}</div>
+                                            </td>
+                                            <td className="text-center">{Number(item.quantity)}</td>
+                                            <td className="text-center">{units.find(u => u.id == item.unit_id)?.name_en || ''}</td>
+                                            <td className="text-right">{Number(item.unit_price).toFixed(2)}</td>
+                                            <td className="text-right">{Number(item.discount_amount).toFixed(2)}</td>
+                                            <td className="text-center">{Number(item.tax_percent)}%</td>
+                                            <td className="text-right">{Number(item.tax_amount).toFixed(2)}</td>
+                                            <td className="text-right font-bold">{Number(item.line_total).toFixed(2)}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
 
-                        {/* Totals */}
-                        <div className="print-totals">
-                            <div className="totals-box">
-                                <div className="row">
-                                    <span>Subtotal:</span>
-                                    <span>{Number(data.subtotal).toFixed(2)}</span>
+                            {/* Totals */}
+                            <div className="print-totals">
+                                <div className="totals-box">
+                                    <div className="row">
+                                        <span>Subtotal:</span>
+                                        <span>{Number(data.subtotal).toFixed(2)}</span>
+                                    </div>
+                                    <div className="row">
+                                        <span>Tax:</span>
+                                        <span>{Number(data.tax_amount).toFixed(2)}</span>
+                                    </div>
+                                    <div className="row">
+                                        <span>Discount:</span>
+                                        <span>{Number(data.discount_amount).toFixed(2)}</span>
+                                    </div>
+                                    <div className="row">
+                                        <span>Shipping:</span>
+                                        <span>{Number(data.shipping_charges).toFixed(2)}</span>
+                                    </div>
+                                    <div className="row grand-total">
+                                        <span>Grand Total:</span>
+                                        <span>{Number(data.grand_total).toFixed(2)}</span>
+                                    </div>
                                 </div>
-                                <div className="row">
-                                    <span>Tax:</span>
-                                    <span>{Number(data.tax_amount).toFixed(2)}</span>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="print-footer">
+                                <div className="notes-section">
+                                    <h4>Terms & Conditions / Notes</h4>
+                                    <p>{data.terms_and_conditions || data.notes || 'No specific terms.'}</p>
                                 </div>
-                                <div className="row">
-                                    <span>Discount:</span>
-                                    <span>{Number(data.discount_amount).toFixed(2)}</span>
-                                </div>
-                                <div className="row">
-                                    <span>Shipping:</span>
-                                    <span>{Number(data.shipping_charges).toFixed(2)}</span>
-                                </div>
-                                <div className="row grand-total">
-                                    <span>Grand Total:</span>
-                                    <span>{Number(data.grand_total).toFixed(2)}</span>
+                                <div className="signatures">
+                                    <div className="sign-box">Authorized Signature</div>
+                                    <div className="sign-box">Vendor Acceptance</div>
                                 </div>
                             </div>
                         </div>
-
-                        {/* Footer */}
-                        <div className="print-footer">
-                            <div className="notes-section">
-                                <h4>Terms & Conditions / Notes</h4>
-                                <p>{data.terms_and_conditions || data.notes || 'No specific terms.'}</p>
-                            </div>
-                            <div className="signatures">
-                                <div className="sign-box">Authorized Signature</div>
-                                <div className="sign-box">Vendor Acceptance</div>
-                            </div>
-                        </div>
-                    </div>
-                    </>
-                )}
-            </div>
+                        </>
+                    )}
+                </div>
+            </BlankPage>
         </AdminLayout>
     );
 }

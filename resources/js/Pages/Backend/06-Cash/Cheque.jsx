@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
 import '../../../../css/backend/main.scss';
 
@@ -20,7 +20,6 @@ const formatDate = (dateString, includeTime = false) => {
 };
 
 const Cheque = ({ cheques = { data: [] }, filters = {}, stats = {}, accounts = [] }) => {
-    const { props } = usePage();
     
     // State management following Employees.jsx pattern
     const [showForm, setShowForm] = useState(false);
