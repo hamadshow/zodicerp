@@ -185,6 +185,7 @@ const AdminLayout = ({
       label: translations['sidebar.bank_cash'] || 'Bank and Cash',
       hasSubmenu: true,
       submenuItems: [
+        { icon: 'dashboard', label: translations['sidebar.treasury_dashboard'] || 'Dashboard', href: getLocalizedRoute('admin.treasury.dashboard') },
         { icon: 'account_balance_wallet', label: translations['sidebar.cash'] || 'Cash', href: getLocalizedRoute('admin.petty-cash.index') },
         { icon: 'account_balance', label: translations['sidebar.banks'] || 'Banks', href: getLocalizedRoute('admin.banks.index') },
         { icon: 'payments', label: translations['sidebar.cheque'] || 'Cheque', href: getLocalizedRoute('admin.cheques.index') },

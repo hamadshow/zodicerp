@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import Table from '../components/Table';
+import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import { apiService } from '../../../services/api';
 import { formatDate } from '@/utils/date';
@@ -420,21 +422,114 @@ const EmployeesManagement = () => {
   };
 
   // Bulk actions
-  const handleSelectAll = (checked) => {
-    if (checked) {
-      setSelectedIds(filteredEmployees.map((emp) => emp.id));
-    } else {
+  const handleSelectAll = () => {
+    if (selectedIds.length === (paginatedEmployees || []).length && (paginatedEmployees || []).length > 0) {
       setSelectedIds([]);
+    } else {
+      setSelectedIds((paginatedEmployees || []).map((emp) => emp.id));
     }
   };
 
-  const handleCheckboxChange = (id, checked) => {
-    if (checked) {
-      setSelectedIds((prev) => [...prev, id]);
-    } else {
-      setSelectedIds((prev) => prev.filter((itemId) => itemId !== id));
-    }
+  const handleRowSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]
+    );
   };
+
+  const columns = useMemo(() => [
+    { 
+      header: 'ID', 
+      key: 'id', 
+      sortable: true,
+      render: (emp) => emp.id.toString().padStart(3, '0')
+    },
+    { 
+      header: 'EMPLOYEE', 
+      key: 'employee', 
+      sortable: true,
+      render: (emp) => (
+        <div className="employee-info">
+          <div className="employee-avatar">
+            {emp.avatar ? (
+              <img
+                src={resolveMediaUrl(emp.avatar)}
+                alt={`${emp.first_name} ${emp.last_name}`}
+              />
+            ) : (
+              <span
+                className="material-icons-outlined"
+                style={{ color: '#94a3b8' }}
+              >
+                person
+              </span>
+            )}
+          </div>
+          <div className="employee-details">
+            <div className="employee-name">
+              {emp.first_name} {emp.last_name}
+            </div>
+            <div className="employee-position">{emp.email}</div>
+          </div>
+        </div>
+      )
+    },
+    { 
+      header: 'ROLE', 
+      key: 'role', 
+      sortable: true,
+      render: (emp) => <span style={{ textTransform: 'capitalize' }}>{emp.role || 'Employee'}</span>
+    },
+    { 
+      header: 'DEPARTMENT', 
+      key: 'department', 
+      sortable: true,
+      render: (emp) => (
+        <span className="department-badge">
+          {departmentNames[emp.department] || emp.department}
+        </span>
+      )
+    },
+    { header: 'POSITION', key: 'position', sortable: true },
+    { 
+      header: 'SALARY', 
+      key: 'salary', 
+      sortable: true,
+      render: (emp) => (
+        <div className="salary-display">
+          ${emp.salary?.toLocaleString() || '0'}
+        </div>
+      )
+    },
+    { 
+      header: 'STATUS', 
+      key: 'status', 
+      sortable: true,
+      render: (emp) => (
+        <span className={`employee-status status-${emp.status}`}>
+          {emp.status === 'active'
+            ? 'Active'
+            : emp.status === 'inactive'
+              ? 'Inactive'
+              : emp.status === 'on-leave'
+                ? 'On Leave'
+                : 'Terminated'}
+        </span>
+      )
+    },
+    { 
+      header: 'HIRE DATE', 
+      key: 'hire_date', 
+      sortable: true,
+      render: (emp) => formatDate(emp.hire_date)
+    }
+  ], [isArabic, departmentNames]);
+
+  const tableData = useMemo(() => {
+    return (paginatedEmployees || []).map(emp => ({
+      ...emp,
+      selected: selectedIds.includes(emp.id)
+    }));
+  }, [paginatedEmployees, selectedIds]);
 
   const applyBulkAction = async (action) => {
     if (!action) return;
@@ -496,10 +591,69 @@ const EmployeesManagement = () => {
   };
 
   // Sidebar functions - Removed
+
+  const breadcrumbs = [
+    { label: isArabic ? 'لوحة التحكم' : 'Dashboard', href: '#' },
+    { label: isArabic ? 'الموارد البشرية' : 'Human Resources', href: '#' },
+    { label: isArabic ? 'الموظفين' : 'Employees', active: true }
+  ];
+
+  const statsSection = (
+    <div className="stats-cards">
+      <div className="stat-card">
+        <div
+          className="stat-icon"
+          style={{ backgroundColor: 'var(--info-color)' }}
+        >
+          <span className="material-icons-outlined">people</span>
+        </div>
+        <div className="stat-content">
+          <div className="stat-value">{stats.totalEmployees}</div>
+          <div className="stat-label">Total Employees</div>
+        </div>
+      </div>
+      <div className="stat-card">
+        <div
+          className="stat-icon"
+          style={{ backgroundColor: 'var(--success-color)' }}
+        >
+          <span className="material-icons-outlined">check_circle</span>
+        </div>
+        <div className="stat-content">
+          <div className="stat-value">{stats.activeEmployees}</div>
+          <div className="stat-label">Active Employees</div>
+        </div>
+      </div>
+      <div className="stat-card">
+        <div
+          className="stat-icon"
+          style={{ backgroundColor: 'var(--warning-color)' }}
+        >
+          <span className="material-icons-outlined">flight_takeoff</span>
+        </div>
+        <div className="stat-content">
+          <div className="stat-value">{stats.onLeaveEmployees}</div>
+          <div className="stat-label">On Leave</div>
+        </div>
+      </div>
+      <div className="stat-card">
+        <div
+          className="stat-icon"
+          style={{ backgroundColor: 'var(--primary-color)' }}
+        >
+          <span className="material-icons-outlined">business</span>
+        </div>
+        <div className="stat-content">
+          <div className="stat-value">{stats.totalDepartments}</div>
+          <div className="stat-label">Departments</div>
+        </div>
+      </div>
+    </div>
+  );
   
   return (
     <AdminLayout activeMenu="Employees">
-      <Head title="Employees Management" />
+      <Head title={isArabic ? 'إدارة الموظفين' : 'Employees Management'} />
 
       {/* Toast Notification */}
       {toast && (
@@ -953,66 +1107,10 @@ const EmployeesManagement = () => {
       )}
 
       {!showForm && (
-        <>
-          <div className="breadcrumb">
-            <a href="#">Dashboard</a>
-            <span>/</span>
-            <a href="#">Human Resources</a>
-            <span>/</span>
-            <span>Employees</span>
-          </div>
-
-      {/* Quick Stats */}
-      <div className="stats-cards">
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ backgroundColor: 'var(--info-color)' }}
-          >
-            <span className="material-icons-outlined">people</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.totalEmployees}</div>
-            <div className="stat-label">Total Employees</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ backgroundColor: 'var(--success-color)' }}
-          >
-            <span className="material-icons-outlined">check_circle</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.activeEmployees}</div>
-            <div className="stat-label">Active Employees</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ backgroundColor: 'var(--warning-color)' }}
-          >
-            <span className="material-icons-outlined">flight_takeoff</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.onLeaveEmployees}</div>
-            <div className="stat-label">On Leave</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ backgroundColor: 'var(--primary-color)' }}
-          >
-            <span className="material-icons-outlined">business</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.totalDepartments}</div>
-            <div className="stat-label">Departments</div>
-          </div>
-        </div>
-      </div>
+        <BlankPage 
+          breadcrumbs={breadcrumbs}
+          stats={statsSection}
+        >
 
       {/* Main Card */}
       <div className="employees-card fade-in">
@@ -1059,151 +1157,19 @@ const EmployeesManagement = () => {
           </div>
         </div>
 
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>
-                  <input
-                    type="checkbox"
-                    id="selectAll"
-                    checked={
-                      selectedIds.length === (paginatedEmployees || []).length &&
-                      (paginatedEmployees || []).length > 0
-                    }
-                    onChange={(e) => handleSelectAll(e.target.checked)}
-                  />
-                </th>
-                <th>ID</th>
-                <th>EMPLOYEE</th>
-                <th>ROLE</th>
-                <th>DEPARTMENT</th>
-                <th>POSITION</th>
-                <th>SALARY</th>
-                <th>STATUS</th>
-                <th>HIRE DATE</th>
-                <th>OPERATIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(paginatedEmployees || []).length === 0 ? (
-                <tr>
-                  <td
-                    colSpan="9"
-                    style={{
-                      textAlign: 'center',
-                      padding: '40px',
-                      color: 'var(--gray-color)',
-                    }}
-                  >
-                    <span
-                      className="material-icons-outlined"
-                      style={{
-                        fontSize: '48px',
-                        marginBottom: '16px',
-                        display: 'block',
-                        color: '#cbd5e1',
-                      }}
-                    >
-                      info
-                    </span>
-                    No employees found
-                  </td>
-                </tr>
-              ) : (
-                (paginatedEmployees || []).map((emp) => (
-                  <tr key={emp.id}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        className="employee-checkbox"
-                        checked={selectedIds.includes(emp.id)}
-                        onChange={(e) =>
-                          handleCheckboxChange(emp.id, e.target.checked)
-                        }
-                      />
-                    </td>
-                    <td>{emp.id.toString().padStart(3, '0')}</td>
-                    <td>
-                      <div className="employee-info">
-                        <div className="employee-avatar">
-                          {emp.avatar ? (
-                            <img
-                              src={resolveMediaUrl(emp.avatar)}
-                              alt={`${emp.first_name} ${emp.last_name}`}
-                            />
-                          ) : (
-                            <span
-                              className="material-icons-outlined"
-                              style={{ color: '#94a3b8' }}
-                            >
-                              person
-                            </span>
-                          )}
-                        </div>
-                        <div className="employee-details">
-                          <div className="employee-name">
-                            {emp.first_name} {emp.last_name}
-                          </div>
-                          <div className="employee-position">{emp.email}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ textTransform: 'capitalize' }}>
-                      {emp.role || 'Employee'}
-                    </td>
-                    <td>
-                      <span className="department-badge">
-                        {departmentNames[emp.department] || emp.department}
-                      </span>
-                    </td>
-                    <td>{emp.position}</td>
-                    <td>
-                      <div className="salary-display">
-                        ${emp.salary?.toLocaleString() || '0'}
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`employee-status status-${emp.status}`}>
-                        {emp.status === 'active'
-                          ? 'Active'
-                          : emp.status === 'inactive'
-                            ? 'Inactive'
-                            : emp.status === 'on-leave'
-                              ? 'On Leave'
-                              : 'Terminated'}
-                      </span>
-                    </td>
-                    <td>{formatDate(emp.hire_date)}</td>
-                    <td>
-                      <button
-                        className="icon-btn edit"
-                        onClick={() => handleAddEdit(emp)}
-                      >
-                        <span className="material-icons-outlined">edit</span>
-                      </button>
-                      <button
-                        className="icon-btn delete"
-                        onClick={() => deleteEmployee(emp)}
-                      >
-                        <span className="material-icons-outlined">delete</span>
-                      </button>
-                      <button
-                        className="icon-btn"
-                        style={{ color: 'var(--info-color)' }}
-                        onClick={() => viewEmployee(emp)}
-                      >
-                        <span className="material-icons-outlined">
-                          visibility
-                        </span>
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <Table 
+          tableData={tableData}
+          columns={columns}
+          handleRowSelect={handleRowSelect}
+          selectAll={selectedIds.length === (paginatedEmployees || []).length && (paginatedEmployees || []).length > 0}
+          handleSelectAll={handleSelectAll}
+          onView={(emp) => viewEmployee(emp)}
+          onEdit={(emp) => handleAddEdit(emp)}
+          onDelete={(emp) => deleteEmployee(emp)}
+          viewTitle={isArabic ? "عرض" : "View"}
+          editTitle={isArabic ? "تعديل" : "Edit"}
+          deleteTitle={isArabic ? "حذف" : "Delete"}
+        />
 
         <div className="pagination">
           <div className="pagination-info">
@@ -1268,10 +1234,10 @@ const EmployeesManagement = () => {
           </div>
         </div>
       </div>
-        </>
-      )}
-    </AdminLayout>
-  );
+    </BlankPage>
+  )}
+</AdminLayout>
+);
 };
 
 export default EmployeesManagement;

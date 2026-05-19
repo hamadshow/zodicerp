@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head, Link, usePage, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import ActionsCell from '@/Components/ActionsCell';
+import Table from '../components/Table';
 
 const RolesAndPermissions = ({ roles, availablePermissions }) => {
   const { localization } = usePage().props;
   const [viewMode, setViewMode] = useState('list'); // 'list', 'create', 'edit'
   const [editingRole, setEditingRole] = useState(null);
   const [expandedGroups, setExpandedGroups] = useState({});
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [selectAll, setSelectAll] = useState(false);
 
   const { data, setData, post, put, processing, errors, reset, clearErrors, delete: destroy } = useForm({
     name: '',
@@ -72,6 +74,47 @@ const RolesAndPermissions = ({ roles, availablePermissions }) => {
     setEditingRole(null);
     reset();
   };
+
+  const handleRowSelect = (id) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(roles.map(r => r.id));
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const columns = useMemo(() => [
+    { header: 'ID', key: 'id', sortable: true },
+    { 
+      header: 'NAME', 
+      key: 'name', 
+      sortable: true,
+      render: (role) => <span className="fw-bold">{role.name}</span>
+    },
+    { header: 'DESCRIPTION', key: 'description', sortable: true },
+    { header: 'CREATED AT', key: 'created_at', sortable: true },
+    { 
+      header: 'CREATED BY', 
+      key: 'created_by', 
+      render: (role) => role.created_by ? (
+        <a href="#" className="creator-link">{role.created_by.name}</a>
+      ) : '-'
+    }
+  ], []);
+
+  const tableData = useMemo(() => {
+    return roles.map(r => ({
+      ...r,
+      selected: selectedIds.includes(r.id)
+    }));
+  }, [roles, selectedIds]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -275,46 +318,15 @@ const RolesAndPermissions = ({ roles, availablePermissions }) => {
             </div>
 
             {/* Table */}
-            <div className="roles-table-container">
-              <table className="roles-table">
-                <thead>
-                  <tr>
-                    <th className="th-checkbox"><input type="checkbox" className="custom-checkbox" /></th>
-                    <th className="th-sortable">ID</th>
-                    <th className="th-sortable">NAME</th>
-                    <th className="th-sortable">DESCRIPTION</th>
-                    <th className="th-sortable">CREATED AT</th>
-                    <th className="th-sortable">CREATED BY</th>
-                    <th>ACTIONS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {roles.map(role => (
-                    <tr key={role.id}>
-                      <td className="td-checkbox"><input type="checkbox" className="custom-checkbox" /></td>
-                      <td>{role.id}</td>
-                      <td className="fw-bold">{role.name}</td>
-                      <td>{role.description}</td>
-                      <td>{role.created_at}</td>
-                      <td>
-                        {role.created_by ? (
-                            <a href="#" className="creator-link">{role.created_by.name}</a>
-                        ) : '-'}
-                      </td>
-                      <td>
-    <ActionsCell 
-        onEdit={() => handleEditClick(role)}
-        onDelete={() => handleDelete(role)}
-    />
-</td>
-                    </tr>
-                  ))}
-                  {roles.length === 0 && (
-                      <tr><td colSpan="7" className="text-center p-4">No roles found.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <Table 
+                tableData={tableData}
+                columns={columns}
+                handleRowSelect={handleRowSelect}
+                selectAll={selectAll}
+                handleSelectAll={handleSelectAll}
+                onEdit={(role) => handleEditClick(role)}
+                onDelete={(role) => handleDelete(role)}
+            />
             
             <div className="roles-footer">
                 <div className="roles-pagination-info">

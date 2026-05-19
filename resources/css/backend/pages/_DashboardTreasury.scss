@@ -1,0 +1,404 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   Treasury Dashboard Styles
+   ========================================================================== */
+
+.treasury-dashboard {
+    padding: 1.5rem;
+    background-color: #f8fafc;
+    min-height: 100vh;
+    direction: rtl;
+
+    /* Top Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: $white;
+        padding: 1.5rem;
+        border-radius: 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(226, 232, 240, 0.8);
+
+        &:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 4px;
+            height: 100%;
+            background: $primary-color;
+        }
+
+        &.stat-emerald::before { background: #10b981; }
+        &.stat-blue::before { background: #3b82f6; }
+        &.stat-indigo::before { background: #6366f1; }
+        &.stat-rose::before { background: #f43f5e; }
+        &.stat-amber::before { background: #f59e0b; }
+
+        .stat-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+
+            .stat-icon-wrapper {
+                padding: 0.75rem;
+                border-radius: 0.75rem;
+                background: rgba(241, 245, 249, 1);
+                color: #64748b;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .trend-badge {
+                padding: 0.25rem 0.5rem;
+                border-radius: 2rem;
+                font-size: 0.75rem;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 0.25rem;
+
+                &.trend-up {
+                    background: #dcfce7;
+                    color: #15803d;
+                }
+                &.trend-down {
+                    background: #fee2e2;
+                    color: #b91c1c;
+                }
+            }
+        }
+
+        .stat-body {
+            .stat-label {
+                color: #64748b;
+                font-size: 0.875rem;
+                font-weight: 500;
+                margin-bottom: 0.25rem;
+            }
+            .stat-value {
+                color: #1e293b;
+                font-size: 1.5rem;
+                font-weight: 700;
+                letter-spacing: -0.025em;
+            }
+        }
+    }
+
+    /* Main Dashboard Layout */
+    .dashboard-main-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+
+        @media (max-width: 1024px) {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .dashboard-card {
+        background: $white;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+
+        .card-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            .card-title {
+                font-size: 1.125rem;
+                font-weight: 700;
+                color: #1e293b;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+            }
+
+            .card-actions {
+                display: flex;
+                gap: 0.5rem;
+            }
+        }
+
+        .card-body {
+            padding: 1.5rem;
+            flex-grow: 1;
+        }
+    }
+
+    /* Chart Specifics */
+    .chart-container {
+        height: 350px;
+        width: 100%;
+    }
+
+    /* Treasury Accounts Section */
+    .treasury-accounts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1rem;
+    }
+
+    .account-mini-card {
+        padding: 1.25rem;
+        border-radius: 0.75rem;
+        border: 1px solid #f1f5f9;
+        background: #f8fafc;
+        transition: all 0.2s ease;
+
+        &:hover {
+            border-color: $primary-color;
+            background: $white;
+            transform: scale(1.02);
+        }
+
+        .account-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+
+            .name {
+                font-weight: 600;
+                color: #334155;
+            }
+            .balance {
+                font-weight: 700;
+                color: #0f172a;
+            }
+        }
+
+        .liquidity-bar-wrapper {
+            margin-bottom: 0.75rem;
+            .bar-label {
+                display: flex;
+                justify-content: space-between;
+                font-size: 0.75rem;
+                color: #64748b;
+                margin-bottom: 0.25rem;
+            }
+            .progress-bg {
+                height: 6px;
+                background: #e2e8f0;
+                border-radius: 10px;
+                overflow: hidden;
+                .progress-fill {
+                    height: 100%;
+                    background: linear-gradient(90deg, #3b82f6, #6366f1);
+                    border-radius: 10px;
+                }
+            }
+        }
+
+        .account-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+    }
+
+    /* Quick Actions Grid */
+    .quick-actions-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+
+    .action-card {
+        background: $white;
+        padding: 1.25rem;
+        border-radius: 1rem;
+        text-align: center;
+        border: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+        &:hover {
+            border-color: $primary-color;
+            background: linear-gradient(135deg, $white 0%, #f0f7ff 100%);
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.1);
+
+            .action-icon {
+                transform: scale(1.1) rotate(5deg);
+                color: $primary-color;
+            }
+        }
+
+        .action-icon {
+            font-size: 2rem;
+            color: #64748b;
+            margin-bottom: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .action-label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+    }
+
+    /* Transactions Table Container */
+    .transactions-section {
+        margin-bottom: 2rem;
+    }
+
+    /* Alert Widgets */
+    .alerts-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+
+        .alert-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            border-right: 4px solid transparent;
+
+            &.alert-danger {
+                background: #fef2f2;
+                border-right-color: #ef4444;
+                color: #991b1b;
+                .alert-icon { color: #ef4444; }
+            }
+            &.alert-warning {
+                background: #fffbeb;
+                border-right-color: #f59e0b;
+                color: #92400e;
+                .alert-icon { color: #f59e0b; }
+            }
+            &.alert-info {
+                background: #eff6ff;
+                border-right-color: #3b82f6;
+                color: #1e40af;
+                .alert-icon { color: #3b82f6; }
+            }
+            &.alert-success {
+                background: #f0fdf4;
+                border-right-color: #22c55e;
+                color: #166534;
+                .alert-icon { color: #22c55e; }
+            }
+
+            .alert-content {
+                .alert-title {
+                    font-size: 0.875rem;
+                    font-weight: 700;
+                    margin-bottom: 0.125rem;
+                }
+                .alert-desc {
+                    font-size: 0.75rem;
+                    opacity: 0.8;
+                }
+            }
+        }
+    }
+
+    /* Custom Table Styling for Dashboard */
+    .dashboard-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+
+        thead th {
+            background: #f8fafc;
+            padding: 1rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid #e2e8f0;
+            text-align: right;
+            position: sticky;
+            top: 0;
+        }
+
+        tbody td {
+            padding: 1rem;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+            font-size: 0.875rem;
+            transition: background 0.2s ease;
+        }
+
+        tbody tr:hover td {
+            background: #f8fafc;
+        }
+
+        .status-pill {
+            padding: 0.25rem 0.75rem;
+            border-radius: 2rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+
+            &.completed { background: #dcfce7; color: #15803d; }
+            &.pending { background: #fef9c3; color: #854d0e; }
+            &.failed { background: #fee2e2; color: #b91c1c; }
+        }
+
+        .type-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            &.receipt { color: #10b981; }
+            &.payment { color: #ef4444; }
+        }
+    }
+}
+
+/* Dark Mode (Basic structure) */
+.dark-mode {
+    .treasury-dashboard {
+        background-color: #0f172a;
+
+        .stat-card, .dashboard-card, .action-card {
+            background-color: #1e293b;
+            border-color: #334155;
+            color: #f1f5f9;
+        }
+
+        .stat-body .stat-value, .card-title, .action-label {
+            color: #f1f5f9;
+        }
+
+        .dashboard-table thead th {
+            background: #1e293b;
+            border-color: #334155;
+        }
+        
+        .dashboard-table tbody td {
+            border-color: #334155;
+            color: #cbd5e1;
+        }
+    }
+}

@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
     ? `${appParsed.protocol}//${appParsed.hostname}:8000`
     : appParsed.origin;
   const basePathname = appUrl ? new URL(appUrl).pathname.replace(/\/$/, '') : '';
-  const base = env.VITE_ASSET_BASE || `${basePathname}/build/`;
+  const base = mode === 'production' ? (env.VITE_ASSET_BASE || `${basePathname}/build/`) : '/';
 
   return {
     base,

@@ -4,7 +4,7 @@ import AdminLayout from '../components/AdminLayout';
 import BlankPage from '@/Components/BlankPage';
 
 // --- View Section Component ---
-const ViewSection = ({ groups, onEdit, onCreate, onDelete }) => {
+const ViewSection = ({ groups, onEdit, onDelete }) => {
     return (
         <div className="animate-fade-slide">
             {/* Content Card */}
@@ -377,7 +377,6 @@ const CustomerGroups = ({ groups = [], parentGroups = [] }) => {
                     {mode === 'view' && (
                         <ViewSection 
                             groups={filteredGroups} 
-                            onCreate={handleCreateClick} 
                             onEdit={handleEditClick}
                             onDelete={handleDelete}
                         />

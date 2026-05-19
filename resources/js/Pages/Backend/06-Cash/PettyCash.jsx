@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import ActionsCell from '@/Components/ActionsCell';
+import Table from '../components/Table';
 import SearchBar from '@/Components/search-bar';
 import NavigationLink from '@/Components/NavigationLink';
 import StatsCards from '@/Components/stats-cards';
@@ -14,6 +14,8 @@ const PettyCash = ({ cashAccounts, filters, banks, currencies, chartOfAccounts }
     const [selectedCash, setSelectedCash] = useState(null);
     const [searchTerm, setSearchTerm] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [selectAll, setSelectAll] = useState(false);
 
     // Form logic
     const { data, setData, post, put, processing, errors, reset } = useForm({
@@ -111,6 +113,73 @@ const PettyCash = ({ cashAccounts, filters, banks, currencies, chartOfAccounts }
         });
     };
 
+    const handleRowSelect = (id) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectAll) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(cashAccounts.data.map(p => p.id));
+        }
+        setSelectAll(!selectAll);
+    };
+
+    const columns = useMemo(() => [
+        {
+            header: 'Account',
+            key: 'name',
+            sortable: true,
+            render: (cash) => (
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
+                        <span className="material-icons-outlined text-gray-400 text-sm">account_balance_wallet</span>
+                    </div>
+                    <div>
+                        <div className="font-medium text-gray-900">{cash.name}</div>
+                        {cash.is_default && (
+                            <div className="text-xs text-blue-600">Default</div>
+                        )}
+                    </div>
+                </div>
+            )
+        },
+        { header: 'Code', key: 'account_code', sortable: true },
+        { header: 'Type', key: 'type', sortable: true },
+        { header: 'Bank', key: 'bank', render: (cash) => cash.bank?.name || '-' },
+        { header: 'Currency', key: 'currency', render: (cash) => <span className="currency-badge">{cash.currency}</span> },
+        {
+            header: 'Balance',
+            key: 'current_balance',
+            sortable: true,
+            render: (cash) => (
+                <div className="balance-value">
+                    {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(cash.current_balance || 0)}
+                </div>
+            )
+        },
+        {
+            header: 'Status',
+            key: 'status',
+            sortable: true,
+            render: (cash) => (
+                <span className={`status-badge status-${cash.status}`}>
+                    {cash.status}
+                </span>
+            )
+        }
+    ], []);
+
+    const tableData = useMemo(() => {
+        return cashAccounts.data.map(cash => ({
+            ...cash,
+            selected: selectedIds.includes(cash.id)
+        }));
+    }, [cashAccounts.data, selectedIds]);
+
     const totalAccounts = cashAccounts.total;
     const activeAccounts = cashAccounts.data.filter((c) => c.status === 'active').length;
     const totalBalance = cashAccounts.data.reduce((sum, c) => sum + Number(c.current_balance || 0), 0);
@@ -132,70 +201,16 @@ const PettyCash = ({ cashAccounts, filters, banks, currencies, chartOfAccounts }
                     </div>
                 </div>
 
-                <div className="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Account</th>
-                                <th>Code</th>
-                                <th>Type</th>
-                                <th>Bank</th>
-                                <th>Currency</th>
-                                <th>Balance</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {cashAccounts.data.length === 0 ? (
-                                <tr>
-                                    <td colSpan="8" className="text-center py-8 text-gray-500">
-                                        No cash accounts found.
-                                    </td>
-                                </tr>
-                            ) : (
-                                cashAccounts.data.map((cash) => (
-                                    <tr key={cash.id}>
-                                        <td>
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
-                                                    <span className="material-icons-outlined text-gray-400 text-sm">account_balance_wallet</span>
-                                                </div>
-                                                <div>
-                                                    <div className="font-medium text-gray-900">{cash.name}</div>
-                                                    {cash.is_default && (
-                                                        <div className="text-xs text-blue-600">Default</div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>{cash.account_code}</td>
-                                        <td>{cash.type || '-'}</td>
-                                        <td>{cash.bank?.name || '-'}</td>
-                                        <td><span className="currency-badge">{cash.currency}</span></td>
-                                        <td>
-                                            <div className="balance-value">
-                                                {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(cash.current_balance || 0)}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span className={`status-badge status-${cash.status}`}>
-                                                {cash.status}
-                                            </span>
-                                        </td>
-                                        <td>
-    <ActionsCell 
-        onView={() => { setSelectedCash(cash); setCurrentView('view'); }}
-        onEdit={() => { setSelectedCash(cash); setCurrentView('edit'); }}
-        onDelete={() => handleDelete(cash)}
-    />
-</td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <Table 
+                    tableData={tableData}
+                    columns={columns}
+                    handleRowSelect={handleRowSelect}
+                    selectAll={selectAll}
+                    handleSelectAll={handleSelectAll}
+                    onView={(cash) => { setSelectedCash(cash); setCurrentView('view'); }}
+                    onEdit={(cash) => { setSelectedCash(cash); setCurrentView('edit'); }}
+                    onDelete={(cash) => handleDelete(cash)}
+                />
 
                 {cashAccounts.links && cashAccounts.links.length > 3 && (
                     <div className="pagination">
@@ -228,70 +243,82 @@ const PettyCash = ({ cashAccounts, filters, banks, currencies, chartOfAccounts }
     };
 
     const renderCreateEditView = () => (
-        <div className="view-card">
-            <div className="internal-page-header">
-                <div className="header-left">
-                    <button className="back-btn" onClick={() => setCurrentView('list')}>
-                        <span className="material-icons-outlined">arrow_back</span>
-                        Back
-                    </button>
-                    <h2 className="view-title">{currentView === 'edit' ? 'Edit Cash Account' : 'Add Cash Account'}</h2>
-                </div>
-                <div className="header-actions">
-                    <button className="btn btn-primary" onClick={handleSubmit} disabled={processing}>
+        <div className="form-view-container fade-in">
+            <div className="form-card">
+                <div className="form-card-header">
+                    <div className="header-left">
+                        <button 
+                            className="back-button"
+                            onClick={() => setCurrentView('list')}
+                            title="Back"
+                        >
+                            <span className="material-icons-outlined">arrow_back</span>
+                        </button>
+                        <h2 className="form-title">
+                            {currentView === 'edit' ? 'Edit Cash Account' : 'Add Cash Account'}
+                        </h2>
+                    </div>
+                    <button 
+                        className="save-button"
+                        onClick={handleSubmit}
+                        disabled={processing}
+                    >
                         <span className="material-icons-outlined">save</span>
-                        {processing ? 'Saving...' : 'Save Account'}
+                        {currentView === 'edit' ? 'Update Account' : 'Save Account'}
                     </button>
                 </div>
-            </div>
-            
-            <div className="p-8">
-                <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
-                    {!selectedCash && currentView === 'create' && (
-                        <div className="form-group mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
-                            <label className="form-label text-blue-800 font-bold mb-2">Link to Chart of Accounts (Nature: Cash)</label>
-                            <select
-                                className="form-select bg-white"
-                                onChange={(e) => handleCOASelection(e.target.value)}
-                                defaultValue=""
-                            >
-                                <option value="" disabled>Select an account to auto-fill</option>
-                                {chartOfAccounts.map(acc => (
-                                    <option key={acc.AccID} value={acc.AccID}>
-                                        {acc.AccCode} - {acc.AccName}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="form-group">
-                            <label className="form-label">Account Code</label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                value={data.account_code}
-                                onChange={(e) => setData('account_code', e.target.value)}
-                                placeholder="e.g. CASH001"
-                            />
-                            {errors.account_code && <div className="text-red-500 text-xs mt-1">{errors.account_code}</div>}
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label">Type</label>
-                            <select
-                                className="form-select"
-                                value={data.type}
-                                onChange={(e) => setData('type', e.target.value)}
-                            >
-                                <option value="Petty Cash">Petty Cash</option>
-                                <option value="Cash in Hand">Cash in Hand</option>
-                                <option value="Cash Register">Cash Register</option>
-                            </select>
-                            {errors.type && <div className="text-red-500 text-xs mt-1">{errors.type}</div>}
+                <div className="form-card-body">
+                    <div className="form-grid">
+                        {/* Full Width Row */}
+                        {!selectedCash && currentView === 'create' && (
+                            <div className="form-group full-width">
+                                <label className="form-label">Link to Chart of Accounts (Nature: Cash)</label>
+                                <select
+                                    className="form-select"
+                                    onChange={(e) => handleCOASelection(e.target.value)}
+                                    defaultValue=""
+                                >
+                                    <option value="" disabled>Select an account to auto-fill</option>
+                                    {chartOfAccounts.map(acc => (
+                                        <option key={acc.AccID} value={acc.AccID}>
+                                            {acc.AccCode} - {acc.AccName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        {/* Two Columns Grid */}
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">Account Code</label>
+                                <input
+                                    type="text"
+                                    className="form-input"
+                                    value={data.account_code}
+                                    onChange={(e) => setData('account_code', e.target.value)}
+                                    placeholder="e.g. CASH001"
+                                />
+                                {errors.account_code && <span className="form-error">{errors.account_code}</span>}
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Type</label>
+                                <select
+                                    className="form-select"
+                                    value={data.type}
+                                    onChange={(e) => setData('type', e.target.value)}
+                                >
+                                    <option value="Petty Cash">Petty Cash</option>
+                                    <option value="Cash in Hand">Cash in Hand</option>
+                                    <option value="Cash Register">Cash Register</option>
+                                </select>
+                                {errors.type && <span className="form-error">{errors.type}</span>}
+                            </div>
                         </div>
 
-                        <div className="form-group md:col-span-2">
+                        <div className="form-group full-width">
                             <label className="form-label">Account Name</label>
                             <input
                                 type="text"
@@ -299,91 +326,102 @@ const PettyCash = ({ cashAccounts, filters, banks, currencies, chartOfAccounts }
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 placeholder="Cash Account Name"
+                                required
                             />
-                            {errors.name && <div className="text-red-500 text-xs mt-1">{errors.name}</div>}
+                            {errors.name && <span className="form-error">{errors.name}</span>}
                         </div>
 
-                        <div className="form-group">
-                            <label className="form-label">Bank</label>
-                            <select
-                                className="form-select"
-                                value={data.bank_id}
-                                onChange={(e) => setData('bank_id', e.target.value)}
-                            >
-                                <option value="">No Bank</option>
-                                {banks.map((bank) => (
-                                    <option key={bank.id} value={bank.id}>
-                                        {bank.name}
-                                    </option>
-                                ))}
-                            </select>
-                            {errors.bank_id && <div className="text-red-500 text-xs mt-1">{errors.bank_id}</div>}
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label">Currency</label>
-                            <select
-                                className="form-select"
-                                value={data.currency}
-                                onChange={(e) => setData('currency', e.target.value)}
-                            >
-                                <option value="">Select Currency</option>
-                                {currencies && currencies.map((curr) => (
-                                    <option key={curr.id} value={curr.id}>
-                                        {curr.name}
-                                    </option>
-                                ))}
-                            </select>
-                            {errors.currency && <div className="text-red-500 text-xs mt-1">{errors.currency}</div>}
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">Bank</label>
+                                <select
+                                    className="form-select"
+                                    value={data.bank_id}
+                                    onChange={(e) => setData('bank_id', e.target.value)}
+                                >
+                                    <option value="">No Bank</option>
+                                    {banks.map((bank) => (
+                                        <option key={bank.id} value={bank.id}>
+                                            {bank.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.bank_id && <span className="form-error">{errors.bank_id}</span>}
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Currency</label>
+                                <select
+                                    className="form-select"
+                                    value={data.currency}
+                                    onChange={(e) => setData('currency', e.target.value)}
+                                    required
+                                >
+                                    <option value="">Select Currency</option>
+                                    {currencies && currencies.map((curr) => (
+                                        <option key={curr.id} value={curr.id}>
+                                            {curr.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.currency && <span className="form-error">{errors.currency}</span>}
+                            </div>
                         </div>
 
-                        <div className="form-group">
-                            <label className="form-label">Opening Balance</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                className="form-input"
-                                value={data.opening_balance}
-                                onChange={(e) => setData('opening_balance', e.target.value)}
-                            />
-                            {errors.opening_balance && <div className="text-red-500 text-xs mt-1">{errors.opening_balance}</div>}
-                        </div>
-                        <div className="form-group">
-                            <label className="form-label">Current Balance</label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                className="form-input"
-                                value={data.current_balance}
-                                onChange={(e) => setData('current_balance', e.target.value)}
-                            />
-                            {errors.current_balance && <div className="text-red-500 text-xs mt-1">{errors.current_balance}</div>}
-                        </div>
-
-                        <div className="form-group">
-                            <label className="form-label">Status</label>
-                            <select
-                                className="form-select"
-                                value={data.status}
-                                onChange={(e) => setData('status', e.target.value)}
-                            >
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
-                            {errors.status && <div className="text-red-500 text-xs mt-1">{errors.status}</div>}
-                        </div>
-                        <div className="form-group flex items-end mb-5">
-                            <label className="flex items-center gap-2 cursor-pointer p-2 bg-gray-50 rounded border border-gray-100 w-full">
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">Opening Balance</label>
                                 <input
-                                    type="checkbox"
-                                    className="w-5 h-5"
-                                    checked={data.is_default}
-                                    onChange={(e) => setData('is_default', e.target.checked)}
+                                    type="number"
+                                    step="0.01"
+                                    className="form-input"
+                                    value={data.opening_balance}
+                                    onChange={(e) => setData('opening_balance', e.target.value)}
                                 />
-                                <span className="font-medium">Default Account</span>
-                            </label>
+                                {errors.opening_balance && <span className="form-error">{errors.opening_balance}</span>}
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Current Balance</label>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    className="form-input"
+                                    value={data.current_balance}
+                                    onChange={(e) => setData('current_balance', e.target.value)}
+                                />
+                                {errors.current_balance && <span className="form-error">{errors.current_balance}</span>}
+                            </div>
+                        </div>
+
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label className="form-label">Status</label>
+                                <select
+                                    className="form-select"
+                                    value={data.status}
+                                    onChange={(e) => setData('status', e.target.value)}
+                                >
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                                {errors.status && <span className="form-error">{errors.status}</span>}
+                            </div>
+
+                            <div className="form-group flex-row">
+                                <label className="checkbox-container">
+                                    <input
+                                        type="checkbox"
+                                        checked={data.is_default}
+                                        onChange={(e) => setData('is_default', e.target.checked)}
+                                    />
+                                    <span className="checkmark"></span>
+                                    <span className="label-text">Set as Default Account</span>
+                                </label>
+                            </div>
                         </div>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

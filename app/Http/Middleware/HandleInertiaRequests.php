@@ -41,7 +41,7 @@ class HandleInertiaRequests extends Middleware
 
             // 2. File Translations
             $fileTranslations = [];
-            $files = ['homepage', 'home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth', 'verify_email', 'confirm', 'reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'BudgetItems', 'FinancialReports', 'TrialBalance', 'Journal', 'MarketPrices', 'ListedCompanies', 'career', 'dashboard', 'applications', 'Bank', 'BankTransactions'];
+            $files = ['homepage', 'home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth', 'verify_email', 'confirm', 'reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'BudgetItems', 'FinancialReports', 'TrialBalance', 'Journal', 'MarketPrices', 'ListedCompanies', 'career', 'dashboard', 'applications', 'Bank', 'BankTransactions', 'DashboardTreasury'];
 
             foreach ($files as $file) {
                 $path = lang_path("$locale/$file.php");

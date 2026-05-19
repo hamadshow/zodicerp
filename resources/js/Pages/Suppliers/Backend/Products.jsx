@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import SupplierLayout from './Layout/SupplierLayout';
-import ActionsCell from '@/Components/ActionsCell';
+import Table from '../../Backend/components/Table';
 import '../../../../css/suppliers/Backend/main.scss';
 
 // ==========================================
@@ -75,6 +75,94 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
         brand_id: filters.brand_id || '',
         category_id: filters.category_id || '',
     });
+
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [selectAll, setSelectAll] = useState(false);
+
+    const handleRowSelect = (id) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectAll) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(safeProducts.data.map(p => p.id));
+        }
+        setSelectAll(!selectAll);
+    };
+
+    const columns = useMemo(() => [
+        {
+            header: 'Product',
+            key: 'name',
+            sortable: true,
+            render: (product) => (
+                <div className="product-cell">
+                    {product.image ? (
+                        <img src={`/storage/${product.image}`} alt={product.name} className="product-thumb" />
+                    ) : (
+                        <div className="product-thumb-placeholder">
+                            <span className="material-icons-outlined text-gray-light">image</span>
+                        </div>
+                    )}
+                    <div className="product-info">
+                        <div className="product-name">{product.name}</div>
+                        <div className="product-code">{product.product_code}</div>
+                    </div>
+                </div>
+            )
+        },
+        { header: 'SKU', key: 'sku', sortable: true },
+        { 
+            header: 'Category', 
+            key: 'categories', 
+            render: (product) => product.categories && product.categories.map(c => c.name).join(', ')
+        },
+        { header: 'Brand', key: 'brand', render: (product) => product.brand?.name || '-' },
+        { 
+            header: 'Price', 
+            key: 'price', 
+            sortable: true,
+            render: (product) => (
+                <div className="price-display">
+                    {product.sale_price ? (
+                        <>
+                            <span className="original-price">${product.price}</span>
+                            <span className="sale-price">${product.sale_price}</span>
+                        </>
+                    ) : (
+                        <span>${product.price}</span>
+                    )}
+                </div>
+            )
+        },
+        { 
+            header: 'Status', 
+            key: 'status', 
+            sortable: true,
+            render: (product) => (
+                <span className={`status-badge status-${product.status}`}>
+                    {product.status}
+                </span>
+            )
+        },
+        { 
+            header: 'Date', 
+            key: 'created_at', 
+            sortable: true,
+            render: (product) => new Date(product.created_at).toLocaleDateString()
+        }
+    ], []);
+
+    const tableData = useMemo(() => {
+        return safeProducts.data.map(p => ({
+            ...p,
+            selected: selectedIds.includes(p.id)
+        }));
+    }, [safeProducts.data, selectedIds]);
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
@@ -189,78 +277,17 @@ const ProductsList = ({ products, brands, categories, filters = {} }) => {
                         <button className="btn btn-outline" onClick={applyFilters}>Filter</button>
                     </div>
 
-                    <div className="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Product</th>
-                                    <th>SKU</th>
-                                    <th>Category</th>
-                                    <th>Brand</th>
-                                    <th>Price</th>
-                                    <th>Status</th>
-                                    <th>Date</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {safeProducts.data.length > 0 ? (
-                                    safeProducts.data.map(product => (
-                                        <tr key={product.id}>
-                                            <td className="product-cell">
-                                                {product.image ? (
-                                                    <img src={`/storage/${product.image}`} alt={product.name} className="product-thumb" />
-                                                ) : (
-                                                    <div className="product-thumb-placeholder">
-                                                        <span className="material-icons-outlined text-gray-light">image</span>
-                                                    </div>
-                                                )}
-                                                <div className="product-info">
-                                                    <div className="product-name">{product.name}</div>
-                                                    <div className="product-code">{product.product_code}</div>
-                                                </div>
-                                            </td>
-                                            <td>{product.sku || '-'}</td>
-                                            <td>
-                                                {product.categories && product.categories.map(c => c.name).join(', ')}
-                                            </td>
-                                            <td>{product.brand?.name || '-'}</td>
-                                            <td>
-                                                <div className="price-display">
-                                                    {product.sale_price ? (
-                                                        <>
-                                                            <span className="original-price">${product.price}</span>
-                                                            <span className="sale-price">${product.sale_price}</span>
-                                                        </>
-                                                    ) : (
-                                                        <span>${product.price}</span>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <span className={`status-badge status-${product.status}`}>
-                                                    {product.status}
-                                                </span>
-                                            </td>
-                                            <td>{new Date(product.created_at).toLocaleDateString()}</td>
-                                            <td>
-    <ActionsCell 
-        onEdit={() => router.get(route('supplier.products.edit', product.id))}
-        onDelete={() => handleDelete(product.id)}
-        editTitle="Edit"
-        deleteTitle="Delete"
-    />
-</td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="8" className="text-center py-4">No products found.</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Table 
+                        tableData={tableData}
+                        columns={columns}
+                        handleRowSelect={handleRowSelect}
+                        selectAll={selectAll}
+                        handleSelectAll={handleSelectAll}
+                        onEdit={(product) => router.get(route('supplier.products.edit', product.id))}
+                        onDelete={(product) => handleDelete(product.id)}
+                        editTitle="Edit"
+                        deleteTitle="Delete"
+                    />
 
                     {/* Pagination */}
                     {safeProducts.links.length > 3 && (

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import Table from '../components/Table';
+import BlankPage from '@/Components/BlankPage';
 
 const ViewSection = ({ warehouses, onEdit, onCreate, onDelete }) => {
     const { props } = usePage();
@@ -13,6 +15,92 @@ const ViewSection = ({ warehouses, onEdit, onCreate, onDelete }) => {
 
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredWarehouses, setFilteredWarehouses] = useState(warehouses);
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [selectAll, setSelectAll] = useState(false);
+
+    const handleRowSelect = (id) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectAll) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredWarehouses.map(wh => wh.id));
+        }
+        setSelectAll(!selectAll);
+    };
+
+    const columns = useMemo(() => [
+        { 
+            header: __('warehouse_code'), 
+            key: 'warehouse_code', 
+            sortable: true,
+            render: (wh) => wh.warehouse_code || wh.id
+        },
+        { 
+            header: __('warehouse_name'), 
+            key: 'name', 
+            sortable: true,
+            render: (wh) => (
+                <div className="warehouse-info">
+                    <div className="warehouse-icon" style={{ 
+                        backgroundColor: wh.color || '#3b82f6', 
+                    }}>
+                        <span className="material-icons-outlined">{wh.icon || 'warehouse'}</span>
+                    </div>
+                    <div className="warehouse-details">
+                        <div className="warehouse-name">{wh.name}</div>
+                        <div className="warehouse-description text-xs text-gray-500">{wh.description}</div>
+                    </div>
+                </div>
+            )
+        },
+        { header: __('manager'), key: 'manager', sortable: true },
+        { 
+            header: __('capacity'), 
+            key: 'capacity', 
+            sortable: true,
+            render: (wh) => `${wh.capacity.toLocaleString()} ${__('units')}`
+        },
+        { 
+            header: __('utilization'), 
+            key: 'utilization', 
+            render: (wh) => (
+                <div className="flex flex-col" style={{ minWidth: '100px' }}>
+                    <div className="utilization-display text-xs mb-1">
+                        {wh.capacity > 0 ? Math.round((wh.used_capacity / wh.capacity) * 100) : 0}%
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div
+                            className="bg-blue-600 h-1.5 rounded-full"
+                            style={{ width: `${wh.capacity > 0 ? (wh.used_capacity / wh.capacity) * 100 : 0}%` }}
+                        ></div>
+                    </div>
+                </div>
+            )
+        },
+        { header: __('location'), key: 'location', sortable: true },
+        { 
+            header: __('status'), 
+            key: 'status', 
+            sortable: true,
+            render: (wh) => (
+                <span className={`status-badge ${wh.status === 'active' ? 'active' : 'inactive'}`}>
+                    {__(wh.status)}
+                </span>
+            )
+        }
+    ], [localization]);
+
+    const tableData = useMemo(() => {
+        return filteredWarehouses.map(wh => ({
+            ...wh,
+            selected: selectedIds.includes(wh.id)
+        }));
+    }, [filteredWarehouses, selectedIds]);
 
     // Update stats
     const stats = useMemo(() => {
@@ -39,143 +127,91 @@ const ViewSection = ({ warehouses, onEdit, onCreate, onDelete }) => {
         }
     }, [searchTerm, warehouses]);
 
-    return (
-        <div className="animate-fade-slide">
-            {/* Quick Stats */}
-            <div className="stats-cards">
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: '#3b82f6' }}>
-                        <span className="material-icons-outlined">warehouse</span>
-                    </div>
-                    <div className="stat-content">
-                        <span className="stat-value">{stats.total}</span>
-                        <div className="stat-label">{__('total_warehouses')}</div>
-                    </div>
+    const breadcrumbs = [
+        { label: localization?.current_locale === 'ar' ? 'لوحة التحكم' : 'Dashboard', href: '#' },
+        { label: localization?.current_locale === 'ar' ? 'المخازن' : 'Inventory', href: '#' },
+        { label: __('title'), active: true }
+    ];
+
+    const statsSection = (
+        <div className="stats-cards">
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: '#3b82f6' }}>
+                    <span className="material-icons-outlined">warehouse</span>
                 </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: '#10b981' }}>
-                        <span className="material-icons-outlined">check_circle</span>
-                    </div>
-                    <div className="stat-content">
-                        <span className="stat-value">{stats.active}</span>
-                        <div className="stat-label">{__('active_warehouses')}</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: '#8b5cf6' }}>
-                        <span className="material-icons-outlined">inventory_2</span>
-                    </div>
-                    <div className="stat-content">
-                        <span className="stat-value">{stats.totalCapacity.toLocaleString()}</span>
-                        <div className="stat-label">{__('total_capacity')}</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: '#f59e0b' }}>
-                        <span className="material-icons-outlined">pie_chart</span>
-                    </div>
-                    <div className="stat-content">
-                        <span className="stat-value">{stats.utilization}%</span>
-                        <div className="stat-label">{__('utilization')}</div>
-                    </div>
+                <div className="stat-content">
+                    <span className="stat-value">{stats.total}</span>
+                    <div className="stat-label">{__('total_warehouses')}</div>
                 </div>
             </div>
-
-            {/* Content Card */}
-            <div className="content-card">
-                <div className="page-header" style={{ marginBottom: '1.5rem' }}>
-                    <div className="search-box">
-                        <span className="material-icons-outlined search-icon">search</span>
-                        <input
-                            type="text"
-                            placeholder={__('search_warehouses')}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                    <button className="btn btn-primary" onClick={onCreate}>
-                        <span className="material-icons-outlined">add</span>
-                        {__('create_new')}
-                    </button>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: '#10b981' }}>
+                    <span className="material-icons-outlined">check_circle</span>
                 </div>
-
-                <div className="table-responsive">
-                    <table className="professional-table">
-                        <thead>
-                            <tr>
-                                <th>{__('warehouse_code')}</th>
-                                <th>{__('warehouse_name')}</th>
-                                <th>{__('manager')}</th>
-                                <th>{__('capacity')}</th>
-                                <th>{__('utilization')}</th>
-                                <th>{__('location')}</th>
-                                <th>{__('status')}</th>
-                                <th>{__('actions')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredWarehouses.length > 0 ? (
-                                filteredWarehouses.map(wh => (
-                                    <tr key={wh.id}>
-                                        <td>{wh.warehouse_code || wh.id}</td>
-                                        <td>
-                                            <div className="warehouse-info">
-                                                <div className="warehouse-icon" style={{ 
-                                                    backgroundColor: wh.color || '#3b82f6', 
-                                                }}>
-                                                    <span className="material-icons-outlined">{wh.icon || 'warehouse'}</span>
-                                                </div>
-                                                <div className="warehouse-details">
-                                                    <div className="warehouse-name">{wh.name}</div>
-                                                    <div className="warehouse-description text-xs text-gray-500">{wh.description}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>{wh.manager || '-'}</td>
-                                        <td>{wh.capacity.toLocaleString()} {__('units')}</td>
-                                        <td>
-                                            <div className="flex flex-col" style={{ minWidth: '100px' }}>
-                                                <div className="utilization-display text-xs mb-1">
-                                                    {wh.capacity > 0 ? Math.round((wh.used_capacity / wh.capacity) * 100) : 0}%
-                                                </div>
-                                                <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                                    <div
-                                                        className="bg-blue-600 h-1.5 rounded-full"
-                                                        style={{ width: `${wh.capacity > 0 ? (wh.used_capacity / wh.capacity) * 100 : 0}%` }}
-                                                    ></div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>{wh.location || '-'}</td>
-                                        <td>
-                                            <span className={`status-badge ${wh.status === 'active' ? 'active' : 'inactive'}`}>
-                                                {__(wh.status)}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div className="action-buttons">
-                                                <button onClick={() => onEdit(wh)} title={__('edit')}>
-                                                    <span className="material-icons-outlined">edit</span>
-                                                </button>
-                                                <button className="delete-btn" onClick={() => onDelete(wh.id)} title={__('delete')}>
-                                                    <span className="material-icons-outlined">delete</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>
-                                        {__('no_warehouses_found')}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                <div className="stat-content">
+                    <span className="stat-value">{stats.active}</span>
+                    <div className="stat-label">{__('active_warehouses')}</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: '#8b5cf6' }}>
+                    <span className="material-icons-outlined">inventory_2</span>
+                </div>
+                <div className="stat-content">
+                    <span className="stat-value">{stats.totalCapacity.toLocaleString()}</span>
+                    <div className="stat-label">{__('total_capacity')}</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: '#f59e0b' }}>
+                    <span className="material-icons-outlined">pie_chart</span>
+                </div>
+                <div className="stat-content">
+                    <span className="stat-value">{stats.utilization}%</span>
+                    <div className="stat-label">{__('utilization')}</div>
                 </div>
             </div>
         </div>
+    );
+
+    return (
+        <BlankPage
+            breadcrumbs={breadcrumbs}
+            stats={statsSection}
+        >
+            <div className="animate-fade-slide">
+                {/* Content Card */}
+                <div className="content-card">
+                    <div className="page-header" style={{ marginBottom: '1.5rem' }}>
+                        <div className="search-box">
+                            <span className="material-icons-outlined search-icon">search</span>
+                            <input
+                                type="text"
+                                placeholder={__('search_warehouses')}
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <button className="btn btn-primary" onClick={onCreate}>
+                            <span className="material-icons-outlined">add</span>
+                            {__('create_new')}
+                        </button>
+                    </div>
+
+                    <Table 
+                        tableData={tableData}
+                        columns={columns}
+                        handleRowSelect={handleRowSelect}
+                        selectAll={selectAll}
+                        handleSelectAll={handleSelectAll}
+                        onEdit={(wh) => onEdit(wh)}
+                        onDelete={(id) => onDelete(id)}
+                        editTitle={__('edit')}
+                        deleteTitle={__('delete')}
+                    />
+                </div>
+            </div>
+        </BlankPage>
     );
 };
 
@@ -468,48 +504,29 @@ const Warehouses = ({ warehouses = [], branches = [] }) => {
             <Head title={`${__('title')} - ZodicERP`} />
             
             <div className="warehouses-container">
-                {/* Fixed Page Header Title based on Mode */}
-                <div className="page-header">
-                    <h1>
-                        {mode === 'view' && __('title')}
-                        {mode === 'create' && __('create_new_warehouse')}
-                        {mode === 'edit' && __('edit_warehouse')}
-                    </h1>
-                    {mode !== 'view' && (
-                        <button className="btn btn-secondary" onClick={handleBackClick}>
-                            <span className="material-icons-outlined">arrow_back</span>
-                            {__('back_to_list')}
-                        </button>
-                    )}
-                </div>
-
-                {/* Main Content Area with Transitions */}
-                {mode === 'view' && (
+                {mode === 'view' ? (
                     <ViewSection 
                         warehouses={warehouses} 
-                        onCreate={handleCreateClick} 
-                        onEdit={handleEditClick}
+                        onEdit={handleEditClick} 
+                        onCreate={handleCreateClick}
                         onDelete={handleDelete}
                     />
-                )}
-
-                {mode === 'create' && (
-                    <FormSection 
-                        mode="create" 
-                        branches={branches}
-                        onBack={handleBackClick} 
-                        onSubmit={handleFormSubmit}
-                    />
-                )}
-
-                {mode === 'edit' && (
-                    <FormSection 
-                        mode="edit" 
-                        initialData={selectedWarehouse} 
-                        branches={branches}
-                        onBack={handleBackClick} 
-                        onSubmit={handleFormSubmit}
-                    />
+                ) : (
+                    <>
+                        <div className="page-header">
+                            <h1>
+                                {mode === 'create' && __('create_new_warehouse')}
+                                {mode === 'edit' && __('edit_warehouse')}
+                            </h1>
+                        </div>
+                        <FormSection 
+                            mode={mode} 
+                            initialData={selectedWarehouse} 
+                            branches={branches}
+                            onBack={handleBackClick}
+                            onSubmit={handleFormSubmit}
+                        />
+                    </>
                 )}
             </div>
         </AdminLayout>

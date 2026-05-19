@@ -5,7 +5,7 @@ import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AdminLayout from '../components/AdminLayout';
-import ActionsCell from '@/Components/ActionsCell';
+import Table from '../components/Table';
 import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import MediaPickerModal from '../Media/MediaPickerModal';
@@ -123,6 +123,88 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
         category_id: filters.category_id || '',
         unit_id: filters.unit_id || '',
     });
+
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [selectAll, setSelectAll] = useState(false);
+
+    const handleRowSelect = (id) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectAll) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(safeProducts.data.map(p => p.id));
+        }
+        setSelectAll(!selectAll);
+    };
+
+    const columns = useMemo(() => [
+        {
+            header: t('product', 'Product'),
+            key: 'name',
+            sortable: true,
+            render: (product) => (
+                <div className="product-cell">
+                    {product.image ? (
+                        <img src={`/media-files/${product.image}`} alt={product.name} className="product-thumb" />
+                    ) : (
+                        <div className="product-thumb-placeholder">
+                            <span className="material-icons-outlined text-gray-light">image</span>
+                        </div>
+                    )}
+                    <div className="product-info">
+                        <div className="product-name">{product?.name || 'No Name'}</div>
+                        <div className="product-code">{product?.product_code || ''}</div>
+                    </div>
+                </div>
+            )
+        },
+        { header: t('sku', 'SKU'), key: 'sku', sortable: true },
+        { 
+            header: t('category', 'Category'), 
+            key: 'category', 
+            render: (product) => (product.categories && product.categories.length > 0 ? product.categories[0].name : null) || '-'
+        },
+        { header: t('brand', 'Brand'), key: 'brand', render: (product) => product.brand?.name || '-' },
+        { header: t('unit', 'Unit'), key: 'unit', render: (product) => product.unit?.name || '-' },
+        { 
+            header: t('price', 'Price'), 
+            key: 'price', 
+            sortable: true,
+            render: (product) => `$${product.price || '0.00'}`
+        },
+        { 
+            header: t('stock', 'Stock'), 
+            key: 'quantity', 
+            sortable: true,
+            render: (product) => (
+                <span className={`status-badge ${product.quantity > 0 ? 'status-active' : 'status-error'}`}>
+                    {product.quantity}
+                </span>
+            )
+        },
+        { 
+            header: t('status', 'Status'), 
+            key: 'status', 
+            sortable: true,
+            render: (product) => (
+                <span className={`status-badge status-${product.status}`}>
+                    {t(product.status, product.status)}
+                </span>
+            )
+        }
+    ], [localization]);
+
+    const tableData = useMemo(() => {
+        return safeProducts.data.map(p => ({
+            ...p,
+            selected: selectedIds.includes(p.id)
+        }));
+    }, [safeProducts.data, selectedIds]);
 
     const fileInputRef = useRef(null);
 
@@ -678,73 +760,19 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                         <button className="btn btn-outline" onClick={applyFilters}>{t('filter', 'Filter')}</button>
                     </div>
 
-                    <div className="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>{t('product', 'Product')}</th>
-                                    <th>{t('sku', 'SKU')}</th>
-                                    <th>{t('category', 'Category')}</th>
-                                    <th>{t('brand', 'Brand')}</th>
-                                    <th>{t('unit', 'Unit')}</th>
-                                    <th>{t('price', 'Price')}</th>
-                                    <th>{t('stock', 'Stock')}</th>
-                                    <th>{t('status', 'Status')}</th>
-                                    <th>{t('actions', 'Actions')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {safeProducts.data.length > 0 ? (
-                                    safeProducts.data.map(product => (
-                                        <tr key={product.id}>
-                                            <td>
-                                                <div className="product-cell">
-                                                    {product.image ? (
-                                                        <img src={`/media-files/${product.image}`} alt={product.name} className="product-thumb" />
-                                                    ) : (
-                                                        <div className="product-thumb-placeholder">
-                                                            <span className="material-icons-outlined text-gray-light">image</span>
-                                                        </div>
-                                                    )}
-                                                    <div className="product-info">
-                                                        <div className="product-name">{product?.name || 'No Name'}</div>
-                                                        <div className="product-code">{product?.product_code || ''}</div>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td>{product.sku || '-'}</td>
-                                            <td>{(product.categories && product.categories.length > 0 ? product.categories[0].name : null) || '-'}</td>
-                                            <td>{product.brand?.name || '-'}</td>
-                                            <td>{product.unit?.name || '-'}</td>
-                                            <td>${product.price || '0.00'}</td>
-                                            <td>
-                                                <span className={`status-badge ${product.quantity > 0 ? 'status-active' : 'status-error'}`}>
-                                                    {product.quantity}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span className={`status-badge status-${product.status}`}>
-                                                    {t(product.status, product.status)}
-                                                </span>
-                                            </td>
-                                            <td>
-    <ActionsCell 
-        onEdit={() => router.get(getLocalizedRoute('admin.inventory.products.edit', { product: product.id }))}
-        onDelete={() => handleDelete(product.id)}
-        editTitle={t('edit', 'Edit')}
-        deleteTitle={t('delete', 'Delete')}
-    />
-</td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="9" className="empty-state">{t('no_products_found', 'No products found.')}</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Table 
+                        tableData={tableData}
+                        columns={columns}
+                        handleRowSelect={handleRowSelect}
+                        selectAll={selectAll}
+                        handleSelectAll={handleSelectAll}
+                        onView={(product) => router.get(getLocalizedRoute('admin.inventory.products.show', { product: product.id }))}
+                        onEdit={(product) => router.get(getLocalizedRoute('admin.inventory.products.edit', { product: product.id }))}
+                        onDelete={(product) => handleDelete(product.id)}
+                        viewTitle={t('view', 'View')}
+                        editTitle={t('edit', 'Edit')}
+                        deleteTitle={t('delete', 'Delete')}
+                    />
 
                     {/* Pagination */}
                     {safeProducts.links && (

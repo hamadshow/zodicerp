@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '../components/AdminLayout';
+import Table from '../components/Table';
 import '../../../../css/backend/main.scss';
 import { useForm, router, usePage } from '@inertiajs/react';
 
@@ -26,6 +27,8 @@ const Profession = ({ professions = [], departments = [] }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentProfession, setCurrentProfession] = useState(null);
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [selectAll, setSelectAll] = useState(false);
     const [stats, setStats] = useState({
         total: 0,
         active: 0,
@@ -79,6 +82,96 @@ const Profession = ({ professions = [], departments = [] }) => {
     const handleSearch = (e) => {
         setSearchTerm(e.target.value);
     };
+
+    const handleRowSelect = (id) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectAll) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredProfessions.map(p => p.id));
+        }
+        setSelectAll(!selectAll);
+    };
+
+    const columns = useMemo(() => [
+        { 
+            header: 'ID', 
+            key: 'id', 
+            sortable: true,
+            render: (row) => row.id.toString().padStart(3, '0')
+        },
+        { 
+            header: 'PROFESSION', 
+            key: 'profession_name', 
+            sortable: true,
+            render: (row) => (
+                <div className="profession-info">
+                    <div className="profession-icon" style={{ backgroundColor: getCategoryColor() }}>
+                        <span className="material-icons-outlined">work</span>
+                    </div>
+                    <div className="profession-details">
+                        <div className="profession-name">{row.profession_name}</div>
+                        <div className="profession-category">{getDepartmentName(row.category)}</div>
+                    </div>
+                </div>
+            )
+        },
+        { 
+            header: 'CODE', 
+            key: 'profession_code', 
+            sortable: true,
+            render: (row) => <strong>{row.profession_code}</strong>
+        },
+        { 
+            header: 'EMPLOYEES', 
+            key: 'employees', 
+            sortable: true,
+            render: (row) => (
+                <div className="employee-count">
+                    <span className="material-icons-outlined" style={{ fontSize: '16px' }}>people</span>
+                    {row.employees || 0}
+                </div>
+            )
+        },
+        { 
+            header: 'SALARY RANGE', 
+            key: 'salary_range', 
+            sortable: true,
+            render: (row) => (
+                <div className="salary-range">
+                    ${row.min_salary ? parseFloat(row.min_salary).toLocaleString() : '0'} - ${row.max_salary ? parseFloat(row.max_salary).toLocaleString() : '0'}
+                </div>
+            )
+        },
+        { 
+            header: 'STATUS', 
+            key: 'status', 
+            sortable: true,
+            render: (row) => (
+                <span className={`profession-status ${row.status === 'active' ? 'status-active' : 'status-inactive'}`}>
+                    {row.status === 'active' ? 'Active' : 'Inactive'}
+                </span>
+            )
+        },
+        { 
+            header: 'CREATED AT', 
+            key: 'created_at', 
+            sortable: true,
+            render: (row) => new Date(row.created_at).toLocaleDateString()
+        }
+    ], [isArabic, departments]);
+
+    const tableData = useMemo(() => {
+        return filteredProfessions.map(p => ({
+            ...p,
+            selected: selectedIds.includes(p.id)
+        }));
+    }, [filteredProfessions, selectedIds]);
 
     const openModal = (prof = null) => {
         if (prof) {
@@ -222,71 +315,19 @@ const Profession = ({ professions = [], departments = [] }) => {
                     </div>
                 </div>
 
-                <div className="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th><input type="checkbox" /></th>
-                                <th>ID <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>PROFESSION <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>CODE <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>EMPLOYEES <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>SALARY RANGE <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>STATUS <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>CREATED AT <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                <th>OPERATIONS</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredProfessions.map(prof => (
-                                <tr key={prof.id}>
-                                    <td><input type="checkbox" className="profession-checkbox" /></td>
-                                    <td>{prof.id.toString().padStart(3, '0')}</td>
-                                    <td>
-                                        <div className="profession-info">
-                                            <div className="profession-icon" style={{ backgroundColor: getCategoryColor() }}>
-                                                <span className="material-icons-outlined">work</span>
-                                            </div>
-                                            <div className="profession-details">
-                                                <div className="profession-name">{prof.profession_name}</div>
-                                                <div className="profession-category">{getDepartmentName(prof.category)}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td><strong>{prof.profession_code}</strong></td>
-                                    <td>
-                                        <div className="employee-count">
-                                            <span className="material-icons-outlined" style={{ fontSize: '16px' }}>people</span>
-                                            {prof.employees || 0}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div className="salary-range">
-                                            ${prof.min_salary ? parseFloat(prof.min_salary).toLocaleString() : '0'} - ${prof.max_salary ? parseFloat(prof.max_salary).toLocaleString() : '0'}
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <span className={`profession-status ${prof.status === 'active' ? 'status-active' : 'status-inactive'}`}>
-                                            {prof.status === 'active' ? 'Active' : 'Inactive'}
-                                        </span>
-                                    </td>
-                                    <td>{new Date(prof.created_at).toLocaleDateString()}</td>
-                                    <td>
-                                        <button className="icon-btn edit" onClick={() => openModal(prof)}>
-                                            <span className="material-icons-outlined">edit</span>
-                                        </button>
-                                        <button className="icon-btn delete" onClick={() => handleDelete(prof.id)}>
-                                            <span className="material-icons-outlined">delete</span>
-                                        </button>
-                                        <button className="icon-btn" style={{ color: 'var(--info-color)' }}>
-                                            <span className="material-icons-outlined">visibility</span>
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                <Table 
+                    tableData={tableData}
+                    columns={columns}
+                    handleRowSelect={handleRowSelect}
+                    selectAll={selectAll}
+                    handleSelectAll={handleSelectAll}
+                    onView={(row) => console.log('View', row)}
+                    onEdit={(row) => openModal(row)}
+                    onDelete={(row) => handleDelete(row.id)}
+                    viewTitle={isArabic ? "عرض" : "View"}
+                    editTitle={isArabic ? "تعديل" : "Edit"}
+                    deleteTitle={isArabic ? "حذف" : "Delete"}
+                />
 
                 <div className="pagination">
                     <div className="pagination-info">

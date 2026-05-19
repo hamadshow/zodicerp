@@ -1,0 +1,84 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+.page-content-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+
+    &.fade-in {
+        animation: contentFadeIn 0.5s ease-out forwards;
+    }
+
+    /* Common Card styles for content area */
+    .content-card {
+        background-color: #{$white};
+        border-radius: #{$radius-lg};
+        border: 1px solid #{$border-color};
+        box-shadow: #{$shadow-sm};
+        overflow: hidden;
+        transition: all 0.3s ease;
+
+        &:hover {
+            box-shadow: #{$shadow-md};
+        }
+
+        .card-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #{$border-color};
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #{$light-color};
+
+            .header-left {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+                flex: 1;
+            }
+
+            .header-right {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                justify-content: flex-end;
+            }
+
+            .card-title {
+                margin: 0;
+                font-size: 1.1rem;
+                font-weight: 600;
+                color: #{$text-primary};
+            }
+
+            .back-button {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        .card-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #{$border-color};
+            background-color: #{$light-color};
+        }
+    }
+}
+
+@keyframes contentFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

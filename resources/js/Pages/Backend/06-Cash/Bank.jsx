@@ -460,6 +460,8 @@ const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAc
 const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
     const { props } = usePage();
     const localization = props.localization;
+    const translations = localization?.translations || {};
+    const t = (key, fallback) => translations[`Bank.${key}`] || translations[`common.${key}`] || fallback;
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -507,7 +509,7 @@ const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
     };
 
     const handleDeleteAccount = (id) => {
-        if (confirm('Are you sure you want to delete this account?')) {
+        if (confirm(t('delete_account_confirm', 'Are you sure you want to delete this account?'))) {
             router.delete(getLocalizedRoute('admin.banks.accounts.destroy', { bankAccount: id }), {
                 onSuccess: () => fetchAccounts(),
                 preserveScroll: true,
@@ -522,7 +524,7 @@ const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
             <div className={`modal-overlay ${isOpen ? 'active' : ''}`}>
                 <div className="modal-content large">
                     <div className="modal-header">
-                        <h2>{bank.name} - Details & Accounts</h2>
+                        <h2>{bank.name} - {t('bank_details_accounts', 'Details & Accounts')}</h2>
                         <button className="close-btn" onClick={onClose}>
                             <span className="material-icons-outlined">close</span>
                         </button>
@@ -538,60 +540,60 @@ const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
                                     )}
                                 </div>
                                 <div className="info-item">
-                                    <div className="info-label">Bank Code</div>
+                                    <div className="info-label">{t('bank_code', 'Bank Code')}</div>
                                     <div className="info-value">{bank.bank_code}</div>
                                 </div>
                                 <div className="info-item">
-                                    <div className="info-label">Swift Code</div>
+                                    <div className="info-label">{t('swift_code', 'Swift Code')}</div>
                                     <div className="info-value">{bank.swift_code || '-'}</div>
                                 </div>
                                 <div className="info-item">
-                                    <div className="info-label">Country</div>
+                                    <div className="info-label">{t('country', 'Country')}</div>
                                     <div className="info-value">{bank.country || '-'}</div>
                                 </div>
                                 <div className="info-item">
-                                    <div className="info-label">Currency</div>
+                                    <div className="info-label">{t('currency', 'Currency')}</div>
                                     <div className="info-value">{bank.currency}</div>
                                 </div>
                                 <div className="info-item">
-                                    <div className="info-label">Status</div>
+                                    <div className="info-label">{t('status', 'Status')}</div>
                                     <span className={`status-badge status-${bank.status}`}>
-                                        {bank.status}
+                                        {bank.status === 'active' ? t('active', 'Active') : t('inactive', 'Inactive')}
                                     </span>
                                 </div>
                             </div>
 
                             <div className="accounts-section">
                                 <div className="section-header">
-                                    <div className="section-title">Bank Accounts</div>
+                                    <div className="section-title">{t('bank_accounts', 'Bank Accounts')}</div>
                                     <button className="btn btn-primary" onClick={handleAddAccount} style={{ padding: '6px 12px', fontSize: '12px' }}>
                                         <span className="material-icons-outlined" style={{ fontSize: '16px' }}>add</span>
-                                        Add Account
+                                        {t('add_account', 'Add Account')}
                                     </button>
                                 </div>
 
                                 {loading ? (
                                     <div className="loading-spinner">
                                         <div className="spinner"></div>
-                                        <p>Loading accounts...</p>
+                                        <p>{t('loading_accounts', 'Loading accounts...')}</p>
                                     </div>
                                 ) : (
                                     <table className="accounts-table">
                                         <thead>
                                             <tr>
-                                                <th>Account Name</th>
-                                                <th>Number / IBAN</th>
-                                                <th>Currency</th>
-                                                <th>Balance</th>
-                                                <th>Status</th>
-                                                <th>Actions</th>
+                                                <th>{t('account_name', 'Account Name')}</th>
+                                                <th>{t('number_iban', 'Number / IBAN')}</th>
+                                                <th>{t('currency', 'Currency')}</th>
+                                                <th>{t('balance', 'Balance')}</th>
+                                                <th>{t('status', 'Status')}</th>
+                                                <th>{t('actions', 'Actions')}</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {accounts.length === 0 ? (
                                                 <tr>
                                                     <td colSpan="6" className="text-center text-gray-500 py-4">
-                                                        No accounts found.
+                                                        {t('no_accounts_found', 'No accounts found.')}
                                                     </td>
                                                 </tr>
                                             ) : (
@@ -600,7 +602,7 @@ const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
                                                         <td>
                                                             <div className="font-medium">{acc.account_name}</div>
                                                             {acc.is_default && (
-                                                                <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">Default</span>
+                                                                <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">{t('default', 'Default')}</span>
                                                             )}
                                                         </td>
                                                         <td>
@@ -615,7 +617,7 @@ const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
                                                         </td>
                                                         <td>
                                                             <span className={`status-badge status-${acc.status}`}>
-                                                                {acc.status}
+                                                                {acc.status === 'active' ? t('active', 'Active') : t('inactive', 'Inactive')}
                                                             </span>
                                                         </td>
                                                         <td>

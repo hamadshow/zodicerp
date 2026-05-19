@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import ActionsCell from '@/Components/ActionsCell';
+import Table from '../components/Table';
 
 const TaxType = ({ taxTypes = [], countries = [] }) => {
     const { props } = usePage();
@@ -17,6 +17,8 @@ const TaxType = ({ taxTypes = [], countries = [] }) => {
 
     const [filteredTaxTypes, setFilteredTaxTypes] = useState(taxTypes);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [selectAll, setSelectAll] = useState(false);
     const [currentTaxType, setCurrentTaxType] = useState(null);
     const [stats, setStats] = useState({
         total: 0,
@@ -60,6 +62,56 @@ const TaxType = ({ taxTypes = [], countries = [] }) => {
     const handleSearch = (e) => {
         setSearchTerm(e.target.value);
     };
+
+    const handleRowSelect = (id) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectAll) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredTaxTypes.map(t => t.id));
+        }
+        setSelectAll(!selectAll);
+    };
+
+    const columns = useMemo(() => [
+        { 
+            header: 'Code', 
+            key: 'code', 
+            sortable: true,
+            render: (taxType) => <span className="tax-code">{taxType.code}</span>
+        },
+        { header: 'Name (EN)', key: 'name_en', sortable: true },
+        { 
+            header: 'Name (AR)', 
+            key: 'name_ar', 
+            sortable: true,
+            render: (taxType) => <div className="text-right">{taxType.name_ar}</div>
+        },
+        { header: 'Country', key: 'country', render: (taxType) => taxType.country?.name_en },
+        { header: 'Category', key: 'tax_category', sortable: true },
+        { 
+            header: 'Status', 
+            key: 'is_active', 
+            sortable: true,
+            render: (taxType) => (
+                <span className={`tax-status ${taxType.is_active ? 'status-active' : 'status-inactive'}`}>
+                    {taxType.is_active ? 'Active' : 'Inactive'}
+                </span>
+            )
+        }
+    ], []);
+
+    const tableData = useMemo(() => {
+        return filteredTaxTypes.map(t => ({
+            ...t,
+            selected: selectedIds.includes(t.id)
+        }));
+    }, [filteredTaxTypes, selectedIds]);
 
     const query = useMemo(() => new URLSearchParams(window.location.search), [window.location.search]);
     const mode = query.get('mode');
@@ -428,55 +480,19 @@ const TaxType = ({ taxTypes = [], countries = [] }) => {
                         </button>
                     </div>
 
-                    <div className="table-responsive">
-                        <table className="table">
-                            <thead>
-                                <tr>
-                                    <th>Code</th>
-                                    <th>Name (EN)</th>
-                                    <th>Name (AR)</th>
-                                    <th>Country</th>
-                                    <th>Category</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredTaxTypes.length > 0 ? (
-                                    filteredTaxTypes.map(taxType => (
-                                        <tr key={taxType.id}>
-                                            <td><span className="tax-code">{taxType.code}</span></td>
-                                            <td className="font-medium">{taxType.name_en}</td>
-                                            <td className="text-right">{taxType.name_ar}</td>
-                                            <td>{taxType.country?.name_en}</td>
-                                            <td>{taxType.tax_category}</td>
-                                            <td>
-                                                <span className={`tax-status ${taxType.is_active ? 'status-active' : 'status-inactive'}`}>
-                                                    {taxType.is_active ? 'Active' : 'Inactive'}
-                                                </span>
-                                            </td>
-                                            <td>
-    <ActionsCell 
-        onView={() => openViewForm(taxType)}
-        onEdit={() => openEditForm(taxType)}
-        onDelete={() => handleDelete(taxType.id)}
-        viewTitle="View"
-        editTitle="Edit"
-        deleteTitle="Delete"
-    />
-</td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="7" className="text-center py-8 text-gray-500">
-                                            No tax types found
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                    <Table 
+                        tableData={tableData}
+                        columns={columns}
+                        handleRowSelect={handleRowSelect}
+                        selectAll={selectAll}
+                        handleSelectAll={handleSelectAll}
+                        onView={(taxType) => openViewForm(taxType)}
+                        onEdit={(taxType) => openEditForm(taxType)}
+                        onDelete={(taxType) => handleDelete(taxType.id)}
+                        viewTitle="View"
+                        editTitle="Edit"
+                        deleteTitle="Delete"
+                    />
                 </div>
             )}
         </AdminLayout>

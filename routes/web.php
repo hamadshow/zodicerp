@@ -513,6 +513,9 @@ Route::group([
         Route::get('financial-reports/cash-flow', [FinancialReportController::class, 'cashFlow'])->name('financial-reports.cash-flow');
 
         // 9. Cash & Banks (النقدية والبنوك)
+        Route::get('treasury/dashboard', function () {
+            return Inertia::render('Backend/06-Cash/DashboardTreasury');
+        })->name('treasury.dashboard');
         Route::resource('banks', \App\Http\Controllers\Backend\Cash\BankController::class);
         Route::prefix('banks')->name('banks.')->group(function () {
             Route::get('{bank}/accounts', [\App\Http\Controllers\Backend\Cash\BankController::class, 'getAccounts'])->name('accounts.index');

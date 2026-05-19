@@ -1,5 +1,6 @@
 import React from 'react';
 import NavigationLink from './NavigationLink';
+import PageContentArea from './page-content-area';
 
 /**
  * BlankPage Component - A universal container for ERP pages
@@ -39,9 +40,9 @@ const BlankPage = ({
             )}
 
             {/* Main Content Area */}
-            <div className="page-content-area">
+            <PageContentArea className={className}>
                 {children}
-            </div>
+            </PageContentArea>
         </div>
     );
 };

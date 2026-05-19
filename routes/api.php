@@ -76,7 +76,12 @@ Route::middleware(['web', 'auth'])->group(function () {
 
     // Accounting API Routes
     Route::get('/accounts/tree', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'tree']);
-    Route::get('/accounts', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'index']);
+    Route::get('/accounts/valid-parents', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'validParents']);
+    Route::post('/accounts/bulk-import', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'bulkImport'])->name('admin.accounts.bulkImport');
+    Route::patch('/accounts/{account}/stop', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'stop']);
+    Route::apiResource('accounts', App\Http\Controllers\Backend\Accounting\AccountsController::class)->except(['index']);
+    Route::get('/accounts', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'index']); // Keep existing index if needed
+    
     Route::apiResource('journals', App\Http\Controllers\Backend\Accounting\JournalController::class);
     Route::get('/journals/next-code', [App\Http\Controllers\Backend\Accounting\JournalController::class, 'nextCode']);
     Route::get('/financial-reports', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getData']);

@@ -118,7 +118,7 @@ class BankController extends Controller
         $validated = $request->validate([
             'bank_id' => 'required|exists:banks,id',
             'account_name' => 'required|string|max:255',
-            'account_number' => 'required|string|max:50',
+            'account_number' => 'required|string|max:100|unique:bank_accounts,account_number',
             'iban' => 'nullable|string|max:50',
             'currency' => 'required|exists:currencies,id',
             'opening_balance' => 'required|numeric',
@@ -127,6 +127,12 @@ class BankController extends Controller
             'is_default' => 'boolean',
             'status' => 'required|in:active,inactive',
         ]);
+
+        if ($validated['is_default']) {
+            BankAccount::where('bank_id', $validated['bank_id'])
+                ->where('is_default', true)
+                ->update(['is_default' => false]);
+        }
 
         BankAccount::create($validated);
 
@@ -137,7 +143,7 @@ class BankController extends Controller
     {
         $validated = $request->validate([
             'account_name' => 'required|string|max:255',
-            'account_number' => 'required|string|max:50',
+            'account_number' => 'required|string|max:100|unique:bank_accounts,account_number,'.$bankAccount->id,
             'iban' => 'nullable|string|max:50',
             'currency' => 'required|exists:currencies,id',
             'opening_balance' => 'required|numeric',
@@ -146,6 +152,12 @@ class BankController extends Controller
             'is_default' => 'boolean',
             'status' => 'required|in:active,inactive',
         ]);
+
+        if ($validated['is_default'] && !$bankAccount->is_default) {
+            BankAccount::where('bank_id', $bankAccount->bank_id)
+                ->where('is_default', true)
+                ->update(['is_default' => false]);
+        }
 
         $bankAccount->update($validated);
 

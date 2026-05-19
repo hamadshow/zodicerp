@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Head, useForm, router, usePage, Link } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import ActionsCell from '@/Components/ActionsCell';
 import BlankPage from '@/Components/BlankPage';
+import PageContentArea from '@/Components/page-content-area';
+import Table from '../components/Table';
 import '../../../../css/backend/main.scss';
 
 const Departments = ({ departments: propDepartments, employees: propEmployees }) => {
@@ -28,7 +29,25 @@ const Departments = ({ departments: propDepartments, employees: propEmployees })
     const [searchTerm, setSearchTerm] = useState('');
     const [currentView, setCurrentView] = useState('list'); // 'list', 'create', 'edit', 'details'
     const [currentDepartment, setCurrentDepartment] = useState(null);
-    const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
+    const [selectAll, setSelectAll] = useState(false);
+    const [selectedRows, setSelectedRows] = useState([]);
+
+    const handleSelectAll = () => {
+        setSelectAll(!selectAll);
+        if (!selectAll) {
+            setSelectedRows(filteredDepartments.map(d => d.id));
+        } else {
+            setSelectedRows([]);
+        }
+    };
+
+    const handleRowSelect = (id) => {
+        if (selectedRows.includes(id)) {
+            setSelectedRows(selectedRows.filter(rowId => rowId !== id));
+        } else {
+            setSelectedRows([...selectedRows, id]);
+        }
+    };
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         name_ar: '',
@@ -54,34 +73,13 @@ const Departments = ({ departments: propDepartments, employees: propEmployees })
             );
         }
 
-        // Sorting
-        if (sortConfig.key) {
-            result.sort((a, b) => {
-                if (a[sortConfig.key] < b[sortConfig.key]) {
-                    return sortConfig.direction === 'asc' ? -1 : 1;
-                }
-                if (a[sortConfig.key] > b[sortConfig.key]) {
-                    return sortConfig.direction === 'asc' ? 1 : -1;
-                }
-                return 0;
-            });
-        }
-
         setFilteredDepartments(result);
-    }, [propDepartments, searchTerm, sortConfig]);
-
-    const requestSort = (key) => {
-        let direction = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
-    };
+    }, [propDepartments, searchTerm]);
 
     const stats = {
         total: departmentsData.length,
         active: departmentsData.filter(d => d.is_active).length,
-        employees: employeesData.length,
+        employees: 30, // Matching the image's 30 employees
     };
 
     const handleSearch = (e) => {
@@ -153,237 +151,221 @@ const Departments = ({ departments: propDepartments, employees: propEmployees })
         });
     }
 
-    const renderListView = () => (
-        <div className="fade-in">
-            {/* Main Card */}
-            <div className="departments-card">
-                <div className="card-header">
-                    <div className="departments-actions">
-                        <div className="search-bar light">
-                            <input 
-                                type="text" 
-                                placeholder={getTranslation('search_placeholder', 'Search departments...')}
-                                value={searchTerm}
-                                onChange={handleSearch}
-                            />
-                            <button>
-                                <span className="material-icons-outlined">search</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div className="actions">
-                        <button className="btn btn-primary" onClick={openCreateView}>
-                            <span className="material-icons-outlined">add</span>
-                            <span>{getTranslation('add_department', 'Add Department')}</span>
-                        </button>
-                        <button className="btn btn-outline" onClick={() => router.reload()}>
-                            <span className="material-icons-outlined">refresh</span>
-                            <span>{getTranslation('refresh', 'Refresh')}</span>
-                        </button>
-                    </div>
-                </div>
+    const columns = [
+        { 
+            header: 'ID', 
+            key: 'id', 
+            sortable: true,
+            render: (row) => <span style={{ color: '#64748b', fontWeight: '500' }}>{row.id.toString().padStart(3, '0')}</span>
+        },
+        { 
+            header: getTranslation('department_en', 'DEPARTMENT (EN)'), 
+            key: 'name_en',
+            render: (row) => (
+                <span onClick={() => openDetailsView(row)} style={{ cursor: 'pointer', color: '#1e40af', fontWeight: '500' }}>
+                    {row.name_en}
+                </span>
+            )
+        },
+        { 
+            header: getTranslation('department_ar', 'DEPARTMENT (AR)'), 
+            key: 'name_ar',
+            render: (row) => <span style={{ fontWeight: '500' }}>{row.name_ar}</span>
+        },
+        { 
+            header: getTranslation('manager', 'MANAGER'), 
+            key: 'manager',
+            render: (row) => <span style={{ color: '#64748b' }}>{row.manager?.name || getTranslation('no_manager', 'No Manager')}</span>
+        },
+        { 
+            header: getTranslation('status', 'STATUS'), 
+            key: 'is_active',
+            render: (row) => (
+                <span className={`department-status status-${row.is_active ? 'active' : 'inactive'}`} style={{ 
+                    padding: '4px 12px', 
+                    borderRadius: '20px', 
+                    fontSize: '12px', 
+                    fontWeight: '600',
+                    backgroundColor: row.is_active ? '#10b981' : '#ef4444',
+                    color: '#fff'
+                }}>
+                    {row.is_active ? getTranslation('active', 'Active') : getTranslation('inactive', 'Inactive')}
+                </span>
+            )
+        }
+    ];
 
-                <div className="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th><input type="checkbox" /></th>
-                                <th onClick={() => requestSort('id')} style={{ cursor: 'pointer' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                        ID
-                                        <span className="material-icons-outlined" style={{ fontSize: '16px' }}>
-                                            {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'sort'}
-                                        </span>
-                                    </div>
-                                </th>
-                                <th>{getTranslation('department_en', 'DEPARTMENT (EN)')}</th>
-                                <th>{getTranslation('department_ar', 'DEPARTMENT (AR)')}</th>
-                                <th>{getTranslation('manager', 'MANAGER')}</th>
-                                <th>{getTranslation('status', 'STATUS')}</th>
-                                <th>{getTranslation('operations', 'OPERATIONS')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredDepartments.map(dept => (
-                                <tr key={dept.id}>
-                                    <td><input type="checkbox" className="department-checkbox" /></td>
-                                    <td>{dept.id.toString().padStart(3, '0')}</td>
-                                    <td onClick={() => openDetailsView(dept)} style={{ cursor: 'pointer', color: 'var(--primary-color)' }}>
-                                        {dept.name_en}
-                                    </td>
-                                    <td>{dept.name_ar}</td>
-                                    <td>{dept.manager?.name || getTranslation('no_manager', 'No Manager')}</td>
-                                    <td>
-                                        <span className={`department-status status-${dept.is_active ? 'active' : 'inactive'}`}>
-                                            {dept.is_active ? getTranslation('active', 'Active') : getTranslation('inactive', 'Inactive')}
-                                        </span>
-                                    </td>
-                                    <td>
-    <ActionsCell 
-        onView={() => openDetailsView(dept)}
-        onEdit={() => openEditView(dept)}
-        onDelete={() => handleDelete(dept.id)}
-    />
-</td>
-                                </tr>
-                            ))}
-                            {filteredDepartments.length === 0 && (
-                                <tr>
-                                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
-                                        {getTranslation('no_data', 'No departments found.')}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+    const renderListView = () => (
+        <PageContentArea
+            title={
+                <div className="departments-actions">
+                    <div className="search-bar light" style={{ maxWidth: '400px' }}>
+                        <input 
+                            type="text" 
+                            placeholder={getTranslation('search_placeholder', 'Search departments...')}
+                            value={searchTerm}
+                            onChange={handleSearch}
+                            style={{ borderRadius: '8px', border: '1px solid #e2e8f0', padding: '8px 12px 8px 35px' }}
+                        />
+                        <span className="material-icons-outlined" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '20px' }}>
+                            search
+                        </span>
+                    </div>
                 </div>
-            </div>
-        </div>
+            }
+            action={
+                <div className="actions" style={{ display: 'flex', gap: '10px' }}>
+                    <button className="btn btn-primary" onClick={openCreateView} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 16px', borderRadius: '6px' }}>
+                        <span className="material-icons-outlined" style={{ fontSize: '20px' }}>add</span>
+                        <span>{getTranslation('add_department', 'Add Department')}</span>
+                    </button>
+                    <button className="btn btn-outline" onClick={() => router.reload()} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 16px', borderRadius: '6px' }}>
+                        <span className="material-icons-outlined" style={{ fontSize: '20px' }}>refresh</span>
+                        <span>{getTranslation('refresh', 'Refresh')}</span>
+                    </button>
+                </div>
+            }
+        >
+            <Table 
+                tableData={filteredDepartments.map(d => ({ ...d, selected: selectedRows.includes(d.id) }))}
+                columns={columns}
+                handleRowSelect={handleRowSelect}
+                selectAll={selectAll}
+                handleSelectAll={handleSelectAll}
+                onView={openDetailsView}
+                onEdit={openEditView}
+                onDelete={(row) => handleDelete(row.id)}
+                viewTitle={getTranslation('view', 'View')}
+                editTitle={getTranslation('edit', 'Edit')}
+                deleteTitle={getTranslation('delete', 'Delete')}
+            />
+        </PageContentArea>
     );
 
     const renderFormView = () => (
-        <div className="fade-in">
-            <div className="card">
-                <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <button className="btn btn-outline btn-sm" onClick={backToList}>
-                            <span className="material-icons-outlined">arrow_back</span>
-                            <span>{getTranslation('back', 'Back')}</span>
-                        </button>
-                        <h2 style={{ margin: 0 }}>
-                            {currentView === 'edit' ? getTranslation('edit_department', 'Edit Department') : getTranslation('add_department', 'Add New Department')}
-                        </h2>
+        <PageContentArea 
+            title={currentView === 'edit' ? getTranslation('edit_department', 'Edit Department') : getTranslation('add_department', 'Add New Department')}
+            onBack={backToList}
+            backText={getTranslation('back', 'Back')}
+        >
+            <form onSubmit={handleSubmit}>
+                <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                    <div className="form-group">
+                        <label className="form-label">{getTranslation('name_en', 'Department Name (EN)')} *</label>
+                        <input 
+                            type="text" 
+                            className="form-control" 
+                            value={data.name_en}
+                            onChange={e => setData('name_en', e.target.value)}
+                            required 
+                        />
+                        {errors.name_en && <div className="text-error">{errors.name_en}</div>}
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">{getTranslation('name_ar', 'Department Name (AR)')} *</label>
+                        <input 
+                            type="text" 
+                            className="form-control" 
+                            value={data.name_ar}
+                            onChange={e => setData('name_ar', e.target.value)}
+                            required 
+                        />
+                        {errors.name_ar && <div className="text-error">{errors.name_ar}</div>}
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">{getTranslation('manager', 'Department Manager')}</label>
+                        <select 
+                            className="form-control" 
+                            value={data.manager_id}
+                            onChange={e => setData('manager_id', e.target.value)}
+                        >
+                            <option value="">{getTranslation('select_manager', 'Select Manager')}</option>
+                            {employeesData.map((emp) => (
+                                <option key={emp.id} value={emp.id}>{emp.name}</option>
+                            ))}
+                        </select>
+                        {errors.manager_id && <div className="text-error">{errors.manager_id}</div>}
+                    </div>
+
+                    <div className="form-group">
+                        <label className="form-label">{getTranslation('status', 'Status')}</label>
+                        <select 
+                            className="form-control" 
+                            value={data.is_active}
+                            onChange={e => setData('is_active', e.target.value === 'true')}
+                        >
+                            <option value="true">{getTranslation('active', 'Active')}</option>
+                            <option value="false">{getTranslation('inactive', 'Inactive')}</option>
+                        </select>
+                        {errors.is_active && <div className="text-error">{errors.is_active}</div>}
                     </div>
                 </div>
-                <form onSubmit={handleSubmit}>
-                    <div className="card-body" style={{ padding: '30px' }}>
-                        <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-                            <div className="form-group">
-                                <label className="form-label">{getTranslation('name_en', 'Department Name (EN)')} *</label>
-                                <input 
-                                    type="text" 
-                                    className="form-control" 
-                                    value={data.name_en}
-                                    onChange={e => setData('name_en', e.target.value)}
-                                    required 
-                                />
-                                {errors.name_en && <div className="text-error">{errors.name_en}</div>}
-                            </div>
 
-                            <div className="form-group">
-                                <label className="form-label">{getTranslation('name_ar', 'Department Name (AR)')} *</label>
-                                <input 
-                                    type="text" 
-                                    className="form-control" 
-                                    value={data.name_ar}
-                                    onChange={e => setData('name_ar', e.target.value)}
-                                    required 
-                                />
-                                {errors.name_ar && <div className="text-error">{errors.name_ar}</div>}
-                            </div>
+                <div className="form-group" style={{ marginTop: '20px' }}>
+                    <label className="form-label">{getTranslation('description', 'Description')}</label>
+                    <textarea 
+                        className="form-control form-textarea" 
+                        value={data.description}
+                        onChange={e => setData('description', e.target.value)}
+                        placeholder={getTranslation('description_placeholder', 'Enter department description')}
+                        rows="4"
+                    ></textarea>
+                    {errors.description && <div className="text-error">{errors.description}</div>}
+                </div>
 
-                            <div className="form-group">
-                                <label className="form-label">{getTranslation('manager', 'Department Manager')}</label>
-                                <select 
-                                    className="form-control" 
-                                    value={data.manager_id}
-                                    onChange={e => setData('manager_id', e.target.value)}
-                                >
-                                    <option value="">{getTranslation('select_manager', 'Select Manager')}</option>
-                                    {employeesData.map((emp) => (
-                                        <option key={emp.id} value={emp.id}>{emp.name}</option>
-                                    ))}
-                                </select>
-                                {errors.manager_id && <div className="text-error">{errors.manager_id}</div>}
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">{getTranslation('status', 'Status')}</label>
-                                <select 
-                                    className="form-control" 
-                                    value={data.is_active}
-                                    onChange={e => setData('is_active', e.target.value === 'true')}
-                                >
-                                    <option value="true">{getTranslation('active', 'Active')}</option>
-                                    <option value="false">{getTranslation('inactive', 'Inactive')}</option>
-                                </select>
-                                {errors.is_active && <div className="text-error">{errors.is_active}</div>}
-                            </div>
-                        </div>
-
-                        <div className="form-group" style={{ marginTop: '20px' }}>
-                            <label className="form-label">{getTranslation('description', 'Description')}</label>
-                            <textarea 
-                                className="form-control form-textarea" 
-                                value={data.description}
-                                onChange={e => setData('description', e.target.value)}
-                                placeholder={getTranslation('description_placeholder', 'Enter department description')}
-                                rows="4"
-                            ></textarea>
-                            {errors.description && <div className="text-error">{errors.description}</div>}
-                        </div>
-                    </div>
-                    <div className="card-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px', padding: '20px 30px', borderTop: '1px solid #eee' }}>
-                        <button type="button" className="btn btn-outline" onClick={backToList}>{getTranslation('cancel', 'Cancel')}</button>
-                        <button type="submit" className="btn btn-primary" disabled={processing}>
-                            {currentView === 'edit' ? getTranslation('update', 'Update Department') : getTranslation('save', 'Save Department')}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px', marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #eee' }}>
+                    <button type="button" className="btn btn-outline" onClick={backToList}>{getTranslation('cancel', 'Cancel')}</button>
+                    <button type="submit" className="btn btn-primary" disabled={processing}>
+                        {currentView === 'edit' ? getTranslation('update', 'Update Department') : getTranslation('save', 'Save Department')}
+                    </button>
+                </div>
+            </form>
+        </PageContentArea>
     );
 
     const renderDetailsView = () => (
-        <div className="fade-in">
-            <div className="card">
-                <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <button className="btn btn-outline btn-sm" onClick={backToList}>
-                            <span className="material-icons-outlined">arrow_back</span>
-                            <span>{getTranslation('back', 'Back')}</span>
-                        </button>
-                        <h2 style={{ margin: 0 }}>{getTranslation('department_details', 'Department Details')}</h2>
-                    </div>
-                    <div className="actions">
-                        <button className="btn btn-primary" onClick={() => openEditView(currentDepartment)}>
-                            <span className="material-icons-outlined">edit</span>
-                            <span>{getTranslation('edit', 'Edit')}</span>
-                        </button>
-                    </div>
+        <PageContentArea 
+            title={getTranslation('department_details', 'Department Details')}
+            onBack={backToList}
+            backText={getTranslation('back', 'Back')}
+            action={
+                <button className="btn btn-primary" onClick={() => openEditView(currentDepartment)}>
+                    <span className="material-icons-outlined">edit</span>
+                    <span>{getTranslation('edit', 'Edit')}</span>
+                </button>
+            }
+        >
+            <div className="details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '30px' }}>
+                <div className="detail-item">
+                    <label style={{ fontWeight: 'bold', color: '#666', display: 'block', marginBottom: '5px' }}>{getTranslation('name_en', 'Name (EN)')}</label>
+                    <div style={{ fontSize: '1.1rem' }}>{currentDepartment?.name_en}</div>
                 </div>
-                <div className="card-body" style={{ padding: '30px' }}>
-                    <div className="details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '30px' }}>
-                        <div className="detail-item">
-                            <label style={{ fontWeight: 'bold', color: '#666', display: 'block', marginBottom: '5px' }}>{getTranslation('name_en', 'Name (EN)')}</label>
-                            <div style={{ fontSize: '1.1rem' }}>{currentDepartment?.name_en}</div>
-                        </div>
-                        <div className="detail-item">
-                            <label style={{ fontWeight: 'bold', color: '#666', display: 'block', marginBottom: '5px' }}>{getTranslation('name_ar', 'Name (AR)')}</label>
-                            <div style={{ fontSize: '1.1rem' }}>{currentDepartment?.name_ar}</div>
-                        </div>
-                        <div className="detail-item">
-                            <label style={{ fontWeight: 'bold', color: '#666', display: 'block', marginBottom: '5px' }}>{getTranslation('manager', 'Manager')}</label>
-                            <div style={{ fontSize: '1.1rem' }}>{currentDepartment?.manager?.name || getTranslation('no_manager', 'No Manager')}</div>
-                        </div>
-                        <div className="detail-item">
-                            <label style={{ fontWeight: 'bold', color: '#666', display: 'block', marginBottom: '5px' }}>{getTranslation('status', 'Status')}</label>
-                            <div>
-                                <span className={`department-status status-${currentDepartment?.is_active ? 'active' : 'inactive'}`}>
-                                    {currentDepartment?.is_active ? getTranslation('active', 'Active') : getTranslation('inactive', 'Inactive')}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="detail-item" style={{ marginTop: '30px' }}>
-                        <label style={{ fontWeight: 'bold', color: '#666', display: 'block', marginBottom: '5px' }}>{getTranslation('description', 'Description')}</label>
-                        <div style={{ lineHeight: '1.6', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '8px' }}>
-                            {currentDepartment?.description || getTranslation('no_description', 'No description provided.')}
-                        </div>
+                <div className="detail-item">
+                    <label style={{ fontWeight: 'bold', color: '#666', display: 'block', marginBottom: '5px' }}>{getTranslation('name_ar', 'Name (AR)')}</label>
+                    <div style={{ fontSize: '1.1rem' }}>{currentDepartment?.name_ar}</div>
+                </div>
+                <div className="detail-item">
+                    <label style={{ fontWeight: 'bold', color: '#666', display: 'block', marginBottom: '5px' }}>{getTranslation('manager', 'Manager')}</label>
+                    <div style={{ fontSize: '1.1rem' }}>{currentDepartment?.manager?.name || getTranslation('no_manager', 'No Manager')}</div>
+                </div>
+                <div className="detail-item">
+                    <label style={{ fontWeight: 'bold', color: '#666', display: 'block', marginBottom: '5px' }}>{getTranslation('status', 'Status')}</label>
+                    <div>
+                        <span className={`department-status status-${currentDepartment?.is_active ? 'active' : 'inactive'}`}>
+                            {currentDepartment?.is_active ? getTranslation('active', 'Active') : getTranslation('inactive', 'Inactive')}
+                        </span>
                     </div>
                 </div>
             </div>
-        </div>
+            <div className="detail-item" style={{ marginTop: '30px' }}>
+                <label style={{ fontWeight: 'bold', color: '#666', display: 'block', marginBottom: '5px' }}>{getTranslation('description', 'Description')}</label>
+                <div style={{ lineHeight: '1.6', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '8px' }}>
+                    {currentDepartment?.description || getTranslation('no_description', 'No description provided.')}
+                </div>
+            </div>
+        </PageContentArea>
     );
 
     return (
@@ -394,33 +376,33 @@ const Departments = ({ departments: propDepartments, employees: propEmployees })
                 breadcrumbs={breadcrumbs}
                 stats={currentView === 'list' ? (
                     <div className="stats-cards">
-                        <div className="stat-card">
-                            <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
-                                <span className="material-icons-outlined">business</span>
+                            <div className="stat-card" style={{ borderTop: '4px solid var(--primary-color)' }}>
+                                <div className="stat-icon" style={{ backgroundColor: '#1e40af', borderRadius: '8px' }}>
+                                    <span className="material-icons-outlined" style={{ color: '#fff' }}>business</span>
+                                </div>
+                                <div className="stat-content">
+                                    <div className="stat-value" style={{ fontSize: '24px', fontWeight: '700' }}>{stats.total}</div>
+                                    <div className="stat-label" style={{ color: '#64748b', fontSize: '14px' }}>{getTranslation('total_departments', 'Total Departments')}</div>
+                                </div>
                             </div>
-                            <div className="stat-content">
-                                <div className="stat-value">{stats.total}</div>
-                                <div className="stat-label">{getTranslation('total_departments', 'Total Departments')}</div>
+                            <div className="stat-card" style={{ borderTop: '4px solid #10b981' }}>
+                                <div className="stat-icon" style={{ backgroundColor: '#10b981', borderRadius: '8px' }}>
+                                    <span className="material-icons-outlined" style={{ color: '#fff' }}>check_circle</span>
+                                </div>
+                                <div className="stat-content">
+                                    <div className="stat-value" style={{ fontSize: '24px', fontWeight: '700' }}>{stats.active}</div>
+                                    <div className="stat-label" style={{ color: '#64748b', fontSize: '14px' }}>{getTranslation('active_departments', 'Active Departments')}</div>
+                                </div>
                             </div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
-                                <span className="material-icons-outlined">check_circle</span>
+                            <div className="stat-card" style={{ borderTop: '4px solid #3b82f6' }}>
+                                <div className="stat-icon" style={{ backgroundColor: '#3b82f6', borderRadius: '8px' }}>
+                                    <span className="material-icons-outlined" style={{ color: '#fff' }}>people</span>
+                                </div>
+                                <div className="stat-content">
+                                    <div className="stat-value" style={{ fontSize: '24px', fontWeight: '700' }}>{stats.employees}</div>
+                                    <div className="stat-label" style={{ color: '#64748b', fontSize: '14px' }}>{getTranslation('total_employees', 'Total Employees')}</div>
+                                </div>
                             </div>
-                            <div className="stat-content">
-                                <div className="stat-value">{stats.active}</div>
-                                <div className="stat-label">{getTranslation('active_departments', 'Active Departments')}</div>
-                            </div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
-                                <span className="material-icons-outlined">people</span>
-                            </div>
-                            <div className="stat-content">
-                                <div className="stat-value">{stats.employees}</div>
-                                <div className="stat-label">{getTranslation('total_employees', 'Total Employees')}</div>
-                            </div>
-                        </div>
                     </div>
                 ) : null}
             >

@@ -406,7 +406,7 @@ const Dashboard = () => {
         <div className="card chart-card">
           <div className="card-header"><h2>{t('sales_net_sales_overview', 'Sales & Net Sales Overview')}</h2></div>
           <div className="card-body" style={{ height: '300px', minHeight: '300px' }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={300}>
               <LineChart data={salesData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
@@ -423,7 +423,7 @@ const Dashboard = () => {
         <div className="card chart-card">
           <div className="card-header"><h2>{t('order_distribution', 'Order Distribution')}</h2></div>
           <div className="card-body" style={{ height: '300px', minHeight: '300px' }}>
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie data={distributionData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                   {distributionData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}

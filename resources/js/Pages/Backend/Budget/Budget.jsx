@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
-import ActionsCell from '@/Components/ActionsCell';
+import Table from '../components/Table';
 import '../../../../css/backend/main.scss';
 
 // --- Helper Functions ---
@@ -26,6 +26,8 @@ const calculateBudgetTotals = (items) => {
 // --- List View Component ---
 const ListView = ({ budgets, t, localization, onCreate, onEdit, onView, onDelete }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedIds, setSelectedIds] = useState([]);
+    const [selectAll, setSelectAll] = useState(false);
 
     const filteredBudgets = useMemo(() => {
         if (!searchTerm) return budgets.data;
@@ -36,6 +38,65 @@ const ListView = ({ budgets, t, localization, onCreate, onEdit, onView, onDelete
             b.fiscal_year.toString().includes(lowerTerm)
         );
     }, [searchTerm, budgets.data, localization?.current_locale]);
+
+    const handleRowSelect = (id) => {
+        setSelectedIds(prev => 
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectAll) {
+            setSelectedIds([]);
+        } else {
+            setSelectedIds(filteredBudgets.map(b => b.id));
+        }
+        setSelectAll(!selectAll);
+    };
+
+    const columns = useMemo(() => [
+        { 
+            header: t('number', 'الرقم'), 
+            key: 'budget_number', 
+            sortable: true,
+            render: (budget) => <span style={{ fontWeight: 600, color: '#475569' }}>{budget.budget_number}</span>
+        },
+        { 
+            header: t('name', 'NAME'), 
+            key: 'name', 
+            sortable: true,
+            render: (budget) => localization?.current_locale === 'ar' ? budget.budget_name_ar : budget.budget_name_en
+        },
+        { header: t('fiscal_year', 'السنة المالية'), key: 'fiscal_year', sortable: true },
+        { 
+            header: t('department', 'القسم'), 
+            key: 'department', 
+            render: (budget) => (localization?.current_locale === 'ar' ? budget.department?.name_ar : budget.department?.name_en) || '-'
+        },
+        { 
+            header: t('status', 'الحالة'), 
+            key: 'status', 
+            sortable: true,
+            render: (budget) => (
+                <span className={`badge ${budget.status === 'approved' ? 'badge-approved' : 'badge-draft'}`}>
+                    {t(budget.status, budget.status)}
+                </span>
+            )
+        },
+        { 
+            header: t('total_expense', 'إجمالي المصروفات'), 
+            key: 'total_expense', 
+            sortable: true,
+            render: (budget) => <span style={{ fontWeight: 600 }}>{Number(budget.total_expense).toLocaleString()}</span>
+        }
+    ], [localization?.current_locale]);
+
+    const tableData = useMemo(() => {
+        return filteredBudgets.map(b => ({
+            ...b,
+            selected: selectedIds.includes(b.id)
+        }));
+    }, [filteredBudgets, selectedIds]);
 
     const stats = useMemo(() => {
         const total = budgets.data.length;
@@ -95,53 +156,19 @@ const ListView = ({ budgets, t, localization, onCreate, onEdit, onView, onDelete
             </section>
 
             <section className="table-container">
-                <table className="custom-table">
-                    <thead>
-                        <tr>
-                            <th>{t('number', 'الرقم')}</th>
-                            <th>{t('name', 'NAME')}</th>
-                            <th>{t('fiscal_year', 'السنة المالية')}</th>
-                            <th>{t('department', 'القسم')}</th>
-                            <th>{t('status', 'الحالة')}</th>
-                            <th>{t('total_expense', 'إجمالي المصروفات')}</th>
-                            <th>{t('actions', 'العمليات')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredBudgets.length > 0 ? (
-                            filteredBudgets.map(budget => (
-                                <tr key={budget.id}>
-                                    <td style={{ fontWeight: 600, color: '#475569' }}>{budget.budget_number}</td>
-                                    <td>{localization?.current_locale === 'ar' ? budget.budget_name_ar : budget.budget_name_en}</td>
-                                    <td>{budget.fiscal_year}</td>
-                                    <td>{(localization?.current_locale === 'ar' ? budget.department?.name_ar : budget.department?.name_en) || '-'}</td>
-                                    <td>
-                                        <span className={`badge ${budget.status === 'approved' ? 'badge-approved' : 'badge-draft'}`}>
-                                            {t(budget.status, budget.status)}
-                                        </span>
-                                    </td>
-                                    <td style={{ fontWeight: 600 }}>{Number(budget.total_expense).toLocaleString()}</td>
-                                    <td>
-    <ActionsCell 
-        onView={() => onView(budget)}
-        onEdit={() => onEdit(budget)}
-        onDelete={() => onDelete(budget.id)}
-        viewTitle={t('view', 'عرض')}
-        editTitle={t('edit', 'تعديل')}
-        deleteTitle={t('delete', 'حذف')}
-    />
-</td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
-                                    {t('no_budgets_found', 'No budgets found.')}
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
+                <Table 
+                    tableData={tableData}
+                    columns={columns}
+                    handleRowSelect={handleRowSelect}
+                    selectAll={selectAll}
+                    handleSelectAll={handleSelectAll}
+                    onView={(budget) => onView(budget)}
+                    onEdit={(budget) => onEdit(budget)}
+                    onDelete={(budget) => onDelete(budget.id)}
+                    viewTitle={t('view', 'عرض')}
+                    editTitle={t('edit', 'تعديل')}
+                    deleteTitle={t('delete', 'حذف')}
+                />
             </section>
         </div>
     );
