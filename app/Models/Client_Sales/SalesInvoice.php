@@ -2,6 +2,7 @@
 
 namespace App\Models\Client_Sales;
 
+use App\Models\Account;
 use App\Models\Currency;
 use App\Models\User;
 use App\Models\Vendor_Purchases\PriceList;
@@ -28,6 +29,7 @@ class SalesInvoice extends Model
         'posting_date',
         'price_list_id',
         'warehouse_id',
+        'treasury_id',
         'subtotal',
         'discount_amount',
         'tax_amount',
@@ -67,6 +69,7 @@ class SalesInvoice extends Model
         'paid_amount' => 'decimal:2',
         'base_paid' => 'decimal:2',
         'balance_amount' => 'decimal:2',
+        'treasury_id' => 'integer',
         'is_posted' => 'boolean',
         'posted_at' => 'datetime',
     ];
@@ -99,6 +102,11 @@ class SalesInvoice extends Model
     public function warehouse()
     {
         return $this->belongsTo(Warehouses::class);
+    }
+
+    public function treasury()
+    {
+        return $this->belongsTo(Account::class, 'treasury_id', 'AccID');
     }
 
     public function salesAgent()

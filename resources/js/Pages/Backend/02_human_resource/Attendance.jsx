@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
-import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/main.scss';
-import { apiService } from '../../../services/api';
+import React, { useState, useEffect } from 'react';
+import AdminLayout from '@/Pages/Backend/components/AdminLayout';
+import '@/../css/backend/main.scss';
+import { apiService } from '@/services/api';
 
 
 export default function Attendance({ employees: propEmployees }) {
@@ -40,7 +40,7 @@ export default function Attendance({ employees: propEmployees }) {
   }, []);
 
   const fetchAttendance = () => {
-    apiService.get('/attendance')
+    apiService.get('/attendances')
       .then(response => {
         setAttendanceRecords(response.data || []);
       })
@@ -155,7 +155,7 @@ export default function Attendance({ employees: propEmployees }) {
     };
 
     if (editingId) {
-      apiService.put(`/attendance/${editingId}`, attendanceData)
+      apiService.put(`/attendances/${editingId}`, attendanceData)
         .then(() => {
           showToast('Attendance updated successfully!', 'success');
           fetchAttendance();
@@ -166,7 +166,7 @@ export default function Attendance({ employees: propEmployees }) {
           showToast('Failed to update attendance.', 'error');
         });
     } else {
-      apiService.post('/attendance', attendanceData)
+      apiService.post('/attendances', attendanceData)
         .then(() => {
           showToast('Attendance marked successfully!', 'success');
           fetchAttendance();
@@ -200,7 +200,7 @@ export default function Attendance({ employees: propEmployees }) {
     if (
       window.confirm('Are you sure you want to delete this attendance record?')
     ) {
-      apiService.delete(`/attendance/${id}`)
+      apiService.delete(`/attendances/${id}`)
         .then(() => {
           showToast('Attendance record deleted successfully!', 'success');
           fetchAttendance();
@@ -283,7 +283,7 @@ export default function Attendance({ employees: propEmployees }) {
           updated.timeIn = null;
           updated.timeOut = null;
         }
-        return apiService.put(`/attendance/${id}`, updated);
+        return apiService.put(`/attendances/${id}`, updated);
       });
 
       Promise.all(updates)
@@ -304,7 +304,7 @@ export default function Attendance({ employees: propEmployees }) {
           `Are you sure you want to delete ${selectedRecords.length} selected attendance record(s)?`
         )
       ) {
-        const deletions = selectedRecords.map(id => apiService.delete(`/attendance/${id}`));
+        const deletions = selectedRecords.map(id => apiService.delete(`/attendances/${id}`));
         
         Promise.all(deletions)
           .then(() => {

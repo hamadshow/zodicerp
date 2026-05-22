@@ -18,66 +18,170 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
+use Illuminate\Support\Facades\Cache;
+
 class TreasuryDashboardController extends Controller
 {
     protected array $postedJournalStatuses = ['Post', 'Posted'];
+    protected string $cacheKeyPrefix = 'treasury_dashboard_';
 
     public function index()
     {
         $today = Carbon::today();
         $yesterday = Carbon::yesterday();
+        $cacheKey = $this->cacheKeyPrefix . 'data';
 
-        $accounts = $this->buildAccountsSummary();
-        $cashBalance = (float) $accounts->where('type', 'cash')->sum('balance');
-        $bankBalance = (float) $accounts->where('type', 'bank')->sum('balance');
-        $totalBalance = $cashBalance + $bankBalance;
+        // Use Cache to store the entire dashboard data for 10 minutes
+        // This dramatically reduces CPU and DB load on repeated visits
+        return Cache::remember($cacheKey, now()->addMinutes(10), function () use ($today, $yesterday) {
+            // 1. Get Accounts from bank_accounts with dynamic balance calculation
+            $bankAccounts = BankAccount::query()
+                ->with(['bank', 'currencyInfo'])
+                ->withSum(['receipts as total_receipts' => function ($query) {
+                    $query->where('status', 'posted');
+                }], 'amount')
+                ->withSum(['payments as total_payments' => function ($query) {
+                    $query->where('status', 'posted');
+                }], 'amount')
+                ->get();
 
-        $openingTotal = (float) CashAccount::sum('opening_balance') + (float) BankAccount::sum('opening_balance');
+            // 2. Batch fetch last transaction dates
+            $lastReceiptDates = BankReceipt::query()
+                ->selectRaw('bank_account_id, MAX(receipt_date) as last_date')
+                ->whereIn('bank_account_id', $bankAccounts->pluck('id'))
+                ->groupBy('bank_account_id')
+                ->pluck('last_date', 'bank_account_id');
 
-        $receiptsToday = $this->sumReceiptsForDate($today);
-        $receiptsYesterday = $this->sumReceiptsForDate($yesterday);
-        $paymentsToday = $this->sumPaymentsForDate($today);
-        $paymentsYesterday = $this->sumPaymentsForDate($yesterday);
+            $lastPaymentDates = BankPayment::query()
+                ->selectRaw('bank_account_id, MAX(payment_date) as last_date')
+                ->whereIn('bank_account_id', $bankAccounts->pluck('id'))
+                ->groupBy('bank_account_id')
+                ->pluck('last_date', 'bank_account_id');
 
-        $balancesByCurrency = $this->buildBalancesByCurrency($accounts);
-        $primaryCurrency = $this->resolvePrimaryCurrency($balancesByCurrency);
+            $accounts = $bankAccounts->map(function ($account) use ($lastReceiptDates, $lastPaymentDates) {
+                $receipts = (float) $account->total_receipts;
+                $payments = (float) $account->total_payments;
+                $balance = $receipts - $payments;
 
-        $stats = [
-            'total_balance' => $totalBalance,
-            'receipts_today' => $receiptsToday,
-            'payments_today' => $paymentsToday,
-            'bank_balances' => $bankBalance,
-            'cash_balances' => $cashBalance,
-            'primary_currency' => $primaryCurrency,
-            'balances_by_currency' => $balancesByCurrency,
-            'trends' => [
-                'total_balance' => $this->percentChange($totalBalance, $openingTotal),
-                'receipts_today' => $this->percentChange($receiptsToday, $receiptsYesterday),
-                'payments_today' => $this->percentChange($paymentsToday, $paymentsYesterday),
-                'bank_balances' => $this->percentChange($bankBalance, (float) BankAccount::sum('opening_balance')),
-            ],
-        ];
+                $lastR = $lastReceiptDates[$account->id] ?? null;
+                $lastP = $lastPaymentDates[$account->id] ?? null;
+                $lastTx = ($lastR && $lastP) ? max($lastR, $lastP) : ($lastR ?: $lastP);
 
-        $chartData = $this->buildCashFlowChart($today);
-        $recentTransactions = $this->buildRecentTransactions();
+                return [
+                    'id' => $account->id,
+                    'name' => $account->bank?->name 
+                        ? $account->bank->name . ' - ' . $account->account_name 
+                        : $account->account_name,
+                    'type' => 'bank',
+                    'balance' => round($balance, 2),
+                    'currency' => $this->resolveAccountCurrency($account),
+                    'account_code' => $account->account_number,
+                    'status' => $account->status,
+                    'last_tx_at' => $lastTx,
+                ];
+            });
 
-        $largestBankPayment = (float) BankPayment::whereDate('payment_date', $today)->where('status', 'posted')->max('amount');
-        $largestCashPayment = (float) CashPayment::whereDate('payment_date', $today)->where('status', 'posted')->max('amount');
+            $totalBalance = (float) $accounts->sum('balance');
+            $bankBalance = (float) $accounts->where('type', 'bank')->sum('balance');
+            $cashBalance = (float) $accounts->where('type', 'cash')->sum('balance');
 
-        $performance = [
-            'highest_balance' => $accounts->max('balance') ?? 0,
-            'largest_expense_today' => max($largestBankPayment, $largestCashPayment),
-            'monthly_growth' => $this->percentChange($totalBalance, $openingTotal),
-            'primary_currency' => $primaryCurrency,
-        ];
+            // 3. Batch fetch sums for today and yesterday
+            $dailySums = $this->fetchDailySums([$today, $yesterday]);
+            
+            $receiptsToday = $dailySums[$today->toDateString()]['receipts'] ?? 0.0;
+            $receiptsYesterday = $dailySums[$yesterday->toDateString()]['receipts'] ?? 0.0;
+            $paymentsToday = $dailySums[$today->toDateString()]['payments'] ?? 0.0;
+            $paymentsYesterday = $dailySums[$yesterday->toDateString()]['payments'] ?? 0.0;
 
-        return Inertia::render('Backend/06-Cash/DashboardTreasury', [
-            'stats' => $stats,
-            'accounts' => $accounts->values(),
-            'chartData' => $chartData,
-            'recentTransactions' => $recentTransactions,
-            'performance' => $performance,
-        ]);
+            $balancesByCurrency = $this->buildBalancesByCurrency($accounts);
+            $primaryCurrency = $this->resolvePrimaryCurrency($balancesByCurrency);
+
+            $stats = [
+                'total_balance' => $totalBalance,
+                'receipts_today' => $receiptsToday,
+                'payments_today' => $paymentsToday,
+                'bank_balances' => $bankBalance,
+                'cash_balances' => $cashBalance,
+                'primary_currency' => $primaryCurrency,
+                'balances_by_currency' => $balancesByCurrency,
+                'trends' => [
+                    'total_balance' => 0,
+                    'receipts_today' => $this->percentChange($receiptsToday, $receiptsYesterday),
+                    'payments_today' => $this->percentChange($paymentsToday, $paymentsYesterday),
+                    'bank_balances' => 0,
+                ],
+            ];
+
+            $chartData = $this->buildCashFlowChart($today);
+            $recentTransactions = $this->buildRecentTransactions();
+            $largestPayments = $this->fetchLargestPayments($today);
+
+            $performance = [
+                'highest_balance' => $accounts->max('balance') ?? 0,
+                'largest_expense_today' => $largestPayments,
+                'monthly_growth' => 0,
+                'primary_currency' => $primaryCurrency,
+            ];
+
+            return Inertia::render('Backend/06-Cash/DashboardTreasury', [
+                'stats' => $stats,
+                'accounts' => $accounts->values(),
+                'chartData' => $chartData,
+                'recentTransactions' => $recentTransactions,
+                'performance' => $performance,
+            ]);
+        });
+    }
+
+    protected function fetchDailySums(array $dates): array
+    {
+        $dateStrings = array_map(fn($d) => $d->toDateString(), $dates);
+
+        $bankReceipts = BankReceipt::query()
+            ->whereIn(DB::raw('DATE(receipt_date)'), $dateStrings)
+            ->where('status', 'posted')
+            ->selectRaw('DATE(receipt_date) as date, SUM(amount) as total')
+            ->groupBy('date')
+            ->pluck('total', 'date');
+
+        $cashReceipts = CashReceipt::query()
+            ->whereIn(DB::raw('DATE(receipt_date)'), $dateStrings)
+            ->where('status', 'posted')
+            ->selectRaw('DATE(receipt_date) as date, SUM(amount) as total')
+            ->groupBy('date')
+            ->pluck('total', 'date');
+
+        $bankPayments = BankPayment::query()
+            ->whereIn(DB::raw('DATE(payment_date)'), $dateStrings)
+            ->where('status', 'posted')
+            ->selectRaw('DATE(payment_date) as date, SUM(amount) as total')
+            ->groupBy('date')
+            ->pluck('total', 'date');
+
+        $cashPayments = CashPayment::query()
+            ->whereIn(DB::raw('DATE(payment_date)'), $dateStrings)
+            ->where('status', 'posted')
+            ->selectRaw('DATE(payment_date) as date, SUM(amount) as total')
+            ->groupBy('date')
+            ->pluck('total', 'date');
+
+        $results = [];
+        foreach ($dateStrings as $date) {
+            $results[$date] = [
+                'receipts' => (float)($bankReceipts[$date] ?? 0) + (float)($cashReceipts[$date] ?? 0),
+                'payments' => (float)($bankPayments[$date] ?? 0) + (float)($cashPayments[$date] ?? 0),
+            ];
+        }
+
+        return $results;
+    }
+
+    protected function fetchLargestPayments(Carbon $date): float
+    {
+        $bank = BankPayment::whereDate('payment_date', $date)->where('status', 'posted')->max('amount') ?? 0;
+        $cash = CashPayment::whereDate('payment_date', $date)->where('status', 'posted')->max('amount') ?? 0;
+
+        return (float) max($bank, $cash);
     }
 
     protected function sumReceiptsForDate(Carbon $date): float
@@ -242,6 +346,7 @@ class TreasuryDashboardController extends Controller
                 'balance' => $balance,
                 'currency' => $this->resolveAccountCurrency($account),
                 'account_code' => $account->account_code,
+                'gl_account_id' => $account->gl_account_id,
                 'last_tx_at' => $this->lastTransactionAtForCashAccount($account->id),
                 'status' => $account->status,
             ]);
@@ -264,6 +369,7 @@ class TreasuryDashboardController extends Controller
                 'balance' => $balance,
                 'currency' => $this->resolveAccountCurrency($account),
                 'account_code' => $account->account_number,
+                'gl_account_id' => $account->gl_account_id,
                 'last_tx_at' => $this->lastTransactionAtForBankAccount($account->id),
                 'status' => $account->status,
             ]);
@@ -271,9 +377,26 @@ class TreasuryDashboardController extends Controller
 
         $totalBalance = (float) $accounts->sum('balance');
 
-        return $accounts
+        $deduplicated = collect();
+        $seenGl = [];
+
+        foreach ($accounts as $row) {
+            $glId = $row['gl_account_id'] ?? null;
+
+            if ($glId && isset($seenGl[$glId])) {
+                continue;
+            }
+
+            if ($glId) {
+                $seenGl[$glId] = true;
+            }
+
+            $deduplicated->push($row);
+        }
+
+        return $deduplicated
             ->map(function (array $row) use ($totalBalance) {
-                $row['liquidity'] = $totalBalance > 0
+                $row['liquidity'] = $totalBalance != 0
                     ? round(($row['balance'] / $totalBalance) * 100, 1)
                     : 0;
 
@@ -313,7 +436,8 @@ class TreasuryDashboardController extends Controller
             }
         }
 
-        return round(max($fromTransactions, $stored, $opening), 2);
+        $balance = abs($stored) > 0.0001 ? $stored : $fromTransactions;
+        return round($balance, 2);
     }
 
     protected function resolveBankAccountBalance(
@@ -335,7 +459,8 @@ class TreasuryDashboardController extends Controller
             }
         }
 
-        return round(max($fromTransactions, $stored, $opening), 2);
+        $balance = abs($stored) > 0.0001 ? $stored : $fromTransactions;
+        return round($balance, 2);
     }
 
     protected function computeGlBalances(array $glAccountIds): array
@@ -344,28 +469,32 @@ class TreasuryDashboardController extends Controller
             return [];
         }
 
+        // Optimized query to fetch all balances in one go
+        $glTotals = DB::table('journal_entry_lines as b')
+            ->join('journal_entries as h', 'h.entry_code', '=', 'b.journal_entry_code')
+            ->whereIn('h.status', $this->postedJournalStatuses)
+            ->whereIn('b.account_id', $glAccountIds)
+            ->selectRaw('b.account_id, COALESCE(SUM(b.debit), 0) as total_debit, COALESCE(SUM(b.credit), 0) as total_credit')
+            ->groupBy('b.account_id')
+            ->get()
+            ->keyBy('account_id');
+
         $accounts = Account::query()
             ->whereIn('AccID', $glAccountIds)
-            ->get(['AccID', 'AccCode', 'AccDmType']);
+            ->get(['AccID', 'AccCode', 'AccDmType'])
+            ->keyBy('AccID');
 
         $balances = [];
+        foreach ($glAccountIds as $id) {
+            $account = $accounts[$id] ?? null;
+            if (!$account) continue;
 
-        foreach ($accounts as $account) {
-            $totals = DB::table('journal_entry_lines as b')
-                ->join('journal_entries as h', 'h.entry_code', '=', 'b.journal_entry_code')
-                ->where(function ($query) use ($account) {
-                    $query->where('b.account_id', $account->AccID)
-                        ->orWhere('b.account_id', $account->AccCode);
-                })
-                ->whereIn('h.status', $this->postedJournalStatuses)
-                ->selectRaw('COALESCE(SUM(b.debit), 0) as total_debit, COALESCE(SUM(b.credit), 0) as total_credit')
-                ->first();
-
+            $totals = $glTotals[$id] ?? null;
             $debit = (float) ($totals->total_debit ?? 0);
             $credit = (float) ($totals->total_credit ?? 0);
             $nature = (int) ($account->AccDmType ?? 0);
 
-            $balances[(int) $account->AccID] = $nature === 0
+            $balances[(int) $id] = $nature === 0
                 ? round($debit - $credit, 2)
                 : round($credit - $debit, 2);
         }
@@ -393,15 +522,38 @@ class TreasuryDashboardController extends Controller
 
     protected function buildCashFlowChart(Carbon $endDate): array
     {
-        $chart = [];
+        $startDate = $endDate->copy()->subDays(6);
 
+        // Optimized Query for Receipts
+        $receipts = BankReceipt::query()
+            ->where('status', 'posted')
+            ->whereDate('receipt_date', '>=', $startDate)
+            ->whereDate('receipt_date', '<=', $endDate)
+            ->selectRaw('DATE(receipt_date) as date, SUM(amount) as total')
+            ->groupBy('date')
+            ->pluck('total', 'date')
+            ->all();
+
+        // Optimized Query for Payments
+        $payments = BankPayment::query()
+            ->where('status', 'posted')
+            ->whereDate('payment_date', '>=', $startDate)
+            ->whereDate('payment_date', '<=', $endDate)
+            ->selectRaw('DATE(payment_date) as date, SUM(amount) as total')
+            ->groupBy('date')
+            ->pluck('total', 'date')
+            ->all();
+
+        $chart = [];
         for ($i = 6; $i >= 0; $i--) {
-            $date = $endDate->copy()->subDays($i);
+            $date = $endDate->copy()->subDays($i)->toDateString();
+            $dayName = Carbon::parse($date)->format('D');
+            
             $chart[] = [
-                'date' => $date->toDateString(),
-                'name' => $date->format('D'),
-                'incoming' => $this->sumReceiptsForDate($date),
-                'outgoing' => $this->sumPaymentsForDate($date),
+                'date' => $date,
+                'name' => $dayName,
+                'incoming' => (float) ($receipts[$date] ?? 0),
+                'outgoing' => (float) ($payments[$date] ?? 0),
             ];
         }
 

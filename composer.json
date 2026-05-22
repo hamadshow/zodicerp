@@ -1,11 +1,11 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "zodicerp/laravel",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "The skeleton application for the Zodicerp system.",
     "keywords": [
-        "laravel",
-        "framework"
+        "zodicerp",
+        "system"
     ],
     "license": "MIT",
     "require": {

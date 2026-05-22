@@ -6,7 +6,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AdminLayout from '../components/AdminLayout';
 import Table from '../components/Table';
-import BlankPage from '@/Components/BlankPage';
+import NavigationLink from '@/Components/NavigationLink';
 import '../../../../css/backend/main.scss';
 import MediaPickerModal from '../Media/MediaPickerModal';
 
@@ -669,10 +669,13 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
     return (
         <AdminLayout activeMenu="Inventory">
             <Head title={t('products', 'Products')} />
-            <ToastContainer position="top-right" autoClose={3000} />
             {renderImportModal()}
             
-            <BlankPage breadcrumbs={breadcrumbs} stats={statsContent}>
+            <div className="products-ce-page">
+                <NavigationLink links={breadcrumbs} />
+                
+                {statsContent}
+
                 {flash.success && (
                     <div className="alert alert-success">
                         {flash.success}
@@ -684,10 +687,10 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                     </div>
                 )}
 
-                <div className="card">
-                    <div className="card-header d-flex justify-between align-items-center">
-                        <h3>{t('products_list', 'Products List')}</h3>
-                        <div className="card-actions d-flex gap-2">
+                <div className="products-section-card">
+                    <div className="products-section-header">
+                        <h4 className="products-section-title">{t('products_list', 'Products List')}</h4>
+                        <div className="products-section-actions">
                             <div className="search-bar">
                                 <input 
                                     type="text" 
@@ -794,7 +797,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                         </div>
                     )}
                 </div>
-            </BlankPage>
+            </div>
         </AdminLayout>
     );
 };
@@ -1504,11 +1507,12 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         <AdminLayout activeMenu="Inventory">
             <Head title={`${pageTitle} - ZodicERP`} />
             
-            <BlankPage breadcrumbs={breadcrumbs}>
+            <div className="products-ce-page">
+                <NavigationLink links={breadcrumbs} />
+                
                 <form onSubmit={handleSubmit}>
-                    <div className="products-ce-card">
-                        <div className="products-ce-header">
-                            <h3 className="products-ce-title">{pageTitle}</h3>
+                    <div className="products-ce-header">
+                        <h3 className="products-ce-title">{pageTitle}</h3>
                             <div className="products-ce-actions">
                                 <Link
                                     href={getLocalizedRoute('admin.inventory.products.index')}
@@ -1536,9 +1540,8 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                 </button>
                             </div>
                         </div>
-                    </div>
 
-                    <div className="products-ce-body">
+                        <div className="products-ce-body">
                         <div className="products-layout">
                             <div className="products-main">
                                 <div className="products-section-card">
@@ -3041,7 +3044,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                     multiple={mediaPickerMode !== 'single'}
                     allowedTypes={['image']}
                 />
-            </BlankPage>
+            </div>
         </AdminLayout>
     );
 };

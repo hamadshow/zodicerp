@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers\Backend\Client_Sales;
 
+use App\Models\Account;
+use App\Models\Accounting\JournalEntry;
+use App\Models\Accounting\JournalEntryLine;
 use App\Models\Client_Sales\SalesOrder;
 use App\Models\Vendor_Purchases\SalesAgent;
 use App\Http\Controllers\Controller;
@@ -11,6 +14,8 @@ use App\Models\Currency;
 use App\Models\ItemUnit;
 use App\Models\Products;
 use App\Models\Warehouses;
+use App\Models\BankAccount;
+use App\Models\BankReceipt;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +23,10 @@ use Inertia\Inertia;
 
 class SalesInvoiceController extends Controller
 {
+    protected string $journalCodePrefix = 'QID-';
+
+    protected int $journalCodeStart = 10001;
+
     public function index(Request $request)
     {
         $query = SalesInvoice::query()
@@ -72,6 +81,12 @@ class SalesInvoiceController extends Controller
             ->where('is_active', true)
             ->get();
 
+        $treasuries = Account::query()
+            ->whereIn('Nature', ['bank', 'cash'])
+            ->where('AccType', 1)
+            ->orderBy('AccName')
+            ->get(['AccID', 'AccName']);
+
         // Mock data for terms
         $paymentTerms = [
             ['id' => 1, 'name' => 'Net 30'],
@@ -89,6 +104,7 @@ class SalesInvoiceController extends Controller
             'units' => $units,
             'warehouses' => $warehouses,
             'salesAgents' => $salesAgents,
+            'treasuries' => $treasuries,
             'paymentTerms' => $paymentTerms,
             'filters' => $request->only(['search', 'status']),
         ]);
@@ -104,71 +120,80 @@ class SalesInvoiceController extends Controller
             'exchange_rate' => 'required|numeric|min:0',
             'invoice_type' => 'required|in:standard,proforma,credit_note,debit_note',
             'payment_status' => 'required|in:unpaid,partial,paid,overdue',
+            'treasury_id' => 'required|integer|exists:accounts,AccID',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'nullable|exists:products,id',
+            'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.001',
             'items.*.unit_id' => 'required|exists:item_units,id',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.warehouse_id' => 'nullable|exists:warehouses,id',
+            'items.*.discount_amount' => 'nullable|numeric|min:0',
+            'items.*.tax_amount' => 'nullable|numeric|min:0',
+            'subtotal' => 'nullable|numeric|min:0',
+            'discount_amount' => 'nullable|numeric|min:0',
+            'tax_amount' => 'nullable|numeric|min:0',
+            'shipping_cost' => 'nullable|numeric|min:0',
+            'other_charges' => 'nullable|numeric|min:0',
+            'total_amount' => 'nullable|numeric|min:0',
+            'paid_amount' => 'nullable|numeric|min:0',
         ]);
 
-        DB::beginTransaction();
         try {
-            // Auto-generate number if not provided
-            $number = $request->invoice_number ?? 'SINV-'.date('Ymd').'-'.rand(1000, 9999);
+            DB::transaction(function () use ($request, $validated) {
+                $number = $request->invoice_number ?? 'SINV-'.date('Ymd').'-'.rand(1000, 9999);
 
-            $defaultWarehouseId = Warehouses::first()->id ?? 1;
-            $warehouseId = $request->warehouse_id ?? $defaultWarehouseId;
+                $defaultWarehouseId = Warehouses::query()->value('id') ?? 1;
+                $warehouseId = $request->warehouse_id ?? $defaultWarehouseId;
 
-            $invoice = SalesInvoice::create([
-                'invoice_number' => $number,
-                'invoice_date' => $request->invoice_date,
-                'due_date' => $request->due_date,
-                'customer_id' => $request->customer_id,
-                'currency_id' => $request->currency_id,
-                'exchange_rate' => $request->exchange_rate,
-                'invoice_type' => $request->invoice_type,
-                'payment_status' => $request->payment_status,
+                $invoice = SalesInvoice::create([
+                    'invoice_number' => $number,
+                    'invoice_date' => $validated['invoice_date'],
+                    'due_date' => $validated['due_date'] ?? null,
+                    'customer_id' => $validated['customer_id'],
+                    'currency_id' => $validated['currency_id'],
+                    'exchange_rate' => $validated['exchange_rate'],
+                    'invoice_type' => $validated['invoice_type'],
+                    'payment_status' => $validated['payment_status'],
+                    'treasury_id' => $validated['treasury_id'],
 
-                // Sales specific fields
-                'sales_agent_id' => $request->sales_agent_id,
-                'shipping_address_id' => $request->shipping_address_id,
-                'customer_notes' => $request->customer_notes,
-                'internal_notes' => $request->internal_notes,
+                    'sales_agent_id' => $request->sales_agent_id,
+                    'shipping_address_id' => $request->shipping_address_id,
+                    'customer_notes' => $request->customer_notes,
+                    'internal_notes' => $request->internal_notes,
 
-                'created_by' => Auth::id(),
-                'warehouse_id' => $warehouseId,
+                    'created_by' => Auth::id(),
+                    'warehouse_id' => $warehouseId,
 
-                // Financials
-                'subtotal' => $request->subtotal ?? 0,
-                'tax_amount' => $request->tax_amount ?? 0,
-                'discount_amount' => $request->discount_amount ?? 0,
-                'shipping_cost' => $request->shipping_cost ?? 0,
-                'other_charges' => $request->other_charges ?? 0, // Note: other_charges for sales
-                'total_amount' => $request->total_amount ?? 0,
-                'paid_amount' => $request->paid_amount ?? 0,
+                    'subtotal' => $request->subtotal ?? 0,
+                    'tax_amount' => $request->tax_amount ?? 0,
+                    'discount_amount' => $request->discount_amount ?? 0,
+                    'shipping_cost' => $request->shipping_cost ?? 0,
+                    'other_charges' => $request->other_charges ?? 0,
+                    'total_amount' => $request->total_amount ?? 0,
+                    'paid_amount' => $request->paid_amount ?? 0,
 
-                'payment_terms' => $request->payment_terms, // Assuming string or ID as per schema
-            ]);
-
-            foreach ($request->items as $index => $item) {
-                $invoice->details()->create([
-                    'product_id' => $item['product_id'] ?? null,
-                    'warehouse_id' => $item['warehouse_id'] ?? $warehouseId,
-                    'quantity' => $item['quantity'],
-                    'unit_id' => $item['unit_id'],
-                    'unit_price' => $item['unit_price'],
-                    'discount_amount' => $item['discount_amount'] ?? 0,
-                    'tax_amount' => $item['tax_amount'] ?? 0,
+                    'payment_terms' => $request->payment_terms,
                 ]);
-            }
 
-            DB::commit();
+                foreach ($validated['items'] as $item) {
+                    $invoice->details()->create([
+                        'product_id' => $item['product_id'],
+                        'warehouse_id' => $item['warehouse_id'] ?? $warehouseId,
+                        'quantity' => $item['quantity'],
+                        'unit_id' => $item['unit_id'],
+                        'unit_price' => $item['unit_price'],
+                        'discount_amount' => $item['discount_amount'] ?? 0,
+                        'tax_amount' => $item['tax_amount'] ?? 0,
+                    ]);
+                }
+
+                $this->upsertJournalEntryForInvoice($invoice);
+                $this->upsertBankReceiptForInvoice($invoice);
+            });
 
             return redirect()->back()->with('success', 'Sales Invoice created successfully.');
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-
+        } catch (\Throwable $e) {
             return redirect()->back()->with('error', 'Error creating invoice: '.$e->getMessage());
         }
     }
@@ -185,67 +210,78 @@ class SalesInvoiceController extends Controller
             'exchange_rate' => 'required|numeric|min:0',
             'invoice_type' => 'required|in:standard,proforma,credit_note,debit_note',
             'payment_status' => 'required|in:unpaid,partial,paid,overdue',
+            'treasury_id' => 'required|integer|exists:accounts,AccID',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'nullable|exists:products,id',
+            'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.001',
             'items.*.unit_id' => 'required|exists:item_units,id',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.warehouse_id' => 'nullable|exists:warehouses,id',
+            'items.*.discount_amount' => 'nullable|numeric|min:0',
+            'items.*.tax_amount' => 'nullable|numeric|min:0',
+            'subtotal' => 'nullable|numeric|min:0',
+            'discount_amount' => 'nullable|numeric|min:0',
+            'tax_amount' => 'nullable|numeric|min:0',
+            'shipping_cost' => 'nullable|numeric|min:0',
+            'other_charges' => 'nullable|numeric|min:0',
+            'total_amount' => 'nullable|numeric|min:0',
+            'paid_amount' => 'nullable|numeric|min:0',
         ]);
 
-        DB::beginTransaction();
         try {
-            $defaultWarehouseId = Warehouses::first()->id ?? 1;
-            $warehouseId = $request->warehouse_id ?? $invoice->warehouse_id ?? $defaultWarehouseId;
+            DB::transaction(function () use ($request, $validated, $invoice) {
+                $defaultWarehouseId = Warehouses::query()->value('id') ?? 1;
+                $warehouseId = $request->warehouse_id ?? $invoice->warehouse_id ?? $defaultWarehouseId;
 
-            $invoice->update([
-                'invoice_number' => $request->invoice_number,
-                'invoice_date' => $request->invoice_date,
-                'due_date' => $request->due_date,
-                'customer_id' => $request->customer_id,
-                'currency_id' => $request->currency_id,
-                'exchange_rate' => $request->exchange_rate,
-                'invoice_type' => $request->invoice_type,
-                'payment_status' => $request->payment_status,
+                $invoice->update([
+                    'invoice_number' => $request->invoice_number ?: $invoice->invoice_number,
+                    'invoice_date' => $validated['invoice_date'],
+                    'due_date' => $validated['due_date'] ?? null,
+                    'customer_id' => $validated['customer_id'],
+                    'currency_id' => $validated['currency_id'],
+                    'exchange_rate' => $validated['exchange_rate'],
+                    'invoice_type' => $validated['invoice_type'],
+                    'payment_status' => $validated['payment_status'],
+                    'treasury_id' => $validated['treasury_id'],
 
-                'sales_agent_id' => $request->sales_agent_id,
-                'shipping_address_id' => $request->shipping_address_id,
-                'customer_notes' => $request->customer_notes,
-                'internal_notes' => $request->internal_notes,
+                    'sales_agent_id' => $request->sales_agent_id,
+                    'shipping_address_id' => $request->shipping_address_id,
+                    'customer_notes' => $request->customer_notes,
+                    'internal_notes' => $request->internal_notes,
 
-                'updated_by' => Auth::id(),
-                'warehouse_id' => $warehouseId,
-                'subtotal' => $request->subtotal,
-                'tax_amount' => $request->tax_amount,
-                'discount_amount' => $request->discount_amount,
-                'shipping_cost' => $request->shipping_cost,
-                'other_charges' => $request->other_charges,
-                'total_amount' => $request->total_amount,
-                'paid_amount' => $request->paid_amount,
-                'payment_terms' => $request->payment_terms,
-            ]);
-
-            // Sync items: Delete old and re-create
-            $invoice->details()->delete();
-
-            foreach ($request->items as $index => $item) {
-                $invoice->details()->create([
-                    'product_id' => $item['product_id'] ?? null,
-                    'warehouse_id' => $item['warehouse_id'] ?? $warehouseId,
-                    'quantity' => $item['quantity'],
-                    'unit_id' => $item['unit_id'],
-                    'unit_price' => $item['unit_price'],
-                    'discount_amount' => $item['discount_amount'] ?? 0,
-                    'tax_amount' => $item['tax_amount'] ?? 0,
+                    'updated_by' => Auth::id(),
+                    'warehouse_id' => $warehouseId,
+                    'subtotal' => $request->subtotal,
+                    'tax_amount' => $request->tax_amount,
+                    'discount_amount' => $request->discount_amount,
+                    'shipping_cost' => $request->shipping_cost,
+                    'other_charges' => $request->other_charges,
+                    'total_amount' => $request->total_amount,
+                    'paid_amount' => $request->paid_amount,
+                    'payment_terms' => $request->payment_terms,
                 ]);
-            }
 
-            DB::commit();
+                $invoice->details()->withTrashed()->forceDelete();
+
+                foreach ($validated['items'] as $item) {
+                    $invoice->details()->create([
+                        'product_id' => $item['product_id'],
+                        'warehouse_id' => $item['warehouse_id'] ?? $warehouseId,
+                        'quantity' => $item['quantity'],
+                        'unit_id' => $item['unit_id'],
+                        'unit_price' => $item['unit_price'],
+                        'discount_amount' => $item['discount_amount'] ?? 0,
+                        'tax_amount' => $item['tax_amount'] ?? 0,
+                    ]);
+                }
+
+                $this->upsertJournalEntryForInvoice($invoice->fresh());
+                $this->upsertBankReceiptForInvoice($invoice->fresh());
+            });
 
             return redirect()->back()->with('success', 'Sales Invoice updated successfully.');
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-
+        } catch (\Throwable $e) {
             return redirect()->back()->with('error', 'Error updating invoice: '.$e->getMessage());
         }
     }
@@ -253,12 +289,216 @@ class SalesInvoiceController extends Controller
     public function destroy($id)
     {
         try {
-            $invoice = SalesInvoice::findOrFail($id);
-            $invoice->delete(); // Soft delete
+            DB::transaction(function () use ($id) {
+                $invoice = SalesInvoice::findOrFail($id);
+                $this->deleteJournalEntryForInvoice($invoice);
+                $this->deleteBankReceiptForInvoice($invoice);
+                $invoice->details()->delete();
+                $invoice->delete();
+            });
 
             return redirect()->back()->with('success', 'Sales Invoice deleted successfully.');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return redirect()->back()->with('error', 'Error deleting invoice: '.$e->getMessage());
         }
+    }
+
+    protected function upsertJournalEntryForInvoice(SalesInvoice $invoice): void
+    {
+        $treasuryId = (int) ($invoice->treasury_id ?? 0);
+        if ($treasuryId <= 0) {
+            throw new \RuntimeException('Treasury is required.');
+        }
+
+        $revenueAccountId = $this->resolveSalesRevenueAccountId();
+        if (! $revenueAccountId) {
+            throw new \RuntimeException('Sales revenue account is not configured.');
+        }
+
+        $amount = (float) ($invoice->total_amount ?? 0);
+        $entryType = 'SalesInvoice';
+        $reference = (string) $invoice->invoice_number;
+        $status = $invoice->is_posted ? 'Post' : 'UnPost';
+        $description = 'Sales Invoice '.$reference;
+
+        $header = JournalEntry::where('reference', $reference)
+            ->where('entry_type', $entryType)
+            ->lockForUpdate()
+            ->first();
+
+        if ($header) {
+            $header->update([
+                'date' => $invoice->invoice_date,
+                'description' => $description,
+                'total_amount' => $amount,
+                'status' => $status,
+            ]);
+
+            JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
+            $entryCode = $header->entry_code;
+        } else {
+            $entryCode = $this->generateNextEntryCode();
+            JournalEntry::create([
+                'entry_code' => $entryCode,
+                'entry_type' => $entryType,
+                'reference' => $reference,
+                'date' => $invoice->invoice_date,
+                'description' => $description,
+                'total_amount' => $amount,
+                'status' => $status,
+            ]);
+        }
+
+        $lines = [
+            [
+                'account_id' => $treasuryId,
+                'debit' => $amount,
+                'credit' => 0,
+            ],
+            [
+                'account_id' => $revenueAccountId,
+                'debit' => 0,
+                'credit' => $amount,
+            ],
+        ];
+
+        foreach ($lines as $line) {
+            JournalEntryLine::create([
+                'journal_entry_code' => $entryCode,
+                'account_id' => $line['account_id'],
+                'debit' => $line['debit'],
+                'credit' => $line['credit'],
+                'related_id_name' => $entryType,
+                'related_name_details' => $reference,
+                'description' => $description,
+                'cost_center_code' => null,
+            ]);
+        }
+    }
+
+    protected function deleteJournalEntryForInvoice(SalesInvoice $invoice): void
+    {
+        $entryType = 'SalesInvoice';
+        $reference = (string) $invoice->invoice_number;
+
+        $header = JournalEntry::where('reference', $reference)
+            ->where('entry_type', $entryType)
+            ->first();
+
+        if (! $header) {
+            return;
+        }
+
+        JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
+        JournalEntry::where('entry_code', $header->entry_code)->delete();
+    }
+
+    protected function resolveSalesRevenueAccountId(): ?int
+    {
+        $row = Account::query()
+            ->where('AccType', 1)
+            ->where('AccStopped', false)
+            ->where('AccFinal', 1)
+            ->where('AccCode', 'like', '4%')
+            ->orderBy('AccCode')
+            ->value('AccID');
+
+        return $row ? (int) $row : null;
+    }
+
+    protected function generateNextEntryCode(): string
+    {
+        $lastCode = JournalEntry::whereNotNull('entry_code')
+            ->where('entry_code', '!=', '')
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->value('entry_code');
+
+        $nextNumber = $this->nextNumericPart($lastCode ?? '', $this->journalCodeStart);
+
+        return $this->journalCodePrefix.$nextNumber;
+    }
+
+    protected function upsertBankReceiptForInvoice(SalesInvoice $invoice): void
+    {
+        $bankAccount = BankAccount::where('gl_account_id', $invoice->treasury_id)->first();
+
+        if (!$bankAccount) {
+            // If it's not a bank account, delete any existing linked receipt (e.g. if treasury changed from bank to cash)
+            $this->deleteBankReceiptForInvoice($invoice);
+            return;
+        }
+
+        $receipt = BankReceipt::where('sales_invoice_id', $invoice->id)->first();
+        
+        // Ensure customer and their GL account are available
+        $customer = $invoice->customer;
+        if (!$customer) {
+            $customer = \App\Models\Client_Sales\Customer::find($invoice->customer_id);
+        }
+        
+        $payerId = $customer ? $customer->account_id : null;
+        
+        if (!$payerId) {
+            // In a real ERP, every customer should have a GL account. 
+            // If not, we might need to fall back to a default or throw an error.
+            // For now, we'll try to find a default receivable account if missing.
+            $payerId = Account::where('AccCode', 'like', '12%')->where('AccType', 1)->value('AccID');
+        }
+
+        $data = [
+            'bank_account_id' => $bankAccount->id,
+            'receipt_date' => $invoice->invoice_date,
+            'payer_type' => 'customer',
+            'payer_id' => $payerId,
+            'amount' => $invoice->paid_amount > 0 ? $invoice->paid_amount : $invoice->total_amount,
+            'reference' => $invoice->invoice_number,
+            'notes' => 'Bank receipt generated from Sales Invoice #' . $invoice->invoice_number,
+            'status' => 'posted',
+            'company_id' => $invoice->company_id,
+        ];
+
+        if ($receipt) {
+            $receipt->update($data);
+        } else {
+            $data['sales_invoice_id'] = $invoice->id;
+            $data['receipt_no'] = $this->generateNextBankReceiptCode();
+            $data['created_by'] = Auth::id();
+            BankReceipt::create($data);
+        }
+    }
+
+    protected function deleteBankReceiptForInvoice(SalesInvoice $invoice): void
+    {
+        BankReceipt::where('sales_invoice_id', $invoice->id)->delete();
+    }
+
+    protected function generateNextBankReceiptCode(): string
+    {
+        $prefix = 'BNK-';
+        $start = 10001;
+
+        $lastReceipt = BankReceipt::whereNotNull('receipt_no')
+            ->where('receipt_no', '!=', '')
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->value('receipt_no');
+
+        $nextNumber = $this->nextNumericPart($lastReceipt, $start);
+
+        return $prefix . $nextNumber;
+    }
+
+    protected function nextNumericPart(?string $code, int $fallbackStart): int
+    {
+        if (! $code) {
+            return $fallbackStart;
+        }
+
+        if (preg_match('/(\d+)\s*$/', $code, $matches)) {
+            return (int) $matches[1] + 1;
+        }
+
+        return $fallbackStart;
     }
 }

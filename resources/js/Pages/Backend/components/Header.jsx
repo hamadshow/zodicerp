@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 
 const resolveMediaUrl = (value) => {

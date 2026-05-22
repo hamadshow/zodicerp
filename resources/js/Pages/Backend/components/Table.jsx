@@ -10,21 +10,20 @@ const Table = ({
   onView,
   onEdit,
   onDelete,
-  viewTitle = "عرض",
-  editTitle = "تعديل",
-  deleteTitle = "حذف",
+  viewTitle = "View",
+  editTitle = "Edit",
+  deleteTitle = "Delete",
   disabled = false
 }) => {
   const { props } = usePage();
   const isArabic = props.localization?.current_locale === 'ar';
-  const textAlign = isArabic ? 'right' : 'left';
-
+  
   return (
     <div className="table-container">
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table className="table-custom">
         <thead>
           <tr>
-            <th style={{ textAlign }}>
+            <th style={{ width: '40px', textAlign: 'center' }}>
               <input
                 type="checkbox"
                 id="selectAll"
@@ -33,7 +32,7 @@ const Table = ({
               />
             </th>
             {columns.map((column, index) => (
-              <th key={index} style={{ textAlign }}>
+              <th key={index} style={{ width: column.width }}>
                 {column.header}
                 {column.sortable && (
                   <span className="material-icons-outlined table-header-icon">
@@ -42,14 +41,14 @@ const Table = ({
                 )}
               </th>
             ))}
-            <th style={{ textAlign }}>OPERATIONS</th>
+            <th style={{ width: '120px' }}>{isArabic ? 'العمليات' : 'OPERATIONS'}</th>
           </tr>
         </thead>
         <tbody>
           {tableData.length > 0 ? (
             tableData.map((row, rowIndex) => (
               <tr key={row.id || rowIndex}>
-                <td style={{ textAlign }}>
+                <td style={{ textAlign: 'center' }}>
                   <input
                     type="checkbox"
                     checked={row.selected || false}
@@ -57,45 +56,45 @@ const Table = ({
                   />
                 </td>
                 {columns.map((column, colIndex) => (
-                  <td key={colIndex} style={{ textAlign }}>
+                  <td key={colIndex}>
                     {column.render ? column.render(row) : row[column.key]}
                   </td>
                 ))}
-                <td style={{ textAlign }}>
-                  <div className="actions-cell" style={{ justifyContent: isArabic ? 'flex-start' : 'flex-start' }}>
+                <td>
+                  <div className="actions-cell">
                     {onView && (
                       <button 
                         type="button"
-                        className="action-btn btn-view" 
+                        className="action-btn" 
                         title={viewTitle} 
                         onClick={() => onView(row)}
                         disabled={disabled}
                       >
-                        <i className="fa-solid fa-eye"></i>
+                        <span className="material-icons-outlined">visibility</span>
                       </button>
                     )}
                     
                     {onEdit && (
                       <button 
                         type="button"
-                        className="action-btn btn-edit" 
+                        className="action-btn" 
                         title={editTitle} 
                         onClick={() => onEdit(row)}
                         disabled={disabled}
                       >
-                        <i className="fa-solid fa-pen-to-square"></i>
+                        <span className="material-icons-outlined">edit</span>
                       </button>
                     )}
                     
                     {onDelete && (
                       <button 
                         type="button"
-                        className="action-btn btn-delete" 
+                        className="action-btn delete" 
                         title={deleteTitle} 
                         onClick={() => onDelete(row)}
                         disabled={disabled}
                       >
-                        <i className="fa-solid fa-trash-can"></i>
+                        <span className="material-icons-outlined">delete</span>
                       </button>
                     )}
                   </div>
@@ -104,8 +103,9 @@ const Table = ({
             ))
           ) : (
             <tr>
-              <td colSpan={columns.length + 2} style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
-                {isArabic ? 'لا توجد بيانات متاحة' : 'No data available'}
+              <td colSpan={columns.length + 2} className="empty-state-row">
+                <span className="material-icons-outlined empty-icon">inventory_2</span>
+                <div>{isArabic ? 'لا توجد بيانات متاحة' : 'No data available'}</div>
               </td>
             </tr>
           )}

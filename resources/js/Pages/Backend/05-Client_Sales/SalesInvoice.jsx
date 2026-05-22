@@ -1,18 +1,23 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, useForm, usePage, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import NavigationLink from '@/Components/NavigationLink';
+import Table from '../components/Table';
+import SearchBar from '@/Components/search-bar';
 import SearchableComboBox from '../components/SearchableComboBox';
 import Pagination from '../components/Pagination';
 import { formatDate } from '@/utils/date';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
 
-export default function SalesInvoice({ invoices, customers, orders, currencies, products, salesAgents, units, warehouses }) {
-    const [mode, setMode] = useState('list'); // list, create, edit
+export default function SalesInvoice({ invoices, customers, orders, currencies, products, salesAgents, units, warehouses, treasuries }) {
+    const [mode, setMode] = useState('list');
     const invoiceRef = useRef(null);
     const printRef = useRef(null);
     const { props } = usePage();
     const { localization, flash, errors, filters = {} } = props;
+    const translations = localization?.translations || {};
+    const t = (key, fallback) => translations[key] || fallback;
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -20,19 +25,6 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
             lang: localization?.current_locale || 'ar',
             ...params
         });
-    };
-
-    const handleSort = (column) => {
-        const currentSort = filters.sort_by || '';
-        const currentDir = filters.sort_dir || 'asc';
-        const newDir = currentSort === column && currentDir === 'asc' ? 'desc' : 'asc';
-
-        router.get(getLocalizedRoute('admin.client-sales.invoices.index'), {
-            ...filters,
-            sort_by: column,
-            sort_dir: newDir,
-            page: 1,
-        }, { preserveState: true });
     };
 
     const orderOptions = useMemo(() => {
@@ -70,6 +62,13 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
         }));
     }, [warehouses]);
 
+    const treasuryOptions = useMemo(() => {
+        return (treasuries || []).map(a => ({
+            value: String(a.AccID),
+            label: a.AccName
+        }));
+    }, [treasuries]);
+
     // Initial Form State
     const { data, setData, post, put, delete: destroy, processing, reset } = useForm({
         id: '',
@@ -82,6 +81,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
         exchange_rate: 1.000000,
         invoice_type: 'standard', // standard, proforma, credit_note, debit_note
         payment_status: 'unpaid', // unpaid, partial, paid, overdue
+        treasury_id: '',
         
         // Sales specific
         sales_agent_id: '',
@@ -113,14 +113,36 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
 
     const handleCreate = () => {
         reset();
+        
         const today = new Date();
         const due = new Date();
         due.setDate(today.getDate() + 30); // Default 30 days due
         
-        setData(prev => ({
-            ...prev,
+        // Reset to initial clean state explicitly
+        setData({
+            id: '',
+            invoice_number: '',
             invoice_date: today.toISOString().split('T')[0],
             due_date: due.toISOString().split('T')[0],
+            order_id: '',
+            customer_id: '',
+            currency_id: currencies?.[0]?.id || '',
+            exchange_rate: 1.000000,
+            invoice_type: 'standard',
+            payment_status: 'unpaid',
+            treasury_id: treasuries?.[0]?.AccID || '',
+            sales_agent_id: '',
+            shipping_address_id: '',
+            customer_notes: '',
+            internal_notes: '',
+            subtotal: 0,
+            discount_amount: 0,
+            tax_amount: 0,
+            shipping_cost: 0,
+            other_charges: 0,
+            total_amount: 0,
+            paid_amount: 0,
+            balance_amount: 0,
             items: [{
                 id: null,
                 line_number: 1,
@@ -129,13 +151,15 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                 item_name_en: '',
                 quantity: 1,
                 unit_id: '',
-                warehouse_id: '',
+                warehouse_id: warehouses?.[0]?.id || '',
                 unit_price: 0,
                 discount_amount: 0,
                 tax_amount: 0,
                 line_total: 0,
-            }]
-        }));
+            }],
+            payment_terms: '',
+        });
+        
         setMode('create');
     };
 
@@ -177,12 +201,13 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
             sales_agent_id: invoice.sales_agent_id || '',
             shipping_address_id: invoice.shipping_address_id || '',
             payment_terms: invoice.payment_terms || '',
+            treasury_id: invoice.treasury_id || '',
         });
         setMode('edit');
     };
 
     const handleDelete = (id) => {
-        if (confirm('Are you sure you want to delete this invoice?')) {
+        if (confirm(t('SalesInvoice.delete_confirm', 'Are you sure you want to delete this invoice?'))) {
             destroy(getLocalizedRoute('admin.client-sales.invoices.destroy', { invoice: id }));
         }
     };
@@ -192,12 +217,18 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
         if (mode === 'create') {
             post(getLocalizedRoute('admin.client-sales.invoices.store'), {
                 preserveScroll: true,
-                onSuccess: () => setMode('list'),
+                onSuccess: () => {
+                    setMode('list');
+                    reset();
+                },
             });
         } else {
             put(getLocalizedRoute('admin.client-sales.invoices.update', { invoice: data.id }), {
                 preserveScroll: true,
-                onSuccess: () => setMode('list'),
+                onSuccess: () => {
+                    setMode('list');
+                    reset();
+                },
             });
         }
     };
@@ -347,28 +378,85 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
         }
     };
 
+    const breadcrumbs = [
+        { label: localization?.translations?.dashboard || 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+        { label: localization?.translations?.client_sales || 'Client Sales' },
+        { label: localization?.translations?.sales_invoices || 'Sales Invoices' }
+    ];
+
+    const columns = [
+        { header: t('SalesInvoice.ref', 'Ref #'), key: 'invoice_number' },
+        { 
+            header: t('SalesInvoice.date', 'Date'), 
+            key: 'invoice_date',
+            render: (row) => formatDate(row.invoice_date)
+        },
+        { 
+            header: t('SalesInvoice.customer', 'Customer'), 
+            key: 'customer',
+            render: (row) => row.customer?.name_en || row.customer?.name_ar || row.customer?.name || '-'
+        },
+        { 
+            header: t('SalesInvoice.type', 'Type'), 
+            key: 'invoice_type',
+            render: (row) => (
+                <span className={`status-badge type-${row.invoice_type}`}>
+                    {t(`SalesInvoice.${row.invoice_type}`, row.invoice_type?.replace('_', ' '))}
+                </span>
+            )
+        },
+        { 
+            header: t('SalesInvoice.status', 'Status'), 
+            key: 'payment_status',
+            render: (row) => (
+                <span className={`status-badge status-${row.payment_status}`}>
+                    {t(`SalesInvoice.${row.payment_status}`, row.payment_status)}
+                </span>
+            )
+        },
+        { 
+            header: t('SalesInvoice.total', 'Total'), 
+            key: 'total_amount',
+            render: (row) => `${Number(row.total_amount).toFixed(2)} ${row.currency?.code || ''}`
+        },
+        { 
+            header: t('SalesInvoice.balance', 'Balance'), 
+            key: 'balance_amount',
+            render: (row) => `${Number(row.balance_amount).toFixed(2)} ${row.currency?.code || ''}`
+        }
+    ];
+
     return (
-        <AdminLayout>
-            <Head title="Sales Invoices" />
+        <AdminLayout activeMenu="Sales">
+            <Head title={t('SalesInvoice.title', 'Sales Invoices')} />
             
             <div className="sales-invoices-module">
-                <div className="sales-invoices-module__header">
-                    <h1>Sales Invoices</h1>
+                <NavigationLink links={breadcrumbs} />
+                
+                <div className="sales-invoices-module__header" style={{ marginTop: '1.5rem' }}>
+                    <h1>{t('SalesInvoice.title', 'Sales Invoices')}</h1>
                     {mode === 'list' && (
-                        <button className="btn-add" onClick={handleCreate}>
-                            + Create Invoice
-                        </button>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <SearchBar 
+                                placeholder={t('SalesInvoice.search', 'Search invoices...')}
+                                value={filters.search || ''}
+                                onSearch={(val) => router.get(getLocalizedRoute('admin.client-sales.invoices.index'), { ...filters, search: val, page: 1 }, { preserveState: true })}
+                            />
+                            <button className="btn-add" onClick={handleCreate}>
+                                + {t('SalesInvoice.create_invoice', 'Create Invoice')}
+                            </button>
+                        </div>
                     )}
                     {mode !== 'list' && (
                         <div className="header-actions" style={{display: 'flex', gap: '10px'}}>
                             <button type="button" className="btn-action btn-print" onClick={handlePrint} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                                <span>🖨</span> Print
+                                <span>🖨</span> {t('SalesInvoice.print', 'Print')}
                             </button>
                             <button type="button" className="btn-action btn-pdf" onClick={handleExportPDF} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                                <span>📄</span> PDF
+                                <span>📄</span> {t('SalesInvoice.pdf', 'PDF')}
                             </button>
                             <button type="button" className="btn-action btn-excel" onClick={handleExportExcel} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                                <span>📊</span> Excel
+                                <span>📊</span> {t('SalesInvoice.excel', 'Excel')}
                             </button>
                         </div>
                     )}
@@ -383,55 +471,12 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
 
                 {mode === 'list' ? (
                     <div className="sales-invoices-module__table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Ref #</th>
-                                    <th
-                                        style={{ cursor: 'pointer' }}
-                                        onClick={() => handleSort('invoice_date')}
-                                    >
-                                        Date {filters.sort_by === 'invoice_date' && (filters.sort_dir === 'asc' ? '↑' : '↓')}
-                                    </th>
-                                    <th>Customer</th>
-                                    <th>Type</th>
-                                    <th>Status</th>
-                                    <th>Total</th>
-                                    <th>Balance</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {invoices?.data?.map((invoice) => (
-                                    <tr key={invoice.id}>
-                                        <td>{invoice.invoice_number}</td>
-                                        <td>{formatDate(invoice.invoice_date)}</td>
-                                        <td>{invoice.customer?.name_en || invoice.customer?.name_ar || invoice.customer?.name}</td>
-                                        <td>
-                                            <span className={`status-badge type-${invoice.invoice_type}`}>
-                                                {invoice.invoice_type?.replace('_', ' ')}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <span className={`status-badge status-${invoice.payment_status}`}>
-                                                {invoice.payment_status}
-                                            </span>
-                                        </td>
-                                        <td>{Number(invoice.total_amount).toFixed(2)} {invoice.currency?.code}</td>
-                                        <td>{Number(invoice.balance_amount).toFixed(2)} {invoice.currency?.code}</td>
-                                        <td className="actions">
-                                            <button className="edit" onClick={() => handleEdit(invoice)}>Edit</button>
-                                            <button className="delete" onClick={() => handleDelete(invoice.id)}>Delete</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {(!invoices?.data || invoices.data.length === 0) && (
-                                    <tr>
-                                        <td colSpan="8" style={{ textAlign: 'center' }}>No sales invoices found.</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
+                        <Table 
+                            tableData={invoices?.data || []}
+                            columns={columns}
+                            onEdit={handleEdit}
+                            onDelete={(row) => handleDelete(row.id)}
+                        />
                         <Pagination
                             currentPage={invoices.current_page}
                             totalPages={invoices.last_page}
@@ -448,14 +493,14 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                         {/* 1. Invoice Header */}
                         <div className="invoice-header">
                             <div className="company-info">
-                                <h2>SALES INVOICE</h2>
+                                <h2>{t('SalesInvoice.document_title', 'SALES INVOICE').toUpperCase()}</h2>
                                 <p>Zodic ERP System</p>
                             </div>
                             <div className="invoice-meta">
-                                <label>Invoice #</label>
-                                <input type="text" value={data.invoice_number} disabled placeholder="Auto-generated" />
+                                <label>{t('SalesInvoice.invoice_number', 'Invoice #')}</label>
+                                <input type="text" value={data.invoice_number} disabled placeholder={t('SalesInvoice.invoice_number', 'Invoice #')} />
                                 
-                                <label>Date <span className="required">*</span></label>
+                                <label>{t('SalesInvoice.date', 'Date')} <span className="required">*</span></label>
                                 <input 
                                     type="date" 
                                     value={data.invoice_date} 
@@ -463,7 +508,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                     className={errors.invoice_date ? 'error' : ''}
                                 />
                                 
-                                <label>Due Date</label>
+                                <label>{t('SalesInvoice.due_date', 'Due Date')}</label>
                                 <input 
                                     type="date" 
                                     value={data.due_date} 
@@ -475,15 +520,15 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                         {/* 2. Info Grid */}
                         <div className="invoice-info-grid">
                             <div className="info-section">
-                                <h3>Customer Details</h3>
+                                <h3>{t('SalesInvoice.customer_details', 'Customer Details')}</h3>
                                 <div className="form-group">
-                                    <label>Customer Name <span className="required">*</span></label>
+                                    <label>{t('SalesInvoice.customer_name', 'Customer Name')} <span className="required">*</span></label>
                                     <select 
                                         value={data.customer_id} 
                                         onChange={e => setData('customer_id', e.target.value)}
                                         className={errors.customer_id ? 'error' : ''}
                                     >
-                                        <option value="">Select Customer</option>
+                                        <option value="">{t('SalesInvoice.select_customer', 'Select Customer')}</option>
                                         {customers?.map(c => (
                                             <option key={c.id} value={c.id}>{c.name_en || c.name_ar}</option>
                                         ))}
@@ -493,40 +538,50 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                 
                                 <div className="form-grid" style={{marginTop: '1rem'}}>
                                     <div className="form-group">
-                                        <label>Sales Agent</label>
+                                        <label>{t('SalesInvoice.sales_agent', 'Sales Agent')}</label>
                                         <select value={data.sales_agent_id} onChange={e => setData('sales_agent_id', e.target.value)}>
-                                            <option value="">Select Agent</option>
+                                            <option value="">{t('SalesInvoice.select_agent', 'Select Agent')}</option>
                                             {salesAgents?.map(a => (
                                                 <option key={a.id} value={a.id}>{a.name_en || a.name}</option>
                                             ))}
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>Link Order</label>
+                                        <label>{t('SalesInvoice.link_order', 'Link Order')}</label>
                                         <SearchableComboBox
                                             options={orderOptions}
                                             value={data.order_id ? String(data.order_id) : ''}
                                             onChange={(val) => setData('order_id', val)}
-                                            placeholder="Select Order"
+                                            placeholder={t('SalesInvoice.select_order', 'Select Order')}
                                         />
                                     </div>
                                 </div>
                             </div>
 
                             <div className="info-section">
-                                <h3>Invoice Settings</h3>
+                                <h3>{t('SalesInvoice.invoice_settings', 'Invoice Settings')}</h3>
                                 <div className="form-grid">
                                     <div className="form-group">
-                                        <label>Currency</label>
+                                        <label>Treasury <span className="required">*</span></label>
+                                        <SearchableComboBox
+                                            options={treasuryOptions}
+                                            value={data.treasury_id ? String(data.treasury_id) : ''}
+                                            onChange={(val) => setData('treasury_id', val)}
+                                            placeholder="Select Treasury"
+                                        />
+                                        {errors.treasury_id && <span className="error-msg">{errors.treasury_id}</span>}
+                                    </div>
+                                    <div className="form-group">
+                                        <label>{t('SalesInvoice.currency', 'Currency')}</label>
                                         <SearchableComboBox
                                             options={currencyOptions}
                                             value={data.currency_id ? String(data.currency_id) : ''}
                                             onChange={(val) => setData('currency_id', val)}
-                                            placeholder="Select Currency"
+                                            placeholder={t('SalesInvoice.select_currency', 'Select Currency')}
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label>Exchange Rate</label>
+                                        <label>{t('SalesInvoice.exchange_rate', 'Exchange Rate')}</label>
                                         <input 
                                             type="number" 
                                             step="0.000001" 
@@ -535,20 +590,21 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label>Type</label>
+                                        <label>{t('SalesInvoice.invoice_type', 'Type')}</label>
                                         <select value={data.invoice_type} onChange={e => setData('invoice_type', e.target.value)}>
-                                            <option value="standard">Standard</option>
-                                            <option value="proforma">Proforma</option>
-                                            <option value="credit_note">Credit Note</option>
-                                            <option value="debit_note">Debit Note</option>
+                                            <option value="standard">{t('SalesInvoice.standard', 'Standard')}</option>
+                                            <option value="proforma">{t('SalesInvoice.proforma', 'Proforma')}</option>
+                                            <option value="credit_note">{t('SalesInvoice.credit_note', 'Credit Note')}</option>
+                                            <option value="debit_note">{t('SalesInvoice.debit_note', 'Debit Note')}</option>
                                         </select>
                                     </div>
                                     <div className="form-group">
-                                        <label>Payment Status</label>
+                                        <label>{t('SalesInvoice.payment_status', 'Payment Status')}</label>
                                         <select value={data.payment_status} onChange={e => setData('payment_status', e.target.value)}>
-                                            <option value="unpaid">Unpaid</option>
-                                            <option value="partial">Partial</option>
-                                            <option value="paid">Paid</option>
+                                            <option value="unpaid">{t('SalesInvoice.unpaid', 'Unpaid')}</option>
+                                            <option value="partial">{t('SalesInvoice.partial', 'Partial')}</option>
+                                            <option value="paid">{t('SalesInvoice.paid', 'Paid')}</option>
+                                            <option value="overdue">{t('SalesInvoice.overdue', 'Overdue')}</option>
                                         </select>
                                     </div>
                                 </div>
@@ -562,14 +618,14 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                     <thead>
                                         <tr>
                                             <th style={{width: '50px'}} className="text-center">#</th>
-                                            <th style={{width: '25%'}}>Item</th>
-                                            <th style={{width: '10%'}}>Unit</th>
-                                            <th style={{width: '15%'}}>Warehouse</th>
-                                            <th style={{width: '10%'}} className="text-center">Qty</th>
-                                            <th style={{width: '15%'}} className="text-right">Price</th>
-                                            <th style={{width: '10%'}} className="text-right">Disc</th>
-                                            <th style={{width: '10%'}} className="text-right">Tax</th>
-                                            <th style={{width: '15%'}} className="text-right">Total</th>
+                                            <th style={{width: '25%'}}>{t('SalesInvoice.item', 'Item')}</th>
+                                            <th style={{width: '10%'}}>{t('SalesInvoice.unit', 'Unit')}</th>
+                                            <th style={{width: '15%'}}>{t('SalesInvoice.warehouse', 'Warehouse')}</th>
+                                            <th style={{width: '10%'}} className="text-center">{t('SalesInvoice.quantity', 'Qty')}</th>
+                                            <th style={{width: '15%'}} className="text-right">{t('SalesInvoice.price', 'Price')}</th>
+                                            <th style={{width: '10%'}} className="text-right">{t('SalesInvoice.discount', 'Disc')}</th>
+                                            <th style={{width: '10%'}} className="text-right">{t('SalesInvoice.tax', 'Tax')}</th>
+                                            <th style={{width: '15%'}} className="text-right">{t('SalesInvoice.total', 'Total')}</th>
                                             <th style={{width: '50px'}}></th>
                                         </tr>
                                     </thead>
@@ -583,12 +639,12 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                                             options={productOptions}
                                                             value={item.product_id ? String(item.product_id) : ''}
                                                             onChange={(val) => handleItemChange(index, 'product_id', val)}
-                                                            placeholder="Select Product"
+                                                            placeholder={t('SalesInvoice.select_product', 'Select Product')}
                                                         />
                                                     </div>
                                                     <input 
                                                         type="text" 
-                                                        placeholder="Description"
+                                                        placeholder={t('SalesInvoice.description', 'Description')}
                                                         value={item.item_name_ar}
                                                         onChange={e => handleItemChange(index, 'item_name_ar', e.target.value)}
                                                     />
@@ -598,7 +654,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                                         value={item.unit_id ? String(item.unit_id) : ''}
                                                         onChange={e => handleItemChange(index, 'unit_id', e.target.value)}
                                                     >
-                                                        <option value="">Select Unit</option>
+                                                        <option value="">{t('SalesInvoice.select_unit', 'Select Unit')}</option>
                                                         {unitOptions.map(unit => (
                                                             <option key={unit.value} value={unit.value}>{unit.label}</option>
                                                         ))}
@@ -609,7 +665,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                                         value={item.warehouse_id ? String(item.warehouse_id) : ''}
                                                         onChange={e => handleItemChange(index, 'warehouse_id', e.target.value)}
                                                     >
-                                                        <option value="">Select Warehouse</option>
+                                                        <option value="">{t('SalesInvoice.select_warehouse', 'Select Warehouse')}</option>
                                                         {warehouseOptions.map(warehouse => (
                                                             <option key={warehouse.value} value={warehouse.value}>{warehouse.label}</option>
                                                         ))}
@@ -672,7 +728,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                             </div>
                             <div className="add-item-row">
                                 <button type="button" className="btn-add-item" onClick={addItem}>
-                                    + Add Line Item
+                                    {t('SalesInvoice.add_line_item', '+ Add Line Item')}
                                 </button>
                             </div>
                         </div>
@@ -681,28 +737,28 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                         <div className="invoice-footer-section">
                             <div className="invoice-terms">
                                 <div className="form-group">
-                                    <label>Customer Notes</label>
+                                    <label>{t('SalesInvoice.customer_notes', 'Customer Notes')}</label>
                                     <textarea 
                                         value={data.customer_notes} 
                                         onChange={e => setData('customer_notes', e.target.value)}
-                                        placeholder="Notes visible to customer..."
+                                        placeholder={t('SalesInvoice.customer_notes_placeholder', 'Notes visible to customer...')}
                                     ></textarea>
                                 </div>
                                 <div className="form-group">
-                                    <label>Internal Notes</label>
+                                    <label>{t('SalesInvoice.internal_notes', 'Internal Notes')}</label>
                                     <textarea 
                                         value={data.internal_notes} 
                                         onChange={e => setData('internal_notes', e.target.value)}
-                                        placeholder="Internal notes..."
+                                        placeholder={t('SalesInvoice.internal_notes_placeholder', 'Internal notes...')}
                                         style={{minHeight: '60px'}}
                                     ></textarea>
                                 </div>
                                 <div className="form-group">
-                                    <label>Payment Terms</label>
+                                    <label>{t('SalesInvoice.payment_terms', 'Payment Terms')}</label>
                                     <textarea 
                                         value={data.payment_terms} 
                                         onChange={e => setData('payment_terms', e.target.value)}
-                                        placeholder="Payment terms..."
+                                        placeholder={t('SalesInvoice.payment_terms_placeholder', 'Payment terms...')}
                                         style={{minHeight: '60px'}}
                                     ></textarea>
                                 </div>
@@ -710,11 +766,11 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
 
                             <div className="invoice-totals">
                                 <div className="total-row">
-                                    <span className="label">Subtotal</span>
+                                    <span className="label">{t('SalesInvoice.subtotal', 'Subtotal')}</span>
                                     <span>{Number(data.subtotal).toFixed(2)}</span>
                                 </div>
                                 <div className="total-row">
-                                    <span className="label">Global Discount</span>
+                                    <span className="label">{t('SalesInvoice.global_discount', 'Global Discount')}</span>
                                     <input 
                                         type="number" 
                                         step="0.01"
@@ -723,7 +779,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                     />
                                 </div>
                                 <div className="total-row">
-                                    <span className="label">Shipping</span>
+                                    <span className="label">{t('SalesInvoice.shipping', 'Shipping')}</span>
                                     <input 
                                         type="number" 
                                         step="0.01"
@@ -732,7 +788,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                     />
                                 </div>
                                 <div className="total-row">
-                                    <span className="label">Extra Charges</span>
+                                    <span className="label">{t('SalesInvoice.extra_charges', 'Extra Charges')}</span>
                                     <input 
                                         type="number" 
                                         step="0.01"
@@ -741,15 +797,15 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                     />
                                 </div>
                                 <div className="total-row">
-                                    <span className="label">Tax Total</span>
+                                    <span className="label">{t('SalesInvoice.tax_total', 'Tax Total')}</span>
                                     <span>{Number(data.tax_amount).toFixed(2)}</span>
                                 </div>
                                 <div className="total-row grand-total">
-                                    <span>Total Amount</span>
+                                    <span>{t('SalesInvoice.grand_total', 'Total Amount')}</span>
                                     <span>{Number(data.total_amount).toFixed(2)}</span>
                                 </div>
                                 <div className="total-row">
-                                    <span className="label">Paid Amount</span>
+                                    <span className="label">{t('SalesInvoice.paid_amount', 'Paid Amount')}</span>
                                     <input 
                                         type="number" 
                                         step="0.01"
@@ -758,7 +814,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                     />
                                 </div>
                                 <div className="total-row" style={{color: 'red', fontWeight: 'bold'}}>
-                                    <span>Balance Due</span>
+                                    <span>{t('SalesInvoice.balance_due', 'Balance Due')}</span>
                                     <span>{Number(data.balance_amount).toFixed(2)}</span>
                                 </div>
                             </div>
@@ -768,10 +824,10 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                     {/* Sticky Actions Footer */}
                     <div className="sticky-actions-footer">
                         <button type="button" className="btn btn-cancel" onClick={() => setMode('list')}>
-                            Cancel
+                            {t('SalesInvoice.cancel', 'Cancel')}
                         </button>
                         <button type="button" className="btn btn-save" onClick={handleSubmit} disabled={processing}>
-                            {processing ? 'Saving...' : 'Save Invoice'}
+                            {processing ? t('SalesInvoice.saving', 'Saving...') : t('SalesInvoice.save_invoice', 'Save Invoice')}
                         </button>
                     </div>
 
@@ -784,23 +840,23 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                 <p>Phone: +1 234 567 890</p>
                             </div>
                             <div className="doc-info">
-                                <h2>SALES INVOICE</h2>
-                                <div className="meta-row"><span className="label">Invoice #:</span> {data.invoice_number || 'DRAFT'}</div>
-                                <div className="meta-row"><span className="label">Date:</span> {data.invoice_date}</div>
-                                <div className="meta-row"><span className="label">Due Date:</span> {data.due_date}</div>
+                                <h2>{t('SalesInvoice.document_title', 'SALES INVOICE').toUpperCase()}</h2>
+                                <div className="meta-row"><span className="label">{t('SalesInvoice.ref', 'Invoice #')}:</span> {data.invoice_number || 'DRAFT'}</div>
+                                <div className="meta-row"><span className="label">{t('SalesInvoice.date', 'Date')}:</span> {data.invoice_date}</div>
+                                <div className="meta-row"><span className="label">{t('SalesInvoice.due_date', 'Due Date')}:</span> {data.due_date}</div>
                             </div>
                         </div>
 
                         <div className="print-meta-grid">
                             <div className="meta-box">
-                                <h3>Bill To:</h3>
-                                <p><strong>{customers?.find(c => c.id == data.customer_id)?.name_en || 'Customer Name'}</strong></p>
+                                <h3>{t('SalesInvoice.bill_to', 'Bill To')}:</h3>
+                                <p><strong>{customers?.find(c => c.id == data.customer_id)?.name_en || t('SalesInvoice.customer_name', 'Customer Name')}</strong></p>
                                 {/* Add address if available */}
                             </div>
                             <div className="meta-box">
-                                <h3>Details:</h3>
-                                <p><strong>Sales Agent:</strong> {salesAgents?.find(a => a.id == data.sales_agent_id)?.name_en || '-'}</p>
-                                <p><strong>Order Ref:</strong> {orders?.find(o => o.id == data.order_id)?.order_number || '-'}</p>
+                                <h3>{t('SalesInvoice.details', 'Details')}:</h3>
+                                <p><strong>{t('SalesInvoice.sales_agent', 'Sales Agent')}:</strong> {salesAgents?.find(a => a.id == data.sales_agent_id)?.name_en || '-'}</p>
+                                <p><strong>{t('SalesInvoice.order_ref', 'Order Ref')}:</strong> {orders?.find(o => o.id == data.order_id)?.order_number || '-'}</p>
                             </div>
                         </div>
 
@@ -808,10 +864,10 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                             <thead>
                                 <tr>
                                     <th>#</th>
-                                    <th>Description</th>
-                                    <th className="text-center">Qty</th>
-                                    <th className="text-right">Price</th>
-                                    <th className="text-right">Total</th>
+                                    <th>{t('SalesInvoice.description', 'Description')}</th>
+                                    <th className="text-center">{t('SalesInvoice.quantity', 'Qty')}</th>
+                                    <th className="text-right">{t('SalesInvoice.price', 'Price')}</th>
+                                    <th className="text-right">{t('SalesInvoice.total', 'Total')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -832,25 +888,25 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
 
                         <div className="print-totals">
                             <div className="totals-box">
-                                <div className="row"><span>Subtotal:</span> <span>{Number(data.subtotal).toFixed(2)}</span></div>
-                                <div className="row"><span>Discount:</span> <span>{Number(data.discount_amount).toFixed(2)}</span></div>
-                                <div className="row"><span>Tax:</span> <span>{Number(data.tax_amount).toFixed(2)}</span></div>
-                                <div className="row"><span>Shipping:</span> <span>{Number(data.shipping_cost).toFixed(2)}</span></div>
-                                <div className="row grand-total"><span>Total:</span> <span>{Number(data.total_amount).toFixed(2)}</span></div>
+                                <div className="row"><span>{t('SalesInvoice.subtotal', 'Subtotal')}:</span> <span>{Number(data.subtotal).toFixed(2)}</span></div>
+                                <div className="row"><span>{t('SalesInvoice.discount', 'Discount')}:</span> <span>{Number(data.discount_amount).toFixed(2)}</span></div>
+                                <div className="row"><span>{t('SalesInvoice.tax', 'Tax')}:</span> <span>{Number(data.tax_amount).toFixed(2)}</span></div>
+                                <div className="row"><span>{t('SalesInvoice.shipping', 'Shipping')}:</span> <span>{Number(data.shipping_cost).toFixed(2)}</span></div>
+                                <div className="row grand-total"><span>{t('SalesInvoice.grand_total', 'Total')}:</span> <span>{Number(data.total_amount).toFixed(2)}</span></div>
                             </div>
                         </div>
 
                         <div className="print-footer">
                             {data.customer_notes && (
                                 <div className="notes-section">
-                                    <h4>Notes:</h4>
+                                    <h4>{t('SalesInvoice.notes', 'Notes')}:</h4>
                                     <p>{data.customer_notes}</p>
                                 </div>
                             )}
                             
                             <div className="signatures">
-                                <div className="sign-box">Authorized Signature</div>
-                                <div className="sign-box">Customer Signature</div>
+                                <div className="sign-box">{t('SalesInvoice.authorized_signature', 'Authorized Signature')}</div>
+                                <div className="sign-box">{t('SalesInvoice.customer_signature', 'Customer Signature')}</div>
                             </div>
                         </div>
                     </div>

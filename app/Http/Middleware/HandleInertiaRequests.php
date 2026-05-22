@@ -19,29 +19,13 @@ class HandleInertiaRequests extends Middleware
         $locale = App::getLocale();
         $fallbackLocale = config('app.fallback_locale', 'en');
 
-        return Cache::remember("inertia.translations.{$locale}.v2", 3600, function () use ($locale, $fallbackLocale) {
+        return Cache::remember("inertia.translations.{$locale}.v3", 3600, function () use ($locale, $fallbackLocale) {
             $safeLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $locale);
             $safeFallbackLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $fallbackLocale);
 
-            // 1. Database Translations (Optimized Query)
-            $dbTranslations = LanguageLine::query()
-                ->select(['group', 'key', 'text'])
-                ->get()
-                ->mapWithKeys(function ($line) use ($safeLocale, $safeFallbackLocale) {
-                    $text = is_array($line->text) ? $line->text : json_decode((string)$line->text, true);
-                    
-                    if (!is_array($text)) {
-                        return [($line->group . '.' . $line->key) => (string)$line->key];
-                    }
-
-                    $value = $text[$safeLocale] ?? $text[$safeFallbackLocale] ?? $line->key;
-                    return [($line->group . '.' . $line->key) => (string)$value];
-                })
-                ->toArray();
-
-            // 2. File Translations
+            // 1. File Translations
             $fileTranslations = [];
-            $files = ['homepage', 'home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth', 'verify_email', 'confirm', 'reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'BudgetItems', 'FinancialReports', 'TrialBalance', 'Journal', 'MarketPrices', 'ListedCompanies', 'career', 'dashboard', 'applications', 'Bank', 'BankTransactions', 'DashboardTreasury'];
+            $files = ['homepage', 'home', 'header', 'cart', 'common', 'ads', 'messages', 'orders', 'product', 'products', 'settings', 'sidebar', 'auth', 'verify_email', 'confirm', 'reset_password', 'ItemUnits', 'Warehouses', 'ChartOfAccounts', 'Suppliers', 'BudgeDashBoard', 'Budget', 'BudgetCategory', 'BudgetMonitoring', 'BudgetItems', 'FinancialReports', 'TrialBalance', 'Journal', 'MarketPrices', 'ListedCompanies', 'SalesInvoice', 'career', 'dashboard', 'applications', 'Bank', 'BankTransactions', 'DashboardTreasury'];
 
             foreach ($files as $file) {
                 $path = lang_path("$locale/$file.php");
@@ -54,6 +38,37 @@ class HandleInertiaRequests extends Middleware
                     }
                 }
             }
+
+            // 2. Database Translations (Only override files when locale-specific value exists)
+            $dbTranslations = LanguageLine::query()
+                ->select(['group', 'key', 'text'])
+                ->get()
+                ->mapWithKeys(function ($line) use ($safeLocale, $safeFallbackLocale, $fileTranslations) {
+                    $compoundKey = $line->group . '.' . $line->key;
+
+                    $text = is_array($line->text) ? $line->text : json_decode((string) $line->text, true);
+                    if (!is_array($text)) {
+                        if (array_key_exists($compoundKey, $fileTranslations)) {
+                            return [];
+                        }
+
+                        return [$compoundKey => (string) $line->key];
+                    }
+
+                    if (array_key_exists($safeLocale, $text)) {
+                        return [$compoundKey => (string) $text[$safeLocale]];
+                    }
+
+                    $fileHasKey = array_key_exists($compoundKey, $fileTranslations);
+                    $shouldUseFallback = ($safeLocale === $safeFallbackLocale) || !$fileHasKey;
+
+                    if ($shouldUseFallback && array_key_exists($safeFallbackLocale, $text)) {
+                        return [$compoundKey => (string) $text[$safeFallbackLocale]];
+                    }
+
+                    return [];
+                })
+                ->toArray();
 
             return array_merge($fileTranslations, $dbTranslations);
         });

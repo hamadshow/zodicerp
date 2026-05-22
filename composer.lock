@@ -777,7 +777,7 @@
             "homepage": "https://github.com/fruitcake/php-cors",
             "keywords": [
                 "cors",
-                "laravel",
+                "zodicerp",
                 "symfony"
             ],
             "support": {

@@ -3,14 +3,18 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
-        "dev": "vite",
-        "lint": "eslint resources/js --ext .js,.jsx",
-        "lint:fix": "eslint resources/js --ext .js,.jsx --fix",
-        "format": "prettier --write resources/js/**/*.{js,jsx}",
-        "test": "vitest",
-        "test:run": "vitest run"
-    },
+    "build": "vite build",
+    "dev": "vite",
+    "serve": "php artisan serve",
+    "dev:full": "concurrently \"php artisan serve\" \"vite\"",
+    "deploy": "npm run lint && npm run build && php artisan optimize:clear",
+    "lint": "eslint resources/js --ext .js,.jsx",
+    "lint:fix": "eslint resources/js --ext .js,.jsx --fix",
+    "format": "prettier --write resources/js/**/*.{js,jsx}",
+    "test": "vitest",
+    "test:run": "vitest run"
+},
+
     "devDependencies": {
         "@eslint/css": "^0.14.1",
         "@eslint/js": "^9.39.2",
@@ -33,9 +37,9 @@
         "@vitejs/plugin-react": "^4.2.0",
         "@vitejs/plugin-vue": "^6.0.3",
         "autoprefixer": "^10.4.12",
-        "axios": "^1.11.0",
+        "axios": "^1.16.1",
         "bootstrap": "^5.2.3",
-        "concurrently": "^9.0.1",
+        "concurrently": "^9.2.1",
         "eslint": "^9.39.2",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-jsx-a11y": "^6.10.2",

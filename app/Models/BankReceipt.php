@@ -11,6 +11,7 @@ class BankReceipt extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'sales_invoice_id',
         'bank_account_id',
         'receipt_no',
         'receipt_date',
@@ -21,6 +22,7 @@ class BankReceipt extends Model
         'notes',
         'status',
         'created_by',
+        'company_id',
     ];
 
     protected $casts = [
