@@ -1,782 +1,444 @@
-// Transfer.jsx - معدل حسب هيكل جدولك
+import React, { useState } from 'react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
+import AdminLayout from '@/Pages/Backend/components/AdminLayout';
+import { 
+    ArrowLeftRight, Plus, Search, Filter, Eye, CheckCircle2, 
+    XCircle, Clock, Calendar, Wallet, FileText, AlertCircle,
+    ChevronRight, MoreHorizontal
+} from 'lucide-react';
+import { format } from 'date-fns';
 
-import React, { useState, useEffect, useMemo } from 'react';
-import { Head, router, useForm, usePage, Link } from '@inertiajs/react';
-import AdminLayout from '../components/AdminLayout';
-import '../../../../css/backend/main.scss';
-
-const TRANSFER_METHODS = [
-    { value: 'cash', label: 'نقدي', color: '#10b981' },
-    { value: 'bank_transfer', label: 'تحويل بنكي', color: '#3b82f6' },
-    { value: 'check', label: 'شيك', color: '#8b5cf6' },
-    { value: 'internal', label: 'داخلي', color: '#f59e0b' },
-];
-
-const TRANSFER_STATUSES = [
-    { value: 'draft', label: 'مسودة', color: 'gray' },
-    { value: 'pending', label: 'قيد المراجعة', color: 'orange' },
-    { value: 'approved', label: 'معتمد', color: 'blue' },
-    { value: 'completed', label: 'منفذ', color: 'green' },
-    { value: 'rejected', label: 'مرفوض', color: 'red' },
-    { value: 'cancelled', label: 'ملغي', color: 'gray' },
-];
-
-const Transfer = ({ transfers = { data: [] }, filters = {}, stats = {} }) => {
+const TreasuryTransfer = ({ transfers, filters, cashAccounts }) => {
     const { props } = usePage();
     const { localization, flash } = props;
-    const [currentView, setCurrentView] = useState('list');
+    const translations = localization?.translations || {};
+    const t = (key, fallback) => translations[key] || fallback;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'eg',
+            lang: localization?.current_locale || 'en',
+            ...params
+        });
+    };
+
+    // Auto-dismiss Flash Messages
+    React.useEffect(() => {
+        if (flash?.success || flash?.error) {
+            const timer = setTimeout(() => {
+                router.reload({ only: ['flash'] });
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [flash]);
+
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [selectedTransfer, setSelectedTransfer] = useState(null);
-    const [searchTerm, setSearchTerm] = useState(filters.search || '');
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const [rejectionReason, setRejectionReason] = useState('');
+    const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+
+    // Filter State
+    const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
 
-    // جلب الحسابات من props
-    const bankAccounts = props.bankAccounts || [];
-    const cashAccounts = props.cashAccounts || [];
-
-    // دمج الحسابات في قائمة واحدة للاختيار
-    const allAccounts = useMemo(() => {
-        const banks = bankAccounts.map(acc => ({
-            id: acc.id,
-            type: 'bank',
-            typeLabel: '🏦 بنك',
-            name: acc.bank_name || acc.account_name,
-            account_number: acc.account_number,
-            currency: acc.currency?.code || 'SAR',
-            balance: acc.current_balance || 0,
-            status: acc.status,
-        }));
-        
-        const cash = cashAccounts.map(acc => ({
-            id: acc.id,
-            type: 'cash',
-            typeLabel: '💰 صندوق',
-            name: acc.name,
-            account_number: acc.account_code,
-            currency: acc.currency?.code || 'SAR',
-            balance: acc.current_balance || 0,
-            status: acc.status,
-        }));
-        
-        return [...banks, ...cash];
-    }, [bankAccounts, cashAccounts]);
-
-    // نموذج التحويل (متوافق مع هيكل الجدول)
-    const { data, setData, post, put, processing, errors, reset } = useForm({
-        id: null,
-        transfer_no: '',
-        from_account_id: '',
-        to_account_id: '',
+    const { data, setData, post, processing, errors, reset } = useForm({
+        from_treasury_id: '',
+        to_treasury_id: '',
         amount: '',
-        transfer_date: new Date().toISOString().split('T')[0],
-        method: 'internal',
+        transfer_date: format(new Date(), 'yyyy-MM-dd'),
         notes: '',
-        status: 'draft',
+        currency: 'EGP'
     });
 
-    // معالج التقديم
-    const handleSubmit = (e) => {
+    const handleCreateSubmit = (e) => {
         e.preventDefault();
-        
-        if (currentView === 'edit') {
-            put(route('admin.transfers.update', selectedTransfer?.id), {
-                onSuccess: () => {
-                    setCurrentView('list');
-                    setSelectedTransfer(null);
-                    reset();
-                },
-                onError: (err) => {
-                    console.error('Update error:', err);
-                }
-            });
-        } else {
-            post(route('admin.transfers.store'), {
-                onSuccess: () => {
-                    setCurrentView('list');
-                    reset();
-                },
-                onError: (err) => {
-                    console.error('Store error:', err);
-                }
-            });
-        }
-    };
-
-    // معالج الحذف (soft delete)
-    const handleDelete = (id) => {
-        if (confirm('هل أنت متأكد من حذف هذا التحويل؟')) {
-            router.delete(route('admin.transfers.destroy', id), {
-                onSuccess: () => {
-                    if (currentView !== 'list') setCurrentView('list');
-                }
-            });
-        }
-    };
-
-    // تغيير الحالة
-    const handleStatusChange = (id, newStatus) => {
-        router.patch(route('admin.transfers.status', id), { status: newStatus }, {
+        post(getLocalizedRoute('admin.treasury-transfers.store'), {
             onSuccess: () => {
-                // تحديث القائمة
-            }
+                setIsCreateModalOpen(false);
+                reset();
+            },
         });
     };
 
-    // البحث
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (searchTerm !== (filters.search || '')) {
-                router.get(route('admin.transfers.index'), {
-                    search: searchTerm,
-                    status: statusFilter === 'all' ? null : statusFilter,
-                }, {
-                    preserveState: true,
-                    preserveScroll: true,
-                    replace: true,
-                });
-            }
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [searchTerm]);
+    const handleApprove = (id) => {
+        router.post(getLocalizedRoute('admin.treasury-transfers.approve', { id }), {
+            onSuccess: () => {
+                setIsDetailsModalOpen(false);
+            },
+        });
+    };
 
-    const handleStatusFilter = (status) => {
-        setStatusFilter(status);
-        router.get(route('admin.transfers.index'), {
-            search: searchTerm,
-            status: status === 'all' ? null : status,
+    const handleReject = (e) => {
+        e.preventDefault();
+        router.post(getLocalizedRoute('admin.treasury-transfers.reject', { id: selectedTransfer.id }), {
+            reason: rejectionReason
         }, {
-            preserveState: true,
-            preserveScroll: true,
+            onSuccess: () => {
+                setIsRejectModalOpen(false);
+                setIsDetailsModalOpen(false);
+                setRejectionReason('');
+            },
         });
     };
 
-    // الحصول على اسم الحساب من الـ ID
-    const getAccountName = (accountId) => {
-        const account = allAccounts.find(a => a.id == accountId);
-        return account ? `${account.name} (${account.typeLabel})` : '-';
-    };
-
-    // الحصول على طريقة التحويل بالعربية
-    const getMethodLabel = (method) => {
-        return TRANSFER_METHODS.find(m => m.value === method)?.label || method;
-    };
-
-    // الحصول على حالة التحويل بالعربية
-    const getStatusLabel = (status) => {
-        return TRANSFER_STATUSES.find(s => s.value === status)?.label || status;
-    };
-
-    // عرض قائمة التحويلات
-    const renderListView = () => (
-        <div className="bank-card">
-            <div className="card-header">
-                <div className="search-bar light">
-                    <input 
-                        type="text" 
-                        placeholder="بحث برقم التحويل أو الملاحظات..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <button>
-                        <span className="material-icons-outlined">search</span>
-                    </button>
-                </div>
-                <div className="actions">
-                    <button 
-                        className="btn btn-primary" 
-                        onClick={() => {
-                            reset();
-                            setSelectedTransfer(null);
-                            setCurrentView('create');
-                        }}
-                    >
-                        <span className="material-icons-outlined">swap_horiz</span>
-                        تحويل جديد
-                    </button>
-                </div>
-            </div>
-
-            {/* فلتر الحالة */}
-            <div className="filter-tabs" style={{ marginBottom: '20px' }}>
-                {['all', 'draft', 'pending', 'approved', 'completed', 'rejected', 'cancelled'].map(status => (
-                    <div
-                        key={status}
-                        className={`filter-tab ${statusFilter === status ? 'active' : ''}`}
-                        onClick={() => handleStatusFilter(status)}
-                    >
-                        {status === 'all' ? 'الكل' : 
-                         status === 'draft' ? 'مسودة' :
-                         status === 'pending' ? 'قيد المراجعة' :
-                         status === 'approved' ? 'معتمد' :
-                         status === 'completed' ? 'منفذ' :
-                         status === 'rejected' ? 'مرفوض' : 'ملغي'}
-                    </div>
-                ))}
-            </div>
-
-            <div className="table-container">
-                <table className="data-table">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>رقم التحويل</th>
-                            <th>من حساب</th>
-                            <th>إلى حساب</th>
-                            <th>المبلغ</th>
-                            <th>التاريخ</th>
-                            <th>طريقة التحويل</th>
-                            <th>الحالة</th>
-                            <th>الإجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {transfers.data?.length > 0 ? (
-                            transfers.data.map((transfer, index) => (
-                                <tr key={transfer.id}>
-                                    <td>{(transfers.current_page - 1) * transfers.per_page + index + 1}</td>
-                                    <td className="font-mono font-medium">{transfer.transfer_no}</td>
-                                    <td>
-                                        <div className="flex items-center gap-2">
-                                            <span className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                                                <span className="material-icons-outlined text-sm">account_balance</span>
-                                            </span>
-                                            <span>{getAccountName(transfer.from_account_id)}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div className="flex items-center gap-2">
-                                            <span className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600">
-                                                <span className="material-icons-outlined text-sm">account_balance_wallet</span>
-                                            </span>
-                                            <span>{getAccountName(transfer.to_account_id)}</span>
-                                        </div>
-                                    </td>
-                                    <td className="font-bold text-blue-600">
-                                        {Number(transfer.amount).toLocaleString()} ر.س
-                                    </td>
-                                    <td>{new Date(transfer.transfer_date).toLocaleDateString('ar-EG')}</td>
-                                    <td>
-                                        <span className="method-badge" style={{
-                                            background: TRANSFER_METHODS.find(m => m.value === transfer.method)?.color + '20',
-                                            color: TRANSFER_METHODS.find(m => m.value === transfer.method)?.color,
-                                            padding: '4px 12px',
-                                            borderRadius: '20px',
-                                            fontSize: '12px',
-                                            fontWeight: 500
-                                        }}>
-                                            {getMethodLabel(transfer.method)}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        <select
-                                            value={transfer.status}
-                                            onChange={(e) => handleStatusChange(transfer.id, e.target.value)}
-                                            className="status-select"
-                                            style={{
-                                                padding: '4px 8px',
-                                                borderRadius: '20px',
-                                                border: 'none',
-                                                fontSize: '12px',
-                                                fontWeight: 500,
-                                                background: transfer.status === 'completed' ? '#dcfce7' :
-                                                          transfer.status === 'approved' ? '#dbeafe' :
-                                                          transfer.status === 'pending' ? '#fed7aa' :
-                                                          transfer.status === 'rejected' ? '#fee2e2' :
-                                                          '#f3f4f6',
-                                                color: transfer.status === 'completed' ? '#166534' :
-                                                       transfer.status === 'approved' ? '#1e40af' :
-                                                       transfer.status === 'pending' ? '#9a3412' :
-                                                       transfer.status === 'rejected' ? '#991b1b' :
-                                                       '#374151',
-                                            }}
-                                        >
-                                            <option value="draft">مسودة</option>
-                                            <option value="pending">قيد المراجعة</option>
-                                            <option value="approved">معتمد</option>
-                                            <option value="completed">منفذ</option>
-                                            <option value="rejected">مرفوض</option>
-                                            <option value="cancelled">ملغي</option>
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <div className="flex gap-2">
-                                            <button 
-                                                className="icon-btn view"
-                                                onClick={() => {
-                                                    setSelectedTransfer(transfer);
-                                                    setCurrentView('view');
-                                                }}
-                                                title="عرض"
-                                            >
-                                                <span className="material-icons-outlined">visibility</span>
-                                            </button>
-                                            {transfer.status !== 'completed' && transfer.status !== 'cancelled' && (
-                                                <>
-                                                    <button 
-                                                        className="icon-btn edit"
-                                                        onClick={() => {
-                                                            setSelectedTransfer(transfer);
-                                                            setData({
-                                                                id: transfer.id,
-                                                                transfer_no: transfer.transfer_no,
-                                                                from_account_id: transfer.from_account_id,
-                                                                to_account_id: transfer.to_account_id,
-                                                                amount: transfer.amount,
-                                                                transfer_date: transfer.transfer_date?.split('T')[0],
-                                                                method: transfer.method,
-                                                                notes: transfer.notes || '',
-                                                                status: transfer.status,
-                                                            });
-                                                            setCurrentView('edit');
-                                                        }}
-                                                        title="تعديل"
-                                                    >
-                                                        <span className="material-icons-outlined">edit</span>
-                                                    </button>
-                                                    <button 
-                                                        className="icon-btn delete"
-                                                        onClick={() => handleDelete(transfer.id)}
-                                                        title="حذف"
-                                                    >
-                                                        <span className="material-icons-outlined">delete</span>
-                                                    </button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan="9" className="text-center py-8 text-gray-500">
-                                    <span className="material-icons-outlined text-4xl mb-2">swap_horiz</span>
-                                    <p>لا توجد تحويلات</p>
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
-            {/* Pagination */}
-            {transfers.links && transfers.links.length > 3 && (
-                <div className="pagination">
-                    <div className="text-sm text-gray-500">
-                        عرض {transfers.from} إلى {transfers.to} من {transfers.total} سجل
-                    </div>
-                    <div className="flex gap-1">
-                        {transfers.links.map((link, i) => (
-                            link.url ? (
-                                <Link
-                                    key={i}
-                                    href={link.url}
-                                    className={`page-btn ${link.active ? 'active' : ''}`}
-                                    dangerouslySetInnerHTML={{ __html: link.label }}
-                                />
-                            ) : (
-                                <span key={i} className="page-btn disabled" dangerouslySetInnerHTML={{ __html: link.label }} />
-                            )
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-
-    // نموذج إنشاء/تعديل التحويل
-    const renderFormView = () => {
-        const isEditing = currentView === 'edit';
-        
+    const getStatusBadge = (status) => {
+        const statuses = {
+            pending: { class: 'bg-amber-100 text-amber-700', icon: Clock, label: t('TreasuryTransfer.statuses.pending') },
+            approved: { class: 'bg-blue-100 text-blue-700', icon: CheckCircle2, label: t('TreasuryTransfer.statuses.approved') },
+            completed: { class: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2, label: t('TreasuryTransfer.statuses.completed') },
+            rejected: { class: 'bg-rose-100 text-rose-700', icon: XCircle, label: t('TreasuryTransfer.statuses.rejected') }
+        };
+        const s = statuses[status] || statuses.pending;
+        const Icon = s.icon;
         return (
-            <div className="form-view-container fade-in">
-                <div className="form-card">
-                    <div className="form-card-header">
-                        <div className="header-left">
-                            <button className="back-button" onClick={() => {
-                                setCurrentView('list');
-                                reset();
-                                setSelectedTransfer(null);
-                            }}>
-                                <span className="material-icons-outlined">arrow_back</span>
-                            </button>
-                            <h2 className="form-title">
-                                {isEditing ? 'تعديل تحويل' : 'تحويل جديد بين الحسابات'}
-                            </h2>
-                        </div>
-                        <button className="save-button" onClick={handleSubmit} disabled={processing}>
-                            <span className="material-icons-outlined">save</span>
-                            {processing ? 'جاري الحفظ...' : (isEditing ? 'تحديث' : 'حفظ')}
-                        </button>
-                    </div>
-
-                    <div className="form-card-body">
-                        {flash?.error && <div className="alert alert-error">{flash.error}</div>}
-                        {flash?.success && <div className="alert alert-success">{flash.success}</div>}
-                        
-                        <div className="form-grid">
-                            {/* رقم التحويل */}
-                            <div className="form-group">
-                                <label className="form-label">رقم التحويل</label>
-                                <input
-                                    type="text"
-                                    className="form-input"
-                                    value={data.transfer_no}
-                                    onChange={e => setData('transfer_no', e.target.value)}
-                                    placeholder="يترك لتوليد تلقائي"
-                                />
-                                {errors.transfer_no && <span className="form-error">{errors.transfer_no}</span>}
-                            </div>
-
-                            {/* تاريخ التحويل */}
-                            <div className="form-group">
-                                <label className="form-label">تاريخ التحويل *</label>
-                                <input
-                                    type="date"
-                                    className="form-input"
-                                    value={data.transfer_date}
-                                    onChange={e => setData('transfer_date', e.target.value)}
-                                    required
-                                />
-                                {errors.transfer_date && <span className="form-error">{errors.transfer_date}</span>}
-                            </div>
-
-                            {/* من حساب */}
-                            <div className="form-group">
-                                <label className="form-label">من حساب *</label>
-                                <select
-                                    className="form-select"
-                                    value={data.from_account_id}
-                                    onChange={e => setData('from_account_id', e.target.value)}
-                                    required
-                                    disabled={isEditing}
-                                >
-                                    <option value="">اختر الحساب المصدر</option>
-                                    {allAccounts.map(acc => (
-                                        <option key={`${acc.type}-${acc.id}`} value={acc.id}>
-                                            {acc.typeLabel} : {acc.name} - الرصيد: {Number(acc.balance).toLocaleString()} {acc.currency}
-                                        </option>
-                                    ))}
-                                </select>
-                                {errors.from_account_id && <span className="form-error">{errors.from_account_id}</span>}
-                            </div>
-
-                            {/* إلى حساب */}
-                            <div className="form-group">
-                                <label className="form-label">إلى حساب *</label>
-                                <select
-                                    className="form-select"
-                                    value={data.to_account_id}
-                                    onChange={e => setData('to_account_id', e.target.value)}
-                                    required
-                                    disabled={isEditing}
-                                >
-                                    <option value="">اختر الحساب الهدف</option>
-                                    {allAccounts
-                                        .filter(acc => acc.id != data.from_account_id)
-                                        .map(acc => (
-                                            <option key={`${acc.type}-${acc.id}`} value={acc.id}>
-                                                {acc.typeLabel} : {acc.name} - الرصيد: {Number(acc.balance).toLocaleString()} {acc.currency}
-                                            </option>
-                                        ))}
-                                </select>
-                                {errors.to_account_id && <span className="form-error">{errors.to_account_id}</span>}
-                            </div>
-
-                            {/* المبلغ */}
-                            <div className="form-group">
-                                <label className="form-label">المبلغ *</label>
-                                <div className="relative">
-                                    <input
-                                        type="number"
-                                        step="0.01"
-                                        className="form-input"
-                                        value={data.amount}
-                                        onChange={e => setData('amount', e.target.value)}
-                                        placeholder="0.00"
-                                        required
-                                    />
-                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">ر.س</span>
-                                </div>
-                                {errors.amount && <span className="form-error">{errors.amount}</span>}
-                            </div>
-
-                            {/* طريقة التحويل */}
-                            <div className="form-group">
-                                <label className="form-label">طريقة التحويل *</label>
-                                <select
-                                    className="form-select"
-                                    value={data.method}
-                                    onChange={e => setData('method', e.target.value)}
-                                    required
-                                >
-                                    {TRANSFER_METHODS.map(m => (
-                                        <option key={m.value} value={m.value}>{m.label}</option>
-                                    ))}
-                                </select>
-                                {errors.method && <span className="form-error">{errors.method}</span>}
-                            </div>
-
-                            {/* الحالة */}
-                            <div className="form-group">
-                                <label className="form-label">الحالة</label>
-                                <select
-                                    className="form-select"
-                                    value={data.status}
-                                    onChange={e => setData('status', e.target.value)}
-                                >
-                                    <option value="draft">مسودة</option>
-                                    <option value="pending">قيد المراجعة</option>
-                                    <option value="approved">معتمد</option>
-                                    <option value="completed">منفذ</option>
-                                    <option value="rejected">مرفوض</option>
-                                    <option value="cancelled">ملغي</option>
-                                </select>
-                            </div>
-
-                            {/* ملاحظات */}
-                            <div className="form-group full-width">
-                                <label className="form-label">الملاحظات</label>
-                                <textarea
-                                    className="form-input"
-                                    rows="4"
-                                    value={data.notes}
-                                    onChange={e => setData('notes', e.target.value)}
-                                    placeholder="أضف أي ملاحظات إضافية هنا..."
-                                />
-                                {errors.notes && <span className="form-error">{errors.notes}</span>}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${s.class}`}>
+                <Icon size={12} />
+                {s.label}
+            </span>
         );
     };
 
-    // عرض تفاصيل التحويل
-    const renderDetailsView = () => (
-        <div className="view-card">
-            <div className="internal-page-header">
-                <div className="header-left">
-                    <button className="back-btn" onClick={() => setCurrentView('list')}>
-                        <span className="material-icons-outlined">arrow_back</span>
-                        رجوع
-                    </button>
-                    <h2 className="view-title">تفاصيل التحويل #{selectedTransfer?.transfer_no}</h2>
-                </div>
-                <div className="header-actions">
-                    {selectedTransfer?.status !== 'completed' && selectedTransfer?.status !== 'cancelled' && (
-                        <>
-                            <button className="btn btn-secondary" onClick={() => setCurrentView('edit')}>
-                                <span className="material-icons-outlined">edit</span>
-                                تعديل
-                            </button>
-                            <button className="btn btn-danger" onClick={() => handleDelete(selectedTransfer.id)}>
-                                <span className="material-icons-outlined">delete</span>
-                                حذف
-                            </button>
-                        </>
-                    )}
-                </div>
-            </div>
-
-            <div className="p-8">
-                <div className="max-w-4xl mx-auto">
-                    {/* بطاقة المعلومات الأساسية */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 mb-6">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="text-center">
-                                <div className="text-sm text-gray-500 mb-2">من حساب</div>
-                                <div className="flex items-center justify-center gap-2 mb-1">
-                                    <span className="text-2xl">🏦</span>
-                                    <span className="font-bold text-lg">{getAccountName(selectedTransfer?.from_account_id)}</span>
-                                </div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-sm text-gray-500 mb-2">المبلغ المحول</div>
-                                <div className="text-3xl font-bold text-blue-600">
-                                    {Number(selectedTransfer?.amount).toLocaleString()} ر.س
-                                </div>
-                                <div className="text-sm text-gray-500 mt-1">
-                                    {getMethodLabel(selectedTransfer?.method)}
-                                </div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-sm text-gray-500 mb-2">إلى حساب</div>
-                                <div className="flex items-center justify-center gap-2 mb-1">
-                                    <span className="text-2xl">💰</span>
-                                    <span className="font-bold text-lg">{getAccountName(selectedTransfer?.to_account_id)}</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* باقي المعلومات */}
-                    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-                        <div className="p-6 border-b border-gray-100">
-                            <h3 className="font-bold mb-4 flex items-center gap-2">
-                                <span className="material-icons-outlined text-blue-500">info</span>
-                                معلومات التحويل
-                            </h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="flex justify-between py-2 border-b border-gray-50">
-                                    <span className="text-gray-500">رقم التحويل:</span>
-                                    <span className="font-mono font-medium">{selectedTransfer?.transfer_no}</span>
-                                </div>
-                                <div className="flex justify-between py-2 border-b border-gray-50">
-                                    <span className="text-gray-500">التاريخ:</span>
-                                    <span>{new Date(selectedTransfer?.transfer_date).toLocaleDateString('ar-EG')}</span>
-                                </div>
-                                <div className="flex justify-between py-2 border-b border-gray-50">
-                                    <span className="text-gray-500">طريقة التحويل:</span>
-                                    <span>{getMethodLabel(selectedTransfer?.method)}</span>
-                                </div>
-                                <div className="flex justify-between py-2 border-b border-gray-50">
-                                    <span className="text-gray-500">الحالة:</span>
-                                    <span className={`status-badge status-${selectedTransfer?.status}`}>
-                                        {getStatusLabel(selectedTransfer?.status)}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between py-2 border-b border-gray-50">
-                                    <span className="text-gray-500">تاريخ الإنشاء:</span>
-                                    <span>{new Date(selectedTransfer?.created_at).toLocaleString('ar-EG')}</span>
-                                </div>
-                                <div className="flex justify-between py-2 border-b border-gray-50">
-                                    <span className="text-gray-500">آخر تحديث:</span>
-                                    <span>{new Date(selectedTransfer?.updated_at).toLocaleString('ar-EG')}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {selectedTransfer?.notes && (
-                            <div className="p-6">
-                                <h3 className="font-bold mb-3 flex items-center gap-2">
-                                    <span className="material-icons-outlined text-blue-500">notes</span>
-                                    الملاحظات
-                                </h3>
-                                <div className="p-4 bg-gray-50 rounded-xl text-gray-700">
-                                    {selectedTransfer.notes}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-
     return (
-        <AdminLayout activeMenu="Transfers">
-            <Head title="تحويلات بين الحسابات" />
-            
-            <div className="blank-page">
-                <div className="page-header">
-                    <div className="breadcrumb">
-                        <Link href={route('admin.dashboard')}>الرئيسية</Link>
-                        <span>/</span>
-                        <span>الخزينة والبنوك</span>
-                        <span>/</span>
-                        <span className="current">تحويلات بين الحسابات</span>
+        <AdminLayout activeMenu="Treasury">
+            <Head title={`${t('TreasuryTransfer.title')} - ZodicERP`} />
+
+            <div className="p-6 treasury-transfer">
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-3">
+                            <ArrowLeftRight className="text-primary" size={28} />
+                            {t('TreasuryTransfer.title')}
+                        </h1>
+                        <p className="text-slate-500 mt-1">{t('TreasuryTransfer.subtitle')}</p>
+                    </div>
+
+                    {flash?.success && (
+                        <div className="flex-1 max-w-md mx-4 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-2 rounded-lg flex items-center gap-2 animate-in slide-in-from-top-2">
+                            <CheckCircle2 size={18} />
+                            <span className="text-sm font-medium">{flash.success}</span>
+                        </div>
+                    )}
+
+                    {flash?.error && (
+                        <div className="flex-1 max-w-md mx-4 bg-rose-50 border border-rose-200 text-rose-700 px-4 py-2 rounded-lg flex items-center gap-2 animate-in slide-in-from-top-2">
+                            <AlertCircle size={18} />
+                            <span className="text-sm font-medium">{flash.error}</span>
+                        </div>
+                    )}
+
+                    <button 
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="inline-flex items-center gap-2 bg-primary text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-primary/90 transition-all shadow-sm"
+                    >
+                        <Plus size={20} />
+                        {t('TreasuryTransfer.new_transfer')}
+                    </button>
+                </div>
+
+                {/* Filters & Search */}
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
+                    <div className="relative w-full md:w-96">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <input 
+                            type="text"
+                            placeholder={t('TreasuryTransfer.reference_number')}
+                            className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    <div className="flex items-center gap-3 w-full md:w-auto">
+                        <Filter className="text-slate-400" size={18} />
+                        <select 
+                            className="flex-1 md:w-48 py-2 px-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary/20"
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                        >
+                            <option value="all">{t('TreasuryTransfer.statuses.all') || 'All Statuses'}</option>
+                            <option value="pending">{t('TreasuryTransfer.statuses.pending')}</option>
+                            <option value="completed">{t('TreasuryTransfer.statuses.completed')}</option>
+                            <option value="rejected">{t('TreasuryTransfer.statuses.rejected')}</option>
+                        </select>
                     </div>
                 </div>
 
-                {/* إحصائيات سريعة */}
-                {currentView === 'list' && (
-                    <div className="stats-cards mb-4">
-                        <div className="stat-card">
-                            <div className="stat-icon" style={{ backgroundColor: '#3b82f6' }}>
-                                <span className="material-icons-outlined">swap_horiz</span>
+                {/* Data Table */}
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <table className="w-full text-sm text-left rtl:text-right">
+                        <thead className="bg-slate-50 text-slate-600 font-semibold uppercase text-xs">
+                            <tr>
+                                <th className="px-6 py-4">{t('TreasuryTransfer.reference_number')}</th>
+                                <th className="px-6 py-4">{t('TreasuryTransfer.date')}</th>
+                                <th className="px-6 py-4">{t('TreasuryTransfer.from_treasury')}</th>
+                                <th className="px-6 py-4">{t('TreasuryTransfer.to_treasury')}</th>
+                                <th className="px-6 py-4">{t('TreasuryTransfer.amount')}</th>
+                                <th className="px-6 py-4">{t('TreasuryTransfer.status')}</th>
+                                <th className="px-6 py-4 text-center">{t('TreasuryTransfer.actions')}</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {transfers.data.length === 0 ? (
+                                <tr>
+                                    <td colSpan="7" className="px-6 py-12 text-center text-slate-400">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <FileText size={48} strokeWidth={1} />
+                                            <p>{t('TreasuryTransfer.no_data') || 'No transfers found'}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : transfers.data.map((transfer) => (
+                                <tr key={transfer.id} className="hover:bg-slate-50/80 transition-colors">
+                                    <td className="px-6 py-4 font-mono font-bold text-primary">{transfer.reference_number}</td>
+                                    <td className="px-6 py-4 text-slate-600">{transfer.transfer_date}</td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-semibold">{transfer.from_treasury.name}</span>
+                                            <span className="text-xs text-slate-400">{transfer.from_treasury.account_code}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="flex flex-col">
+                                            <span className="font-semibold">{transfer.to_treasury.name}</span>
+                                            <span className="text-xs text-slate-400">{transfer.to_treasury.account_code}</span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-4 font-bold text-slate-900">
+                                        {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(transfer.amount)} {transfer.currency}
+                                    </td>
+                                    <td className="px-6 py-4">{getStatusBadge(transfer.status)}</td>
+                                    <td className="px-6 py-4 text-center">
+                                        <button 
+                                            onClick={() => {
+                                                setSelectedTransfer(transfer);
+                                                setIsDetailsModalOpen(true);
+                                            }}
+                                            className="p-2 text-slate-400 hover:text-primary transition-colors"
+                                        >
+                                            <Eye size={18} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                {/* Create Modal */}
+                {isCreateModalOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                                    <Plus className="text-primary" />
+                                    {t('TreasuryTransfer.new_transfer')}
+                                </h3>
+                                <button onClick={() => setIsCreateModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                    <XCircle size={24} />
+                                </button>
                             </div>
-                            <div className="stat-content">
-                                <div className="stat-value">{stats.total || transfers.total || 0}</div>
-                                <div className="stat-label">إجمالي التحويلات</div>
-                            </div>
+                            <form onSubmit={handleCreateSubmit} className="p-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-2">{t('TreasuryTransfer.from_treasury')}</label>
+                                        <select 
+                                            className={`w-full p-2.5 rounded-lg border ${errors.from_treasury_id ? 'border-rose-500' : 'border-slate-200'} focus:ring-2 focus:ring-primary/20`}
+                                            value={data.from_treasury_id}
+                                            onChange={(e) => setData('from_treasury_id', e.target.value)}
+                                        >
+                                            <option value="">{t('TreasuryTransfer.select_treasury') || 'Select Treasury'}</option>
+                                            {cashAccounts.map(acc => (
+                                                <option key={acc.id} value={acc.id}>{acc.name} ({acc.current_balance} EGP)</option>
+                                            ))}
+                                        </select>
+                                        {errors.from_treasury_id && <p className="text-rose-500 text-xs mt-1">{errors.from_treasury_id}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-2">{t('TreasuryTransfer.to_treasury')}</label>
+                                        <select 
+                                            className={`w-full p-2.5 rounded-lg border ${errors.to_treasury_id ? 'border-rose-500' : 'border-slate-200'} focus:ring-2 focus:ring-primary/20`}
+                                            value={data.to_treasury_id}
+                                            onChange={(e) => setData('to_treasury_id', e.target.value)}
+                                        >
+                                            <option value="">{t('TreasuryTransfer.select_treasury') || 'Select Treasury'}</option>
+                                            {cashAccounts.map(acc => (
+                                                <option key={acc.id} value={acc.id}>{acc.name}</option>
+                                            ))}
+                                        </select>
+                                        {errors.to_treasury_id && <p className="text-rose-500 text-xs mt-1">{errors.to_treasury_id}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-2">{t('TreasuryTransfer.amount')}</label>
+                                        <div className="relative">
+                                            <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <input 
+                                                type="number" step="0.01"
+                                                className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${errors.amount ? 'border-rose-500' : 'border-slate-200'} focus:ring-2 focus:ring-primary/20`}
+                                                value={data.amount}
+                                                onChange={(e) => setData('amount', e.target.value)}
+                                            />
+                                        </div>
+                                        {errors.amount && <p className="text-rose-500 text-xs mt-1">{errors.amount}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-slate-700 mb-2">{t('TreasuryTransfer.date')}</label>
+                                        <div className="relative">
+                                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <input 
+                                                type="date"
+                                                className={`w-full pl-10 pr-4 py-2.5 rounded-lg border ${errors.transfer_date ? 'border-rose-500' : 'border-slate-200'} focus:ring-2 focus:ring-primary/20`}
+                                                value={data.transfer_date}
+                                                onChange={(e) => setData('transfer_date', e.target.value)}
+                                            />
+                                        </div>
+                                        {errors.transfer_date && <p className="text-rose-500 text-xs mt-1">{errors.transfer_date}</p>}
+                                    </div>
+                                </div>
+                                <div className="mb-6">
+                                    <label className="block text-sm font-semibold text-slate-700 mb-2">{t('TreasuryTransfer.notes')}</label>
+                                    <textarea 
+                                        className="w-full p-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-primary/20"
+                                        rows="3"
+                                        value={data.notes}
+                                        onChange={(e) => setData('notes', e.target.value)}
+                                    ></textarea>
+                                </div>
+                                <div className="flex justify-end gap-3">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setIsCreateModalOpen(false)}
+                                        className="px-6 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors"
+                                    >
+                                        {t('cancel') || 'Cancel'}
+                                    </button>
+                                    <button 
+                                        type="submit"
+                                        disabled={processing}
+                                        className="px-8 py-2.5 rounded-lg bg-primary text-white font-semibold hover:bg-primary/90 transition-all disabled:opacity-50"
+                                    >
+                                        {processing ? t('saving') || 'Saving...' : t('TreasuryTransfer.new_transfer')}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
-                        <div className="stat-card">
-                            <div className="stat-icon" style={{ backgroundColor: '#10b981' }}>
-                                <span className="material-icons-outlined">check_circle</span>
+                    </div>
+                )}
+
+                {/* Details Modal */}
+                {isDetailsModalOpen && selectedTransfer && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+                                <h3 className="text-xl font-bold text-slate-900">{t('TreasuryTransfer.details')}</h3>
+                                <button onClick={() => setIsDetailsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                                    <XCircle size={24} />
+                                </button>
                             </div>
-                            <div className="stat-content">
-                                <div className="stat-value">{stats.completed || 0}</div>
-                                <div className="stat-label">منفذة</div>
-                            </div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-icon" style={{ backgroundColor: '#f59e0b' }}>
-                                <span className="material-icons-outlined">pending</span>
-                            </div>
-                            <div className="stat-content">
-                                <div className="stat-value">{stats.pending || 0}</div>
-                                <div className="stat-label">قيد التنفيذ</div>
-                            </div>
-                        </div>
-                        <div className="stat-card">
-                            <div className="stat-icon" style={{ backgroundColor: '#8b5cf6' }}>
-                                <span className="material-icons-outlined">account_balance</span>
-                            </div>
-                            <div className="stat-content">
-                                <div className="stat-value">{allAccounts.length}</div>
-                                <div className="stat-label">الحسابات</div>
+                            <div className="p-6">
+                                <div className="flex flex-col gap-4">
+                                    <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                                        <span className="text-slate-500">{t('TreasuryTransfer.reference_number')}</span>
+                                        <span className="font-mono font-bold text-primary">{selectedTransfer.reference_number}</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-3 border border-slate-100 rounded-lg">
+                                            <span className="text-xs text-slate-400 block mb-1">{t('TreasuryTransfer.from_treasury')}</span>
+                                            <span className="font-semibold">{selectedTransfer.from_treasury.name}</span>
+                                        </div>
+                                        <div className="p-3 border border-slate-100 rounded-lg">
+                                            <span className="text-xs text-slate-400 block mb-1">{t('TreasuryTransfer.to_treasury')}</span>
+                                            <span className="font-semibold">{selectedTransfer.to_treasury.name}</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-500">{t('TreasuryTransfer.amount')}</span>
+                                        <span className="text-2xl font-black text-slate-900">
+                                            {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(selectedTransfer.amount)} {selectedTransfer.currency}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-500">{t('TreasuryTransfer.date')}</span>
+                                        <span className="font-semibold">{selectedTransfer.transfer_date}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-slate-500">{t('TreasuryTransfer.status')}</span>
+                                        {getStatusBadge(selectedTransfer.status)}
+                                    </div>
+                                    {selectedTransfer.notes && (
+                                        <div className="p-3 bg-slate-50 rounded-lg">
+                                            <span className="text-xs text-slate-400 block mb-1">{t('TreasuryTransfer.notes')}</span>
+                                            <p className="text-sm text-slate-700">{selectedTransfer.notes}</p>
+                                        </div>
+                                    )}
+                                    {selectedTransfer.status === 'rejected' && (
+                                        <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg">
+                                            <span className="text-xs text-rose-400 block mb-1">{t('TreasuryTransfer.rejection_reason')}</span>
+                                            <p className="text-sm text-rose-700">{selectedTransfer.rejection_reason}</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Action Buttons */}
+                                {(selectedTransfer.status === 'pending' || selectedTransfer.status === 'approved') && (
+                                    <div className="mt-8 flex gap-3">
+                                        <button 
+                                            onClick={() => setIsRejectModalOpen(true)}
+                                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-rose-200 text-rose-600 font-semibold hover:bg-rose-50 transition-colors"
+                                        >
+                                            <XCircle size={18} />
+                                            {t('TreasuryTransfer.reject')}
+                                        </button>
+                                        <button 
+                                            onClick={() => handleApprove(selectedTransfer.id)}
+                                            className="flex-2 flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-200"
+                                        >
+                                            <CheckCircle2 size={18} />
+                                            {t('TreasuryTransfer.approve')}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
                 )}
-                
-                {currentView === 'list' && renderListView()}
-                {(currentView === 'create' || currentView === 'edit') && renderFormView()}
-                {currentView === 'view' && renderDetailsView()}
-            </div>
 
-            <style jsx>{`
-                .full-width {
-                    grid-column: 1 / -1;
-                }
-                .method-badge {
-                    display: inline-block;
-                    padding: 4px 12px;
-                    border-radius: 20px;
-                    font-size: 12px;
-                    font-weight: 500;
-                }
-                .status-select {
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-                .status-select:hover {
-                    opacity: 0.8;
-                }
-                .icon-btn {
-                    background: none;
-                    border: none;
-                    cursor: pointer;
-                    padding: 6px;
-                    border-radius: 8px;
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    transition: all 0.2s;
-                }
-                .icon-btn.view { color: #3b82f6; }
-                .icon-btn.edit { color: #f59e0b; }
-                .icon-btn.delete { color: #ef4444; }
-                .icon-btn:hover {
-                    background: #f3f4f6;
-                    transform: scale(1.05);
-                }
-                .alert {
-                    padding: 12px 16px;
-                    border-radius: 12px;
-                    margin-bottom: 20px;
-                }
-                .alert-success {
-                    background: #dcfce7;
-                    color: #166534;
-                    border: 1px solid #bbf7d0;
-                }
-                .alert-error {
-                    background: #fee2e2;
-                    color: #991b1b;
-                    border: 1px solid #fecaca;
-                }
-            `}</style>
+                {/* Reject Reason Modal */}
+                {isRejectModalOpen && (
+                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+                        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md animate-in zoom-in-95">
+                            <div className="p-6 border-b border-slate-100">
+                                <h3 className="text-lg font-bold text-slate-900">{t('TreasuryTransfer.rejection_reason')}</h3>
+                            </div>
+                            <form onSubmit={handleReject} className="p-6">
+                                <textarea 
+                                    required
+                                    className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 mb-6"
+                                    rows="4"
+                                    placeholder={t('TreasuryTransfer.enter_rejection_reason') || 'Enter reason for rejection...'}
+                                    value={rejectionReason}
+                                    onChange={(e) => setRejectionReason(e.target.value)}
+                                ></textarea>
+                                <div className="flex justify-end gap-3">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setIsRejectModalOpen(false)}
+                                        className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600"
+                                    >
+                                        {t('cancel') || 'Cancel'}
+                                    </button>
+                                    <button 
+                                        type="submit"
+                                        className="px-6 py-2 rounded-lg bg-rose-600 text-white font-semibold hover:bg-rose-700"
+                                    >
+                                        {t('TreasuryTransfer.reject')}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
         </AdminLayout>
     );
 };

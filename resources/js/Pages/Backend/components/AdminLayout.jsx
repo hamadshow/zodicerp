@@ -191,6 +191,8 @@ const AdminLayout = ({
         { icon: 'payments', label: translations['sidebar.cheque'] || 'Cheque', href: getLocalizedRoute('admin.cheques.index') },
         { icon: 'swap_horiz', label: translations['sidebar.bank_transactions'] || 'Bank Transactions', href: getLocalizedRoute('admin.bank-transactions.index') },
         { icon: 'receipt_long', label: translations['sidebar.payment_voucher'] || 'Payment Voucher', href: getLocalizedRoute('admin.payment-vouchers.index') },
+        { icon: 'receipt_long', label: translations['sidebar.receipt_voucher'] || 'Receipt Voucher', href: getLocalizedRoute('admin.receipt-vouchers.index') },
+        { icon: 'swap_horiz', label: translations['sidebar.treasury_transfer'] || 'Treasury Transfer', href: getLocalizedRoute('admin.treasury-transfers.index') },
       ],
     },
     {

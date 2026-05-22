@@ -523,6 +523,14 @@ Route::group([
             Route::delete('accounts/{bankAccount}', [\App\Http\Controllers\Backend\Cash\BankController::class, 'destroyAccount'])->name('accounts.destroy');
         });
         Route::resource('petty-cash', \App\Http\Controllers\Backend\Cash\PettyCashController::class);
+        
+        // Treasury Transfers
+        Route::prefix('treasury-transfers')->name('treasury-transfers.')->controller(\App\Http\Controllers\Backend\Cash\TreasuryTransferController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::post('{id}/approve', 'approve')->name('approve');
+            Route::post('{id}/reject', 'reject')->name('reject');
+        });
         Route::resource('cheques', \App\Http\Controllers\Backend\Cash\ChequeController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::prefix('bank-transactions')->name('bank-transactions.')->controller(\App\Http\Controllers\Backend\Cash\BankTransactionController::class)->group(function () {
             Route::get('/', 'index')->name('index');
