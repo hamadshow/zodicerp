@@ -3,6 +3,7 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import React, { useMemo, useState } from 'react';
 import { FinanzaFooter } from '@/Pages/Home/components/Footer';
 import { FinanzaHeader } from '@/Pages/Home/components/Header';
+import { MobileNavigation } from '@/Pages/Home/components/MobileNavigation';
 import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Login({ status, canResetPassword }) {
@@ -11,6 +12,8 @@ export default function Login({ status, canResetPassword }) {
   const country = localization?.country_code || 'sa';
   const lang = localization?.current_locale || 'en';
   const dir = lang === 'ar' ? 'rtl' : 'ltr';
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const getLocalizedRoute = (name, params = {}) => {
     return route(name, {
@@ -40,14 +43,25 @@ export default function Login({ status, canResetPassword }) {
   return (
     <div id="top" className="finanza-landing" dir={dir}>
       <Head title={t('auth.login', 'Log in')} />
+      <MobileNavigation
+        t={t}
+        countryCode={country}
+        currentLocale={lang}
+        isOpen={isMobileMenuOpen}
+        onToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        navLinks={[]}
+      />
       <div className="loginShell">
         <FinanzaHeader
           variant="minimal"
+          isMobileMenuOpen={isMobileMenuOpen}
+          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           homeHref={getLocalizedRoute('home')}
           loginHref={getLocalizedRoute('login')}
           registerHref={getLocalizedRoute('register')}
           dashboardHref={getLocalizedRoute('dashboard')}
           logoutHref={getLocalizedRoute('logout')}
+          t={t}
         />
 
         <main id="main-content" className="auth-page loginPage">
@@ -155,7 +169,7 @@ export default function Login({ status, canResetPassword }) {
           </div>
         </main>
 
-        <FinanzaFooter />
+        <FinanzaFooter t={t} />
       </div>
     </div>
   );
