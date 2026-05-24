@@ -14,18 +14,23 @@ class TreasuryTransferResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $fromAccount = $this->fromAccount();
+        $toAccount = $this->toAccount();
+        $isCashFrom = $fromAccount instanceof \App\Models\CashAccount;
+        $isCashTo = $toAccount instanceof \App\Models\CashAccount;
+
         return [
             'id' => $this->id,
             'reference_number' => $this->reference_number,
             'from_treasury' => [
-                'id' => $this->fromTreasury->id,
-                'name' => $this->fromTreasury->name,
-                'account_code' => $this->fromTreasury->account_code,
+                'id' => $this->from_treasury_id,
+                'name' => $fromAccount ? ($isCashFrom ? $fromAccount->name : $fromAccount->account_name) : null,
+                'account_code' => $fromAccount ? ($isCashFrom ? $fromAccount->account_code : $fromAccount->account_number) : null,
             ],
             'to_treasury' => [
-                'id' => $this->toTreasury->id,
-                'name' => $this->toTreasury->name,
-                'account_code' => $this->toTreasury->account_code,
+                'id' => $this->to_treasury_id,
+                'name' => $toAccount ? ($isCashTo ? $toAccount->name : $toAccount->account_name) : null,
+                'account_code' => $toAccount ? ($isCashTo ? $toAccount->account_code : $toAccount->account_number) : null,
             ],
             'amount' => (float) $this->amount,
             'currency' => $this->currency,

@@ -1,10 +1,9 @@
-import Checkbox from '@/Components/Checkbox';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import React, { useMemo, useState } from 'react';
 import { FinanzaFooter } from '@/Pages/Home/components/Footer';
 import { FinanzaHeader } from '@/Pages/Home/components/Header';
-import { MobileNavigation } from '@/Pages/Home/components/MobileNavigation';
 import { useTranslation } from '@/hooks/useTranslation';
+import '../../../../css/homepage/rtl.scss';
 
 export default function Login({ status, canResetPassword }) {
   const { localization } = usePage().props;
@@ -13,7 +12,7 @@ export default function Login({ status, canResetPassword }) {
   const lang = localization?.current_locale || 'en';
   const dir = lang === 'ar' ? 'rtl' : 'ltr';
 
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const getLocalizedRoute = (name, params = {}) => {
     return route(name, {
@@ -29,12 +28,10 @@ export default function Login({ status, canResetPassword }) {
     remember: false,
   });
 
-  const [showPassword, setShowPassword] = useState(false);
   const languageValue = useMemo(() => (lang === 'ar' ? 'ar' : 'en'), [lang]);
 
   const submit = (e) => {
     e.preventDefault();
-
     post(getLocalizedRoute('auth.login.store'), {
       onFinish: () => reset('password'),
     });
@@ -42,20 +39,11 @@ export default function Login({ status, canResetPassword }) {
 
   return (
     <div id="top" className="finanza-landing" dir={dir}>
-      <Head title={t('auth.login', 'Log in')} />
-      <MobileNavigation
-        t={t}
-        countryCode={country}
-        currentLocale={lang}
-        isOpen={isMobileMenuOpen}
-        onToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        navLinks={[]}
-      />
+      <Head title={`${t('auth.login', 'Log in')} - ZodiERP`} />
+      
       <div className="loginShell">
         <FinanzaHeader
           variant="minimal"
-          isMobileMenuOpen={isMobileMenuOpen}
-          onToggleMobileMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           homeHref={getLocalizedRoute('home')}
           loginHref={getLocalizedRoute('login')}
           registerHref={getLocalizedRoute('register')}
@@ -66,12 +54,15 @@ export default function Login({ status, canResetPassword }) {
 
         <main id="main-content" className="auth-page loginPage">
           <div className="loginPage-grid">
-            <div 
-              className="loginPage-visual" 
-              aria-hidden="true" 
-              style={{ backgroundImage: `url('/storage/images/login-${lang === 'ar' ? 'ar' : 'en'}.jpg')` }}
-            />
-          
+            <div className="loginPage-visual" aria-hidden="true">
+              <div className="visual-content" style={{ padding: '40px', color: '#fff', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
+                <div className="brand-logo" style={{ fontSize: '48px', fontWeight: '800', marginBottom: '20px' }}>ZodiERP</div>
+                <p className="brand-description" style={{ fontSize: '18px', lineHeight: '1.6', opacity: '0.9', maxWidth: '400px', margin: '0 auto' }}>
+                  {t('auth.visual_description', 'The most powerful ERP system for managing your business with ease and professionalism.')}
+                </p>
+              </div>
+            </div>
+
             <section className="loginPage-panel" aria-label="Login">
               <div className="loginPage-lang">
                 <select
@@ -95,31 +86,33 @@ export default function Login({ status, canResetPassword }) {
                 <div className="loginCard-title">{t('auth.login_title', 'Welcome Back!')}</div>
                 <div className="loginCard-subtitle">{t('auth.login_subtitle', 'Please enter your details to login.')}</div>
 
-                {status && <div className="login-status mb-4">{status}</div>}
+                {status && (
+                  <div className="login-status">
+                    <span className="material-icons-outlined">check_circle</span>
+                    {status}
+                  </div>
+                )}
 
-                <form onSubmit={submit} className="loginForm" noValidate method="post">
+                <form onSubmit={submit} className="loginForm" noValidate>
                   <div className="loginField">
                     <input
-                      id="email"
-                      name="email"
                       type="email"
                       className={`loginInput ${errors.email ? 'is-invalid' : ''}`}
-                      placeholder={t('auth.email', 'Email Address*')}
+                      placeholder={t('auth.email_placeholder', 'Email Address*')}
                       value={data.email}
                       onChange={(e) => setData('email', e.target.value)}
                       required
                       autoComplete="email"
+                      autoFocus
                     />
-                    {errors.email ? <div className="loginError">{errors.email}</div> : null}
+                    {errors.email && <div className="loginError">{errors.email}</div>}
                   </div>
 
                   <div className="loginField loginField--password">
                     <input
-                      id="password"
-                      name="password"
                       type={showPassword ? 'text' : 'password'}
                       className={`loginInput ${errors.password ? 'is-invalid' : ''}`}
-                      placeholder={t('auth.password_label', 'Password *')}
+                      placeholder={t('auth.password_label', 'Password*')}
                       value={data.password}
                       onChange={(e) => setData('password', e.target.value)}
                       required
@@ -131,14 +124,17 @@ export default function Login({ status, canResetPassword }) {
                       onClick={() => setShowPassword((v) => !v)}
                       aria-label={showPassword ? t('auth.hide_password', 'Hide password') : t('auth.show_password', 'Show password')}
                     >
-                      <span className="material-icons-outlined">{showPassword ? 'visibility_off' : 'visibility'}</span>
+                      <span className="material-icons-outlined">
+                        {showPassword ? 'visibility_off' : 'visibility'}
+                      </span>
                     </button>
-                    {errors.password ? <div className="loginError">{errors.password}</div> : null}
+                    {errors.password && <div className="loginError">{errors.password}</div>}
                   </div>
 
                   <div className="loginOptions">
                     <label className="loginRemember">
-                      <Checkbox
+                      <input
+                        type="checkbox"
                         name="remember"
                         checked={data.remember}
                         onChange={(e) => setData('remember', e.target.checked)}
@@ -154,13 +150,17 @@ export default function Login({ status, canResetPassword }) {
                   </div>
 
                   <button className="loginSubmit" type="submit" disabled={processing}>
-                    {t('auth.login', 'Login')}
+                    {processing ? (
+                      <div className="loader"></div>
+                    ) : (
+                      <span>{t('auth.login_btn', 'Login')}</span>
+                    )}
                   </button>
 
                   <div className="loginBottom">
                     <span>{t('auth.no_account', "Don't have an account?")}</span>
                     <Link className="loginBottomLink" href={getLocalizedRoute('register')}>
-                      {t('auth.register_here', 'Register Here')}
+                      {t('auth.register_here', 'Create an account')}
                     </Link>
                   </div>
                 </form>

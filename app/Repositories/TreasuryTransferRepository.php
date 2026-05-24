@@ -10,7 +10,7 @@ class TreasuryTransferRepository
     public function getAll($filters = [])
     {
         return TreasuryTransfer::query()
-            ->with(['fromTreasury', 'toTreasury', 'creator'])
+            ->with(['creator'])
             ->when($filters['search'] ?? null, function ($query, $search) {
                 $query->where('reference_number', 'like', "%{$search}%")
                     ->orWhere('notes', 'like', "%{$search}%");
@@ -32,7 +32,7 @@ class TreasuryTransferRepository
 
     public function findById($id)
     {
-        return TreasuryTransfer::with(['fromTreasury', 'toTreasury', 'creator', 'approver', 'rejector'])->findOrFail($id);
+        return TreasuryTransfer::with(['creator', 'approver', 'rejector'])->findOrFail($id);
     }
 
     public function create(array $data)

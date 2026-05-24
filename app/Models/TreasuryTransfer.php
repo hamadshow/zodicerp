@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\User;
 use App\Models\CashAccount;
+use App\Models\BankAccount;
 use App\Models\Company;
 
 class TreasuryTransfer extends Model
@@ -38,6 +39,26 @@ class TreasuryTransfer extends Model
         'rejected_at' => 'datetime',
         'amount' => 'decimal:2',
     ];
+
+    public function fromAccount()
+    {
+        $id = $this->from_treasury_id;
+        if (str_starts_with($id, 'cash_')) {
+            $actualId = str_replace('cash_', '', $id);
+            return CashAccount::find($actualId);
+        }
+        return BankAccount::find($id);
+    }
+
+    public function toAccount()
+    {
+        $id = $this->to_treasury_id;
+        if (str_starts_with($id, 'cash_')) {
+            $actualId = str_replace('cash_', '', $id);
+            return CashAccount::find($actualId);
+        }
+        return BankAccount::find($id);
+    }
 
     public function fromTreasury()
     {
