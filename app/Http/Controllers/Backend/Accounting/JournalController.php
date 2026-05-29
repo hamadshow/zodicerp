@@ -409,7 +409,7 @@ class JournalController extends Controller
 
             // Automatically recalculate postings
             if ($data['status'] === 'Post' || $data['status'] === 'posted') {
-                $this->recalculatePostings($request->user()->company_id);
+                $this->recalculatePostings(request()->user()->company_id);
             }
 
             return response()->json([
