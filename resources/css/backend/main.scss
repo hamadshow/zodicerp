@@ -28,7 +28,7 @@
 @use 'pages/AssetCategory';
 @use 'pages/Assets';
 @use 'pages/bank';
-@use 'pages/BankTransactions'; // Optimized for mobile transitions
+@use 'pages/BankTransactions';
 @use 'pages/Brands';
 @use 'pages/Brokers';
 @use 'pages/CacheManagement';
@@ -58,7 +58,6 @@
 @use 'pages/Nationalities';
 @use 'pages/Payroll-Advance';
 @use 'pages/Permissions';
-@use 'pages/PettyCash';
 @use 'pages/Purchase_quotations';
 @use 'pages/PurchaseInvoice';
 @use 'pages/PurchaseOrder';
@@ -76,7 +75,6 @@
 @use 'pages/OpeningStock';
 @use 'pages/StockTransfers';
 @use 'pages/PaymentVoucher';
-@use 'pages/TreasuryTransfer';
 @use 'pages/Career';
 @use 'pages/JobApplications';
 

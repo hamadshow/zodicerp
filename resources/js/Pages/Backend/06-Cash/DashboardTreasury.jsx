@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import { useTranslation } from '@/hooks/useTranslation';
 import { formatDate } from '@/utils/date';
@@ -87,10 +87,14 @@ const QuickAction = React.memo(({ label, icon, onClick }) => {
     );
 });
 
-const TreasuryAccountCard = ({ account, t }) => {
+const TreasuryAccountCard = ({ account, t, onClick }) => {
     const isNegative = account.rawBalance < 0;
     return (
-        <div className={`treasury-account-card ${isNegative ? 'is-negative' : ''}`}>
+        <div 
+            className={`treasury-account-card ${isNegative ? 'is-negative' : ''}`} 
+            onClick={onClick}
+            style={{ cursor: 'pointer' }}
+        >
             <span className={`treasury-account-card__type type-${account.type}`}>
                 {account.type === 'bank' ? t('DashboardTreasury.bank') : t('DashboardTreasury.cash')}
             </span>
@@ -137,7 +141,18 @@ const TreasuryDashboard = ({
     recentTransactions = [],
     performance = {},
 }) => {
+    const { props } = usePage();
+    const localization = props.localization;
     const { t } = useTranslation();
+
+    const getLocalizedRoute = useCallback((name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    }, [localization]);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [chartPeriod, setChartPeriod] = useState('weekly');
     const [filterOpen, setFilterOpen] = useState(false);
@@ -232,9 +247,26 @@ const TreasuryDashboard = ({
 
     const hasNoData = !stats.total_balance && !stats.receipts_today && accounts.length === 0;
 
-    const handleQuickAction = useCallback((routeName) => {
-        router.visit(routeName);
-    }, []);
+    const handleAccountClick = useCallback((account) => {
+        const now = new Date();
+        // Previous month calculation
+        const firstDayPrevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const lastDayPrevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+        
+        const formatDateString = (date) => {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        };
+
+        router.get(getLocalizedRoute('admin.treasury.account.transactions'), {
+              account_id: account.id,
+              type: account.type,
+              start_date: formatDateString(firstDayPrevMonth),
+              end_date: formatDateString(lastDayPrevMonth)
+          });
+    }, [getLocalizedRoute]);
 
     const StatCardSkeleton = () => (
         <div className="treasury-stat-card is-loading">
@@ -284,14 +316,6 @@ const TreasuryDashboard = ({
                             <Filter size={16} />
                             {t('DashboardTreasury.filter')}
                         </button>
-                        <button
-                            type="button"
-                            className="td-btn td-btn--primary"
-                            onClick={() => handleQuickAction(route('admin.petty-cash.create'))}
-                        >
-                            <PlusCircle size={16} />
-                            {t('DashboardTreasury.new_voucher')}
-                        </button>
                     </div>
                 </header>
 
@@ -312,15 +336,6 @@ const TreasuryDashboard = ({
                 </section>
 
                 <section className="treasury-actions-strip">
-                    <QuickAction
-                        label={t('DashboardTreasury.receipt_voucher')}
-                        icon={PlusCircle}
-                        onClick={() => handleQuickAction(route('admin.petty-cash.create'))}
-                    />
-                    <QuickAction
-                        label={t('DashboardTreasury.payment_voucher')}
-                        icon={MinusCircle}
-                    />
                     <QuickAction
                         label={t('DashboardTreasury.treasury_transfer')}
                         icon={ArrowLeftRight}
@@ -521,7 +536,12 @@ const TreasuryDashboard = ({
                                 ) : (
                                     <div className="treasury-accounts-list">
                                         {accountsData.map((acc) => (
-                                            <TreasuryAccountCard key={acc.id} account={acc} t={t} />
+                                            <TreasuryAccountCard 
+                                                key={`${acc.type}-${acc.id}`} 
+                                                account={acc} 
+                                                t={t} 
+                                                onClick={() => handleAccountClick(acc)}
+                                            />
                                         ))}
                                     </div>
                                 )}

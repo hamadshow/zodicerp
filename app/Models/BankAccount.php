@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class BankAccount extends Model
 {
@@ -44,13 +45,44 @@ class BankAccount extends Model
         return $this->belongsTo(Currency::class, 'currency', 'id');
     }
 
-    public function payments()
-    {
-        return $this->hasMany(BankPayment::class);
-    }
-
     public function receipts()
     {
-        return $this->hasMany(BankReceipt::class);
+        return $this->hasMany(TreasuryTransaction::class, 'destination_account_id')
+            ->where('destination_account_type', 'bank')
+            ->where('transaction_type', 'deposit');
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(TreasuryTransaction::class, 'source_account_id')
+            ->where('source_account_type', 'bank')
+            ->where('transaction_type', 'withdrawal');
+    }
+
+    public function transfersTo()
+    {
+        return $this->hasMany(TreasuryTransaction::class, 'destination_account_id')
+            ->where('destination_account_type', 'bank')
+            ->where('transaction_type', 'transfer');
+    }
+
+    public function transfersFrom()
+    {
+        return $this->hasMany(TreasuryTransaction::class, 'source_account_id')
+            ->where('source_account_type', 'bank')
+            ->where('transaction_type', 'transfer');
+    }
+
+    public function transactions()
+    {
+        return TreasuryTransaction::where(function ($q) {
+            $q->where(function ($sq) {
+                $sq->where('source_account_type', 'bank')
+                    ->where('source_account_id', $this->id);
+            })->orWhere(function ($sq) {
+                $sq->where('destination_account_type', 'bank')
+                    ->where('destination_account_id', $this->id);
+            });
+        });
     }
 }

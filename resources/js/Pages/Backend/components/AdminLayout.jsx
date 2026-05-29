@@ -186,12 +186,10 @@ const AdminLayout = ({
       hasSubmenu: true,
       submenuItems: [
         { icon: 'dashboard', label: translations['sidebar.treasury_dashboard'] || 'Dashboard', href: getLocalizedRoute('admin.treasury.dashboard') },
-        { icon: 'account_balance_wallet', label: translations['sidebar.cash'] || 'Cash', href: getLocalizedRoute('admin.petty-cash.index') },
         { icon: 'account_balance', label: translations['sidebar.banks'] || 'Banks', href: getLocalizedRoute('admin.banks.index') },
         { icon: 'payments', label: translations['sidebar.cheque'] || 'Cheque', href: getLocalizedRoute('admin.cheques.index') },
         { icon: 'swap_horiz', label: translations['sidebar.bank_transactions'] || 'Bank Transactions', href: getLocalizedRoute('admin.bank-transactions.index') },
         { icon: 'receipt_long', label: translations['sidebar.payment_voucher'] || 'Payment Voucher', href: getLocalizedRoute('admin.payment-vouchers.index') },
-        { icon: 'swap_horiz', label: translations['sidebar.treasury_transfer'] || 'Treasury Transfer', href: getLocalizedRoute('admin.treasury-transfers.index') },
       ],
     },
     {

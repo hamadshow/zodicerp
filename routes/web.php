@@ -515,6 +515,8 @@ Route::group([
         // 9. Cash & Banks (النقدية والبنوك)
         Route::get('treasury/dashboard', [\App\Http\Controllers\Backend\Cash\TreasuryDashboardController::class, 'index'])
             ->name('treasury.dashboard');
+        Route::get('treasury/account/transactions', [\App\Http\Controllers\Backend\Cash\TreasuryDashboardController::class, 'accountTransactions'])
+            ->name('treasury.account.transactions');
         Route::resource('banks', \App\Http\Controllers\Backend\Cash\BankController::class);
         Route::prefix('banks')->name('banks.')->group(function () {
             Route::get('{bank}/accounts', [\App\Http\Controllers\Backend\Cash\BankController::class, 'getAccounts'])->name('accounts.index');
@@ -522,22 +524,13 @@ Route::group([
             Route::put('accounts/{bankAccount}', [\App\Http\Controllers\Backend\Cash\BankController::class, 'updateAccount'])->name('accounts.update');
             Route::delete('accounts/{bankAccount}', [\App\Http\Controllers\Backend\Cash\BankController::class, 'destroyAccount'])->name('accounts.destroy');
         });
-        Route::resource('petty-cash', \App\Http\Controllers\Backend\Cash\PettyCashController::class);
-        
-        // Treasury Transfers
-        Route::prefix('treasury-transfers')->name('treasury-transfers.')->controller(\App\Http\Controllers\Backend\Cash\TreasuryTransferController::class)->group(function () {
-            Route::get('/', 'index')->name('index');
-            Route::post('/', 'store')->name('store');
-            Route::put('{id}', 'update')->name('update');
-            Route::post('{id}/approve', 'approve')->name('approve');
-            Route::post('{id}/reject', 'reject')->name('reject');
-        });
+
         Route::resource('cheques', \App\Http\Controllers\Backend\Cash\ChequeController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::prefix('bank-transactions')->name('bank-transactions.')->controller(\App\Http\Controllers\Backend\Cash\BankTransactionController::class)->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/', 'store')->name('store');
-            Route::put('{type}/{transaction}', 'update')->whereIn('type', ['payment', 'receipt'])->name('update');
-            Route::delete('{type}/{transaction}', 'destroy')->whereIn('type', ['payment', 'receipt'])->name('destroy');
+            Route::put('{type}/{transaction}', 'update')->whereIn('type', ['payment', 'receipt', 'transfer'])->name('update');
+            Route::delete('{type}/{transaction}', 'destroy')->whereIn('type', ['payment', 'receipt', 'transfer'])->name('destroy');
         });
         Route::get('payment-vouchers', function (\Illuminate\Http\Request $request) {
             $search = trim((string) $request->input('search', ''));

@@ -3,7 +3,10 @@
 namespace App\Providers;
 
 use App\Models\Scopes\CompanyScope;
+use App\Models\BankAccount;
+use App\Models\CashAccount;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
@@ -25,6 +28,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Relation::morphMap([
+            'bank' => BankAccount::class,
+            'cash' => CashAccount::class,
+        ]);
+
         \Illuminate\Support\Facades\DB::listen(function ($query) {
             \Illuminate\Support\Facades\Log::info("SQL Query: [{$query->time}ms] {$query->sql}", [
                 'bindings' => $query->bindings,

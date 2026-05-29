@@ -1,30 +1,135 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import AdminLayout from '../components/AdminLayout';
+import AdminLayout from '@/Pages/Backend/components/AdminLayout';
+import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
-import SearchableComboBox from '../components/SearchableComboBox';
-import Pagination from '../components/Pagination';
+import SearchableComboBox from '@/Pages/Backend/components/SearchableComboBox';
+import Table from '@/Pages/Backend/components/Table';
 import { apiService } from '../../../services/api';
+
+const normalizeDate = (val) => {
+  if (val === null || val === undefined || val === '') return '';
+
+  if (val instanceof Date) {
+    if (Number.isNaN(val.getTime())) return '';
+    const year = val.getFullYear();
+    const month = String(val.getMonth() + 1).padStart(2, '0');
+    const day = String(val.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  const serial = Number(val);
+  if (
+    !Number.isNaN(serial) &&
+    typeof val !== 'boolean' &&
+    String(val).trim() !== '' &&
+    !String(val).includes('-') &&
+    !String(val).includes('/')
+  ) {
+    if (serial > 10000 && serial < 100000) {
+      const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  }
+
+  const s = String(val).trim();
+  if (s.includes('T')) return s.split('T')[0];
+
+  const slashParts = s.split(/[/-]/);
+  if (slashParts.length === 3) {
+    let [p1, p2, p3] = slashParts;
+    if (p1.length === 4) {
+      return `${p1}-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}`;
+    }
+
+    if (p3.length === 2) {
+      p3 = `20${p3}`;
+    }
+
+    return `${p3}-${p2.padStart(2, '0')}-${p1.padStart(2, '0')}`;
+  }
+
+  return s;
+};
+
+const formatDisplayDate = (val) => {
+  if (!val) return '';
+  const d = normalizeDate(val);
+  const parts = d.split('-');
+  if (parts.length !== 3) return d;
+  const [y, m, day] = parts;
+  return `${day}/${m}/${y}`;
+};
+
+const emptyLine = () => ({
+  account_id: '',
+  debit: '',
+  credit: '',
+  description: '',
+});
+
+const todayIsoLocal = () => new Date().toISOString().slice(0, 10);
 
 export default function JournalEntity() {
   const { props } = usePage();
+
   const [mode, setMode] = useState('list');
   const [selectedCode, setSelectedCode] = useState(null);
   const [journals, setJournals] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState({ column: '', direction: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const readOnly = mode === 'view';
+  const readOnly = mode === 'list' ? false : mode === 'view';
+
+  // Table Columns Configuration
+  const columns = useMemo(
+    () => [
+      { header: 'Journal Code', key: 'entry_code', sortable: true },
+      { header: 'Type', key: 'entry_type', sortable: true },
+      { header: 'Details', key: 'description', sortable: true },
+      {
+        header: 'Date',
+        key: 'date',
+        sortable: true,
+        render: (row) => formatDisplayDate(row.date),
+      },
+      {
+        header: 'Total Amount',
+        key: 'total_amount',
+        sortable: true,
+        render: (row) => Number(row.total_amount || 0).toFixed(2),
+      },
+      {
+        header: 'Status',
+        key: 'status',
+        sortable: true,
+        render: (row) => (
+          <span
+            className={`journal-status-pill ${
+              row.status === 'Post' || row.status === 'Posted'
+                ? 'status-posted'
+                : 'status-unpost'
+            }`}
+          >
+            {row.status}
+          </span>
+        ),
+      },
+    ],
+    [],
+  );
 
   // Import System State
   const [showImport, setShowImport] = useState(false);
@@ -295,7 +400,6 @@ export default function JournalEntity() {
         loadJournals(currentPage, perPage); // Refresh to see updated status
       }
     } catch (err) {
-      console.error('Post failed:', err);
       toast.error(err.response?.data?.message || 'Post failed');
     } finally {
       setLoading(false);
@@ -313,7 +417,6 @@ export default function JournalEntity() {
         loadJournals(currentPage, perPage); // Refresh to see updated status
       }
     } catch (err) {
-      console.error('Unpost failed:', err);
       toast.error(err.response?.data?.message || 'Unpost failed');
     } finally {
       setLoading(false);
@@ -328,8 +431,6 @@ export default function JournalEntity() {
         with_lines: true,
         all: true,
         search,
-        sort_column: sort.column || undefined,
-        sort_direction: sort.direction || undefined,
       });
       const journalsWithLines = Array.isArray(response.data) ? response.data : (response.data?.data || []);
       
@@ -387,82 +488,11 @@ export default function JournalEntity() {
       
       XLSX.writeFile(workbook, `Journal_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
       toast.success('Data exported successfully');
-    } catch (err) {
-      console.error('Export failed:', err);
+    } catch {
       toast.error('Export failed');
     } finally {
       setLoading(false);
     }
-  };
-
-  const emptyLine = () => ({
-    account_id: '',
-    debit: '',
-    credit: '',
-    description: '',
-  });
-
-  const normalizeDate = (val) => {
-    if (val === null || val === undefined || val === '') return '';
-    
-    // Handle Date objects
-    if (val instanceof Date) {
-      if (isNaN(val.getTime())) return '';
-      const year = val.getFullYear();
-      const month = String(val.getMonth() + 1).padStart(2, '0');
-      const day = String(val.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-
-    // Handle Excel serial numbers (numeric)
-    const serial = Number(val);
-    if (!isNaN(serial) && typeof val !== 'boolean' && String(val).trim() !== '' && !String(val).includes('-') && !String(val).includes('/')) {
-      if (serial > 10000 && serial < 100000) {
-        // Simple conversion for Excel dates (base date is Dec 30, 1899)
-        const date = new Date(Math.round((serial - 25569) * 86400 * 1000));
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      }
-    }
-
-    const s = String(val).trim();
-    if (s.includes('T')) return s.split('T')[0];
-    
-    // Handle DD/MM/YYYY or DD-MM-YYYY
-    const slashParts = s.split(/[/-]/);
-    if (slashParts.length === 3) {
-      let [p1, p2, p3] = slashParts;
-      // If first part is 4 digits, assume YYYY-MM-DD
-      if (p1.length === 4) {
-        return `${p1}-${p2.padStart(2, '0')}-${p3.padStart(2, '0')}`;
-      }
-      
-      // If third part is 2 digits, fix to 4 digits (e.g., 25 -> 2025)
-      if (p3.length === 2) {
-        p3 = `20${p3}`;
-      }
-
-      // Otherwise assume DD/MM/YYYY or MM/DD/YYYY
-      // In this ERP we prefer DD/MM/YYYY
-      return `${p3}-${p2.padStart(2, '0')}-${p1.padStart(2, '0')}`;
-    }
-    
-    return s;
-  };
-
-  const formatDisplayDate = (val) => {
-    if (!val) return '';
-    const d = normalizeDate(val);
-    const parts = d.split('-');
-    if (parts.length !== 3) return d;
-    const [y, m, day] = parts;
-    return `${day}/${m}/${y}`;
-  };
-
-  const todayIsoLocal = () => {
-    return new Date().toISOString().slice(0, 10);
   };
 
   const [header, setHeader] = useState({
@@ -494,8 +524,6 @@ export default function JournalEntity() {
     try {
       const response = await apiService.get('/journals', {
         search,
-        sort_column: sort.column || undefined,
-        sort_direction: sort.direction || undefined,
         page,
         per_page: recordsPerPage,
       });
@@ -507,8 +535,7 @@ export default function JournalEntity() {
       setTotalRecords(responseData.total || 0);
       setTotalPages(responseData.last_page || 0);
       setCurrentPage(responseData.current_page || 1);
-    } catch (e) {
-      console.error('Failed to load journals', e);
+    } catch {
       setError('Failed to load journal entries.');
       setJournals([]);
     } finally {
@@ -527,54 +554,23 @@ export default function JournalEntity() {
     loadJournals(1, newPerPage);
   };
 
-  const handleSort = (field) => {
-    setSort((prev) => {
-      let newSort;
-      if (prev.column === field) {
-        if (prev.direction === 'asc') {
-          newSort = { column: field, direction: 'desc' };
-        } else if (prev.direction === 'desc') {
-          newSort = { column: '', direction: '' };
-        } else {
-          newSort = { column: field, direction: 'asc' };
-        }
-      } else {
-        newSort = { column: field, direction: 'asc' };
-      }
-      
-      // We'll let the useEffect handle the loading
-      return newSort;
-    });
-    setCurrentPage(1);
-  };
-
-  const sortedJournals = useMemo(() => {
-    const data = [...journals];
-    if (!sort.column || !sort.direction) {
-      return data;
-    }
-    return data.sort((a, b) => {
-      const direction = sort.direction === 'asc' ? 1 : -1;
-      if (sort.column === 'total_amount') {
-        const aNum = Number(a.total_amount || 0);
-        const bNum = Number(b.total_amount || 0);
-        if (aNum < bNum) return -1 * direction;
-        if (aNum > bNum) return 1 * direction;
-        return 0;
-      }
-      const aVal = a[sort.column] ?? '';
-      const bVal = b[sort.column] ?? '';
-      const aStr = aVal.toString().toLowerCase();
-      const bStr = bVal.toString().toLowerCase();
-      if (aStr < bStr) return -1 * direction;
-      if (aStr > bStr) return 1 * direction;
-      return 0;
-    });
-  }, [journals, sort]);
-
   useEffect(() => {
-    loadJournals(currentPage, perPage);
-  }, [sort]);
+    if (mode !== 'list') return;
+    handlePageChange(1);
+  }, [mode]);
+
+  const didInitSearchRef = useRef(false);
+  useEffect(() => {
+    if (mode !== 'list') return;
+    if (!didInitSearchRef.current) {
+      didInitSearchRef.current = true;
+      return;
+    }
+    const timeoutId = window.setTimeout(() => {
+      handlePageChange(1);
+    }, 350);
+    return () => window.clearTimeout(timeoutId);
+  }, [mode, search]);
 
   useEffect(() => {
     loadAccounts();
@@ -626,8 +622,6 @@ export default function JournalEntity() {
       const data = response.data || {};
       const headerData = data.header || {};
       const lineData = Array.isArray(data.lines) ? data.lines : [];
-      
-      console.log('Incoming header date:', headerData.date);
 
       setHeader({
         entry_code: headerData.entry_code || '',
@@ -692,7 +686,6 @@ export default function JournalEntity() {
       toast.success('Journal entry deleted successfully.');
       handlePageChange(1);
     } catch (e) {
-      console.error('Failed to delete journal entry', e);
       const message =
         e?.response?.data?.message || 'Failed to delete journal entry.';
       setError(message);
@@ -866,7 +859,7 @@ export default function JournalEntity() {
 
     return (
       <div className="modal-overlay active" onClick={handleCloseImport}>
-        <div className="modal import-modal" style={{ maxWidth: '1000px' }} onClick={e => e.stopPropagation()}>
+        <div className="modal import-modal" onClick={e => e.stopPropagation()}>
           <div className="modal-header">
             <h3 className="modal-title">Excel Import System</h3>
             <button className="modal-close" onClick={handleCloseImport}>&times;</button>
@@ -886,12 +879,18 @@ export default function JournalEntity() {
                   onChange={e => handleFileUpload(e.target.files)} 
                   accept=".xlsx, .xls"
                   multiple
-                  style={{ display: 'none' }}
+                  className="import-file-input"
                 />
-                <i className="material-icons-outlined" style={{ fontSize: '48px', color: '#3b82f6' }}>cloud_upload</i>
+                <i className="material-icons-outlined drop-zone-icon">cloud_upload</i>
                 <p>Click to upload or drag and drop files here</p>
                 <span>Select multiple Excel files (.xlsx, .xls)</span>
-                <button className="btn btn-outline" onClick={(e) => { e.stopPropagation(); downloadTemplate(); }} style={{ marginTop: '10px' }}>
+                <button
+                  className="btn btn-outline drop-zone-template-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    downloadTemplate();
+                  }}
+                >
                   Download Template
                 </button>
               </div>
@@ -917,11 +916,11 @@ export default function JournalEntity() {
                       {failedCount > 0 && (
                         <>
                           <button className="btn btn-outline btn-sm" onClick={downloadErrorReport} title="Download Excel with errors">
-                            <i className="material-icons-outlined" style={{ fontSize: '16px' }}>download</i>
+                            <i className="material-icons-outlined import-action-icon">download</i>
                             Error Report
                           </button>
                           <button className="btn btn-primary btn-sm" onClick={retryFailed}>
-                            <i className="material-icons-outlined" style={{ fontSize: '16px' }}>refresh</i>
+                            <i className="material-icons-outlined import-action-icon">refresh</i>
                             Retry Failed
                           </button>
                         </>
@@ -953,57 +952,63 @@ export default function JournalEntity() {
 
                 <div className="import-queue-table-wrapper">
                   <h4>Import Data Grid</h4>
-                  <div className="table-responsive" style={{ maxHeight: '400px', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '4px' }}>
-                    <table className="data-table queue-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead style={{ backgroundColor: '#f9fafb', position: 'sticky', top: 0, zIndex: 1 }}>
+                  <div className="table-responsive import-queue-scroll">
+                    <table className="data-table queue-table">
+                      <thead>
                         <tr>
-                          <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>Entry Code</th>
-                          <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>Date</th>
-                          <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>Account</th>
-                          <th style={{ padding: '10px', textAlign: 'right', borderBottom: '1px solid #e5e7eb' }}>Debit</th>
-                          <th style={{ padding: '10px', textAlign: 'right', borderBottom: '1px solid #e5e7eb' }}>Credit</th>
-                          <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>Status</th>
-                          <th style={{ padding: '10px', textAlign: 'left', borderBottom: '1px solid #e5e7eb' }}>Error Message</th>
-                          {!isProcessing && <th style={{ padding: '10px', textAlign: 'center', borderBottom: '1px solid #e5e7eb' }}>Action</th>}
+                          <th>Entry Code</th>
+                          <th>Date</th>
+                          <th>Account</th>
+                          <th className="text-right">Debit</th>
+                          <th className="text-right">Credit</th>
+                          <th>Status</th>
+                          <th>Error Message</th>
+                          {!isProcessing && <th className="text-center">Action</th>}
                         </tr>
                       </thead>
                       <tbody>
                         {displayQueue.length === 0 && completedCount > 0 && (
                           <tr>
-                            <td colSpan={isProcessing ? "7" : "8"} className="text-center" style={{ padding: '20px' }}>All rows processed successfully!</td>
+                            <td colSpan={isProcessing ? "7" : "8"} className="text-center queue-empty">
+                              All rows processed successfully!
+                            </td>
                           </tr>
                         )}
                         {displayQueue.map((item) => (
-                          <tr key={item.id} style={{ 
-                            borderBottom: '1px solid #e5e7eb',
-                            backgroundColor: item.status === 'failed' ? '#fee2e2' : 'transparent' // Highlight failed in red
-                          }}>
-                            <td style={{ padding: '10px' }}>{item.data.entry_code}</td>
-                            <td style={{ padding: '10px' }}>{formatDisplayDate(item.data.date)}</td>
-                            <td style={{ padding: '10px' }}>{item.data.account_id}</td>
-                            <td style={{ padding: '10px', textAlign: 'right' }}>{Number(item.data.debit || 0).toFixed(2)}</td>
-                            <td style={{ padding: '10px', textAlign: 'right' }}>{Number(item.data.credit || 0).toFixed(2)}</td>
-                            <td style={{ padding: '10px' }}>
-                              <span style={{ 
-                                padding: '2px 8px', 
-                                borderRadius: '12px', 
-                                fontSize: '0.7rem', 
-                                fontWeight: '600',
-                                backgroundColor: item.status === 'processing' ? '#dbeafe' : item.status === 'failed' ? '#fecaca' : '#f3f4f6',
-                                color: item.status === 'processing' ? '#1e40af' : item.status === 'failed' ? '#991b1b' : '#374151'
-                              }}>
+                          <tr
+                            key={item.id}
+                            className={`queue-row ${
+                              item.status === 'failed' ? 'queue-row--failed' : ''
+                            }`}
+                          >
+                            <td>{item.data.entry_code}</td>
+                            <td>{formatDisplayDate(item.data.date)}</td>
+                            <td>{item.data.account_id}</td>
+                            <td className="text-right">{Number(item.data.debit || 0).toFixed(2)}</td>
+                            <td className="text-right">{Number(item.data.credit || 0).toFixed(2)}</td>
+                            <td>
+                              <span
+                                className={`queue-status ${
+                                  item.status === 'processing'
+                                    ? 'queue-status--processing'
+                                    : item.status === 'failed'
+                                      ? 'queue-status--failed'
+                                      : item.status === 'pending'
+                                        ? 'queue-status--pending'
+                                        : 'queue-status--completed'
+                                }`}
+                              >
                                 {item.status.toUpperCase()}
                               </span>
                             </td>
-                            <td style={{ padding: '10px', color: '#dc2626', fontSize: '0.8rem', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.error}>
+                            <td className="queue-error-cell" title={item.error || ''}>
                               {item.error}
                             </td>
                             {!isProcessing && (
-                              <td style={{ padding: '10px', textAlign: 'center' }}>
+                              <td className="text-center">
                                 <button 
                                   className="btn-remove" 
                                   onClick={() => removeFileFromQueue(item.id)}
-                                  style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444' }}
                                 >
                                   &times;
                                 </button>
@@ -1016,8 +1021,8 @@ export default function JournalEntity() {
                   </div>
                 </div>
 
-                <div className="import-instructions" style={{ marginTop: '15px', padding: '10px', backgroundColor: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
-                  <p style={{ fontSize: '0.8rem', color: '#475569', margin: 0 }}>
+                <div className="import-instructions">
+                  <p>
                     <strong>Note:</strong> Rows belonging to the same <em>Entry Code</em> will be processed together as one Journal Entry.
                   </p>
                 </div>
@@ -1025,7 +1030,7 @@ export default function JournalEntity() {
             )}
 
             {importError && (
-              <div className="alert alert--error" style={{ marginTop: '20px', color: 'red', textAlign: 'center' }}>
+              <div className="alert alert--error import-error-banner">
                 {importError}
               </div>
             )}
@@ -1050,417 +1055,173 @@ export default function JournalEntity() {
 
   return (
     <AdminLayout activeMenu="Journal Entries">
+      <Head title="Journal Entries - ZodicERP" />
       <div className="journal-page-container">
-        <Head title="Journal Entries - ZodicERP" />
         {mode === 'list' && (
-          <div className="journal-page">
-          <div className="breadcrumb">
-            <a href="#">Dashboard</a>
-            <span>/</span>
-            <a href="#">Accounting</a>
-            <span>/</span>
-            <span>Journal Entries</span>
-          </div>
-
-          <div className="journal-header">
-            <div className="journal-header-left">
-              <h1 className="journal-title">Journal Entries</h1>
-              <p className="journal-subtitle">
-                Review, create, and manage general ledger journal entries.
-              </p>
+          <BlankPage
+            className="journal-page"
+            breadcrumbs={[
+              { label: 'Dashboard' },
+              { label: 'Accounting' },
+              { label: 'Journal Entries' },
+            ]}
+          >
+            <div className="journal-header">
+              <div className="journal-header-left">
+                <h1 className="journal-title">Journal Entries</h1>
+                <p className="journal-subtitle">
+                  Review, create, and manage general ledger journal entries.
+                </p>
+              </div>
             </div>
-            <div className="journal-header-right">
-              <div className="excel-dropdown-container">
-                <button 
-                  type="button" 
-                  className="btn-excel-main"
-                  onClick={() => setShowPostDropdown(!showPostDropdown)}
-                  disabled={loading}
-                  style={{ 
-                    backgroundColor: '#2196F3',
-                    borderColor: '#2196F3',
-                    marginRight: '12px'
-                  }}
-                >
-                  <i className="material-icons-outlined">send</i>
-                  <span>Post/Unpost</span>
-                  <i className={`material-icons-outlined arrow ${showPostDropdown ? 'up' : ''}`}>expand_more</i>
-                </button>
-                
-                {showPostDropdown && (
-                  <div className="excel-dropdown-menu">
-                    <button type="button" className="dropdown-item" onClick={handlePostToPostings}>
-                      <i className="material-icons-outlined" style={{ color: '#4caf50' }}>check_circle</i>
-                      <div className="item-content">
-                        <span className="title">Post All</span>
-                        <span className="desc">Aggregate all entries to postings</span>
-                      </div>
-                    </button>
-                    <button type="button" className="dropdown-item" onClick={handleUnpostFromPostings}>
-                      <i className="material-icons-outlined" style={{ color: '#f44336' }}>undo</i>
-                      <div className="item-content">
-                        <span className="title">Unpost All</span>
-                        <span className="desc">Remove from postings & reset status</span>
-                      </div>
+
+            {error && <div className="error-banner">{error}</div>}
+
+            <div className="journal-table-card fade-in">
+              <Table
+                tableData={journals}
+                columns={columns}
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalRecords={totalRecords}
+                recordsPerPage={perPage}
+                onPageChange={handlePageChange}
+                onRecordsPerPageChange={handleRecordsPerPageChange}
+                onView={(row) => {
+                  setSelectedCode(row.entry_code);
+                  setMode('view');
+                }}
+                onEdit={(row) => {
+                  setSelectedCode(row.entry_code);
+                  setMode('edit');
+                }}
+                onDelete={(row) => handleDelete(row.entry_code)}
+                showToolbar={true}
+                toolbarSearch={true}
+                toolbarSearchPlaceholder="Search by code, type, reference..."
+                toolbarSearchValue={search}
+                onToolbarSearch={setSearch}
+                showRefreshButton={true}
+                onRefresh={() => handlePageChange(1)}
+                toolbarActions={
+                  <div className="journal-toolbar-actions">
+                    <div className="excel-dropdown-container">
+                      <button
+                        type="button"
+                        className="btn-excel-main btn-post-unpost"
+                        onClick={() => setShowPostDropdown(!showPostDropdown)}
+                        disabled={loading}
+                      >
+                        <i className="material-icons-outlined">send</i>
+                        <span>Post/Unpost</span>
+                        <i className={`material-icons-outlined arrow ${showPostDropdown ? 'up' : ''}`}>
+                          expand_more
+                        </i>
+                      </button>
+
+                      {showPostDropdown && (
+                        <div className="excel-dropdown-menu">
+                          <button type="button" className="dropdown-item" onClick={handlePostToPostings}>
+                            <i className="material-icons-outlined post-icon">check_circle</i>
+                            <div className="item-content">
+                              <span className="title">Post All</span>
+                              <span className="desc">Aggregate all entries to postings</span>
+                            </div>
+                          </button>
+                          <button type="button" className="dropdown-item" onClick={handleUnpostFromPostings}>
+                            <i className="material-icons-outlined unpost-icon">undo</i>
+                            <div className="item-content">
+                              <span className="title">Unpost All</span>
+                              <span className="desc">Remove from postings & reset status</span>
+                            </div>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="excel-dropdown-container" ref={excelMenuRef}>
+                      <button
+                        type="button"
+                        className="btn-excel-main"
+                        onClick={() => setShowExcelMenu(!showExcelMenu)}
+                      >
+                        <i className="material-icons-outlined">file_download</i>
+                        <span>Excel</span>
+                        <i className={`material-icons-outlined arrow ${showExcelMenu ? 'up' : ''}`}>
+                          expand_more
+                        </i>
+                      </button>
+
+                      {showExcelMenu && (
+                        <div className="excel-dropdown-menu">
+                          <button
+                            type="button"
+                            className="dropdown-item import"
+                            onClick={() => {
+                              setShowImport(true);
+                              setShowExcelMenu(false);
+                            }}
+                          >
+                            <i className="material-icons-outlined">upload_file</i>
+                            <div className="item-content">
+                              <span className="title">Import from Excel</span>
+                              <span className="desc">Bulk upload journal entries</span>
+                            </div>
+                          </button>
+                          <button
+                            type="button"
+                            className="dropdown-item export"
+                            onClick={() => {
+                              handleExportExcel();
+                              setShowExcelMenu(false);
+                            }}
+                          >
+                            <i className="material-icons-outlined">download</i>
+                            <div className="item-content">
+                              <span className="title">Export to Excel</span>
+                              <span className="desc">Download all entries</span>
+                            </div>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => {
+                        setSelectedCode(null);
+                        setMode('create');
+                      }}
+                    >
+                      <span className="material-icons-outlined">add</span>
+                      <span>New Journal Entry</span>
                     </button>
                   </div>
-                )}
-              </div>
-
-              <div className="excel-dropdown-container" ref={excelMenuRef}>
-                <button 
-                  type="button" 
-                  className="btn-excel-main"
-                  onClick={() => setShowExcelMenu(!showExcelMenu)}
-                >
-                  <i className="material-icons-outlined">file_download</i>
-                  <span>Excel</span>
-                  <i className={`material-icons-outlined arrow ${showExcelMenu ? 'up' : ''}`}>expand_more</i>
-                </button>
-                
-                {showExcelMenu && (
-                  <div className="excel-dropdown-menu">
-                    <button type="button" className="dropdown-item import" onClick={() => { setShowImport(true); setShowExcelMenu(false); }}>
-                      <i className="material-icons-outlined">upload_file</i>
-                      <div className="item-content">
-                        <span className="title">Import from Excel</span>
-                        <span className="desc">Bulk upload journal entries</span>
-                      </div>
-                    </button>
-                    <button type="button" className="dropdown-item export" onClick={() => { handleExportExcel(); setShowExcelMenu(false); }}>
-                      <i className="material-icons-outlined">download</i>
-                      <div className="item-content">
-                        <span className="title">Export to Excel</span>
-                        <span className="desc">Download all entries</span>
-                      </div>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  setSelectedCode(null);
-                  setMode('create');
-                }}
-              >
-                <span className="material-icons-outlined">add</span>
-                <span>New Journal Entry</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="journal-toolbar">
-            <div className="search-bar light">
-              <input
-                type="text"
-                placeholder="Search by code, type, reference..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handlePageChange(1);
-                  }
-                }}
+                }
               />
-              <button type="button" onClick={() => handlePageChange(1)}>
-                <span className="material-icons-outlined">search</span>
-              </button>
             </div>
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={() => handlePageChange(1)}
-            >
-              <span className="material-icons-outlined">refresh</span>
-              <span>Refresh</span>
-            </button>
-          </div>
+          </BlankPage>
+        )}
 
-          {error && <div className="error-banner">{error}</div>}
-
-          <div className="journal-table-card fade-in">
-            <table className="journal-table">
-              <thead>
-                <tr>
-                  <th onClick={() => handleSort('entry_code')}>
-                    <span className="sortable-header">
-                      <span>Journal Code</span>
-                      <span className="sort-icons">
-                        <span
-                          className={
-                            'sort-icon' +
-                            (sort.column === 'entry_code' &&
-                            sort.direction === 'asc'
-                              ? ' active'
-                              : '')
-                          }
-                        >
-                          ▲
-                        </span>
-                        <span
-                          className={
-                            'sort-icon' +
-                            (sort.column === 'entry_code' &&
-                            sort.direction === 'desc'
-                              ? ' active'
-                              : '')
-                          }
-                        >
-                          ▼
-                        </span>
-                      </span>
-                    </span>
-                  </th>
-                  <th onClick={() => handleSort('entry_type')}>
-                    <span className="sortable-header">
-                      <span>Type</span>
-                      <span className="sort-icons">
-                        <span
-                          className={
-                            'sort-icon' +
-                            (sort.column === 'entry_type' &&
-                            sort.direction === 'asc'
-                              ? ' active'
-                              : '')
-                          }
-                        >
-                          ▲
-                        </span>
-                        <span
-                          className={
-                            'sort-icon' +
-                            (sort.column === 'entry_type' &&
-                            sort.direction === 'desc'
-                              ? ' active'
-                              : '')
-                          }
-                        >
-                          ▼
-                        </span>
-                      </span>
-                    </span>
-                  </th>
-                  <th onClick={() => handleSort('description')}>
-                    <span className="sortable-header">
-                      <span>Details</span>
-                      <span className="sort-icons">
-                        <span
-                          className={
-                            'sort-icon' +
-                            (sort.column === 'description' &&
-                            sort.direction === 'asc'
-                              ? ' active'
-                              : '')
-                          }
-                        >
-                          ▲
-                        </span>
-                        <span
-                          className={
-                            'sort-icon' +
-                            (sort.column === 'description' &&
-                            sort.direction === 'desc'
-                              ? ' active'
-                              : '')
-                          }
-                        >
-                          ▼
-                        </span>
-                      </span>
-                    </span>
-                  </th>
-                  <th onClick={() => handleSort('date')}>
-                    <span className="sortable-header">
-                      <span>Date</span>
-                      <span className="sort-icons">
-                        <span
-                          className={
-                            'sort-icon' +
-                            (sort.column === 'date' &&
-                            sort.direction === 'asc'
-                              ? ' active'
-                              : '')
-                          }
-                        >
-                          ▲
-                        </span>
-                        <span
-                          className={
-                            'sort-icon' +
-                            (sort.column === 'date' &&
-                            sort.direction === 'desc'
-                              ? ' active'
-                              : '')
-                          }
-                        >
-                          ▼
-                        </span>
-                      </span>
-                    </span>
-                  </th>
-                  <th onClick={() => handleSort('total_amount')}>
-                    <span className="sortable-header">
-                      <span>Total Amount</span>
-                      <span className="sort-icons">
-                        <span
-                          className={
-                            'sort-icon' +
-                            (sort.column === 'total_amount' &&
-                            sort.direction === 'asc'
-                              ? ' active'
-                              : '')
-                          }
-                        >
-                          ▲
-                        </span>
-                        <span
-                          className={
-                            'sort-icon' +
-                            (sort.column === 'total_amount' &&
-                            sort.direction === 'desc'
-                              ? ' active'
-                              : '')
-                          }
-                        >
-                          ▼
-                        </span>
-                      </span>
-                    </span>
-                  </th>
-                  <th onClick={() => handleSort('status')}>
-                    <span className="sortable-header">
-                      <span>Status</span>
-                      <span className="sort-icons">
-                        <span
-                          className={
-                            'sort-icon' +
-                            (sort.column === 'status' &&
-                            sort.direction === 'asc'
-                              ? ' active'
-                              : '')
-                          }
-                        >
-                          ▲
-                        </span>
-                        <span
-                          className={
-                            'sort-icon' +
-                            (sort.column === 'status' &&
-                            sort.direction === 'desc'
-                              ? ' active'
-                              : '')
-                          }
-                        >
-                          ▼
-                        </span>
-                      </span>
-                    </span>
-                  </th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && (
-                  <tr>
-                    <td colSpan={7} className="text-center">
-                      Loading...
-                    </td>
-                  </tr>
-                )}
-                {!loading && journals.length === 0 && (
-                  <tr>
-                    <td colSpan={7} className="text-center">
-                      No journal entries found.
-                    </td>
-                  </tr>
-                )}
-                {!loading &&
-                  sortedJournals.map((journal) => (
-                    <tr key={journal.id}>
-                      <td>{journal.entry_code}</td>
-                      <td>{journal.entry_type}</td>
-                      <td>{journal.description}</td>
-                      <td>
-                        {formatDisplayDate(journal.date)}
-                      </td>
-                      <td>{Number(journal.total_amount || 0).toFixed(2)}</td>
-                      <td>
-                        <span
-                          className={`journal-status-pill ${
-                            journal.status === 'Post' ||
-                            journal.status === 'Posted'
-                              ? 'status-posted'
-                              : 'status-unpost'
-                          }`}
-                        >
-                          {journal.status}
-                        </span>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="icon-btn view"
-                          onClick={() => {
-                            setSelectedCode(journal.entry_code);
-                            setMode('view');
-                          }}
-                        >
-                          <span className="material-icons-outlined">visibility</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-btn edit"
-                          onClick={() => {
-                            setSelectedCode(journal.entry_code);
-                            setMode('edit');
-                          }}
-                        >
-                          <span className="material-icons-outlined">edit</span>
-                        </button>
-                        <button
-                          type="button"
-                          className="icon-btn delete"
-                          onClick={() => handleDelete(journal.entry_code)}
-                        >
-                          <span className="material-icons-outlined">delete</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalRecords={totalRecords}
-              recordsPerPage={perPage}
-              onPageChange={handlePageChange}
-              onRecordsPerPageChange={handleRecordsPerPageChange}
-            />
-          </div>
-        </div>
-      )}
-      {mode !== 'list' && (
-        <div className="journal-ce-page">
-          <div className="breadcrumb">
-            <a href="#">Dashboard</a>
-            <span>/</span>
-            <a href="#">Accounting</a>
-            <span>/</span>
-            <a href="#" onClick={() => setMode('list')}>
-              Journal Entries
-            </a>
-            <span>/</span>
-            <span>
-              {readOnly ? 'View Journal Entry' : mode === 'edit' ? 'Edit Journal Entry' : 'New Journal Entry'}
-            </span>
-          </div>
-
-          <form onSubmit={handleSubmit}>
-            <div className="journal-ce-header-card">
+        {mode !== 'list' && (
+          <BlankPage
+            className="journal-ce-page"
+            breadcrumbs={[
+              { label: 'Dashboard' },
+              { label: 'Accounting' },
+              { label: 'Journal Entries', onClick: () => setMode('list') },
+              {
+                label: readOnly
+                  ? 'View Journal Entry'
+                  : mode === 'edit'
+                    ? 'Edit Journal Entry'
+                    : 'New Journal Entry',
+              },
+            ]}
+          >
+            <form onSubmit={handleSubmit}>
+              <div className="journal-ce-header-card">
               <div className="journal-ce-header-row">
                 <div className="form-group">
                   <label className="form-label" htmlFor="qaid-code">
@@ -1681,10 +1442,11 @@ export default function JournalEntity() {
               )}
             </div>
           </form>
-        </div>
-      )}
-      {renderImportModal()}
-      <ToastContainer position="bottom-right" />
+          </BlankPage>
+        )}
+
+        {renderImportModal()}
+        <ToastContainer position="bottom-right" />
       </div>
     </AdminLayout>
   );

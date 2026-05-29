@@ -84,6 +84,9 @@ Route::middleware(['web', 'auth'])->group(function () {
     
     Route::apiResource('journals', App\Http\Controllers\Backend\Accounting\JournalController::class);
     Route::get('/journals/next-code', [App\Http\Controllers\Backend\Accounting\JournalController::class, 'nextCode']);
+    Route::post('/reports/post-journal', [App\Http\Controllers\Backend\Accounting\JournalController::class, 'postAll']);
+    Route::post('/reports/unpost-journal', [App\Http\Controllers\Backend\Accounting\JournalController::class, 'unpostAll']);
+    Route::get('/reports/general-ledger', [App\Http\Controllers\Backend\Accounting\JournalController::class, 'generalLedger']);
     Route::get('/financial-reports', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getData']);
     Route::post('/reports/favorite', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'favorites']);
 

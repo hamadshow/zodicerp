@@ -76,7 +76,6 @@ return [
     // Treasury Names
     'main_treasury' => 'الخزينة الرئيسية',
     'jeddah_treasury' => 'خزينة جدة',
-    'petty_cash_treasury' => 'خزينة العهدة',
     
     // Misc
     'sar' => 'ر.س',

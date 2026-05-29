@@ -7,6 +7,7 @@ use App\Http\Requests\Accounting\StoreJournalRequest;
 use App\Http\Requests\Accounting\UpdateJournalRequest;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
+use App\Models\Accounting\AccountPosting;
 use App\Imports\JournalImport;
 use App\Exports\JournalExport;
 use App\Services\Accounting\JournalImportService;
@@ -152,6 +153,11 @@ class JournalController extends Controller
                     'description' => $line['description'] ?? null,
                     'cost_center_code' => $line['cost_center_code'] ?? null,
                 ]);
+            }
+
+            // Automatically recalculate postings if status is Post
+            if (in_array($journalEntry->status, ['Post', 'posted'])) {
+                $this->recalculatePostings(request()->user()->company_id);
             }
 
             return response()->json([
@@ -401,6 +407,11 @@ class JournalController extends Controller
                 ]);
             }
 
+            // Automatically recalculate postings
+            if ($data['status'] === 'Post' || $data['status'] === 'posted') {
+                $this->recalculatePostings($request->user()->company_id);
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Journal entry updated successfully.',
@@ -480,6 +491,99 @@ class JournalController extends Controller
                 'success' => false,
                 'message' => 'Bulk import failed: ' . $e->getMessage(),
             ], 500);
+        }
+    }
+
+    public function postAll(Request $request)
+    {
+        $companyId = $request->user()?->company_id;
+        if (!$companyId) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        return DB::transaction(function () use ($companyId) {
+            // 1. Update status of all unposted journals for this company
+            JournalEntry::where('company_id', $companyId)
+                ->where(function ($q) {
+                    $q->where('status', 'UnPost')
+                      ->orWhere('status', 'unposted')
+                      ->orWhereNull('status')
+                      ->orWhere('status', '');
+                })
+                ->update(['status' => 'Post']);
+
+            // 2. Recalculate account postings
+            $this->recalculatePostings($companyId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'All journals posted successfully.',
+            ]);
+        });
+    }
+
+    public function unpostAll(Request $request)
+    {
+        $companyId = $request->user()?->company_id;
+        if (!$companyId) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
+        return DB::transaction(function () use ($companyId) {
+            // 1. Update status of all posted journals for this company
+            JournalEntry::where('company_id', $companyId)
+                ->where(function ($q) {
+                    $q->where('status', 'Post')
+                      ->orWhere('status', 'posted');
+                })
+                ->update(['status' => 'UnPost']);
+
+            // 2. Recalculate account postings
+            $this->recalculatePostings($companyId);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'All journals unposted successfully.',
+            ]);
+        });
+    }
+
+    private function recalculatePostings($companyId)
+    {
+        // Reset current debits/credits for this company
+        AccountPosting::where('company_id', $companyId)->update([
+            'current_debit' => 0,
+            'current_credit' => 0,
+        ]);
+
+        // Aggregate from posted journal lines
+        $lines = DB::table('journal_entry_lines')
+            ->join('journal_entries', 'journal_entry_lines.journal_entry_code', '=', 'journal_entries.entry_code')
+            ->where('journal_entries.company_id', $companyId)
+            ->whereIn('journal_entries.status', ['Post', 'posted'])
+            ->select(
+                'journal_entry_lines.account_id',
+                DB::raw('SUM(journal_entry_lines.debit) as total_debit'),
+                DB::raw('SUM(journal_entry_lines.credit) as total_credit')
+            )
+            ->groupBy('journal_entry_lines.account_id')
+            ->get();
+
+        foreach ($lines as $line) {
+            if (!$line->account_id) continue;
+            
+            AccountPosting::updateOrCreate(
+                [
+                    'account_id' => $line->account_id,
+                    'company_id' => $companyId
+                ],
+                [
+                    'current_debit' => $line->total_debit,
+                    'current_credit' => $line->total_credit,
+                    'period_start' => now()->startOfYear()->toDateString(),
+                    'period_end' => now()->endOfYear()->toDateString(),
+                ]
+            );
         }
     }
 

@@ -11,9 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (! Schema::hasTable('bank_receipts')) {
+            return;
+        }
+
         Schema::table('bank_receipts', function (Blueprint $table) {
-            $table->unsignedBigInteger('sales_invoice_id')->nullable()->after('id');
-            $table->foreign('sales_invoice_id')->references('id')->on('sales_invoices')->onDelete('cascade');
+            if (! Schema::hasColumn('bank_receipts', 'sales_invoice_id')) {
+                $table->unsignedBigInteger('sales_invoice_id')->nullable()->after('id');
+                $table->foreign('sales_invoice_id')->references('id')->on('sales_invoices')->onDelete('cascade');
+            }
         });
     }
 
@@ -22,6 +28,14 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (! Schema::hasTable('bank_receipts')) {
+            return;
+        }
+
+        if (! Schema::hasColumn('bank_receipts', 'sales_invoice_id')) {
+            return;
+        }
+
         Schema::table('bank_receipts', function (Blueprint $table) {
             $table->dropForeign(['sales_invoice_id']);
             $table->dropColumn('sales_invoice_id');

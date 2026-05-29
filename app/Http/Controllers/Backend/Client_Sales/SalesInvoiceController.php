@@ -15,7 +15,8 @@ use App\Models\ItemUnit;
 use App\Models\Products;
 use App\Models\Warehouses;
 use App\Models\BankAccount;
-use App\Models\BankReceipt;
+use App\Models\TreasuryTransaction;
+use App\Services\TreasuryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -424,69 +425,56 @@ class SalesInvoiceController extends Controller
         $bankAccount = BankAccount::where('gl_account_id', $invoice->treasury_id)->first();
 
         if (!$bankAccount) {
-            // If it's not a bank account, delete any existing linked receipt (e.g. if treasury changed from bank to cash)
             $this->deleteBankReceiptForInvoice($invoice);
             return;
         }
 
-        $receipt = BankReceipt::where('sales_invoice_id', $invoice->id)->first();
+        $receipt = TreasuryTransaction::where('related_invoice_id', $invoice->id)
+            ->where('related_invoice_type', 'SalesInvoice')
+            ->first();
         
-        // Ensure customer and their GL account are available
         $customer = $invoice->customer;
         if (!$customer) {
             $customer = \App\Models\Client_Sales\Customer::find($invoice->customer_id);
         }
         
         $payerId = $customer ? $customer->account_id : null;
-        
         if (!$payerId) {
-            // In a real ERP, every customer should have a GL account. 
-            // If not, we might need to fall back to a default or throw an error.
-            // For now, we'll try to find a default receivable account if missing.
             $payerId = Account::where('AccCode', 'like', '12%')->where('AccType', 1)->value('AccID');
         }
 
         $data = [
-            'bank_account_id' => $bankAccount->id,
-            'receipt_date' => $invoice->invoice_date,
-            'payer_type' => 'customer',
-            'payer_id' => $payerId,
+            'transaction_type' => 'deposit',
+            'destination_account_type' => 'bank',
+            'destination_account_id' => $bankAccount->id,
+            'transaction_date' => $invoice->invoice_date,
+            'counterparty_type' => 'customer',
+            'counterparty_id' => $payerId,
             'amount' => $invoice->paid_amount > 0 ? $invoice->paid_amount : $invoice->total_amount,
             'reference' => $invoice->invoice_number,
             'notes' => 'Bank receipt generated from Sales Invoice #' . $invoice->invoice_number,
             'status' => 'posted',
             'company_id' => $invoice->company_id,
+            'related_invoice_id' => $invoice->id,
+            'related_invoice_type' => 'SalesInvoice',
         ];
 
         if ($receipt) {
-            $receipt->update($data);
+            app(TreasuryService::class)->updateTransaction($receipt, $data);
         } else {
-            $data['sales_invoice_id'] = $invoice->id;
-            $data['receipt_no'] = $this->generateNextBankReceiptCode();
-            $data['created_by'] = Auth::id();
-            BankReceipt::create($data);
+            app(TreasuryService::class)->createTransaction($data);
         }
     }
 
     protected function deleteBankReceiptForInvoice(SalesInvoice $invoice): void
     {
-        BankReceipt::where('sales_invoice_id', $invoice->id)->delete();
-    }
-
-    protected function generateNextBankReceiptCode(): string
-    {
-        $prefix = 'BNK-';
-        $start = 10001;
-
-        $lastReceipt = BankReceipt::whereNotNull('receipt_no')
-            ->where('receipt_no', '!=', '')
-            ->orderByDesc('id')
-            ->lockForUpdate()
-            ->value('receipt_no');
-
-        $nextNumber = $this->nextNumericPart($lastReceipt, $start);
-
-        return $prefix . $nextNumber;
+        $receipt = TreasuryTransaction::where('related_invoice_id', $invoice->id)
+            ->where('related_invoice_type', 'SalesInvoice')
+            ->first();
+            
+        if ($receipt) {
+            app(TreasuryService::class)->deleteTransaction($receipt);
+        }
     }
 
     protected function nextNumericPart(?string $code, int $fallbackStart): int

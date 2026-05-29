@@ -8,19 +8,30 @@ import '../../../../css/backend/main.scss';
 
 // --- Sub-components ---
 
-const ListView = ({ t, receipts, payments, transfers = [], transactions, activeTab, setActiveTab, searchTerm, setSearchTerm, openCreate, filtered, accountsMap, formatAmount, formatDate, openDetails, openEdit, handleDelete }) => {
+const ListView = ({ t, receipts, payments, transfers = [], activeTab, setActiveTab, searchTerm, setSearchTerm, openCreate, filtered, accountsMap, formatAmount, formatDate, openDetails, openEdit, handleDelete }) => {
     const columns = useMemo(() => [
         { 
             header: t('code', 'الكود'), 
             key: 'code',
-            width: '120px'
+            width: '120px',
+            render: (item) => (
+                <div className="code-cell">
+                    <span className="code-value">{item.code}</span>
+                    {item.reference && <span className="ref-hint">{item.reference}</span>}
+                </div>
+            )
         },
         { 
             header: t('type', 'النوع'), 
             key: 'type',
             width: '120px',
             render: (item) => (
-                <span className={`type-badge type-${item.type}`}>{item.label}</span>
+                <span className={`type-badge type-${item.type}`}>
+                    <span className="material-icons-outlined" style={{ fontSize: '14px', marginRight: '4px' }}>
+                        {item.type === 'receipt' ? 'add_circle' : item.type === 'payment' ? 'remove_circle' : 'swap_horiz'}
+                    </span>
+                    {item.label}
+                </span>
             )
         },
         { 
@@ -35,17 +46,15 @@ const ListView = ({ t, receipts, payments, transfers = [], transactions, activeT
             render: (item) => {
                 if (item.type === 'transfer') {
                     return (
-                        <div className="transfer-accounts-cell">
-                            <div className="account-info from">
-                                <span className="label-xs">{t('from', 'من')}:</span>
-                                <span className="name">{item.from_account?.name}</span>
+                        <div className="transfer-cell">
+                            <div className="acc-info">
+                                <span className="acc-name">{item.from_account?.account_name || '-'}</span>
+                                <span className="acc-type-badge">{t('from', 'من')}</span>
                             </div>
-                            <div className="transfer-arrow">
-                                <span className="material-icons-outlined">arrow_forward</span>
-                            </div>
-                            <div className="account-info to">
-                                <span className="label-xs">{t('to', 'إلى')}:</span>
-                                <span className="name">{item.to_account?.name}</span>
+                            <span className="material-icons-outlined transfer-arrow">trending_flat</span>
+                            <div className="acc-info">
+                                <span className="acc-name">{item.to_account?.account_name || '-'}</span>
+                                <span className="acc-type-badge destination">{t('to', 'إلى')}</span>
                             </div>
                         </div>
                     );
@@ -59,10 +68,16 @@ const ListView = ({ t, receipts, payments, transfers = [], transactions, activeT
             }
         },
         { 
-            header: t('counterparty', 'الطرف المقابل'), 
+            header: t('counterparty_or_transfer', 'الطرف المقابل / التحويل'), 
             key: 'counterparty_account_id',
             render: (item) => {
-                if (item.type === 'transfer') return <span className="text-muted">-</span>;
+                if (item.type === 'transfer') {
+                    return (
+                        <div className="transfer-direction">
+                            <span className="direction-label">{t('internal_transfer', 'تحويل داخلي')}</span>
+                        </div>
+                    );
+                }
                 return accountsMap.get(item.counterparty_account_id) || '-';
             }
         },
@@ -70,7 +85,14 @@ const ListView = ({ t, receipts, payments, transfers = [], transactions, activeT
             header: t('amount', 'المبلغ'), 
             key: 'amount',
             width: '150px',
-            render: (item) => <span style={{ fontWeight: '700' }}>{formatAmount(item.amount)}</span>
+            render: (item) => (
+                <div className="amount-cell">
+                    <span className={`amount-value ${item.type}`}>
+                        {item.type === 'payment' ? '-' : item.type === 'receipt' ? '+' : ''}
+                        {formatAmount(item.amount)}
+                    </span>
+                </div>
+            )
         },
         { 
             header: t('status', 'الحالة'), 
@@ -84,30 +106,30 @@ const ListView = ({ t, receipts, payments, transfers = [], transactions, activeT
 
     const stats = (
         <section className="stats-cards"> 
-            <div className="stat-card"> 
+            <div className="stat-card receipt"> 
                 <div className="stat-content"> 
                     <div className="stat-value">{formatAmount(receipts.reduce((sum, r) => sum + Number(r.amount), 0))}</div> 
                     <div className="stat-label">{t('total_receipts', 'إجمالي المقبوضات')}</div> 
                 </div> 
-                <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}> 
+                <div className="stat-icon"> 
                     <span className="material-icons-outlined">trending_up</span>
                 </div> 
             </div> 
-            <div className="stat-card"> 
+            <div className="stat-card payment"> 
                 <div className="stat-content"> 
                     <div className="stat-value">{formatAmount(payments.reduce((sum, p) => sum + Number(p.amount), 0))}</div> 
                     <div className="stat-label">{t('total_payments', 'إجمالي المدفوعات')}</div> 
                 </div> 
-                <div className="stat-icon" style={{ backgroundColor: 'var(--danger-color)' }}> 
+                <div className="stat-icon"> 
                     <span className="material-icons-outlined">trending_down</span>
                 </div> 
             </div> 
-            <div className="stat-card"> 
+            <div className="stat-card transfer"> 
                 <div className="stat-content"> 
                     <div className="stat-value">{formatAmount(transfers.reduce((sum, t) => sum + Number(t.amount), 0))}</div> 
                     <div className="stat-label">{t('total_transfers', 'إجمالي التحويلات')}</div> 
                 </div> 
-                <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}> 
+                <div className="stat-icon"> 
                     <span className="material-icons-outlined">swap_horiz</span>
                 </div> 
             </div> 
@@ -153,9 +175,9 @@ const FormView = ({ t, editingTransaction, backToList, handleSubmit, data, setDa
     const isTransfer = data.type === 'transfer';
 
     return (
-        <div className="fade-in data-section" style={{ maxWidth: '800px', margin: '0 auto' }}>
+        <div className="fade-in data-section" style={{ maxWidth: '900px', margin: '0 auto' }}>
             <div className="card-header">
-                <h3>{isEditing ? t('edit_bank_transaction', 'تعديل حركة بنكية') : t('create_bank_transaction', 'إنشاء حركة بنكية')}</h3>
+                <h3>{isEditing ? t('edit_transaction', 'تعديل العملية') : t('create_transaction', 'إنشاء عملية جديدة')}</h3>
                 <button className="btn-toolbar btn-refresh" onClick={backToList} title={t('back_to_list', 'العودة للقائمة')}>
                     <span className="material-icons-outlined">arrow_forward</span>
                 </button>
@@ -167,25 +189,34 @@ const FormView = ({ t, editingTransaction, backToList, handleSubmit, data, setDa
                         <label className="form-label">{t('transaction_type', 'نوع العملية')}</label>
                         <div className="type-selector">
                             <div 
-                                className={`type-option ${data.type === 'receipt' ? 'active' : ''}`} 
+                                className={`type-option receipt ${data.type === 'receipt' ? 'active' : ''}`} 
                                 onClick={() => setData('type', 'receipt')}
                             >
                                 <span className="material-icons-outlined">add_circle_outline</span>
-                                {t('bank_receipt', 'قبض بنكي')}
+                                <div className="option-text">
+                                    <span className="main-label">{t('bank_receipt', 'قبض')}</span>
+                                    <span className="sub-label">{t('receipt_hint', 'إيداع في الحساب')}</span>
+                                </div>
                             </div>
                             <div 
-                                className={`type-option ${data.type === 'payment' ? 'active' : ''}`} 
+                                className={`type-option payment ${data.type === 'payment' ? 'active' : ''}`} 
                                 onClick={() => setData('type', 'payment')}
                             >
                                 <span className="material-icons-outlined">remove_circle_outline</span>
-                                {t('bank_payment', 'صرف بنكي')}
+                                <div className="option-text">
+                                    <span className="main-label">{t('bank_payment', 'صرف')}</span>
+                                    <span className="sub-label">{t('payment_hint', 'سحب من الحساب')}</span>
+                                </div>
                             </div>
                             <div 
-                                className={`type-option ${data.type === 'transfer' ? 'active' : ''}`} 
+                                className={`type-option transfer ${data.type === 'transfer' ? 'active' : ''}`} 
                                 onClick={() => setData('type', 'transfer')}
                             >
                                 <span className="material-icons-outlined">swap_horiz</span>
-                                {t('transfer', 'تحويل')}
+                                <div className="option-text">
+                                    <span className="main-label">{t('internal_transfer', 'تحويل')}</span>
+                                    <span className="sub-label">{t('transfer_hint', 'بين الحسابات')}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -196,7 +227,60 @@ const FormView = ({ t, editingTransaction, backToList, handleSubmit, data, setDa
                         {errors.date && <div className="error-message">{errors.date}</div>}
                     </div>
 
-                    {!isTransfer ? (
+                    <div className="form-group">
+                        <label className="form-label required">{t('amount', 'المبلغ')}</label>
+                        <div className="amount-input-wrapper">
+                            <input type="number" step="0.01" className="form-control amount-input" placeholder="0.00" value={data.amount} onChange={(e) => setData('amount', e.target.value)} required />
+                            <span className="currency-label">{data.currency}</span>
+                        </div>
+                        {errors.amount && <div className="error-message">{errors.amount}</div>}
+                    </div>
+
+                    {isTransfer ? (
+                        <>
+                            <div className="form-group full-width transfer-accounts-grid">
+                                <div className="account-select-box">
+                                    <label className="form-label required">{t('from_account', 'من حساب (المصدر)')}</label>
+                                    <select 
+                                        className="form-control" 
+                                        value={data.from_account_id} 
+                                        onChange={(e) => setData('from_account_id', e.target.value)} 
+                                        required
+                                    >
+                                        <option value="">{t('select_source_account', 'اختر حساب المصدر')}</option>
+                                        {bankAccounts.map((account) => (
+                                            <option key={account.id} value={account.id}>
+                                                {account.account_name} ({account.account_number}) - {account.bank_name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.from_account_id && <div className="error-message">{errors.from_account_id}</div>}
+                                </div>
+
+                                <div className="transfer-arrow-icon">
+                                    <span className="material-icons-outlined">double_arrow</span>
+                                </div>
+
+                                <div className="account-select-box">
+                                    <label className="form-label required">{t('to_account', 'إلى حساب (الوجهة)')}</label>
+                                    <select 
+                                        className="form-control" 
+                                        value={data.to_account_id} 
+                                        onChange={(e) => setData('to_account_id', e.target.value)} 
+                                        required
+                                    >
+                                        <option value="">{t('select_destination_account', 'اختر حساب الوجهة')}</option>
+                                        {bankAccounts.map((account) => (
+                                            <option key={account.id} value={account.id} disabled={String(account.id) === String(data.from_account_id)}>
+                                                {account.account_name} ({account.account_number}) - {account.bank_name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {errors.to_account_id && <div className="error-message">{errors.to_account_id}</div>}
+                                </div>
+                            </div>
+                        </>
+                    ) : (
                         <>
                             <div className="form-group">
                                 <label className="form-label required">{t('bank_account', 'الحساب البنكي')}</label>
@@ -204,7 +288,7 @@ const FormView = ({ t, editingTransaction, backToList, handleSubmit, data, setDa
                                     <option value="">{t('select_bank_account', 'اختر الحساب البنكي')}</option>
                                     {bankAccounts.map((account) => (
                                         <option key={account.id} value={account.id}>
-                                            {account.bank_name} - {account.account_name} ({account.account_number})
+                                            {account.account_name} ({account.account_number}) - {account.bank_name}
                                         </option>
                                     ))}
                                 </select>
@@ -222,41 +306,7 @@ const FormView = ({ t, editingTransaction, backToList, handleSubmit, data, setDa
                                 {errors.counterparty_account_id && <div className="error-message">{errors.counterparty_account_id}</div>}
                             </div>
                         </>
-                    ) : (
-                        <>
-                            <div className="form-group">
-                                <label className="form-label required">{t('from_account', 'من حساب')}</label>
-                                <select className="form-control" value={data.from_account_id} onChange={(e) => setData('from_account_id', e.target.value)} required>
-                                    <option value="">{t('select_source_account', 'اختر حساب المصدر')}</option>
-                                    {bankAccounts.map((account) => (
-                                        <option key={account.id} value={account.id}>
-                                            {account.bank_name} - {account.account_name} ({account.account_number})
-                                        </option>
-                                    ))}
-                                </select>
-                                {errors.from_account_id && <div className="error-message">{errors.from_account_id}</div>}
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label required">{t('to_account', 'إلى حساب')}</label>
-                                <select className="form-control" value={data.to_account_id} onChange={(e) => setData('to_account_id', e.target.value)} required>
-                                    <option value="">{t('select_destination_account', 'اختر حساب الوجهة')}</option>
-                                    {bankAccounts.filter(acc => String(acc.id) !== String(data.from_account_id)).map((account) => (
-                                        <option key={account.id} value={account.id}>
-                                            {account.bank_name} - {account.account_name} ({account.account_number})
-                                        </option>
-                                    ))}
-                                </select>
-                                {errors.to_account_id && <div className="error-message">{errors.to_account_id}</div>}
-                            </div>
-                        </>
                     )}
-
-                    <div className="form-group">
-                        <label className="form-label required">{t('amount', 'المبلغ')}</label>
-                        <input type="number" step="0.01" className="form-control" placeholder="0.00" value={data.amount} onChange={(e) => setData('amount', e.target.value)} required />
-                        {errors.amount && <div className="error-message">{errors.amount}</div>}
-                    </div>
 
                     <div className="form-group">
                         <label className="form-label">{t('status', 'الحالة')}</label>
@@ -267,16 +317,14 @@ const FormView = ({ t, editingTransaction, backToList, handleSubmit, data, setDa
                         </select>
                     </div>
 
-                    {!isTransfer && (
-                        <div className="form-group">
-                            <label className="form-label">{t('reference', 'المرجع')}</label>
-                            <input type="text" className="form-control" value={data.reference} onChange={(e) => setData('reference', e.target.value)} placeholder={t('enter_reference', 'أدخل رقم المرجع')} />
-                        </div>
-                    )}
+                    <div className="form-group">
+                        <label className="form-label">{t('reference', 'المرجع')}</label>
+                        <input type="text" className="form-control" value={data.reference} onChange={(e) => setData('reference', e.target.value)} placeholder={t('enter_reference', 'أدخل رقم المرجع')} />
+                    </div>
 
                     <div className="form-group full-width">
                         <label className="form-label">{t('notes', 'ملاحظات')}</label>
-                        <textarea className="form-control" value={data.notes} onChange={(e) => setData('notes', e.target.value)} rows="3" placeholder={t('add_notes', 'أضف أي ملاحظات إضافية هنا...')} />
+                        <textarea className="form-control" value={data.notes} onChange={(e) => setData('notes', e.target.value)} rows="2" placeholder={t('add_notes', 'أضف أي ملاحظات إضافية هنا...')} />
                     </div>
 
                     <div className="form-actions full-width">
@@ -296,11 +344,12 @@ const FormView = ({ t, editingTransaction, backToList, handleSubmit, data, setDa
 
 const DetailsView = ({ t, viewingTransaction, backToList, openEdit, accountsMap, formatAmount, formatDate }) => {
     const isTransfer = viewingTransaction?.type === 'transfer';
+
     return (
-        <div className="fade-in data-section" style={{ maxWidth: '600px', margin: '0 auto' }}>
+        <div className="fade-in data-section" style={{ maxWidth: '700px', margin: '0 auto' }}>
             <div className="card-header">
                 <h3>{t('transaction_details', 'تفاصيل العملية')}</h3>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div className="header-actions">
                     <button className="btn-toolbar btn-primary" onClick={() => openEdit(viewingTransaction)}>
                         <span className="material-icons-outlined">edit</span>
                         <span>{t('edit', 'تعديل')}</span>
@@ -312,7 +361,49 @@ const DetailsView = ({ t, viewingTransaction, backToList, openEdit, accountsMap,
             </div>
 
             <div className="card-body">
-                <div className="details-grid">
+                <div className="details-summary">
+                    <div className="summary-item">
+                        <span className="label">{t('amount', 'المبلغ')}</span>
+                        <span className={`value amount ${viewingTransaction?.type}`}>{formatAmount(viewingTransaction?.amount)}</span>
+                    </div>
+                    <div className="summary-item">
+                        <span className="label">{t('status', 'الحالة')}</span>
+                        <span className={`status-badge status-${viewingTransaction?.status}`}>{t(viewingTransaction?.status, viewingTransaction?.status)}</span>
+                    </div>
+                </div>
+
+                {isTransfer ? (
+                    <div className="transfer-visualization-card">
+                        <div className="account-card from">
+                            <span className="card-label">{t('from_account', 'من حساب')}</span>
+                            <span className="account-name">{viewingTransaction?.from_account?.account_name}</span>
+                            <span className="account-bank">{viewingTransaction?.from_account?.bank_name}</span>
+                            <span className="account-number">{viewingTransaction?.from_account?.account_number}</span>
+                        </div>
+                        <div className="transfer-arrow-visual">
+                            <span className="material-icons-outlined">double_arrow</span>
+                        </div>
+                        <div className="account-card to">
+                            <span className="card-label">{t('to_account', 'إلى حساب')}</span>
+                            <span className="account-name">{viewingTransaction?.to_account?.account_name}</span>
+                            <span className="account-bank">{viewingTransaction?.to_account?.bank_name}</span>
+                            <span className="account-number">{viewingTransaction?.to_account?.account_number}</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="details-grid">
+                        <div className="detail-item full-width">
+                            <span className="detail-label">{t('bank_account', 'الحساب البنكي')}</span>
+                            <span className="detail-value">{viewingTransaction?.bank_account?.bank_name} - {viewingTransaction?.bank_account?.account_name}</span>
+                        </div>
+                        <div className="detail-item full-width">
+                            <span className="detail-label">{t('counterparty_account', 'الحساب المقابل')}</span>
+                            <span className="detail-value">{accountsMap.get(viewingTransaction?.counterparty_account_id) || '-'}</span>
+                        </div>
+                    </div>
+                )}
+
+                <div className="details-grid" style={{ marginTop: '20px' }}>
                     <div className="detail-item">
                         <span className="detail-label">{t('code', 'الكود')}</span>
                         <span className="detail-value">{viewingTransaction?.code}</span>
@@ -325,49 +416,7 @@ const DetailsView = ({ t, viewingTransaction, backToList, openEdit, accountsMap,
                         <span className="detail-label">{t('date', 'التاريخ')}</span>
                         <span className="detail-value">{formatDate(viewingTransaction?.date)}</span>
                     </div>
-                    <div className="detail-item">
-                        <span className="detail-label">{t('amount', 'المبلغ')}</span>
-                        <span className="detail-value" style={{ color: 'var(--primary-color)', fontSize: '1.2rem' }}>{formatAmount(viewingTransaction?.amount)}</span>
-                    </div>
-                    
-                    {!isTransfer ? (
-                        <>
-                            <div className="detail-item full-width">
-                                <span className="detail-label">{t('bank_account', 'الحساب البنكي')}</span>
-                                <span className="detail-value">{viewingTransaction?.bank_account?.bank_name} - {viewingTransaction?.bank_account?.account_name}</span>
-                            </div>
-                            <div className="detail-item full-width">
-                                <span className="detail-label">{t('counterparty_account', 'الحساب المقابل')}</span>
-                                <span className="detail-value">{accountsMap.get(viewingTransaction?.counterparty_account_id) || '-'}</span>
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="detail-item full-width">
-                                <div className="transfer-details-box">
-                                    <div className="transfer-side from">
-                                        <span className="side-label">{t('from_account', 'من حساب')}</span>
-                                        <span className="side-value">{viewingTransaction?.from_account?.name}</span>
-                                        <span className="side-code">{viewingTransaction?.from_account?.code}</span>
-                                    </div>
-                                    <div className="transfer-icon-box">
-                                        <span className="material-icons-outlined">swap_horiz</span>
-                                    </div>
-                                    <div className="transfer-side to">
-                                        <span className="side-label">{t('to_account', 'إلى حساب')}</span>
-                                        <span className="side-value">{viewingTransaction?.to_account?.name}</span>
-                                        <span className="side-code">{viewingTransaction?.to_account?.code}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </>
-                    )}
-
-                    <div className="detail-item">
-                        <span className="detail-label">{t('status', 'الحالة')}</span>
-                        <span className={`status-badge status-${viewingTransaction?.status}`}>{t(viewingTransaction?.status, viewingTransaction?.status)}</span>
-                    </div>
-                    {viewingTransaction?.reference && !isTransfer && (
+                    {viewingTransaction?.reference && (
                         <div className="detail-item">
                             <span className="detail-label">{t('reference', 'المرجع')}</span>
                             <span className="detail-value">{viewingTransaction.reference}</span>
@@ -441,12 +490,12 @@ const BankTransactions = ({ payments = [], receipts = [], transfers = [], bankAc
 
     const transactions = useMemo(() => {
         const all = [
-            ...payments.map(p => ({ ...p, type: 'payment', label: t('payment', 'صرف بنكي') })),
-            ...receipts.map(r => ({ ...r, type: 'receipt', label: t('receipt', 'قبض بنكي') })),
-            ...transfers.map(tr => ({ ...tr, type: 'transfer', label: t('transfer', 'تحويل') }))
+            ...payments.map(p => ({ ...p, id: `payment_${p.id}`, type: 'payment', label: t('payment', 'سند صرف') })),
+            ...receipts.map(r => ({ ...r, id: `receipt_${r.id}`, type: 'receipt', label: t('receipt', 'سند قبض') })),
+            ...transfers.map(tr => ({ ...tr, id: `transfer_${tr.id}`, type: 'transfer', label: t('transfer', 'تحويل مالي') }))
         ];
         return all.sort((a, b) => new Date(b.date) - new Date(a.date));
-    }, [payments, receipts, transfers]);
+    }, [payments, receipts, transfers, t]);
 
     const filtered = useMemo(() => {
         return transactions.filter((item) => {
@@ -461,15 +510,18 @@ const BankTransactions = ({ payments = [], receipts = [], transfers = [], bankAc
                 item.code?.toLowerCase().includes(term) ||
                 item.reference?.toLowerCase().includes(term) ||
                 item.bank_account?.bank_name?.toLowerCase().includes(term) ||
-                item.from_account?.name?.toLowerCase().includes(term) ||
-                item.to_account?.name?.toLowerCase().includes(term);
+                item.from_account?.account_name?.toLowerCase().includes(term) ||
+                item.to_account?.account_name?.toLowerCase().includes(term);
             return matchesTab && matchesSearch;
         });
     }, [transactions, activeTab, searchTerm]);
 
     const populateFormFromTransaction = (item) => {
+        // Extract numeric ID if it's prefixed (e.g., "transfer_5" -> 5)
+        const rawId = typeof item.id === 'string' ? item.id.replace(/[^0-9]/g, '') : item.id;
+
         setData({
-            id: item.id ?? null,
+            id: rawId ?? null,
             type: item.type || 'receipt',
             original_type: item.type || 'receipt',
             code: item.code || '',

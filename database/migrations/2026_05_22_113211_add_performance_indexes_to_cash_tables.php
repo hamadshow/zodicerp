@@ -11,13 +11,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('bank_receipts', function (Blueprint $table) {
-            $table->index(['receipt_date', 'status']);
-        });
+        if (Schema::hasTable('bank_receipts')) {
+            Schema::table('bank_receipts', function (Blueprint $table) {
+                $table->index(['receipt_date', 'status']);
+            });
+        }
 
-        Schema::table('bank_payments', function (Blueprint $table) {
-            $table->index(['payment_date', 'status']);
-        });
+        if (Schema::hasTable('bank_payments')) {
+            Schema::table('bank_payments', function (Blueprint $table) {
+                $table->index(['payment_date', 'status']);
+            });
+        }
 
         Schema::table('cash_receipts', function (Blueprint $table) {
             $table->index(['receipt_date', 'status']);
@@ -33,13 +37,17 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('bank_receipts', function (Blueprint $table) {
-            $table->dropIndex(['receipt_date', 'status']);
-        });
+        if (Schema::hasTable('bank_receipts')) {
+            Schema::table('bank_receipts', function (Blueprint $table) {
+                $table->dropIndex(['receipt_date', 'status']);
+            });
+        }
 
-        Schema::table('bank_payments', function (Blueprint $table) {
-            $table->dropIndex(['payment_date', 'status']);
-        });
+        if (Schema::hasTable('bank_payments')) {
+            Schema::table('bank_payments', function (Blueprint $table) {
+                $table->dropIndex(['payment_date', 'status']);
+            });
+        }
 
         Schema::table('cash_receipts', function (Blueprint $table) {
             $table->dropIndex(['receipt_date', 'status']);

@@ -4,10 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 
-use App\Models\BankPayment;
-use App\Models\BankReceipt;
-use App\Models\CashPayment;
-use App\Models\CashReceipt;
+use App\Models\TreasuryTransaction;
 use Illuminate\Support\Facades\Cache;
 
 class TreasuryCacheServiceProvider extends ServiceProvider
@@ -22,16 +19,7 @@ class TreasuryCacheServiceProvider extends ServiceProvider
         };
 
         // Clear dashboard cache on any financial movement
-        BankReceipt::saved($clearCache);
-        BankReceipt::deleted($clearCache);
-        
-        BankPayment::saved($clearCache);
-        BankPayment::deleted($clearCache);
-        
-        CashReceipt::saved($clearCache);
-        CashReceipt::deleted($clearCache);
-        
-        CashPayment::saved($clearCache);
-        CashPayment::deleted($clearCache);
+        TreasuryTransaction::saved($clearCache);
+        TreasuryTransaction::deleted($clearCache);
     }
 }

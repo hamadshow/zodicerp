@@ -62,54 +62,6 @@ return new class extends Migration
             $table->foreign('bank_id')->references('id')->on('banks')->onDelete('cascade');
             $table->index('bank_id');
         });
-
-        // Table: bank_payments
-        Schema::create('bank_payments', function (Blueprint $table) {
-            $table->charset = 'utf8mb4';
-            $table->collation = 'utf8mb4_unicode_ci';
-
-            $table->id();
-            $table->unsignedBigInteger('bank_account_id');
-            $table->string('payment_no', 100)->unique();
-            $table->date('payment_date');
-            $table->enum('payee_type', ['supplier', 'employee', 'other']);
-            $table->unsignedBigInteger('payee_id')->nullable();
-            $table->decimal('amount', 18, 2);
-            $table->string('reference', 150)->nullable();
-            $table->text('notes')->nullable();
-            $table->enum('status', ['draft', 'posted', 'cancelled'])->default('draft');
-            $table->unsignedBigInteger('created_by')->nullable();
-
-            $table->timestamps();
-            $table->softDeletes();
-
-            $table->foreign('bank_account_id')->references('id')->on('bank_accounts')->onDelete('cascade');
-            $table->index('bank_account_id');
-        });
-
-        // Table: bank_receipts
-        Schema::create('bank_receipts', function (Blueprint $table) {
-            $table->charset = 'utf8mb4';
-            $table->collation = 'utf8mb4_unicode_ci';
-
-            $table->id();
-            $table->unsignedBigInteger('bank_account_id');
-            $table->string('receipt_no', 100)->unique();
-            $table->date('receipt_date');
-            $table->enum('payer_type', ['customer', 'other']);
-            $table->unsignedBigInteger('payer_id')->nullable();
-            $table->decimal('amount', 18, 2);
-            $table->string('reference', 150)->nullable();
-            $table->text('notes')->nullable();
-            $table->enum('status', ['draft', 'posted', 'cancelled'])->default('draft');
-            $table->unsignedBigInteger('created_by')->nullable();
-
-            $table->timestamps();
-            $table->softDeletes();
-
-            $table->foreign('bank_account_id')->references('id')->on('bank_accounts')->onDelete('cascade');
-            $table->index('bank_account_id');
-        });
     }
 
     /**

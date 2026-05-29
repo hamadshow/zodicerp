@@ -52,7 +52,7 @@ return [
     // Alerts
     'important_alerts' => 'Important Alerts',
     'low_balance' => 'Low Balance',
-    'low_balance_desc' => 'Petty cash is running low',
+    'low_balance_desc' => 'Treasury balance is running low',
     'daily_closing_alert' => 'Daily Closing',
     'daily_closing_desc' => 'Jeddah shift not closed yet',
     'bank_transfer' => 'Bank Transfer',
@@ -76,8 +76,7 @@ return [
     // Treasury Names
     'main_treasury' => 'Main Treasury',
     'jeddah_treasury' => 'Jeddah Treasury',
-    'petty_cash_treasury' => 'Petty Cash Treasury',
-
+    
     // Misc
     'sar' => 'SAR',
     'mins_ago' => ':time mins ago',
