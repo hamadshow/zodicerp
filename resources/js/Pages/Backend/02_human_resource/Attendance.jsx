@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
+import Table from '@/Pages/Backend/components/Table';
 import '@/../css/backend/main.scss';
 import { apiService } from '@/services/api';
 
@@ -354,6 +355,82 @@ export default function Attendance({ employees: propEmployees }) {
   const late = todayRecords.filter((r) => r.status === 'late').length;
   const leave = todayRecords.filter((r) => r.status === 'leave').length;
 
+  const columns = useMemo(() => [
+    { 
+      header: 'ID', 
+      key: 'id', 
+      sortable: true,
+      render: (record) => record.id.toString().padStart(3, '0')
+    },
+    { 
+      header: 'EMPLOYEE', 
+      key: 'employeeName', 
+      sortable: true,
+      render: (record) => (
+        <div className="employee-info">
+          <div className="employee-avatar">
+            <span className="material-icons-outlined" style={{ color: '#94a3b8' }}>person</span>
+          </div>
+          <div className="employee-details">
+            <div className="employee-name">{record.employeeName}</div>
+            <div className="employee-id">{record.employeeCode}</div>
+          </div>
+        </div>
+      )
+    },
+    { header: 'DEPARTMENT', key: 'department', sortable: true },
+    { header: 'DATE', key: 'date', sortable: true },
+    { 
+      header: 'TIME IN', 
+      key: 'timeIn', 
+      sortable: true,
+      render: (record) => (
+        <div className="time-display time-in">
+          {record.timeIn || '--:--'}
+          {record.timeIn && record.timeIn > '09:00' && (
+            <span className="late-badge">Late</span>
+          )}
+        </div>
+      )
+    },
+    { 
+      header: 'TIME OUT', 
+      key: 'timeOut', 
+      sortable: true,
+      render: (record) => <div className="time-display time-out">{record.timeOut || '--:--'}</div>
+    },
+    { 
+      header: 'WORK HOURS', 
+      key: 'workHours', 
+      sortable: true,
+      render: (record) => (
+        <div className="work-hours">
+          {record.workHours.toFixed(1)}h
+          {record.overtime > 0 && (
+            <span className="overtime-badge">+{record.overtime}h OT</span>
+          )}
+        </div>
+      )
+    },
+    { 
+      header: 'STATUS', 
+      key: 'status', 
+      sortable: true,
+      render: (record) => (
+        <span className={`attendance-status status-${record.status}`}>
+          {record.status.charAt(0).toUpperCase() + record.status.slice(1).replace('-', ' ')}
+        </span>
+      )
+    }
+  ], []);
+
+  const tableData = useMemo(() => {
+    return filteredRecords.map(record => ({
+      ...record,
+      selected: selectedRecords.includes(record.id)
+    }));
+  }, [filteredRecords, selectedRecords]);
+
   return (
     <AdminLayout activeMenu="Attendance">
       <div className="breadcrumb">
@@ -480,259 +557,51 @@ export default function Attendance({ employees: propEmployees }) {
 
       {/* Main Card */}
       <div className="attendance-card fade-in">
-        <div className="card-header">
-          <div className="attendance-actions">
-            <select className="btn btn-outline" id="bulkActions">
-              <option>Bulk Actions</option>
-              <option value="mark-present">Mark as Present</option>
-              <option value="mark-absent">Mark as Absent</option>
-              <option value="mark-late">Mark as Late</option>
-              <option value="delete">Delete Selected</option>
-            </select>
-            <button className="btn btn-outline" onClick={applyBulkAction}>
-              <span className="material-icons-outlined">play_arrow</span>
-              <span>Apply</span>
-            </button>
-            <div className="search-bar light">
-              <input
-                type="text"
-                placeholder="Search employees..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && {}}
-              />
-              <button onClick={() => {}}>
-                <span className="material-icons-outlined">search</span>
+        <Table
+          showToolbar={true}
+          toolbarSearch={true}
+          toolbarSearchValue={searchTerm}
+          onToolbarSearch={setSearchTerm}
+          showAddButton={true}
+          addButtonText="Add Attendance"
+          onAdd={openModal}
+          showRefreshButton={true}
+          onRefresh={() => {
+            fetchAttendance();
+            showToast('Attendance list refreshed!', 'success');
+          }}
+          showExportButton={true}
+          onExport={exportAttendance}
+          toolbarActions={
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <select className="btn-toolbar btn-refresh" id="bulkActions" style={{ height: '42px' }}>
+                <option>Bulk Actions</option>
+                <option value="mark-present">Mark as Present</option>
+                <option value="mark-absent">Mark as Absent</option>
+                <option value="mark-late">Mark as Late</option>
+                <option value="delete">Delete Selected</option>
+              </select>
+              <button className="btn-toolbar btn-refresh" onClick={applyBulkAction}>
+                <span className="material-icons-outlined">play_arrow</span>
+                <span>Apply</span>
               </button>
             </div>
-          </div>
-          <div className="actions">
-            <button className="btn btn-primary" onClick={openModal}>
-              <span className="material-icons-outlined">add</span>
-              <span>Add Attendance</span>
-            </button>
-            <button
-              className="btn btn-outline"
-              onClick={() => showToast('Attendance list refreshed!', 'success')}
-            >
-              <span className="material-icons-outlined">refresh</span>
-              <span>Refresh</span>
-            </button>
-            <button className="btn btn-outline" onClick={exportAttendance}>
-              <span className="material-icons-outlined">download</span>
-              <span>Export</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>
-                  <input type="checkbox" onChange={handleSelectAll} />
-                </th>
-                <th>
-                  ID{' '}
-                  <span
-                    className="material-icons-outlined"
-                    style={{ fontSize: '16px' }}
-                  >
-                    arrow_drop_down
-                  </span>
-                </th>
-                <th>
-                  EMPLOYEE{' '}
-                  <span
-                    className="material-icons-outlined"
-                    style={{ fontSize: '16px' }}
-                  >
-                    arrow_drop_down
-                  </span>
-                </th>
-                <th>
-                  DEPARTMENT{' '}
-                  <span
-                    className="material-icons-outlined"
-                    style={{ fontSize: '16px' }}
-                  >
-                    arrow_drop_down
-                  </span>
-                </th>
-                <th>
-                  DATE{' '}
-                  <span
-                    className="material-icons-outlined"
-                    style={{ fontSize: '16px' }}
-                  >
-                    arrow_drop_down
-                  </span>
-                </th>
-                <th>
-                  TIME IN{' '}
-                  <span
-                    className="material-icons-outlined"
-                    style={{ fontSize: '16px' }}
-                  >
-                    arrow_drop_down
-                  </span>
-                </th>
-                <th>
-                  TIME OUT{' '}
-                  <span
-                    className="material-icons-outlined"
-                    style={{ fontSize: '16px' }}
-                  >
-                    arrow_drop_down
-                  </span>
-                </th>
-                <th>
-                  WORK HOURS{' '}
-                  <span
-                    className="material-icons-outlined"
-                    style={{ fontSize: '16px' }}
-                  >
-                    arrow_drop_down
-                  </span>
-                </th>
-                <th>
-                  STATUS{' '}
-                  <span
-                    className="material-icons-outlined"
-                    style={{ fontSize: '16px' }}
-                  >
-                    arrow_drop_down
-                  </span>
-                </th>
-                <th>OPERATIONS</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRecords.map((record) => (
-                <tr key={record.id}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={selectedRecords.includes(record.id)}
-                      onChange={() => handleSelectRecord(record.id)}
-                    />
-                  </td>
-                  <td>{record.id.toString().padStart(3, '0')}</td>
-                  <td>
-                    <div className="employee-info">
-                      <div className="employee-avatar">
-                        <span
-                          className="material-icons-outlined"
-                          style={{ color: '#94a3b8' }}
-                        >
-                          person
-                        </span>
-                      </div>
-                      <div className="employee-details">
-                        <div className="employee-name">
-                          {record.employeeName}
-                        </div>
-                        <div className="employee-id">{record.employeeCode}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="department-badge">
-                      {record.department}
-                    </span>
-                  </td>
-                  <td>{record.date}</td>
-                  <td>
-                    <div className="time-display time-in">
-                      {record.timeIn || '--:--'}
-                      {record.timeIn && record.timeIn > '09:00' && (
-                        <span className="late-badge">Late</span>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="time-display time-out">
-                      {record.timeOut || '--:--'}
-                    </div>
-                  </td>
-                  <td>
-                    <div className="work-hours">
-                      {record.workHours.toFixed(1)}h
-                      {record.overtime > 0 && (
-                        <span className="overtime-badge">
-                          +{record.overtime}h OT
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <span
-                      className={`attendance-status status-${record.status}`}
-                    >
-                      {record.status.charAt(0).toUpperCase() +
-                        record.status.slice(1).replace('-', ' ')}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="icon-btn edit"
-                      onClick={() => editAttendance(record.id)}
-                    >
-                      <span className="material-icons-outlined">edit</span>
-                    </button>
-                    <button
-                      className="icon-btn delete"
-                      onClick={() => deleteAttendance(record.id)}
-                    >
-                      <span className="material-icons-outlined">delete</span>
-                    </button>
-                    {record.notes && (
-                      <button
-                        className="icon-btn notes-indicator"
-                        onClick={() => viewNotes(record.id)}
-                        title="View notes"
-                      >
-                        <span className="material-icons-outlined">note</span>
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="pagination">
-          <div className="pagination-info">
-            <select className="select-dropdown" id="rowsPerPage">
-              <option value="10">10</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-            <span>
-              Show from 1 to {filteredRecords.length} in{' '}
-              <span
-                style={{
-                  backgroundColor: '#64748b',
-                  color: 'white',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontWeight: '600',
-                }}
-              >
-                {filteredRecords.length}
-              </span>{' '}
-              records
-            </span>
-          </div>
-          <div className="pagination-controls">
-            <button className="page-btn">« Previous</button>
-            <button className="page-btn active">1</button>
-            <button className="page-btn">2</button>
-            <button className="page-btn">Next »</button>
-          </div>
-        </div>
+          }
+          tableData={tableData}
+          columns={columns}
+          handleRowSelect={handleSelectRecord}
+          selectAll={selectedRecords.length === filteredRecords.length && filteredRecords.length > 0}
+          handleSelectAll={handleSelectAll}
+          onEdit={(record) => editAttendance(record.id)}
+          onDelete={(record) => deleteAttendance(record.id)}
+          onView={(record) => {
+            if (record.notes) {
+              viewNotes(record.id);
+            } else {
+              showToast('No notes for this record', 'info');
+            }
+          }}
+        />
       </div>
 
       {/* Add Attendance Modal */}

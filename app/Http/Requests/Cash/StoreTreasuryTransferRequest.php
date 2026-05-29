@@ -14,8 +14,8 @@ class StoreTreasuryTransferRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'from_treasury_id' => 'required|exists:cash_accounts,id|different:to_treasury_id',
-            'to_treasury_id' => 'required|exists:cash_accounts,id',
+            'from_treasury_id' => 'required|different:to_treasury_id',
+            'to_treasury_id' => 'required',
             'amount' => 'required|numeric|min:0.01',
             'transfer_date' => 'required|date',
             'notes' => 'nullable|string|max:1000',

@@ -5,7 +5,6 @@ import NavigationLink from '@/Components/NavigationLink';
 import Table from '../components/Table';
 import SearchBar from '@/Components/search-bar';
 import SearchableComboBox from '../components/SearchableComboBox';
-import Pagination from '../components/Pagination';
 import { formatDate } from '@/utils/date';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
@@ -476,14 +475,6 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                             columns={columns}
                             onEdit={handleEdit}
                             onDelete={(row) => handleDelete(row.id)}
-                        />
-                        <Pagination
-                            currentPage={invoices.current_page}
-                            totalPages={invoices.last_page}
-                            totalRecords={invoices.total}
-                            recordsPerPage={invoices.per_page}
-                            onPageChange={(page) => router.get(getLocalizedRoute('admin.client-sales.invoices.index'), { ...filters, page }, { preserveState: true })}
-                            onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.client-sales.invoices.index'), { ...filters, page: 1, per_page: perPage }, { preserveState: true })}
                         />
                     </div>
                 ) : (

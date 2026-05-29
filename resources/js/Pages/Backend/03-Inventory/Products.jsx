@@ -777,25 +777,6 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                         deleteTitle={t('delete', 'Delete')}
                     />
 
-                    {/* Pagination */}
-                    {safeProducts.links && (
-                        <div className="pagination">
-                            <div className="pagination-info">
-                                Showing {safeProducts.from} to {safeProducts.to} of {safeProducts.total} results
-                            </div>
-                            <div className="pagination-controls">
-                                {safeProducts.links.map((link, i) => (
-                                    <button
-                                        key={i}
-                                        className={`page-btn ${link.active ? 'active' : ''}`}
-                                        onClick={() => link.url && router.get(link.url, filterParams, { preserveState: true })}
-                                        disabled={!link.url}
-                                        dangerouslySetInnerHTML={{ __html: link.label }}
-                                    ></button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
                 </div>
             </div>
         </AdminLayout>

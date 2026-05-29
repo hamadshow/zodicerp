@@ -7,13 +7,6 @@
     margin-bottom: 24px;
 }
 
-.attendance-actions {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-}
-
 .attendance-status {
     padding: 4px 12px;
     border-radius: 20px;
@@ -103,17 +96,6 @@
 .work-hours {
     color: var(--primary-color);
     font-weight: 600;
-}
-
-.department-badge {
-    display: inline-block;
-    background-color: #e0f2fe;
-    color: #0369a1;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 500;
-    margin-right: 4px;
 }
 
 /* Modal styles */
@@ -323,26 +305,6 @@
     border: 1px solid var(--border-color);
 }
 
-.summary-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background-color: white;
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
-}
-
-.summary-count {
-    font-weight: 600;
-    color: var(--dark-color);
-}
-
-.summary-label {
-    font-size: 0.85rem;
-    color: var(--gray-color);
-}
-
 /* Attendance actions */
 .attendance-buttons {
     display: flex;
@@ -411,16 +373,6 @@
         padding: 16px;
     }
 
-    .attendance-actions {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .attendance-actions .btn {
-        width: 100%;
-        justify-content: center;
-    }
-
     .form-row {
         flex-direction: column;
         gap: 12px;
@@ -481,16 +433,6 @@
     font-size: 0.75rem;
     font-weight: 500;
     display: inline-block;
-}
-
-/* Notes indicator */
-.notes-indicator {
-    color: var(--info-color);
-    cursor: pointer;
-}
-
-.notes-indicator:hover {
-    color: var(--primary-color);
 }
 
 /* Toast styles */

@@ -1,7 +1,9 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import React, { useEffect, useMemo, useState } from 'react';
-import { FinanzaFooter, FinanzaHeader } from '@/Pages/Home/Home';
+import { FinanzaFooter } from '@/Pages/Home/components/Footer';
+import { FinanzaHeader } from '@/Pages/Home/components/Header';
 import { useTranslation } from '@/hooks/useTranslation';
+import '../../../../css/homepage/rtl.scss';
 
 export default function Register() {
   const isOnHold = true; // Set to false to unhold

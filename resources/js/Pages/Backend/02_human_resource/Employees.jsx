@@ -62,7 +62,7 @@ const EmployeesManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage] = useState(10);
   const [toast, setToast] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [professions, setProfessions] = useState([]);
@@ -188,7 +188,6 @@ const EmployeesManagement = () => {
   );
 
   // Calculate pagination
-  const totalPages = Math.ceil((filteredEmployees || []).length / rowsPerPage);
   const startIndex = (currentPage - 1) * rowsPerPage;
   const endIndex = Math.min(startIndex + rowsPerPage, (filteredEmployees || []).length);
   const paginatedEmployees = (filteredEmployees || []).slice(startIndex, endIndex);
@@ -1114,50 +1113,29 @@ const EmployeesManagement = () => {
 
       {/* Main Card */}
       <div className="employees-card fade-in">
-        <div className="card-header">
-          <div className="employees-actions">
+        <Table 
+          showToolbar={true}
+          toolbarSearch={true}
+          toolbarSearchValue={searchTerm}
+          onToolbarSearch={setSearchTerm}
+          showAddButton={true}
+          addButtonText={isArabic ? 'إضافة موظف' : 'Add Employee'}
+          onAdd={() => handleAddEdit()}
+          showRefreshButton={true}
+          onRefresh={() => showToast('Employees list refreshed!', 'success')}
+          toolbarActions={
             <select
-              className="btn btn-outline"
+              className="btn-toolbar btn-refresh"
               id="bulkActions"
               onChange={(e) => applyBulkAction(e.target.value)}
+              style={{ height: '42px' }}
             >
-              <option value="">Bulk Actions</option>
-              <option value="activate">Activate Selected</option>
-              <option value="deactivate">Deactivate Selected</option>
-              <option value="delete">Delete Selected</option>
+              <option value="">{isArabic ? 'إجراءات جماعية' : 'Bulk Actions'}</option>
+              <option value="activate">{isArabic ? 'تنشيط المختار' : 'Activate Selected'}</option>
+              <option value="deactivate">{isArabic ? 'تعطيل المختار' : 'Deactivate Selected'}</option>
+              <option value="delete">{isArabic ? 'حذف المختار' : 'Delete Selected'}</option>
             </select>
-            <div className="search-bar light">
-              <input
-                type="text"
-                placeholder="Search employees..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <button
-                onClick={() =>
-                  showToast(`Searching for "${searchTerm}"`, 'info')
-                }
-              >
-                <span className="material-icons-outlined">search</span>
-              </button>
-            </div>
-          </div>
-          <div className="actions">
-            <button className="btn btn-primary" onClick={() => handleAddEdit()}>
-              <span className="material-icons-outlined">add</span>
-              <span>Add Employee</span>
-            </button>
-            <button
-              className="btn btn-outline"
-              onClick={() => showToast('Employees list refreshed!', 'success')}
-            >
-              <span className="material-icons-outlined">refresh</span>
-              <span>Refresh</span>
-            </button>
-          </div>
-        </div>
-
-        <Table 
+          }
           tableData={tableData}
           columns={columns}
           handleRowSelect={handleRowSelect}
@@ -1170,69 +1148,6 @@ const EmployeesManagement = () => {
           editTitle={isArabic ? "تعديل" : "Edit"}
           deleteTitle={isArabic ? "حذف" : "Delete"}
         />
-
-        <div className="pagination">
-          <div className="pagination-info">
-            <select
-              className="select-dropdown"
-              value={rowsPerPage}
-              onChange={(e) => {
-                setRowsPerPage(parseInt(e.target.value));
-                setCurrentPage(1);
-              }}
-            >
-              <option value="10">10</option>
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-            <span>
-              Show from {startIndex + 1} to {endIndex} in
-              <span
-                style={{
-                  backgroundColor: '#64748b',
-                  color: 'white',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontWeight: '600',
-                  marginLeft: '8px',
-                }}
-              >
-                {(filteredEmployees || []).length}
-              </span>{' '}
-              records
-            </span>
-          </div>
-          <div className="pagination-controls">
-            <button
-              className="page-btn"
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-            >
-              « Previous
-            </button>
-            {[...Array(totalPages)].map((_, i) => (
-              <button
-                key={i}
-                className={`page-btn ${currentPage === i + 1 ? 'active' : ''}`}
-                onClick={() => setCurrentPage(i + 1)}
-              >
-                {i + 1}
-              </button>
-            ))}
-            <button
-              className="page-btn"
-              onClick={() =>
-                setCurrentPage((prev) =>
-                  Math.min(Math.max(totalPages, 1), prev + 1)
-                )
-              }
-              disabled={currentPage >= totalPages}
-            >
-              Next
-            </button>
-          </div>
-        </div>
       </div>
     </BlankPage>
   )}

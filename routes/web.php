@@ -528,6 +528,7 @@ Route::group([
         Route::prefix('treasury-transfers')->name('treasury-transfers.')->controller(\App\Http\Controllers\Backend\Cash\TreasuryTransferController::class)->group(function () {
             Route::get('/', 'index')->name('index');
             Route::post('/', 'store')->name('store');
+            Route::put('{id}', 'update')->name('update');
             Route::post('{id}/approve', 'approve')->name('approve');
             Route::post('{id}/reject', 'reject')->name('reject');
         });

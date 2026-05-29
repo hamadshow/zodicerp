@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Head, useForm, router, usePage, Link } from '@inertiajs/react';
+import React, { useState, useMemo } from 'react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import BlankPage from '@/Components/BlankPage';
+import Table from '../components/Table';
 import '../../../../css/backend/main.scss';
 
 const Career = ({ careers: propCareers }) => {
@@ -22,7 +23,6 @@ const Career = ({ careers: propCareers }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [currentCareer, setCurrentCareer] = useState(null);
-    const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'asc' });
 
     const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         title: '',
@@ -36,53 +36,24 @@ const Career = ({ careers: propCareers }) => {
         company_id: null,
     });
 
-    const [filteredCareers, setFilteredCareers] = useState(careersData);
-
-    useEffect(() => {
-        let result = [...careersData];
-
-        // Search filtering
-        if (searchTerm) {
-            const lowerTerm = searchTerm.toLowerCase();
-            result = result.filter(c => 
-                (c.title && c.title.toLowerCase().includes(lowerTerm)) ||
-                (c.location && c.location.toLowerCase().includes(lowerTerm)) ||
-                (c.type && c.type.toLowerCase().includes(lowerTerm))
-            );
-        }
-
-        // Sorting
-        if (sortConfig.key) {
-            result.sort((a, b) => {
-                if (a[sortConfig.key] < b[sortConfig.key]) {
-                    return sortConfig.direction === 'asc' ? -1 : 1;
-                }
-                if (a[sortConfig.key] > b[sortConfig.key]) {
-                    return sortConfig.direction === 'asc' ? 1 : -1;
-                }
-                return 0;
-            });
-        }
-
-        setFilteredCareers(result);
-    }, [propCareers, searchTerm, sortConfig]);
-
-    const requestSort = (key) => {
-        let direction = 'asc';
-        if (sortConfig.key === key && sortConfig.direction === 'asc') {
-            direction = 'desc';
-        }
-        setSortConfig({ key, direction });
+    const getTranslation = (key, fallback) => {
+        return translations[`career.${key}`] || translations[`common.${key}`] || fallback;
     };
+
+    const filteredCareers = useMemo(() => {
+        if (!searchTerm) return careersData;
+        const lowerTerm = searchTerm.toLowerCase();
+        return careersData.filter(c => 
+            (c.title && c.title.toLowerCase().includes(lowerTerm)) ||
+            (c.location && c.location.toLowerCase().includes(lowerTerm)) ||
+            (c.type && c.type.toLowerCase().includes(lowerTerm))
+        );
+    }, [careersData, searchTerm]);
 
     const stats = {
         total: careersData.length,
         active: careersData.filter(c => c.is_active).length,
         fullTime: careersData.filter(c => c.type === 'full-time').length,
-    };
-
-    const handleSearch = (e) => {
-        setSearchTerm(e.target.value);
     };
 
     const openForm = (career = null) => {
@@ -132,9 +103,49 @@ const Career = ({ careers: propCareers }) => {
         }
     };
 
-    const getTranslation = (key, fallback) => {
-        return translations[`career.${key}`] || translations[`common.${key}`] || fallback;
-    };
+    const tableColumns = [
+        { 
+            header: 'ID', 
+            key: 'id',
+            sortable: true,
+            render: (row) => row.id.toString().padStart(3, '0')
+        },
+        { 
+            header: getTranslation('job_title', 'JOB TITLE'), 
+            key: 'title',
+            sortable: true
+        },
+        { 
+            header: getTranslation('location', 'LOCATION'), 
+            key: 'location',
+            sortable: true,
+            render: (row) => row.location || 'N/A'
+        },
+        { 
+            header: getTranslation('type', 'TYPE'), 
+            key: 'type',
+            sortable: true,
+            render: (row) => (
+                <span className="career-type-tag">
+                    {getTranslation(row.type, row.type)}
+                </span>
+            )
+        },
+        { 
+            header: getTranslation('salary', 'SALARY'), 
+            key: 'salary_range',
+            render: (row) => row.salary_range || 'Not Specified'
+        },
+        { 
+            header: getTranslation('status', 'STATUS'), 
+            key: 'is_active',
+            render: (row) => (
+                <span className={`career-status status-${row.is_active ? 'active' : 'inactive'}`}>
+                    {row.is_active ? translations['common.active'] || 'Active' : translations['common.inactive'] || 'Inactive'}
+                </span>
+            )
+        },
+    ];
 
     const breadcrumbs = [
         { label: translations['sidebar.Dashboard'] || 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
@@ -187,94 +198,22 @@ const Career = ({ careers: propCareers }) => {
             <BlankPage breadcrumbs={breadcrumbs} stats={statsContent}>
                 {!showForm ? (
                     <div className="fade-in">
-                        {/* Main Card */}
-                        <div className="career-card">
-                            <div className="card-header">
-                                <div className="career-actions">
-                                    <div className="search-bar light">
-                                        <input 
-                                            type="text" 
-                                            placeholder={getTranslation('search_placeholder', 'Search careers...')}
-                                            value={searchTerm}
-                                            onChange={handleSearch}
-                                        />
-                                        <button>
-                                            <span className="material-icons-outlined">search</span>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="actions">
-                                    <button className="btn btn-primary" onClick={() => openForm()}>
-                                        <span className="material-icons-outlined">add</span>
-                                        <span>{getTranslation('add_job', 'Add Job Posting')}</span>
-                                    </button>
-                                    <button className="btn btn-outline" onClick={() => router.reload()}>
-                                        <span className="material-icons-outlined">refresh</span>
-                                        <span>{translations['common.refresh'] || 'Refresh'}</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div className="table-container">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th><input type="checkbox" /></th>
-                                            <th onClick={() => requestSort('id')} style={{ cursor: 'pointer' }}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                                    ID
-                                                    <span className="material-icons-outlined" style={{ fontSize: '16px' }}>
-                                                        {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'sort'}
-                                                    </span>
-                                                </div>
-                                            </th>
-                                            <th>{getTranslation('job_title', 'JOB TITLE')}</th>
-                                            <th>{getTranslation('location', 'LOCATION')}</th>
-                                            <th>{getTranslation('type', 'TYPE')}</th>
-                                            <th>{getTranslation('salary', 'SALARY')}</th>
-                                            <th>{getTranslation('status', 'STATUS')}</th>
-                                            <th>{translations['common.operations'] || 'OPERATIONS'}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredCareers.map(career => (
-                                            <tr key={career.id}>
-                                                <td><input type="checkbox" className="career-checkbox" /></td>
-                                                <td>{career.id.toString().padStart(3, '0')}</td>
-                                                <td>{career.title}</td>
-                                                <td>{career.location || 'N/A'}</td>
-                                                <td>
-                                                    <span className="career-type-tag">
-                                                        {getTranslation(career.type, career.type)}
-                                                    </span>
-                                                </td>
-                                                <td>{career.salary_range || 'Not Specified'}</td>
-                                                <td>
-                                                    <span className={`career-status status-${career.is_active ? 'active' : 'inactive'}`}>
-                                                        {career.is_active ? translations['common.active'] || 'Active' : translations['common.inactive'] || 'Inactive'}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <button className="icon-btn edit" onClick={() => openForm(career)}>
-                                                        <span className="material-icons-outlined">edit</span>
-                                                    </button>
-                                                    <button className="icon-btn delete" onClick={() => handleDelete(career.id)}>
-                                                        <span className="material-icons-outlined">delete</span>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                        {filteredCareers.length === 0 && (
-                                            <tr>
-                                                <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>
-                                                    {translations['common.no_data'] || 'No careers found.'}
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
+                        <Table
+                            showToolbar={true}
+                            toolbarSearch={true}
+                            toolbarSearchValue={searchTerm}
+                            onToolbarSearch={setSearchTerm}
+                            toolbarSearchPlaceholder={getTranslation('search_placeholder', 'Search careers...')}
+                            showAddButton={true}
+                            addButtonText={getTranslation('add_job', 'Add Job Posting')}
+                            onAdd={() => openForm()}
+                            showRefreshButton={true}
+                            onRefresh={() => router.reload()}
+                            tableData={filteredCareers}
+                            columns={tableColumns}
+                            onEdit={(row) => openForm(row)}
+                            onDelete={(row) => handleDelete(row.id)}
+                        />
                     </div>
                 ) : (
                     /* Career Form View */

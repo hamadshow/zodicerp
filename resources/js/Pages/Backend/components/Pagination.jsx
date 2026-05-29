@@ -2,20 +2,53 @@ import React from 'react';
 import { usePage } from '@inertiajs/react';
 
 const Pagination = ({
-  currentPage,
-  totalPages,
-  totalRecords,
-  recordsPerPage,
+  currentPage = 1,
+  totalPages = 1,
+  totalRecords = 0,
+  recordsPerPage = 10,
   onPageChange,
   onRecordsPerPageChange,
 }) => {
   const { props } = usePage();
+
+  // Internal state for pagination if not handled by parent
+  const [internalCurrentPage, setInternalCurrentPage] = React.useState(currentPage);
+  const [internalRecordsPerPage, setInternalRecordsPerPage] = React.useState(recordsPerPage);
+
+  // Sync internal state with props
+  React.useEffect(() => {
+    setInternalCurrentPage(currentPage);
+  }, [currentPage]);
+
+  React.useEffect(() => {
+    setInternalRecordsPerPage(recordsPerPage);
+  }, [recordsPerPage]);
+
   const localization = props?.localization;
   const isRtl = localization?.is_rtl;
   const translations = localization?.translations || {};
 
   // Translation helpers
-  const t = (key, fallback) => translations[`common.${key}`] || fallback;
+  const t = (key, fallback) => translations[`common.${key}`] || translations[`Table.${key}`] || fallback;
+
+  // Determine effective values
+  const effectiveCurrentPage = onPageChange ? currentPage : internalCurrentPage;
+  const effectiveRecordsPerPage = onRecordsPerPageChange ? recordsPerPage : internalRecordsPerPage;
+
+  const handlePageChange = (page) => {
+    if (!onPageChange) {
+      setInternalCurrentPage(page);
+    }
+    onPageChange?.(page);
+  };
+
+  const handleRecordsPerPageChange = (size) => {
+    if (!onRecordsPerPageChange) {
+      setInternalRecordsPerPage(size);
+      setInternalCurrentPage(1);
+    }
+    onRecordsPerPageChange?.(size);
+  };
 
   // Generate page numbers to show
   const getPageNumbers = () => {
@@ -28,20 +61,20 @@ const Pagination = ({
       }
     } else {
       // Show first page, current page, and last page with ellipsis if needed
-      if (currentPage > 3) {
+      if (effectiveCurrentPage > 3) {
         pages.push(1);
-        if (currentPage > 4) pages.push('...');
+        if (effectiveCurrentPage > 4) pages.push('...');
       }
 
-      const start = Math.max(2, currentPage - 1);
-      const end = Math.min(totalPages - 1, currentPage + 1);
+      const start = Math.max(2, effectiveCurrentPage - 1);
+      const end = Math.min(totalPages - 1, effectiveCurrentPage + 1);
 
       for (let i = start; i <= end; i++) {
         pages.push(i);
       }
 
-      if (currentPage < totalPages - 2) {
-        if (currentPage < totalPages - 3) pages.push('...');
+      if (effectiveCurrentPage < totalPages - 2) {
+        if (effectiveCurrentPage < totalPages - 3) pages.push('...');
         pages.push(totalPages);
       }
     }
@@ -54,8 +87,8 @@ const Pagination = ({
       <div className="pagination-info">
         <select
           className="select-dropdown"
-          value={recordsPerPage}
-          onChange={(e) => onRecordsPerPageChange(Number(e.target.value))}
+          value={effectiveRecordsPerPage}
+          onChange={(e) => handleRecordsPerPageChange(Number(e.target.value))}
         >
           <option value={10}>10</option>
           <option value={25}>25</option>
@@ -63,25 +96,31 @@ const Pagination = ({
           <option value={100}>100</option>
         </select>
         <span>
-          {t('pagination_show_from', 'Show from')} {(currentPage - 1) * recordsPerPage + 1} {t('pagination_to', 'to')}{' '}
-          {Math.min(currentPage * recordsPerPage, totalRecords)} {t('pagination_in', 'in')}{' '}
-          <span className="record-count-badge">{totalRecords}</span> {t('pagination_records', 'records')}
+          {totalRecords > 0 ? (
+            <>
+              {t('pagination_show_from', t('show_from', 'Show from'))} {(effectiveCurrentPage - 1) * effectiveRecordsPerPage + 1} {t('pagination_to', t('to', 'to'))}{' '}
+              {Math.min(effectiveCurrentPage * effectiveRecordsPerPage, totalRecords)} {t('pagination_in', t('in', 'in'))}{' '}
+              <span className="record-count-badge">{totalRecords}</span> {t('pagination_records', t('records', 'records'))}
+            </>
+          ) : (
+            t('no_data', 'No data available')
+          )}
         </span>
       </div>
       <div className="pagination-controls">
         <button
-          className={`page-btn ${currentPage === 1 ? 'disabled' : ''}`}
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage === 1}
+          className={`page-btn ${effectiveCurrentPage === 1 ? 'disabled' : ''}`}
+          onClick={() => handlePageChange(effectiveCurrentPage - 1)}
+          disabled={effectiveCurrentPage === 1}
         >
-          {isRtl ? '»' : '«'} {t('pagination_previous', 'Previous')}
+          {isRtl ? '»' : '«'} {t('pagination_previous', t('previous', 'Previous'))}
         </button>
 
         {getPageNumbers().map((page, index) => (
           <button
             key={index}
-            className={`page-btn ${page === currentPage ? 'active' : ''} ${page === '...' ? 'ellipsis' : ''}`}
-            onClick={() => typeof page === 'number' && onPageChange(page)}
+            className={`page-btn ${page === effectiveCurrentPage ? 'active' : ''} ${page === '...' ? 'ellipsis' : ''}`}
+            onClick={() => typeof page === 'number' && handlePageChange(page)}
             disabled={page === '...'}
           >
             {page}
@@ -89,11 +128,11 @@ const Pagination = ({
         ))}
 
         <button
-          className={`page-btn ${currentPage === totalPages ? 'disabled' : ''}`}
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
+          className={`page-btn ${effectiveCurrentPage === totalPages ? 'disabled' : ''}`}
+          onClick={() => handlePageChange(effectiveCurrentPage + 1)}
+          disabled={effectiveCurrentPage === totalPages || totalPages === 0}
         >
-          {t('pagination_next', 'Next')} {isRtl ? '«' : '»'}
+          {t('pagination_next', t('next', 'Next'))} {isRtl ? '«' : '»'}
         </button>
       </div>
     </div>

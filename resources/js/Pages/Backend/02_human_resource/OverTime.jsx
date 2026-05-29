@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head } from '@inertiajs/react';
-import AdminLayout from '../components/AdminLayout';
+import AdminLayout from '@/Pages/Backend/components/AdminLayout';
+import BlankPage from '@/Components/BlankPage';
+import Table from '@/Pages/Backend/components/Table';
 import '../../../../css/backend/main.scss';
 
 const OverTime = ({ employees: propEmployees }) => {
@@ -21,18 +23,16 @@ const OverTime = ({ employees: propEmployees }) => {
 
   const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
   const [overtimeList, setOvertimeList] = useState([]);
-  const [filteredOvertime, setFilteredOvertime] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentOvertime, setCurrentOvertime] = useState(null);
 
-  useEffect(() => {
+  const filteredOvertime = useMemo(() => {
     const lowerSearch = searchTerm.toLowerCase();
-    const filtered = overtimeList.filter(o => 
+    return overtimeList.filter(o => 
       o.employee.toLowerCase().includes(lowerSearch) ||
       o.reason.toLowerCase().includes(lowerSearch)
     );
-    setFilteredOvertime(filtered);
   }, [searchTerm, overtimeList]);
 
   const openModal = (overtime = null) => {
@@ -81,89 +81,65 @@ const OverTime = ({ employees: propEmployees }) => {
     }
   };
 
+  const breadcrumbs = [
+    { label: 'Dashboard', href: '#' },
+    { label: 'Human Resource', href: '#' },
+    { label: 'Overtime', href: null },
+  ];
+
+  const columns = useMemo(() => [
+    { 
+      header: 'EMPLOYEE', 
+      key: 'employee', 
+      render: (record) => <div style={{ fontWeight: 600 }}>{record.employee}</div>
+    },
+    { header: 'DATE', key: 'date' },
+    { 
+      header: 'HOURS', 
+      key: 'hours',
+      render: (record) => `${record.hours} hrs`
+    },
+    { 
+      header: 'RATE', 
+      key: 'rate',
+      render: (record) => `${record.rate}x`
+    },
+    { 
+      header: 'AMOUNT', 
+      key: 'amount',
+      render: (record) => `$${record.amount.toFixed(2)}`
+    },
+    { header: 'REASON', key: 'reason' },
+    { 
+      header: 'STATUS', 
+      key: 'status',
+      render: (record) => (
+        <span className={`status-badge status-${record.status.toLowerCase()}`}>
+          {record.status}
+        </span>
+      )
+    }
+  ], []);
+
   return (
     <AdminLayout activeMenu="OverTime">
       <Head title="Overtime" />
       
-      <div className="overtime-page">
-        <div className="breadcrumb">
-            <a href="#">Dashboard</a>
-            <span>/</span>
-            <a href="#">Human Resource</a>
-            <span>/</span>
-            <span>Overtime</span>
-        </div>
-
-        <div className="overtime-card">
-            <div className="overtime-actions">
-                <div className="search-bar light" style={{ marginRight: 'auto' }}>
-                    <input 
-                      type="text" 
-                      placeholder="Search overtime..." 
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                    <button>
-                        <span className="material-icons-outlined">search</span>
-                    </button>
-                </div>
-
-                <button className="btn btn-primary" onClick={() => openModal()}>
-                    <span className="material-icons-outlined">add</span>
-                    <span>Add Overtime</span>
-                </button>
-            </div>
-
-            <div className="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>EMPLOYEE</th>
-                            <th>DATE</th>
-                            <th>HOURS</th>
-                            <th>RATE</th>
-                            <th>AMOUNT</th>
-                            <th>REASON</th>
-                            <th>STATUS</th>
-                            <th>ACTIONS</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredOvertime.map(overtime => (
-                          <tr key={overtime.id}>
-                              <td>
-                                  <div style={{ fontWeight: 600 }}>{overtime.employee}</div>
-                              </td>
-                              <td>{overtime.date}</td>
-                              <td>{overtime.hours} hrs</td>
-                              <td>{overtime.rate}x</td>
-                              <td>${overtime.amount.toFixed(2)}</td>
-                              <td>{overtime.reason}</td>
-                              <td>
-                                  <span className={`status-badge status-${overtime.status.toLowerCase()}`}>
-                                      {overtime.status}
-                                  </span>
-                              </td>
-                              <td>
-                                  <button className="icon-btn edit" onClick={() => openModal(overtime)}>
-                                      <span className="material-icons-outlined">edit</span>
-                                  </button>
-                                  <button className="icon-btn delete" onClick={() => handleDelete(overtime.id)}>
-                                      <span className="material-icons-outlined">delete</span>
-                                  </button>
-                              </td>
-                          </tr>
-                        ))}
-                        {filteredOvertime.length === 0 && (
-                          <tr>
-                            <td colSpan="8" style={{ textAlign: 'center', padding: '20px' }}>No records found</td>
-                          </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-      </div>
+      <BlankPage breadcrumbs={breadcrumbs}>
+        <Table
+          showToolbar={true}
+          toolbarSearch={true}
+          toolbarSearchValue={searchTerm}
+          onToolbarSearch={setSearchTerm}
+          showAddButton={true}
+          addButtonText="Add Overtime"
+          onAdd={() => openModal()}
+          tableData={filteredOvertime}
+          columns={columns}
+          onEdit={(record) => openModal(record)}
+          onDelete={(record) => handleDelete(record.id)}
+        />
+      </BlankPage>
 
       {isModalOpen && (
         <div className="modal-overlay" onClick={(e) => { if(e.target === e.currentTarget) closeModal(); }}>

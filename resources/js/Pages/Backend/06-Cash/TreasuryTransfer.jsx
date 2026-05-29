@@ -1,48 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head, useForm, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
 import { 
     ArrowLeftRight, Plus, Search, Filter, Eye, CheckCircle2, 
-    XCircle, Clock, Calendar, Wallet, FileText, AlertCircle,
-    ChevronRight, MoreHorizontal
+    XCircle, Clock, Calendar, Wallet, FileText, X, AlertCircle, Loader2,
+    ArrowLeft, Save, Trash2, Edit
 } from 'lucide-react';
 import { format } from 'date-fns';
+import '../../../../css/backend/main.scss';
+import SearchableComboBox from '../components/SearchableComboBox';
 
 const TreasuryTransfer = ({ transfers, filters, cashAccounts }) => {
     const { props } = usePage();
-    const { localization, flash } = props;
+    const { localization, flash, errors: pageErrors = {} } = props;
     const translations = localization?.translations || {};
     const t = (key, fallback) => translations[key] || fallback;
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
-            country: localization?.country_code || 'eg',
-            lang: localization?.current_locale || 'en',
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
             ...params
         });
     };
 
-    // Auto-dismiss Flash Messages
-    React.useEffect(() => {
-        if (flash?.success || flash?.error) {
-            const timer = setTimeout(() => {
-                router.reload({ only: ['flash'] });
-            }, 5000);
-            return () => clearTimeout(timer);
-        }
-    }, [flash]);
-
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    // --- State Management ---
+    const [mode, setMode] = useState('list'); // 'list', 'create', 'view'
     const [selectedTransfer, setSelectedTransfer] = useState(null);
-    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
-    const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
-
+    const [isRejecting, setIsRejecting] = useState(false);
+    
     // Filter State
     const [searchQuery, setSearchQuery] = useState(filters.search || '');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
 
-    const { data, setData, post, processing, errors, reset } = useForm({
+    // --- Form Handling ---
+    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
         from_treasury_id: '',
         to_treasury_id: '',
         amount: '',
@@ -51,398 +44,491 @@ const TreasuryTransfer = ({ transfers, filters, cashAccounts }) => {
         currency: 'EGP'
     });
 
+    const allErrors = { ...pageErrors, ...errors };
+
+    const selectedFromAccount = useMemo(() => {
+        return (cashAccounts || []).find(acc => String(acc.id) === String(data.from_treasury_id));
+    }, [cashAccounts, data.from_treasury_id]);
+
+    const accountOptions = useMemo(() => {
+        return (cashAccounts || []).map(acc => ({
+            value: String(acc.id),
+            label: `${acc.bank_name || ''} - ${acc.account_name} (${acc.account_number})`.replace(/^ - /, '')
+        }));
+    }, [cashAccounts]);
+
+    // --- Effects ---
+    useEffect(() => {
+        if (flash?.success || flash?.error) {
+            const timer = setTimeout(() => {
+                router.reload({ only: ['flash'] });
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [flash]);
+
+    // --- Handlers ---
+    const handleCreate = () => {
+        reset();
+        clearErrors();
+        setMode('create');
+    };
+
+    const handleBackToList = () => {
+        setMode('list');
+        setSelectedTransfer(null);
+        reset();
+        clearErrors();
+    };
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        router.get(getLocalizedRoute('admin.treasury-transfers.index'), {
+            search: searchQuery,
+            status: statusFilter
+        }, { preserveState: true, preserveScroll: true });
+    };
+
     const handleCreateSubmit = (e) => {
         e.preventDefault();
-        post(getLocalizedRoute('admin.treasury-transfers.store'), {
-            onSuccess: () => {
-                setIsCreateModalOpen(false);
-                reset();
-            },
+        if (mode === 'edit') {
+            router.put(getLocalizedRoute('admin.treasury-transfers.update', { id: selectedTransfer.id }), data, {
+                onSuccess: () => {
+                    setMode('list');
+                    reset();
+                    setSelectedTransfer(null);
+                },
+                preserveScroll: true
+            });
+        } else {
+            post(getLocalizedRoute('admin.treasury-transfers.store'), {
+                onSuccess: () => {
+                    setMode('list');
+                    reset();
+                },
+                preserveScroll: true
+            });
+        }
+    };
+
+    const handleViewDetails = (transfer) => {
+        setSelectedTransfer(transfer);
+        setMode('view');
+    };
+
+    const handleEdit = (transfer) => {
+        if (transfer.status !== 'pending') {
+            alert(t('TreasuryTransfer.errors.cannot_edit_completed_transfer', 'Only pending transfers can be edited.'));
+            return;
+        }
+        setSelectedTransfer(transfer);
+        setData({
+            from_treasury_id: transfer.from_treasury.id,
+            to_treasury_id: transfer.to_treasury.id,
+            amount: transfer.amount,
+            transfer_date: transfer.transfer_date,
+            notes: transfer.notes || '',
+            currency: transfer.currency
         });
+        setMode('edit');
     };
 
     const handleApprove = (id) => {
-        router.post(getLocalizedRoute('admin.treasury-transfers.approve', { id }), {
+        if (!window.confirm(t('common.confirm_approve', 'Are you sure you want to approve this transfer?'))) return;
+        
+        router.post(getLocalizedRoute('admin.treasury-transfers.approve', { id }), {}, {
             onSuccess: () => {
-                setIsDetailsModalOpen(false);
+                setMode('list');
+                setSelectedTransfer(null);
             },
+            preserveScroll: true
         });
     };
 
-    const handleReject = (e) => {
+    const handleRejectSubmit = (e) => {
         e.preventDefault();
+        if (!rejectionReason.trim()) return;
+
         router.post(getLocalizedRoute('admin.treasury-transfers.reject', { id: selectedTransfer.id }), {
             reason: rejectionReason
         }, {
             onSuccess: () => {
-                setIsRejectModalOpen(false);
-                setIsDetailsModalOpen(false);
+                setIsRejecting(false);
+                setMode('list');
+                setSelectedTransfer(null);
                 setRejectionReason('');
             },
+            preserveScroll: true
         });
     };
 
+    // --- UI Helpers ---
     const getStatusBadge = (status) => {
         const statuses = {
-            pending: { icon: Clock, label: t('TreasuryTransfer.statuses.pending') },
-            approved: { icon: CheckCircle2, label: t('TreasuryTransfer.statuses.approved') },
-            completed: { icon: CheckCircle2, label: t('TreasuryTransfer.statuses.completed') },
-            rejected: { icon: XCircle, label: t('TreasuryTransfer.statuses.rejected') }
+            pending: { label: t('TreasuryTransfer.statuses.pending', 'Pending'), class: 'status-pending' },
+            approved: { label: t('TreasuryTransfer.statuses.approved', 'Approved'), class: 'status-posted' },
+            completed: { label: t('TreasuryTransfer.statuses.completed', 'Completed'), class: 'status-posted' },
+            rejected: { label: t('TreasuryTransfer.statuses.rejected', 'Rejected'), class: 'status-cancelled' }
         };
-        const s = statuses[status] || statuses.pending;
-        const Icon = s.icon;
-        return (
-            <span className={`status-badge ${status}`}>
-                <Icon size={12} />
-                {s.label}
-            </span>
-        );
+        const s = statuses[status] || { label: status, class: 'status-draft' };
+        return <span className={`status-badge ${s.class}`}>{s.label}</span>;
     };
 
     return (
-        <AdminLayout activeMenu="Treasury">
-            <Head title={`${t('TreasuryTransfer.title')} - ZodicERP`} />
+        <AdminLayout activeMenu="Treasury Transfer">
+            <Head title={`${t('TreasuryTransfer.title', 'Treasury Transfer')} - ZodicERP`} />
 
-            <div className="treasury-transfer">
-                {/* Header */}
-                <div className="header">
-                    <div className="title-wrapper">
-                        <h1>
-                            <ArrowLeftRight size={28} />
-                            {t('TreasuryTransfer.title')}
-                        </h1>
-                        <p>{t('TreasuryTransfer.subtitle')}</p>
-                    </div>
-
-                    <div className="actions">
-                        {flash?.success && (
-                            <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg border border-emerald-200 animate-in slide-in-from-top-2">
-                                <CheckCircle2 size={18} />
-                                <span className="text-sm font-medium">{flash.success}</span>
-                            </div>
+            <div className="payment-voucher-module treasury-transfer-module">
+                {/* Header Section */}
+                <div className="payment-voucher-module__header">
+                    <div className="header-title-area">
+                        {mode !== 'list' && (
+                            <button type="button" className="btn-back" onClick={handleBackToList}>
+                                <ArrowLeft size={20} />
+                            </button>
                         )}
+                        <div>
+                            <h1>{t('TreasuryTransfer.title', 'Treasury Transfer')}</h1>
+                            <p className="header-subtitle">
+                                {mode === 'create' ? t('TreasuryTransfer.new_transfer', 'Create New Transfer') : 
+                                 mode === 'edit' ? t('TreasuryTransfer.edit_transfer', 'Edit Transfer') :
+                                 mode === 'view' ? t('TreasuryTransfer.details', 'Transfer Details') :
+                                 t('TreasuryTransfer.subtitle', 'Manage internal cash transfers between treasuries')}
+                            </p>
+                        </div>
+                    </div>
+                    {mode === 'list' && (
                         <button 
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="btn-new-transfer"
+                            type="button" 
+                            className="btn-add" 
+                            onClick={handleCreate}
                         >
-                            <Plus size={20} />
-                            {t('TreasuryTransfer.new_transfer')}
+                            <Plus size={18} />
+                            {t('TreasuryTransfer.new_transfer', 'New Transfer')}
                         </button>
-                    </div>
+                    )}
                 </div>
 
-                {/* Filters & Search */}
-                <div className="filters-bar">
-                    <div className="search-box">
-                        <Search size={18} />
-                        <input 
-                            type="text"
-                            placeholder={t('TreasuryTransfer.reference_number')}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+                {/* Flash Messages */}
+                {flash?.success && (
+                    <div className="alert alert-success">
+                        <CheckCircle2 size={18} />
+                        {flash.success}
                     </div>
-                    <div className="filter-actions">
-                        <Filter className="text-slate-400" size={18} />
-                        <select 
-                            className="status-select"
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                            <option value="all">{t('TreasuryTransfer.statuses.all') || 'All Statuses'}</option>
-                            <option value="pending">{t('TreasuryTransfer.statuses.pending')}</option>
-                            <option value="completed">{t('TreasuryTransfer.statuses.completed')}</option>
-                            <option value="rejected">{t('TreasuryTransfer.statuses.rejected')}</option>
-                        </select>
+                )}
+                {flash?.error && (
+                    <div className="alert alert-error">
+                        <AlertCircle size={18} />
+                        {flash.error}
                     </div>
-                </div>
+                )}
 
-                {/* Data Table */}
-                <div className="data-table-container">
-                    <div className="table-responsive">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>{t('TreasuryTransfer.reference_number')}</th>
-                                    <th>{t('TreasuryTransfer.date')}</th>
-                                    <th>{t('TreasuryTransfer.from_treasury')}</th>
-                                    <th>{t('TreasuryTransfer.to_treasury')}</th>
-                                    <th>{t('TreasuryTransfer.amount')}</th>
-                                    <th>{t('TreasuryTransfer.status')}</th>
-                                    <th className="text-center">{t('TreasuryTransfer.actions')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {transfers.data.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="7">
-                                            <div className="empty-state">
-                                                <FileText size={48} strokeWidth={1} className="icon mx-auto" />
-                                                <p>{t('TreasuryTransfer.no_data') || 'No transfers found'}</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ) : transfers.data.map((transfer) => (
-                                    <tr key={transfer.id}>
-                                        <td><span className="ref-number">{transfer.reference_number}</span></td>
-                                        <td>{transfer.transfer_date}</td>
-                                        <td>
-                                            <div className="treasury-info">
-                                                <span className="name">{transfer.from_treasury.name}</span>
-                                                <span className="code">{transfer.from_treasury.account_code}</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div className="treasury-info">
-                                                <span className="name">{transfer.to_treasury.name}</span>
-                                                <span className="code">{transfer.to_treasury.account_code}</span>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span className="amount">
-                                                {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(transfer.amount)} {transfer.currency}
-                                            </span>
-                                        </td>
-                                        <td>{getStatusBadge(transfer.status)}</td>
-                                        <td className="text-center">
-                                            <button 
-                                                onClick={() => {
-                                                    setSelectedTransfer(transfer);
-                                                    setIsDetailsModalOpen(true);
-                                                }}
-                                                className="btn-view"
-                                            >
-                                                <Eye size={18} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                {/* Main Content Areas */}
+                {mode === 'list' ? (
+                    <>
+                        {/* Filters Section */}
+                        <div className="table-filters">
+                            <form className="table-filters__form" onSubmit={handleSearch}>
+                                <div className="search-box">
+                                    <Search className="search-icon" size={18} />
+                                    <input 
+                                        type="text"
+                                        className="form-input"
+                                        placeholder={t('TreasuryTransfer.search_placeholder', 'Search reference...')}
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                                
+                                <select 
+                                    className="form-select"
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                >
+                                    <option value="all">{t('TreasuryTransfer.statuses.all', 'All Statuses')}</option>
+                                    <option value="pending">{t('TreasuryTransfer.statuses.pending', 'Pending')}</option>
+                                    <option value="completed">{t('TreasuryTransfer.statuses.completed', 'Completed')}</option>
+                                    <option value="rejected">{t('TreasuryTransfer.statuses.rejected', 'Rejected')}</option>
+                                </select>
 
-                {/* Create Modal */}
-                {isCreateModalOpen && (
-                    <div className="modal-overlay">
-                        <div className="modal-content modal-lg">
-                            <div className="modal-header">
-                                <h3>
-                                    <Plus />
-                                    {t('TreasuryTransfer.new_transfer')}
-                                </h3>
-                                <button onClick={() => setIsCreateModalOpen(false)} className="btn-close">
-                                    <XCircle size={24} />
+                                <button type="submit" className="btn-secondary">
+                                    {t('common.search', 'Search')}
                                 </button>
-                            </div>
-                            <form onSubmit={handleCreateSubmit}>
-                                <div className="modal-body">
-                                    <div className="form-grid">
-                                        <div className="form-group">
-                                            <label>{t('TreasuryTransfer.from_treasury')}</label>
-                                            <div className="input-wrapper">
-                                                <select 
-                                                    className={errors.from_treasury_id ? 'border-rose-500' : ''}
-                                                    value={data.from_treasury_id}
-                                                    onChange={(e) => setData('from_treasury_id', e.target.value)}
-                                                >
-                                                    <option value="">{t('TreasuryTransfer.select_treasury') || 'Select Treasury'}</option>
-                                                    {cashAccounts.map(acc => (
-                                                        <option key={acc.id} value={acc.id}>{acc.name} ({acc.current_balance} EGP)</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            {errors.from_treasury_id && <p className="error-msg">{errors.from_treasury_id}</p>}
-                                        </div>
-                                        <div className="form-group">
-                                            <label>{t('TreasuryTransfer.to_treasury')}</label>
-                                            <div className="input-wrapper">
-                                                <select 
-                                                    className={errors.to_treasury_id ? 'border-rose-500' : ''}
-                                                    value={data.to_treasury_id}
-                                                    onChange={(e) => setData('to_treasury_id', e.target.value)}
-                                                >
-                                                    <option value="">{t('TreasuryTransfer.select_treasury') || 'Select Treasury'}</option>
-                                                    {cashAccounts.map(acc => (
-                                                        <option key={acc.id} value={acc.id}>{acc.name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                            {errors.to_treasury_id && <p className="error-msg">{errors.to_treasury_id}</p>}
-                                        </div>
-                                        <div className="form-group">
-                                            <label>{t('TreasuryTransfer.amount')}</label>
-                                            <div className="input-wrapper">
-                                                <Wallet className="has-icon" size={18} />
-                                                <input 
-                                                    type="number" step="0.01"
-                                                    className={`has-icon ${errors.amount ? 'border-rose-500' : ''}`}
-                                                    value={data.amount}
-                                                    onChange={(e) => setData('amount', e.target.value)}
-                                                />
-                                            </div>
-                                            {errors.amount && <p className="error-msg">{errors.amount}</p>}
-                                        </div>
-                                        <div className="form-group">
-                                            <label>{t('TreasuryTransfer.date')}</label>
-                                            <div className="input-wrapper">
-                                                <Calendar className="has-icon" size={18} />
-                                                <input 
-                                                    type="date"
-                                                    className={`has-icon ${errors.transfer_date ? 'border-rose-500' : ''}`}
-                                                    value={data.transfer_date}
-                                                    onChange={(e) => setData('transfer_date', e.target.value)}
-                                                />
-                                            </div>
-                                            {errors.transfer_date && <p className="error-msg">{errors.transfer_date}</p>}
-                                        </div>
-                                    </div>
-                                    <div className="form-group">
-                                        <label>{t('TreasuryTransfer.notes')}</label>
-                                        <div className="input-wrapper">
-                                            <textarea 
-                                                rows="3"
-                                                value={data.notes}
-                                                onChange={(e) => setData('notes', e.target.value)}
-                                            ></textarea>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="modal-footer">
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setIsCreateModalOpen(false)}
-                                        className="btn btn-cancel"
-                                    >
-                                        {t('cancel') || 'Cancel'}
-                                    </button>
-                                    <button 
-                                        type="submit"
-                                        disabled={processing}
-                                        className="btn btn-submit"
-                                    >
-                                        {processing ? t('saving') || 'Saving...' : t('TreasuryTransfer.new_transfer')}
-                                    </button>
-                                </div>
                             </form>
                         </div>
-                    </div>
-                )}
 
-                {/* Details Modal */}
-                {isDetailsModalOpen && selectedTransfer && (
-                    <div className="modal-overlay">
-                        <div className="modal-content modal-sm">
-                            <div className="modal-header">
-                                <h3>{t('TreasuryTransfer.details')}</h3>
-                                <button onClick={() => setIsDetailsModalOpen(false)} className="btn-close">
-                                    <XCircle size={24} />
-                                </button>
-                            </div>
-                            <div className="modal-body">
-                                <div className="details-list">
-                                    <div className="detail-item">
-                                        <span className="label">{t('TreasuryTransfer.reference_number')}</span>
-                                        <span className="value ref">{selectedTransfer.reference_number}</span>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="detail-item flex-col items-start gap-1">
-                                            <span className="label">{t('TreasuryTransfer.from_treasury')}</span>
-                                            <span className="value">{selectedTransfer.from_treasury.name}</span>
-                                        </div>
-                                        <div className="detail-item flex-col items-start gap-1">
-                                            <span className="label">{t('TreasuryTransfer.to_treasury')}</span>
-                                            <span className="value">{selectedTransfer.to_treasury.name}</span>
-                                        </div>
-                                    </div>
-                                    <div className="detail-item">
-                                        <span className="label">{t('TreasuryTransfer.amount')}</span>
-                                        <span className="value amount text-primary">
-                                            {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(selectedTransfer.amount)} {selectedTransfer.currency}
-                                        </span>
-                                    </div>
-                                    <div className="detail-item">
-                                        <span className="label">{t('TreasuryTransfer.date')}</span>
-                                        <span className="value">{selectedTransfer.transfer_date}</span>
-                                    </div>
-                                    <div className="detail-item">
-                                        <span className="label">{t('TreasuryTransfer.status')}</span>
-                                        {getStatusBadge(selectedTransfer.status)}
-                                    </div>
-                                    {selectedTransfer.notes && (
-                                        <div className="notes-box">
-                                            <span className="label">{t('TreasuryTransfer.notes')}</span>
-                                            <p>{selectedTransfer.notes}</p>
-                                        </div>
-                                    )}
-                                    {selectedTransfer.status === 'rejected' && (
-                                        <div className="reason-box">
-                                            <span className="label">{t('TreasuryTransfer.rejection_reason')}</span>
-                                            <p>{selectedTransfer.rejection_reason}</p>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Action Buttons */}
-                                {(selectedTransfer.status === 'pending' || selectedTransfer.status === 'approved') && (
-                                    <div className="mt-8 flex gap-3">
-                                        <button 
-                                            onClick={() => setIsRejectModalOpen(true)}
-                                            className="btn btn-cancel border-rose-200 text-rose-600 hover:bg-rose-50 flex-1"
-                                        >
-                                            <XCircle size={18} className="inline mr-2" />
-                                            {t('TreasuryTransfer.reject')}
-                                        </button>
-                                        <button 
-                                            onClick={() => handleApprove(selectedTransfer.id)}
-                                            className="btn btn-submit bg-emerald-600 hover:bg-emerald-700 flex-2"
-                                        >
-                                            <CheckCircle2 size={18} className="inline mr-2" />
-                                            {t('TreasuryTransfer.approve')}
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+                        {/* Data Table */}
+                        <div className="payment-voucher-module__table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>{t('TreasuryTransfer.reference_number', 'Reference')}</th>
+                                        <th>{t('TreasuryTransfer.date', 'Date')}</th>
+                                        <th>{t('TreasuryTransfer.from_treasury', 'From')}</th>
+                                        <th>{t('TreasuryTransfer.to_treasury', 'To')}</th>
+                                        <th>{t('TreasuryTransfer.amount', 'Amount')}</th>
+                                        <th>{t('TreasuryTransfer.status', 'Status')}</th>
+                                        <th className="actions-header">{t('TreasuryTransfer.actions', 'Actions')}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {transfers.data.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="7" className="empty-cell">
+                                                <div className="empty-state">
+                                                    <FileText size={48} opacity={0.5} />
+                                                    <p>{t('TreasuryTransfer.no_data', 'No transfers found')}</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ) : transfers.data.map((transfer) => (
+                                        <tr key={transfer.id}>
+                                            <td className="ref-cell">{transfer.reference_number}</td>
+                                            <td className="date-cell">{transfer.transfer_date}</td>
+                                            <td>
+                                                <div className="account-info">
+                                                    <span className="account-name">{transfer.from_treasury?.name}</span>
+                                                    <span className="account-code">{transfer.from_treasury?.account_code}</span>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div className="account-info">
+                                                    <span className="account-name">{transfer.to_treasury?.name}</span>
+                                                    <span className="account-code">{transfer.to_treasury?.account_code}</span>
+                                                </div>
+                                            </td>
+                                            <td className="amount-cell">
+                                                {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(transfer.amount)} 
+                                                <span className="currency">{transfer.currency}</span>
+                                            </td>
+                                            <td>{getStatusBadge(transfer.status)}</td>
+                                            <td className="actions">
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => handleViewDetails(transfer)}
+                                                    className="view"
+                                                    title={t('common.view', 'View')}
+                                                >
+                                                    <Eye size={16} />
+                                                </button>
+                                                {transfer.status === 'pending' && (
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => handleEdit(transfer)}
+                                                        className="edit"
+                                                        title={t('common.edit', 'Edit')}
+                                                    >
+                                                        <Edit size={16} />
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
-                )}
-
-                {/* Reject Reason Modal */}
-                {isRejectModalOpen && (
-                    <div className="modal-overlay" style={{ zIndex: 70 }}>
-                        <div className="modal-content modal-sm">
-                            <div className="modal-header">
-                                <h3 className="text-danger">{t('TreasuryTransfer.rejection_reason')}</h3>
-                            </div>
-                            <form onSubmit={handleReject}>
-                                <div className="modal-body">
+                    </>
+                ) : (mode === 'create' || mode === 'edit') ? (
+                    <div className="payment-voucher-module__form-container">
+                        <form onSubmit={handleCreateSubmit}>
+                            <div className="form-section">
+                                <h3 className="section-title">
+                                    {mode === 'edit' ? t('TreasuryTransfer.edit_transfer_info', 'Edit Transfer Information') : t('TreasuryTransfer.transfer_info', 'Transfer Information')}
+                                </h3>
+                                <div className="form-grid">
                                     <div className="form-group">
-                                        <textarea 
+                                        <label>{t('TreasuryTransfer.from_treasury', 'From Treasury')}</label>
+                                            <SearchableComboBox 
+                                                options={accountOptions}
+                                                value={data.from_treasury_id}
+                                                onChange={(val) => setData('from_treasury_id', val)}
+                                                placeholder={t('TreasuryTransfer.select_treasury', 'Select Treasury')}
+                                                disabled={processing}
+                                            />
+                                        {selectedFromAccount && (
+                                            <div className="account-balance-info mt-1">
+                                                <span className="text-sm text-gray-500">
+                                                    {t('TreasuryTransfer.current_balance', 'Current Balance')}: 
+                                                    <span className={`font-semibold ml-1 ${selectedFromAccount.balance < 0 ? 'text-red-500' : 'text-green-600'}`}>
+                                                        {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(selectedFromAccount.balance)} {selectedFromAccount.currency}
+                                                    </span>
+                                                </span>
+                                            </div>
+                                        )}
+                                        {allErrors.from_treasury_id && <div className="error-msg">{allErrors.from_treasury_id}</div>}
+                                    </div>
+                                    
+                                    <div className="form-group">
+                                        <label>{t('TreasuryTransfer.to_treasury', 'To Treasury')}</label>
+                                            <SearchableComboBox 
+                                                options={accountOptions}
+                                                value={data.to_treasury_id}
+                                                onChange={(val) => setData('to_treasury_id', val)}
+                                                placeholder={t('TreasuryTransfer.select_treasury', 'Select Treasury')}
+                                                disabled={processing}
+                                            />
+                                        {allErrors.to_treasury_id && <div className="error-msg">{allErrors.to_treasury_id}</div>}
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label>{t('TreasuryTransfer.amount', 'Amount')}</label>
+                                        <div className="input-with-icon">
+                                            <input 
+                                                type="number" step="0.01"
+                                                className={`form-input ${allErrors.amount ? 'error' : ''}`}
+                                                value={data.amount}
+                                                onChange={(e) => setData('amount', e.target.value)}
+                                                required
+                                            />
+                                            <Wallet size={16} className="input-icon" />
+                                        </div>
+                                        {selectedFromAccount && data.amount > selectedFromAccount.balance && (
+                                            <div className="warning-msg flex items-center gap-1 mt-1 text-orange-500 text-sm">
+                                                <AlertCircle size={14} />
+                                                {t('TreasuryTransfer.errors.insufficient_balance_warning', 'Warning: Amount exceeds available balance.')}
+                                            </div>
+                                        )}
+                                        {allErrors.amount && <div className="error-msg">{allErrors.amount}</div>}
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label>{t('TreasuryTransfer.date', 'Date')}</label>
+                                        <input 
+                                            type="date"
+                                            className={`form-input ${allErrors.transfer_date ? 'error' : ''}`}
+                                            value={data.transfer_date}
+                                            onChange={(e) => setData('transfer_date', e.target.value)}
                                             required
-                                            className="w-full p-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                                        />
+                                        {allErrors.transfer_date && <div className="error-msg">{allErrors.transfer_date}</div>}
+                                    </div>
+
+                                    <div className="form-group full-width">
+                                        <label>{t('TreasuryTransfer.notes', 'Notes')}</label>
+                                        <textarea 
                                             rows="4"
-                                            placeholder={t('TreasuryTransfer.enter_rejection_reason') || 'Enter reason for rejection...'}
-                                            value={rejectionReason}
-                                            onChange={(e) => setRejectionReason(e.target.value)}
+                                            className="form-input"
+                                            value={data.notes}
+                                            onChange={(e) => setData('notes', e.target.value)}
+                                            placeholder={t('TreasuryTransfer.notes_placeholder', 'Enter any additional notes here...')}
                                         ></textarea>
                                     </div>
                                 </div>
-                                <div className="modal-footer">
-                                    <button 
-                                        type="button" 
-                                        onClick={() => setIsRejectModalOpen(false)}
-                                        className="btn btn-cancel"
-                                    >
-                                        {t('cancel') || 'Cancel'}
-                                    </button>
-                                    <button 
-                                        type="submit"
-                                        className="btn btn-submit bg-rose-600 hover:bg-rose-700"
-                                    >
-                                        {t('TreasuryTransfer.reject')}
-                                    </button>
+                            </div>
+
+                            <div className="form-actions">
+                                <button type="button" onClick={handleBackToList} className="btn-cancel">
+                                    {t('common.cancel', 'Cancel')}
+                                </button>
+                                <button type="submit" disabled={processing} className="btn-submit">
+                                    {processing ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
+                                    {processing ? t('common.saving', 'Saving...') : t('common.save', 'Save Transfer')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                ) : mode === 'view' && selectedTransfer && (
+                    <div className="payment-voucher-module__details-container">
+                        <div className="details-card-main">
+                            <div className="details-header">
+                                <div className="ref-info">
+                                    <span className="label">{t('TreasuryTransfer.reference_number', 'Reference Number')}</span>
+                                    <h2 className="ref-value">{selectedTransfer.reference_number}</h2>
                                 </div>
-                            </form>
+                                <div className="status-info">
+                                    {getStatusBadge(selectedTransfer.status)}
+                                </div>
+                            </div>
+
+                            <div className="details-grid-main">
+                                <div className="info-block">
+                                    <div className="block-item">
+                                        <span className="label">{t('TreasuryTransfer.from_treasury', 'From Treasury')}</span>
+                                        <span className="value">{selectedTransfer.from_treasury?.name}</span>
+                                        <span className="sub-value">{selectedTransfer.from_treasury?.account_code}</span>
+                                    </div>
+                                    <div className="block-item">
+                                        <span className="label">{t('TreasuryTransfer.to_treasury', 'To Treasury')}</span>
+                                        <span className="value">{selectedTransfer.to_treasury?.name}</span>
+                                        <span className="sub-value">{selectedTransfer.to_treasury?.account_code}</span>
+                                    </div>
+                                </div>
+
+                                <div className="info-block highlighted">
+                                    <div className="block-item amount">
+                                        <span className="label">{t('TreasuryTransfer.amount', 'Amount')}</span>
+                                        <span className="value">
+                                            {new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(selectedTransfer.amount)} 
+                                            <span className="currency">{selectedTransfer.currency}</span>
+                                        </span>
+                                    </div>
+                                    <div className="block-item">
+                                        <span className="label">{t('TreasuryTransfer.date', 'Date')}</span>
+                                        <span className="value">{selectedTransfer.transfer_date}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {selectedTransfer.notes && (
+                                <div className="details-notes">
+                                    <span className="label">{t('TreasuryTransfer.notes', 'Notes')}</span>
+                                    <p className="notes-text">{selectedTransfer.notes}</p>
+                                </div>
+                            )}
+
+                            {selectedTransfer.status === 'rejected' && (
+                                <div className="details-rejection">
+                                    <span className="label">{t('TreasuryTransfer.rejection_reason', 'Rejection Reason')}</span>
+                                    <p className="rejection-text">{selectedTransfer.rejection_reason}</p>
+                                </div>
+                            )}
+
+                            {isRejecting && (
+                                <div className="rejection-form-area">
+                                    <textarea 
+                                        className="form-input"
+                                        rows="3"
+                                        placeholder={t('TreasuryTransfer.enter_rejection_reason', 'Enter reason for rejection...')}
+                                        value={rejectionReason}
+                                        onChange={(e) => setRejectionReason(e.target.value)}
+                                        autoFocus
+                                    ></textarea>
+                                    <div className="rejection-actions">
+                                        <button onClick={() => setIsRejecting(false)} className="btn-cancel-sm">
+                                            {t('common.cancel', 'Cancel')}
+                                        </button>
+                                        <button onClick={handleRejectSubmit} className="btn-danger-sm">
+                                            {t('TreasuryTransfer.confirm_reject', 'Confirm Reject')}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="details-actions">
+                                <div className="left-actions">
+                                    {selectedTransfer.status === 'pending' && !isRejecting && (
+                                        <>
+                                            <button 
+                                                onClick={() => setIsRejecting(true)}
+                                                className="btn-danger-outline"
+                                            >
+                                                <XCircle size={18} />
+                                                {t('TreasuryTransfer.reject', 'Reject')}
+                                            </button>
+                                            <button 
+                                                onClick={() => handleApprove(selectedTransfer.id)}
+                                                className="btn-success"
+                                            >
+                                                <CheckCircle2 size={18} />
+                                                {t('TreasuryTransfer.approve', 'Approve')}
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                                <button type="button" onClick={handleBackToList} className="btn-secondary">
+                                    {t('common.back_to_list', 'Back to List')}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

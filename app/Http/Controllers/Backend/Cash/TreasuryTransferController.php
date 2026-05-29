@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Exception;
 
+use App\Models\BankAccount;
+use App\Models\Account;
+
 class TreasuryTransferController extends Controller
 {
     protected $service;
@@ -28,10 +31,51 @@ class TreasuryTransferController extends Controller
         $filters = $request->only(['search', 'status', 'date_from', 'date_to', 'per_page']);
         $transfers = $this->service->getAll($filters);
 
+        $bankAccounts = BankAccount::with(['bank', 'glAccount'])
+            ->whereHas('glAccount', function ($query) {
+                $query->where(function ($q) {
+                    $q->where('Nature', 'bank')
+                      ->orWhere('Nature', 'cash');
+                })
+                ->where('AccType', 1);
+            })
+            ->where('status', 'active')
+            ->get(['id', 'bank_id', 'account_name', 'account_number', 'gl_account_id', 'currency', 'current_balance']);
+
+        $cashAccountsList = CashAccount::with(['bank', 'glAccount'])
+            ->whereHas('glAccount', function ($query) {
+                $query->where(function ($q) {
+                    $q->where('Nature', 'cash');
+                })
+                ->where('AccType', 1);
+            })
+            ->where('status', 'active')
+            ->get();
+
+        $combinedAccounts = $bankAccounts->map(function ($account) {
+            return [
+                'id' => $account->id,
+                'account_name' => $account->account_name,
+                'account_number' => $account->account_number,
+                'currency' => $account->currency,
+                'bank_name' => $account->bank?->name,
+                'balance' => $account->current_balance,
+            ];
+        })->concat($cashAccountsList->map(function ($account) {
+            return [
+                'id' => 'cash_' . $account->id,
+                'account_name' => $account->name,
+                'account_number' => $account->account_code,
+                'currency' => $account->currency,
+                'bank_name' => 'Cash Account',
+                'balance' => $account->current_balance,
+            ];
+        }))->sortBy('account_name')->values()->all();
+
         return Inertia::render('Backend/06-Cash/TreasuryTransfer', [
             'transfers' => TreasuryTransferResource::collection($transfers),
             'filters' => $filters,
-            'cashAccounts' => CashAccount::where('status', 'active')->get(['id', 'name', 'account_code', 'current_balance']),
+            'cashAccounts' => $combinedAccounts,
         ]);
     }
 
@@ -40,6 +84,16 @@ class TreasuryTransferController extends Controller
         try {
             $this->service->createTransfer($request->validated());
             return redirect()->back()->with('success', __('TreasuryTransfer.messages.created'));
+        } catch (Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function update(StoreTreasuryTransferRequest $request, $id)
+    {
+        try {
+            $this->service->updateTransfer($id, $request->validated());
+            return redirect()->back()->with('success', __('TreasuryTransfer.messages.updated'));
         } catch (Exception $e) {
             return redirect()->back()->with('error', $e->getMessage());
         }

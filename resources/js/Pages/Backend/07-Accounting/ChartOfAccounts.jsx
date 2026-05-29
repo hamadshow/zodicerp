@@ -1003,85 +1003,86 @@ export default function ChartOfAccounts() {
       )}
       {!showForm && (
         <div className="accounts-card fade-in">
-          <div className="card-header">
-            <div className="accounts-actions">
-              <div className="search-bar light">
-                <input
-                  type="text"
-                  placeholder={t('search_accounts', 'Search accounts...')}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <button type="button">
-                  <span className="material-icons-outlined">search</span>
-                </button>
-              </div>
-            </div>
-            <div className="actions">
-              <div className="excel-dropdown-container" ref={excelMenuRef}>
-                <button
-                  type="button"
-                  className="btn-excel-main"
-                  onClick={() => setShowExcelMenu(!showExcelMenu)}
-                >
-                  <span className="material-icons-outlined">table_view</span>
-                  <span>{t('excel', 'Excel Options')}</span>
-                  <span className={`material-icons-outlined arrow ${showExcelMenu ? 'up' : ''}`}>expand_more</span>
-                </button>
-                {showExcelMenu && (
-                  <div className="excel-dropdown-menu">
-                    <button
-                      type="button"
-                      className="dropdown-item import"
-                      onClick={() => {
-                        setShowImport(true);
-                        setShowExcelMenu(false);
-                      }}
-                    >
-                      <span className="material-icons-outlined">upload_file</span>
-                      <div className="item-content">
-                        <span className="title">{t('import_excel', 'Import Excel')}</span>
-                        <span className="desc">{t('instructions', 'Upload bulk accounts')}</span>
-                      </div>
-                    </button>
-                    <button
-                      type="button"
-                      className="dropdown-item export"
-                      onClick={() => {
-                        handleExportExcel();
-                        setShowExcelMenu(false);
-                      }}
-                    >
-                      <span className="material-icons-outlined">download</span>
-                      <div className="item-content">
-                        <span className="title">{t('export_excel', 'Export Excel')}</span>
-                        <span className="desc">{t('instructions', 'Download all accounts')}</span>
-                      </div>
-                    </button>
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  setShowForm(true);
-                  openModal();
-                }}
-              >
-                <span className="material-icons-outlined">add</span>
-                <span>{t('add_account', 'Add Account')}</span>
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={loadAccounts}
-              >
-                <span className="material-icons-outlined">refresh</span>
-                <span>{t('refresh', 'Refresh')}</span>
-              </button>
+        <div className="table-toolbar">
+          <div className="table-toolbar-left">
+            <div className="table-search">
+              <span className="material-icons-outlined search-icon">search</span>
+              <input
+                type="text"
+                placeholder={t('search_accounts', 'Search accounts...')}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
+
+          <div className="table-toolbar-right">
+            <div className="excel-dropdown-container" ref={excelMenuRef}>
+              <button
+                type="button"
+                className="btn-excel-main"
+                onClick={() => setShowExcelMenu(!showExcelMenu)}
+              >
+                <span className="material-icons-outlined">table_view</span>
+                <span>{t('excel', 'Excel Options')}</span>
+                <span className={`material-icons-outlined arrow ${showExcelMenu ? 'up' : ''}`}>expand_more</span>
+              </button>
+              {showExcelMenu && (
+                <div className="excel-dropdown-menu">
+                  <button
+                    type="button"
+                    className="dropdown-item import"
+                    onClick={() => {
+                      setShowImport(true);
+                      setShowExcelMenu(false);
+                    }}
+                  >
+                    <span className="material-icons-outlined">upload_file</span>
+                    <div className="item-content">
+                      <span className="title">{t('import_excel', 'Import Excel')}</span>
+                      <span className="desc">{t('instructions', 'Upload bulk accounts')}</span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    className="dropdown-item export"
+                    onClick={() => {
+                      handleExportExcel();
+                      setShowExcelMenu(false);
+                    }}
+                  >
+                    <span className="material-icons-outlined">download</span>
+                    <div className="item-content">
+                      <span className="title">{t('export_excel', 'Export Excel')}</span>
+                      <span className="desc">{t('instructions', 'Download all accounts')}</span>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="btn-toolbar btn-primary"
+              onClick={() => {
+                setShowForm(true);
+                openModal();
+              }}
+            >
+              <span className="material-icons-outlined">add</span>
+              <span>{t('add_account', 'Add Account')}</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn-toolbar btn-refresh"
+              onClick={loadAccounts}
+            >
+              <span className="material-icons-outlined">refresh</span>
+              <span>{t('refresh', 'Refresh')}</span>
+            </button>
+          </div>
+        </div>
           {error && <div className="error-banner">{error}</div>}
           {renderImportModal()}
           <ToastContainer position="top-right" autoClose={3000} />

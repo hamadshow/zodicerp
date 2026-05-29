@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import Table from '../components/Table';
 import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import { toast } from 'react-toastify';
@@ -8,6 +9,7 @@ import { toast } from 'react-toastify';
 const Currencies = ({ currencies = [] }) => {
     const { props } = usePage();
     const { localization } = props;
+    const isArabic = localization?.current_locale === 'ar';
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -19,6 +21,10 @@ const Currencies = ({ currencies = [] }) => {
 
     const [filteredCurrencies, setFilteredCurrencies] = useState(currencies);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectAll, setSelectAll] = useState(false);
+    const [selectedRows, setSelectedRows] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [recordsPerPage, setRecordsPerPage] = useState(10);
     const [view, setView] = useState('list');
     const [currentCurrency, setCurrentCurrency] = useState(null);
     const [form, setForm] = useState({
@@ -80,11 +86,86 @@ const Currencies = ({ currencies = [] }) => {
             (c.symbol && c.symbol.toLowerCase().includes(lowerTerm))
         );
         setFilteredCurrencies(filtered);
+        setCurrentPage(1); // Reset to first page on search
     };
 
     const handleSearch = (e) => {
         setSearchTerm(e.target.value);
     };
+
+    const totalPages = Math.ceil(filteredCurrencies.length / recordsPerPage);
+    const paginatedCurrencies = filteredCurrencies.slice(
+        (currentPage - 1) * recordsPerPage,
+        currentPage * recordsPerPage
+    );
+
+    const handleSelectAll = () => {
+        setSelectAll(!selectAll);
+        if (!selectAll) {
+            setSelectedRows(filteredCurrencies.map(c => c.id));
+        } else {
+            setSelectedRows([]);
+        }
+    };
+
+    const handleRowSelect = (id) => {
+        if (selectedRows.includes(id)) {
+            setSelectedRows(selectedRows.filter(rowId => rowId !== id));
+        } else {
+            setSelectedRows([...selectedRows, id]);
+        }
+    };
+
+    const tableColumns = [
+        { 
+            header: isArabic ? 'الكود' : 'CODE', 
+            key: 'code',
+            sortable: true
+        },
+        { 
+            header: isArabic ? 'العملة' : 'CURRENCY', 
+            key: 'name',
+            sortable: true,
+            render: (row) => (
+                <div className="currency-info">
+                    <div className="currency-icon" style={{ backgroundColor: getCurrencyColor(row.code) }}>
+                        <span>{row.symbol}</span>
+                    </div>
+                    <div className="currency-details">
+                        <div className="currency-name">{row.name}</div>
+                        <div className="currency-code">{row.format || '-'}</div>
+                    </div>
+                </div>
+            )
+        },
+        { 
+            header: isArabic ? 'الرمز' : 'SYMBOL', 
+            key: 'symbol' 
+        },
+        { 
+            header: isArabic ? 'الكسور العشرية' : 'DECIMALS', 
+            key: 'decimal_places' 
+        },
+        { 
+            header: isArabic ? 'عملة أساسية' : 'IS BASE', 
+            key: 'is_base',
+            render: (row) => row.is_base ? (
+                <span className="base-badge">
+                    <span className="material-icons-outlined" style={{ fontSize: '12px', verticalAlign: 'middle' }}>star</span>
+                    {isArabic ? ' أساسية' : ' Base'}
+                </span>
+            ) : <span className="text-gray-400">-</span>
+        },
+        { 
+            header: isArabic ? 'الحالة' : 'STATUS', 
+            key: 'status',
+            render: (row) => (
+                <span className={`currency-status status-${row.status}`}>
+                    {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+                </span>
+            )
+        },
+    ];
 
     const openAdd = () => {
         setCurrentCurrency(null);
@@ -238,107 +319,48 @@ const Currencies = ({ currencies = [] }) => {
             <BlankPage breadcrumbs={breadcrumbs} stats={statsContent}>
                 {view === 'list' ? (
                     <div className="currencies-card fade-in">
-                        <div className="card-header">
-                            <div className="currencies-actions">
-                                <select className="btn btn-outline" defaultValue="">
-                                    <option disabled value="">Bulk Actions</option>
-                                    <option value="activate">Activate Selected</option>
-                                    <option value="deactivate">Deactivate Selected</option>
-                                    <option value="delete">Delete Selected</option>
-                                </select>
-                                <button className="btn btn-outline">
-                                    <span className="material-icons-outlined">play_arrow</span>
-                                    <span>Apply</span>
-                                </button>
-                                <div className="search-bar light">
-                                    <input
-                                        type="text"
-                                        placeholder="Search currencies..."
-                                        value={searchTerm}
-                                        onChange={handleSearch}
-                                    />
-                                    <button>
-                                        <span className="material-icons-outlined">search</span>
+                        <Table
+                            showToolbar={true}
+                            toolbarSearch={true}
+                            toolbarSearchValue={searchTerm}
+                            onToolbarSearch={handleSearch}
+                            toolbarSearchPlaceholder="Search currencies..."
+                            showAddButton={true}
+                            addButtonText="Add Currency"
+                            onAdd={openAdd}
+                            showRefreshButton={true}
+                            onRefresh={() => window.location.reload()}
+                            toolbarActions={
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <select className="btn-toolbar btn-refresh" defaultValue="" style={{ height: '42px' }}>
+                                        <option disabled value="">Bulk Actions</option>
+                                        <option value="activate">Activate Selected</option>
+                                        <option value="deactivate">Deactivate Selected</option>
+                                        <option value="delete">Delete Selected</option>
+                                    </select>
+                                    <button className="btn-toolbar btn-refresh">
+                                        <span className="material-icons-outlined">play_arrow</span>
+                                        <span>Apply</span>
                                     </button>
                                 </div>
-                            </div>
-                            <div className="actions">
-                                <button className="btn btn-primary" onClick={openAdd}>
-                                    <span className="material-icons-outlined">add</span>
-                                    <span>Add Currency</span>
-                                </button>
-                                <button className="btn btn-outline" onClick={() => window.location.reload()}>
-                                    <span className="material-icons-outlined">refresh</span>
-                                    <span>Refresh</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div className="table-container">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th><input type="checkbox" /></th>
-                                        <th>CODE <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                        <th>CURRENCY <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                        <th>SYMBOL <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                        <th>DECIMALS <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                        <th>IS BASE <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                        <th>STATUS <span className="material-icons-outlined" style={{ fontSize: '16px' }}>arrow_drop_down</span></th>
-                                        <th>OPERATIONS</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredCurrencies.length > 0 ? (
-                                        filteredCurrencies.map(currency => (
-                                            <tr key={currency.id}>
-                                                <td><input type="checkbox" className="currency-checkbox" /></td>
-                                                <td>{currency.code}</td>
-                                                <td>
-                                                    <div className="currency-info">
-                                                        <div className="currency-icon" style={{ backgroundColor: getCurrencyColor(currency.code) }}>
-                                                            <span>{currency.symbol}</span>
-                                                        </div>
-                                                        <div className="currency-details">
-                                                            <div className="currency-name">{currency.name}</div>
-                                                            <div className="currency-code">{currency.format || '-'}</div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td>{currency.symbol}</td>
-                                                <td>{currency.decimal_places}</td>
-                                                <td>
-                                                    {currency.is_base ? (
-                                                        <span className="base-badge">
-                                                            <span className="material-icons-outlined" style={{ fontSize: '12px', verticalAlign: 'middle' }}>star</span> Base
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-gray-400">-</span>
-                                                    )}
-                                                </td>
-                                                <td>
-                                                    <span className={`currency-status status-${currency.status}`}>
-                                                        {currency.status.charAt(0).toUpperCase() + currency.status.slice(1)}
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <button className="icon-btn edit" onClick={() => openEdit(currency)}>
-                                                        <span className="material-icons-outlined">edit</span>
-                                                    </button>
-                                                    <button className="icon-btn delete" onClick={() => handleDelete(currency.id)}>
-                                                        <span className="material-icons-outlined">delete</span>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="8" className="text-center py-4">No currencies found.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                            }
+                            tableData={paginatedCurrencies.map(c => ({ ...c, selected: selectedRows.includes(c.id) }))}
+                            columns={tableColumns}
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            totalRecords={filteredCurrencies.length}
+                            recordsPerPage={recordsPerPage}
+                            handleRowSelect={handleRowSelect}
+                            selectAll={selectAll}
+                            handleSelectAll={handleSelectAll}
+                            onPageChange={(page) => setCurrentPage(page)}
+                            onRecordsPerPageChange={(size) => {
+                                setRecordsPerPage(size);
+                                setCurrentPage(1);
+                            }}
+                            onEdit={(row) => openEdit(row)}
+                            onDelete={(row) => handleDelete(row.id)}
+                        />
                     </div>
             ) : (
                 <div className="currencies-card currency-editor-card fade-in">

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import Table from '../components/Table';
 import BlankPage from '@/Components/BlankPage';
 import { apiService } from '@/services/api';
 import '../../../../css/backend/main.scss';
@@ -29,6 +30,7 @@ const resolveMediaUrl = (value) => {
 const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = null }) => {
     const { props } = usePage();
     const { localization } = props;
+    const isArabic = localization?.current_locale === 'ar';
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -40,6 +42,8 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
 
     const [filteredBranches, setFilteredBranches] = useState(branches);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectAll, setSelectAll] = useState(false);
+    const [selectedRows, setSelectedRows] = useState([]);
     const [currentBranch, setCurrentBranch] = useState(null);
     const [activeTab, setActiveTab] = useState('basic');
     const [logoPreview, setLogoPreview] = useState(
@@ -129,6 +133,56 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
     const handleSearch = (e) => {
         setSearchTerm(e.target.value);
     };
+
+    const handleSelectAll = () => {
+        setSelectAll(!selectAll);
+        if (!selectAll) {
+            setSelectedRows(filteredBranches.map(b => b.id));
+        } else {
+            setSelectedRows([]);
+        }
+    };
+
+    const handleRowSelect = (id) => {
+        if (selectedRows.includes(id)) {
+            setSelectedRows(selectedRows.filter(rowId => rowId !== id));
+        } else {
+            setSelectedRows([...selectedRows, id]);
+        }
+    };
+
+    const tableColumns = [
+        { 
+            header: isArabic ? 'المعرف' : 'ID', 
+            key: 'id', 
+            width: '80px', 
+            render: (row) => `#${row.id}` 
+        },
+        { 
+            header: isArabic ? 'اسم الفرع' : 'BRANCH NAME', 
+            key: 'branch_name' 
+        },
+        { 
+            header: isArabic ? 'الكود' : 'CODE', 
+            key: 'branch_code', 
+            render: (row) => row.branch_code || '-' 
+        },
+        { 
+            header: isArabic ? 'الشركة' : 'COMPANY', 
+            key: 'company', 
+            render: (row) => row.company?.company_name || '-' 
+        },
+        { 
+            header: isArabic ? 'النوع' : 'TYPE', 
+            key: 'branch_type', 
+            render: (row) => <span className="capitalize">{row.branch_type || '-'}</span> 
+        },
+        { 
+            header: isArabic ? 'الدولة' : 'COUNTRY', 
+            key: 'country', 
+            render: (row) => <span className="uppercase">{row.country_data?.name || row.country || '-'}</span> 
+        },
+    ];
 
     const query = useMemo(() => new URLSearchParams(window.location.search), [window.location.search]);
     const mode = query.get('mode') || formMode;
@@ -991,81 +1045,16 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
                                 </div>
                             </div>
 
-                            <div className="table-container">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>ID</th>
-                                            <th>BRANCH NAME</th>
-                                            <th>CODE</th>
-                                            <th>COMPANY</th>
-                                            <th>TYPE</th>
-                                            <th>COUNTRY</th>
-                                            <th>ACTIONS</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {filteredBranches.length > 0 ? (
-                                            filteredBranches.map((branch) => (
-                                                <tr key={branch.id}>
-                                                    <td>#{branch.id}</td>
-                                                    <td>{branch.branch_name}</td>
-                                                    <td>{branch.branch_code || '-'}</td>
-                                                    <td>{branch.company?.company_name || '-'}</td>
-                                                    <td className="capitalize">{branch.branch_type || '-'}</td>
-                                                    <td className="uppercase">{branch.country_data?.name || branch.country || '-'}</td>
-                                                    <td>
-                                                        <button
-                                                            type="button"
-                                                            className="icon-btn edit"
-                                                            title="Edit"
-                                                            onClick={() => openEditForm(branch)}
-                                                        >
-                                                            <span className="material-icons-outlined">edit</span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="icon-btn delete"
-                                                            title="Delete"
-                                                            onClick={() => handleDelete(branch.id)}
-                                                        >
-                                                            <span className="material-icons-outlined">delete</span>
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className="icon-btn view"
-                                                            title="View"
-                                                            onClick={() => openViewForm(branch)}
-                                                        >
-                                                            <span className="material-icons-outlined">visibility</span>
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td colSpan={7} className="text-center text-gray-500 py-6">
-                                                    No branch information found.
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <div className="pagination">
-                                <div className="pagination-info">
-                                    <span>
-                                        Showing <strong>{filteredBranches.length}</strong> of{' '}
-                                        <strong>{branches.length}</strong> branches
-                                    </span>
-                                </div>
-                                <div className="pagination-controls">
-                                    <button className="page-btn active" disabled>
-                                        1
-                                    </button>
-                                </div>
-                            </div>
+                            <Table
+                                tableData={filteredBranches.map(b => ({ ...b, selected: selectedRows.includes(b.id) }))}
+                                columns={tableColumns}
+                                handleRowSelect={handleRowSelect}
+                                selectAll={selectAll}
+                                handleSelectAll={handleSelectAll}
+                                onView={openViewForm}
+                                onEdit={openEditForm}
+                                onDelete={(row) => handleDelete(row.id)}
+                            />
                         </div>
                     </>
                 )}

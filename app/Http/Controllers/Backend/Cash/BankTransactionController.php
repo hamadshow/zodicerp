@@ -9,6 +9,9 @@ use App\Models\Accounting\JournalEntryLine;
 use App\Models\BankAccount;
 use App\Models\BankPayment;
 use App\Models\BankReceipt;
+use App\Models\TreasuryTransfer;
+use App\Http\Resources\Cash\TreasuryTransferResource;
+use App\Services\TreasuryTransferService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -17,8 +20,13 @@ use Inertia\Inertia;
 class BankTransactionController extends Controller
 {
     protected string $transactionCodePrefix = 'BNK-';
-
     protected int $transactionCodeStart = 10001;
+    protected $transferService;
+
+    public function __construct(TreasuryTransferService $transferService)
+    {
+        $this->transferService = $transferService;
+    }
 
     public function index(Request $request)
     {
@@ -72,6 +80,34 @@ class BankTransactionController extends Controller
                 ];
             });
 
+        $transfers = TreasuryTransfer::query()
+            ->orderBy('id', 'desc')
+            ->get();
+
+        $transferData = TreasuryTransferResource::collection($transfers)->resolve();
+        $formattedTransfers = collect($transferData)->map(function ($transfer) {
+            return [
+                'id' => $transfer['id'],
+                'type' => 'transfer',
+                'code' => $transfer['reference_number'],
+                'date' => $transfer['transfer_date'],
+                'from_account_id' => $transfer['from_treasury']['id'],
+                'to_account_id' => $transfer['to_treasury']['id'],
+                'amount' => $transfer['amount'],
+                'status' => $transfer['status'],
+                'reference' => $transfer['reference_number'],
+                'notes' => $transfer['notes'],
+                'from_account' => [
+                    'name' => $transfer['from_treasury']['name'],
+                    'code' => $transfer['from_treasury']['account_code'],
+                ],
+                'to_account' => [
+                    'name' => $transfer['to_treasury']['name'],
+                    'code' => $transfer['to_treasury']['account_code'],
+                ],
+            ];
+        });
+
         $bankAccounts = BankAccount::with(['bank', 'glAccount'])
             ->whereHas('glAccount', function ($query) {
                 $query->where(function ($q) {
@@ -100,15 +136,15 @@ class BankTransactionController extends Controller
                 'account_name' => $account->account_name,
                 'account_number' => $account->account_number,
                 'currency' => $account->currency,
-                'bank_name' => $account->bank?->name, // Include bank name for display
+                'bank_name' => $account->bank?->name,
             ];
         })->concat($cashAccounts->map(function ($account) {
             return [
-                'id' => 'cash_' . $account->id, // Prefix to differentiate from bank accounts
+                'id' => 'cash_' . $account->id,
                 'account_name' => $account->name,
                 'account_number' => $account->account_code,
                 'currency' => $account->currency,
-                'bank_name' => 'Cash Account', // Indicate it's a cash account
+                'bank_name' => 'Cash Account',
             ];
         }))->sortBy('account_name')->values()->all();
 
@@ -117,6 +153,7 @@ class BankTransactionController extends Controller
         return Inertia::render('Backend/06-Cash/BankTransactions', [
             'payments' => $payments,
             'receipts' => $receipts,
+            'transfers' => $formattedTransfers,
             'bankAccounts' => $combinedAccounts,
             'accounts' => $accounts,
         ]);
@@ -127,6 +164,23 @@ class BankTransactionController extends Controller
         $validated = $this->validatePayload($request);
 
         return DB::transaction(function () use ($validated) {
+            if ($validated['type'] === 'transfer') {
+                $transfer = $this->transferService->createTransfer([
+                    'from_treasury_id' => $validated['from_account_id'],
+                    'to_treasury_id' => $validated['to_account_id'],
+                    'amount' => $validated['amount'],
+                    'transfer_date' => $validated['date'],
+                    'notes' => $validated['notes'],
+                    'currency' => $validated['currency'] ?? 'EGP',
+                ]);
+                
+                if ($validated['status'] === 'posted') {
+                    $this->transferService->approveTransfer($transfer->id);
+                }
+                
+                return redirect()->back()->with('success', 'Transfer transaction created successfully.');
+            }
+
             $code = $validated['code'] ?: $this->generateNextTransactionCode();
 
             if ($validated['type'] === 'payment') {
@@ -170,6 +224,24 @@ class BankTransactionController extends Controller
         $newType = $validated['type'];
 
         return DB::transaction(function () use ($validated, $transaction, $originalType, $newType) {
+            if ($originalType === 'transfer') {
+                $this->transferService->updateTransfer($transaction, [
+                    'from_treasury_id' => $validated['from_account_id'],
+                    'to_treasury_id' => $validated['to_account_id'],
+                    'amount' => $validated['amount'],
+                    'transfer_date' => $validated['date'],
+                    'notes' => $validated['notes'],
+                    'currency' => $validated['currency'] ?? 'EGP',
+                ]);
+                return redirect()->back()->with('success', 'Transfer transaction updated successfully.');
+            }
+
+            if ($newType === 'transfer') {
+                // Handle migration from payment/receipt to transfer if needed, 
+                // but usually we don't allow changing basic types for simplicity
+                throw new \Exception("Cannot change transaction type to transfer.");
+            }
+
             if ($originalType !== $newType) {
                 $code = $this->migrateTransactionType($originalType, $newType, $transaction, $validated);
             } else {
@@ -184,9 +256,15 @@ class BankTransactionController extends Controller
 
     public function destroy(Request $request, string $type, int $transaction)
     {
-        abort_unless(in_array($type, ['payment', 'receipt'], true), 404);
+        abort_unless(in_array($type, ['payment', 'receipt', 'transfer'], true), 404);
 
         return DB::transaction(function () use ($type, $transaction) {
+            if ($type === 'transfer') {
+                $record = TreasuryTransfer::findOrFail($transaction);
+                $record->delete();
+                return redirect()->back()->with('success', 'Transfer transaction deleted successfully.');
+            }
+
             if ($type === 'payment') {
                 $record = BankPayment::findOrFail($transaction);
                 $code = $record->payment_no;
@@ -206,15 +284,18 @@ class BankTransactionController extends Controller
     protected function validatePayload(Request $request): array
     {
         return $request->validate([
-            'type' => 'required|in:payment,receipt',
+            'type' => 'required|in:payment,receipt,transfer',
             'code' => 'nullable|string|max:100',
-            'bank_account_id' => 'required|exists:bank_accounts,id',
-            'counterparty_account_id' => 'required|exists:accounts,AccID',
+            'bank_account_id' => 'required_if:type,payment,receipt|exists:bank_accounts,id',
+            'from_account_id' => 'required_if:type,transfer',
+            'to_account_id' => 'required_if:type,transfer',
+            'counterparty_account_id' => 'required_if:type,payment,receipt|exists:accounts,AccID',
             'amount' => 'required|numeric|min:0.01',
             'date' => 'required|date',
             'status' => 'required|in:draft,posted,cancelled',
             'reference' => 'nullable|string|max:150',
             'notes' => 'nullable|string',
+            'currency' => 'nullable|string|size:3',
         ]);
     }
 
