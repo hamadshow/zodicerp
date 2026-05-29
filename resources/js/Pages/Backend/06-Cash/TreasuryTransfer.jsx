@@ -49,7 +49,6 @@ const TreasuryTransfer = ({ transfers, filters, cashAccounts }) => {
     const selectedFromAccount = useMemo(() => {
         return (cashAccounts || []).find(acc => String(acc.id) === String(data.from_treasury_id));
     }, [cashAccounts, data.from_treasury_id]);
-
     const accountOptions = useMemo(() => {
         return (cashAccounts || []).map(acc => ({
             value: String(acc.id),
