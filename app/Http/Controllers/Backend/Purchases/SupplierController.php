@@ -227,7 +227,7 @@ class SupplierController extends Controller
             $product = Products::create($data);
 
             // Attach Categories
-            if ($request->has('category_ids')) {
+            if ($request->has('category_ids') && is_array($request->category_ids)) {
                 $product->categories()->attach($request->category_ids);
             }
 
@@ -344,7 +344,7 @@ class SupplierController extends Controller
             $product->update($data);
 
             // Update Categories
-            if ($request->has('category_ids')) {
+            if ($request->has('category_ids') && is_array($request->category_ids)) {
                 $product->categories()->sync($request->category_ids);
             }
 
@@ -429,7 +429,7 @@ class SupplierController extends Controller
             // This is how Admin controller does it (simplistic but effective for consistency).
             // Optimization: checking ID to update instead of delete/create would be better but complex.
             $product->variations()->delete();
-            if (! empty($existingVariationProductIds)) {
+            if (! empty($existingVariationProductIds) && is_array($existingVariationProductIds)) {
                 Products::whereIn('id', $existingVariationProductIds)->forceDelete();
             }
 
@@ -440,6 +440,9 @@ class SupplierController extends Controller
             $variationPath = "suppliers/{$supplierCode}/products/variations";
 
             foreach ($variations as $index => $var) {
+                if (! is_array($var)) {
+                    continue;
+                }
                 $isDefault = (bool) ($var['is_default'] ?? false);
                 if ($isDefault) {
                     $defaultMarked = true;
@@ -533,12 +536,16 @@ class SupplierController extends Controller
                     }
                 }
 
-                foreach ($attributes as $attr) {
-                    \App\Models\ProductVariationItem::create([
-                        'variation_id' => $variation->id,
-                        'attribute_id' => $attr['attribute_id'],
-                        'attribute_value' => $attr['attribute_value'],
-                    ]);
+                if (is_array($attributes)) {
+                    foreach ($attributes as $attr) {
+                        if (is_array($attr) && isset($attr['attribute_id'], $attr['attribute_value'])) {
+                            \App\Models\ProductVariationItem::create([
+                                'variation_id' => $variation->id,
+                                'attribute_id' => $attr['attribute_id'],
+                                'attribute_value' => $attr['attribute_value'],
+                            ]);
+                        }
+                    }
                 }
 
                 $total++;
@@ -560,7 +567,7 @@ class SupplierController extends Controller
             // Not variable anymore, delete variations
             $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
             $product->variations()->delete();
-            if (! empty($existingVariationProductIds)) {
+            if (! empty($existingVariationProductIds) && is_array($existingVariationProductIds)) {
                 Products::whereIn('id', $existingVariationProductIds)->forceDelete();
             }
             $product->update([
@@ -570,7 +577,7 @@ class SupplierController extends Controller
         }
     }
 
-    private function validateImageFile($file): bool
+    private function validateImageFile(\Illuminate\Http\UploadedFile $file): bool
     {
         if (! $file->isValid()) {
             return false;
@@ -643,7 +650,7 @@ class SupplierController extends Controller
         ]);
     }
 
-    public function toggleFavorite($id)
+    public function toggleFavorite(int $id)
     {
         $supplier = Supplier::findOrFail($id);
         $supplier->favorite = ! $supplier->favorite;
@@ -819,7 +826,7 @@ class SupplierController extends Controller
 
             return redirect()->route('admin.purchases.suppliers.index')->with('success', $msg);
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
 
             return redirect()->back()->with('error', 'Server Error during database operation: '.$e->getMessage());
@@ -853,14 +860,14 @@ class SupplierController extends Controller
             $supplier = Supplier::create($data);
 
             // Create Addresses
-            if (! empty($data['addresses'])) {
+            if (! empty($data['addresses']) && is_array($data['addresses'])) {
                 foreach ($data['addresses'] as $addressData) {
                     $supplier->addresses()->create($addressData);
                 }
             }
 
             // Create Contacts
-            if (! empty($data['contacts'])) {
+            if (! empty($data['contacts']) && is_array($data['contacts'])) {
                 foreach ($data['contacts'] as $contactData) {
                     if (empty($contactData['name_ar'])) {
                         $contactData['name_ar'] = $contactData['name_en'] ?? 'Contact';
@@ -870,7 +877,7 @@ class SupplierController extends Controller
             }
 
             // Create Opening Balance
-            if (! empty($data['opening_balance'])) {
+            if (! empty($data['opening_balance']) && is_array($data['opening_balance'])) {
                 $obData = $data['opening_balance'];
                 $obData['created_by'] = Auth::id();
                 // Ensure required fields for OB are present or defaults set
@@ -882,14 +889,14 @@ class SupplierController extends Controller
             DB::commit();
 
             return redirect()->route('admin.purchases.suppliers.index')->with('success', 'Supplier created successfully.');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
 
             return redirect()->route('admin.purchases.suppliers.index')->with('error', 'Error creating supplier: '.$e->getMessage());
         }
     }
 
-    public function show($id)
+    public function show(int $id)
     {
         $supplier = Supplier::with(['addresses', 'contacts', 'openingBalances'])->findOrFail($id);
         // We can return JSON for API or render a view. Since it's Inertia, likely we use index with selected supplier or a separate page.
@@ -905,7 +912,7 @@ class SupplierController extends Controller
         ]);
     }
 
-    public function update(UpdateSupplierRequest $request, $id)
+    public function update(UpdateSupplierRequest $request, int $id)
     {
         DB::beginTransaction();
         try {
@@ -929,7 +936,7 @@ class SupplierController extends Controller
             $currentAddressIds = $supplier->addresses()->pluck('id')->toArray();
             $incomingAddressIds = [];
 
-            if (! empty($data['addresses'])) {
+            if (! empty($data['addresses']) && is_array($data['addresses'])) {
                 foreach ($data['addresses'] as $addressData) {
                     if (isset($addressData['id']) && in_array($addressData['id'], $currentAddressIds)) {
                         $incomingAddressIds[] = $addressData['id'];
@@ -949,7 +956,7 @@ class SupplierController extends Controller
             $currentContactIds = $supplier->contacts()->pluck('id')->toArray();
             $incomingContactIds = [];
 
-            if (! empty($data['contacts'])) {
+            if (! empty($data['contacts']) && is_array($data['contacts'])) {
                 foreach ($data['contacts'] as $contactData) {
                     if (isset($contactData['id']) && in_array($contactData['id'], $currentContactIds)) {
                         $incomingContactIds[] = $contactData['id'];
@@ -972,7 +979,7 @@ class SupplierController extends Controller
 
             // Update Opening Balance
             // Assuming we edit the passed one or create if not exists
-            if (! empty($data['opening_balance'])) {
+            if (! empty($data['opening_balance']) && is_array($data['opening_balance'])) {
                 $obData = $data['opening_balance'];
                 if (isset($obData['id'])) {
                     $supplier->openingBalances()->where('id', $obData['id'])->update($obData);
@@ -987,21 +994,21 @@ class SupplierController extends Controller
             DB::commit();
 
             return redirect()->route('admin.purchases.suppliers.index')->with('success', 'Supplier updated successfully.');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             DB::rollBack();
 
             return redirect()->route('admin.purchases.suppliers.index')->with('error', 'Error updating supplier: '.$e->getMessage());
         }
     }
 
-    public function destroy($id)
+    public function destroy(int $id)
     {
         try {
             $supplier = Supplier::findOrFail($id);
             $supplier->delete();
 
             return redirect()->route('admin.purchases.suppliers.index')->with('success', 'Supplier deleted successfully.');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return redirect()->route('admin.purchases.suppliers.index')->with('error', 'Error deleting supplier: '.$e->getMessage());
         }
     }

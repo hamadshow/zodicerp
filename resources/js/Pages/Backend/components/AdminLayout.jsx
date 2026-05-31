@@ -13,7 +13,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const AdminLayout = ({
   children,
-  activeMenu: initialActiveMenu = 'Dashboard',
+  activeMenu: initialActiveMenu = '',
 }) => {
   const page = usePage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -338,7 +338,7 @@ const AdminLayout = ({
     menuItems.forEach((item) => {
       if (item.hasSubmenu && item.submenuItems) {
         const hasActiveChild = item.submenuItems.some(
-          (sub) => sub.label === activeMenu || isUrlActive(sub.href)
+          (sub) => isUrlActive(sub.href)
         );
         if (hasActiveChild) {
           const menuKey = item.label.toLowerCase().replace(/\s+/g, '-');
@@ -346,7 +346,7 @@ const AdminLayout = ({
         }
       }
     });
-  }, [activeMenu, url]);
+  }, [url]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

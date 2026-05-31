@@ -8,53 +8,76 @@ const HierarchyManager = ({
     expandedNodes,
     onToggle,
     onSelect,
-    selectedNode,
+    selectedNodes,
+    activeNode,
     config,
     onAction,
     searchQuery,
-    onSearchChange
+    onSearchChange,
+    filters,
+    onFilterChange,
+    loadingNodes,
+    locale = 'ar'
 }) => {
+    const isRtl = locale === 'ar';
+
     return (
-        <div className="hierarchy-manager">
-            {/* Left Panel: Details Workspace (Large Cards) */}
+        <div className={`hierarchy-manager ${isRtl ? 'rtl' : 'ltr'}`}>
+            {/* Details Panel (Left Column in LTR, Right Column in RTL) */}
             <HierarchyDetails 
-                selectedNode={selectedNode} 
+                selectedNode={activeNode} 
                 onAction={onAction}
                 config={config} 
+                isRtl={isRtl}
             />
 
-            {/* Right Panel: Hierarchy Tree */}
+            {/* Tree Panel */}
             <div className="hierarchy-tree-panel">
-                <div className="panel-header d-flex justify-content-between align-items-center">
-                    <h3 className="m-0">{title}</h3>
+                <div className="panel-header">
+                    <h3>{title}</h3>
                     <div className="d-flex gap-1">
-                        <button className="btn btn-xs btn-light border p-1" onClick={() => onAction('expand_all')} title="Expand All">
+                        <button className="btn btn-xs btn-light border p-1" onClick={() => onAction('expand_all')} title={isRtl ? 'توسيع الكل' : 'Expand All'}>
                             <i className="fas fa-expand-alt" style={{ fontSize: '10px' }} />
                         </button>
-                        <button className="btn btn-xs btn-light border p-1" onClick={() => onAction('collapse_all')} title="Collapse All">
+                        <button className="btn btn-xs btn-light border p-1" onClick={() => onAction('collapse_all')} title={isRtl ? 'طي الكل' : 'Collapse All'}>
                             <i className="fas fa-compress-alt" style={{ fontSize: '10px' }} />
                         </button>
                     </div>
                 </div>
 
                 <div className="tree-search">
-                    <input 
-                        type="text" 
-                        className="search-input" 
-                        placeholder="بحث..." 
-                        value={searchQuery}
-                        onChange={(e) => onSearchChange(e.target.value)}
-                    />
+                    <div className="d-flex gap-2">
+                        <input 
+                            type="text" 
+                            className="search-input" 
+                            placeholder={isRtl ? 'بحث...' : 'Search...'} 
+                            value={searchQuery}
+                            onChange={(e) => onSearchChange(e.target.value)}
+                        />
+                        <select 
+                            className="form-select form-select-sm" 
+                            style={{ width: 'auto', fontSize: '11px' }}
+                            value={filters?.status || 'all'}
+                            onChange={(e) => onFilterChange({ status: e.target.value })}
+                        >
+                            <option value="all">{isRtl ? 'الكل' : 'All'}</option>
+                            <option value="active">{isRtl ? 'نشط' : 'Active'}</option>
+                            <option value="inactive">{isRtl ? 'غير نشط' : 'Inactive'}</option>
+                        </select>
+                    </div>
                 </div>
 
                 <HierarchyTree 
                     data={data}
                     expandedNodes={expandedNodes}
+                    loadingNodes={loadingNodes}
                     onToggle={onToggle}
                     onSelect={onSelect}
-                    selectedNode={selectedNode}
+                    selectedNodes={selectedNodes}
+                    activeNode={activeNode}
                     config={config}
                     onAction={onAction}
+                    isRtl={isRtl}
                 />
             </div>
         </div>

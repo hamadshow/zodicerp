@@ -13,7 +13,21 @@ import { useHierarchy } from '../../../hooks/useHierarchy';
 import { useCodeGenerator } from '../../../hooks/useCodeGenerator';
 
 const LocationManager = ({ initialLocations }) => {
-    const hierarchy = useHierarchy(initialLocations.data);
+    const fetchChildren = useCallback(async (parentId) => {
+        try {
+            const response = await axios.get(route('api.locations.index'), {
+                params: { parent_id: parentId }
+            });
+            return response.data.data;
+        } catch (error) {
+            console.error('Error fetching children:', error);
+            return [];
+        }
+    }, []);
+
+    const hierarchy = useHierarchy(initialLocations.data, {
+        onFetchChildren: fetchChildren
+    });
     const { generateCode } = useCodeGenerator();
     
     const [loading, setLoading] = useState(false);
@@ -28,7 +42,7 @@ const LocationManager = ({ initialLocations }) => {
         code: ''
     });
 
-    const locationTypes = ['country', 'governorate', 'city', 'district', 'area'];
+    const locationTypes = ['country', 'state', 'city', 'district', 'area'];
 
     const config = {
         canAddRoot: true,
@@ -49,7 +63,7 @@ const LocationManager = ({ initialLocations }) => {
             setIsEditing(false);
             setFormData({
                 parent_id: null,
-                location_type: 'country',
+                location_type: 'country', // Correct type for root
                 name_json: { ar: '', en: '' },
                 status: true,
                 sort_order: 0,
@@ -59,10 +73,10 @@ const LocationManager = ({ initialLocations }) => {
         } else if (action === 'add_child') {
             setIsEditing(false);
             const idx = locationTypes.indexOf(node.location_type);
-            const nextType = locationTypes[idx + 1];
+            const nextType = locationTypes[idx + 1] || 'area';
             setFormData({
                 parent_id: node.id,
-                location_type: nextType,
+                location_type: nextType, // Correctly assign the next type in hierarchy
                 name_json: { ar: '', en: '' },
                 status: true,
                 sort_order: (node.children?.length || 0) + 1,
@@ -128,8 +142,10 @@ const LocationManager = ({ initialLocations }) => {
         }
     };
 
+    const locale = document.documentElement.lang || 'ar';
+
     return (
-        <AdminLayout>
+        <AdminLayout activeMenu="Location">
             <Head title="Geographic Hierarchy Manager" />
             
             <HierarchyManager 
@@ -138,11 +154,15 @@ const LocationManager = ({ initialLocations }) => {
                 expandedNodes={hierarchy.expandedNodes}
                 onToggle={hierarchy.toggleNode}
                 onSelect={hierarchy.selectNode}
-                selectedNode={hierarchy.selectedNode}
+                selectedNodes={hierarchy.selectedNodes}
+                activeNode={hierarchy.activeNode}
                 config={config}
                 onAction={handleAction}
                 searchQuery={hierarchy.searchQuery}
                 onSearchChange={hierarchy.setSearchQuery}
+                filters={hierarchy.filters}
+                onFilterChange={hierarchy.updateFilters}
+                locale={locale}
             />
 
             <HierarchyFormDrawer
