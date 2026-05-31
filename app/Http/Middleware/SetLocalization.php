@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Country;
+use App\Models\Location;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
@@ -61,7 +61,7 @@ class SetLocalization
         $country = null;
         if ($countryCode && strlen($countryCode) === 2) {
             $country = \Illuminate\Support\Facades\Cache::remember("country.{$countryCode}", 86400, function () use ($countryCode) {
-                return Country::where('code', strtoupper($countryCode))->where('status', 'active')->first();
+                return Location::where('location_type', 'country')->where('code', strtoupper($countryCode))->where('status', true)->first();
             });
         }
 
@@ -70,7 +70,7 @@ class SetLocalization
             $detectedCountryCode = $this->detectCountryCode($request->ip());
             if ($detectedCountryCode) {
                 $country = \Illuminate\Support\Facades\Cache::remember("country.{$detectedCountryCode}", 86400, function () use ($detectedCountryCode) {
-                    return Country::where('code', strtoupper($detectedCountryCode))->where('status', 'active')->first();
+                    return Location::where('location_type', 'country')->where('code', strtoupper($detectedCountryCode))->where('status', true)->first();
                 });
             }
         }
@@ -81,7 +81,7 @@ class SetLocalization
         } else {
             // Default country if not specified or invalid
             $defaultCountry = \Illuminate\Support\Facades\Cache::remember('country.default', 86400, function () {
-                return Country::where('code', 'SA')->first() ?: Country::where('status', 'active')->first();
+                return Location::where('location_type', 'country')->where('code', 'SA')->first() ?: Location::where('location_type', 'country')->where('status', true)->first();
             });
             if ($defaultCountry) {
                 Config::set('app.country', $defaultCountry);

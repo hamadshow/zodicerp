@@ -1,0 +1,129 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+.tree-table-wrapper {
+    background: $white;
+    border-radius: $radius-xl;
+    box-shadow: $shadow-sm;
+    overflow: hidden;
+
+    .tree-table-custom {
+        width: 100%;
+        border-collapse: collapse;
+
+        th {
+            background-color: $light-color;
+            padding: 1rem;
+            font-weight: $font-weight-bold;
+            color: $text-primary;
+            border-bottom: 2px solid $border-color;
+            font-size: 0.875rem;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid $border-color;
+            color: $text-secondary;
+            font-size: 0.875rem;
+            vertical-align: middle;
+        }
+
+        .account-row {
+            transition: background-color $transition-fast;
+
+            &:hover {
+                background-color: rgba($primary-color, 0.02);
+            }
+
+            &.expanded {
+                background-color: rgba($primary-color, 0.01);
+            }
+        }
+
+        .account-code-cell {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+
+            .account-toggle-btn {
+                background: none;
+                border: none;
+                padding: 0;
+                cursor: pointer;
+                color: $text-muted;
+                display: flex;
+                align-items: center;
+                transition: color $transition-fast;
+
+                &:hover {
+                    color: $primary-color;
+                }
+
+                .material-icons-outlined {
+                    font-size: 1.25rem;
+                }
+            }
+
+            .account-toggle-spacer {
+                width: 1.25rem;
+            }
+
+            .account-node-icon {
+                font-size: 1.25rem;
+                color: $primary-color;
+            }
+        }
+
+        .account-info {
+            .account-name {
+                font-weight: $font-weight-medium;
+                color: $text-primary;
+            }
+        }
+
+        .account-type-pill,
+        .account-final-pill,
+        .account-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: $radius-full;
+            font-size: 0.75rem;
+            font-weight: $font-weight-semibold;
+            display: inline-block;
+        }
+
+        .status-active {
+            background-color: rgba($success-color, 0.1);
+            color: $success-color;
+        }
+
+        .final-balance {
+            background-color: rgba($info-color, 0.1);
+            color: $info-color;
+        }
+
+        .final-pl {
+            background-color: rgba($warning-color, 0.1);
+            color: $warning-color;
+        }
+    }
+
+    .actions-cell {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    &.rtl {
+        .account-code-cell {
+            flex-direction: row;
+            
+            .account-toggle-btn {
+                .material-icons-outlined {
+                    transform: scaleX(-1);
+                }
+            }
+        }
+    }
+}

@@ -19,11 +19,7 @@ return new class extends Migration
             $table->text('description')->nullable();
 
             // Scope
-            if (Schema::hasTable('countries')) {
-                $table->foreignId('country_id')->nullable()->constrained('countries')->nullOnDelete();
-            } else {
-                $table->unsignedBigInteger('country_id')->nullable();
-            }
+            $table->foreignId('location_id')->nullable()->constrained('locations')->nullOnDelete();
 
             $table->enum('apply_to', ['sales', 'purchases', 'both', 'specific'])->default('both');
 
@@ -38,7 +34,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Indexes
-            $table->index('country_id', 'idx_group_country');
+            $table->index('location_id', 'idx_group_location');
         });
     }
 

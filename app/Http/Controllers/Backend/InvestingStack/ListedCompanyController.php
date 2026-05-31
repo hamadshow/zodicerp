@@ -3,10 +3,8 @@
 namespace App\Http\Controllers\Backend\InvestingStack;
 
 use App\Http\Controllers\Controller;
-use App\Models\Country;
 use App\Models\Currency;
-use App\Models\State;
-use App\Models\City;
+use App\Models\Location;
 use App\Models\InvestingStack\ListedCompany;
 use App\Models\InvestingStack\Industry;
 use App\Models\InvestingStack\SubIndustry;
@@ -60,15 +58,15 @@ class ListedCompanyController extends Controller
         return Inertia::render('Backend/InvestingStack/ListedCompanies', [
             'companies' => $companies,
             'filters' => $request->only(['search', 'internal_rating', 'country', 'market_index']),
-            'countries' => Country::select('id', 'name_en as name', 'code')->get(),
+            'countries' => Location::where('location_type', 'country')->select('id', 'name_json', 'code')->get(),
             'currencies' => Currency::select('id', 'name', 'code')->get(),
             'industries' => Industry::select('id', 'industry_name_en as name', 'parent_industry_id as sector_id')->get(),
             'subIndustries' => SubIndustry::select('id', 'sub_industry_name_en as name', 'industry_id')->get(),
             'exchanges' => Exchange::select('id', 'name_en as name', 'code')->get(),
             'marketIndices' => MarketIndex::select('id', 'name')->get(),
             'creditRatings' => CreditRating::select('id', 'rating_symbol as name', 'rating_description_en as agency_name')->get(),
-            'states' => State::select('id', 'name_en as name', 'country_id')->get(),
-            'cities' => City::select('id', 'name', 'country_id')->get(),
+            'states' => Location::where('location_type', 'state')->select('id', 'name_json', 'parent_id as country_id')->get(),
+            'cities' => Location::where('location_type', 'city')->select('id', 'name_json', 'parent_id as country_id')->get(),
             'stats' => [
                 'total' => ListedCompany::count(),
                 'active' => ListedCompany::where('status', 'active')->count(),
@@ -91,9 +89,9 @@ class ListedCompanyController extends Controller
             'industry_id' => 'nullable|exists:industries,id',
             'sub_industry_id' => 'nullable|exists:sub_industries,id',
             'company_size' => 'required|in:micro,small,medium,large,enterprise',
-            'country_id' => 'required|exists:countries,id',
-            'state_id' => 'nullable|exists:states,id',
-            'city_id' => 'nullable|exists:cities,id',
+            'country_id' => 'required|exists:locations,id',
+            'state_id' => 'nullable|exists:locations,id',
+            'city_id' => 'nullable|exists:locations,id',
             'address_ar' => 'nullable|string|max:500',
             'address_en' => 'nullable|string|max:500',
             'phone' => 'nullable|string|max:50',
@@ -149,9 +147,9 @@ class ListedCompanyController extends Controller
             'industry_id' => 'nullable|exists:industries,id',
             'sub_industry_id' => 'nullable|exists:sub_industries,id',
             'company_size' => 'required|in:micro,small,medium,large,enterprise',
-            'country_id' => 'required|exists:countries,id',
-            'state_id' => 'nullable|exists:states,id',
-            'city_id' => 'nullable|exists:cities,id',
+            'country_id' => 'required|exists:locations,id',
+            'state_id' => 'nullable|exists:locations,id',
+            'city_id' => 'nullable|exists:locations,id',
             'address_ar' => 'nullable|string|max:500',
             'address_en' => 'nullable|string|max:500',
             'phone' => 'nullable|string|max:50',

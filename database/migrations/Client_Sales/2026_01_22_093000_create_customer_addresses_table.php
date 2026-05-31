@@ -16,8 +16,7 @@ return new class extends Migration
             $table->enum('address_type', ['home', 'billing', 'shipping', 'work', 'other'])->default('home');
             $table->string('address_name', 100)->nullable();
 
-            $table->unsignedBigInteger('country_id')->nullable();
-            $table->unsignedBigInteger('city_id')->nullable();
+            $table->unsignedBigInteger('location_id')->nullable();
 
             $table->string('district', 100)->nullable();
             $table->string('street', 255)->nullable();
@@ -43,8 +42,7 @@ return new class extends Migration
 
             // Foreign Keys
             $table->foreign('customer_id')->references('id')->on('customers')->onDelete('cascade');
-            $table->foreign('country_id')->references('id')->on('countries')->nullOnDelete();
-            $table->foreign('city_id')->references('id')->on('cities')->nullOnDelete();
+            $table->foreign('location_id')->references('id')->on('locations')->nullOnDelete();
 
             // Indexes
             $table->index('customer_id', 'idx_customer_addresses_customer');

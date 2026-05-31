@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->string('warehouse_code')->unique();
             $table->string('name');
-            // Assuming branch_infos table exists and id is the primary key
-            $table->foreignId('branch_id')->constrained('branch_infos')->onDelete('cascade');
+            $table->foreignId('branch_id')->constrained('branches')->onDelete('cascade');
+            $table->foreignId('company_id')->nullable()->constrained('company')->nullOnDelete();
             $table->string('manager')->nullable();
             $table->string('location')->nullable();
             $table->integer('capacity')->default(0);

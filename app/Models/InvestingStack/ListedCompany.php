@@ -33,17 +33,17 @@ class ListedCompany extends Model
 
     public function country()
     {
-        return $this->belongsTo(\App\Models\Country::class, 'country_id');
+        return $this->belongsTo(\App\Models\Location::class, 'country_id');
     }
 
     public function state()
     {
-        return $this->belongsTo(\App\Models\State::class, 'state_id');
+        return $this->belongsTo(\App\Models\Location::class, 'state_id');
     }
 
     public function city()
     {
-        return $this->belongsTo(\App\Models\City::class, 'city_id');
+        return $this->belongsTo(\App\Models\Location::class, 'city_id');
     }
 
     public function reportingCurrency()

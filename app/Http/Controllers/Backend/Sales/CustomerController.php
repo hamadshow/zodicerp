@@ -3,10 +3,9 @@
 namespace App\Http\Controllers\Backend\Sales;
 
 use App\Http\Controllers\Controller;
-use App\Models\City;
 use App\Models\Client_Sales\CustomerAddress;
 use App\Models\Client_Sales\SalesInvoice;
-use App\Models\Country;
+use App\Models\Location;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -62,8 +61,8 @@ class CustomerController extends Controller
         return Inertia::render('Backend/dashboard', [
             'addresses' => $addresses,
             'orders' => $orders,
-            'countries' => Country::where('status', 'active')->get(['id', 'name_en', 'name_ar', 'name']),
-            'cities' => City::where('status', 'active')->get(['id', 'name', 'country_id']),
+            'countries' => Location::where('location_type', 'country')->where('status', true)->get(['id', 'name_json', 'code']),
+            'cities' => Location::where('location_type', 'city')->where('status', true)->get(['id', 'name_json', 'parent_id as country_id']),
         ]);
     }
 }

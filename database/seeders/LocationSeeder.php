@@ -2,122 +2,56 @@
 
 namespace Database\Seeders;
 
-use App\Models\Area;
-use App\Models\City;
-use App\Models\Country;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Location;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class LocationSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
      * Run the database seeds.
      */
     public function run(): void
     {
-        // Create countries
-        $egypt = Country::updateOrCreate(
-            ['code' => 'EG'],
-            [
-                'name' => 'Egypt',
-                'status' => 'active',
-            ]
-        );
+        DB::transaction(function () {
+            // Egypt (Country)
+            $egypt = Location::create([
+                'location_type' => 'country',
+                'code' => '01',
+                'name_json' => ['ar' => 'مصر', 'en' => 'Egypt'],
+                'status' => true,
+                'sort_order' => 1,
+            ]);
 
-        $usa = Country::updateOrCreate(
-            ['code' => 'US'],
-            [
-                'name' => 'United States',
-                'status' => 'active',
-            ]
-        );
+            // Cairo (City)
+            $cairo = Location::create([
+                'parent_id' => $egypt->id,
+                'location_type' => 'city',
+                'code' => '01-01',
+                'name_json' => ['ar' => 'القاهرة', 'en' => 'Cairo'],
+                'status' => true,
+                'sort_order' => 1,
+            ]);
 
-        // Create cities
-        $cairo = City::updateOrCreate(
-            ['name' => 'Cairo', 'country_id' => $egypt->id],
-            [
-                'code' => 'CAI',
-                'latitude' => 30.0444,
-                'longitude' => 31.2357,
-                'status' => 'active',
-            ]
-        );
+            // Maadi (District)
+            $maadi = Location::create([
+                'parent_id' => $cairo->id,
+                'location_type' => 'district',
+                'code' => '01-01-01',
+                'name_json' => ['ar' => 'المعادي', 'en' => 'Maadi'],
+                'status' => true,
+                'sort_order' => 1,
+            ]);
 
-        $alexandria = City::updateOrCreate(
-            ['name' => 'Alexandria', 'country_id' => $egypt->id],
-            [
-                'code' => 'ALX',
-                'latitude' => 31.2001,
-                'longitude' => 29.9187,
-                'status' => 'active',
-            ]
-        );
-
-        $newYork = City::updateOrCreate(
-            ['name' => 'New York', 'country_id' => $usa->id],
-            [
-                'code' => 'NYC',
-                'latitude' => 40.7128,
-                'longitude' => -74.0060,
-                'status' => 'active',
-            ]
-        );
-
-        $losAngeles = City::updateOrCreate(
-            ['name' => 'Los Angeles', 'country_id' => $usa->id],
-            [
-                'code' => 'LAX',
-                'latitude' => 34.0522,
-                'longitude' => -118.2437,
-                'status' => 'active',
-            ]
-        );
-
-        // Create areas
-        Area::updateOrCreate(
-            ['name' => 'Downtown Cairo', 'city_id' => $cairo->id],
-            [
-                'country_id' => $egypt->id,
-                'code' => 'DTC',
-                'latitude' => 30.0444,
-                'longitude' => 31.2357,
-                'status' => 'active',
-            ]
-        );
-
-        Area::updateOrCreate(
-            ['name' => 'Zamalek', 'city_id' => $cairo->id],
-            [
-                'country_id' => $egypt->id,
-                'code' => 'ZAM',
-                'latitude' => 30.0667,
-                'longitude' => 31.2167,
-                'status' => 'active',
-            ]
-        );
-
-        Area::updateOrCreate(
-            ['name' => 'Manhattan', 'city_id' => $newYork->id],
-            [
-                'country_id' => $usa->id,
-                'code' => 'MAN',
-                'latitude' => 40.7831,
-                'longitude' => -73.9712,
-                'status' => 'active',
-            ]
-        );
-
-        Area::updateOrCreate(
-            ['name' => 'Brooklyn', 'city_id' => $newYork->id],
-            [
-                'country_id' => $usa->id,
-                'code' => 'BRK',
-                'latitude' => 40.6782,
-                'longitude' => -73.9442,
-                'status' => 'active',
-            ]
-        );
+            // Zahraa Maadi (Area)
+            $zahraaMaadi = Location::create([
+                'parent_id' => $maadi->id,
+                'location_type' => 'area',
+                'code' => '01-01-01-01',
+                'name_json' => ['ar' => 'زهراء المعادي', 'en' => 'Zahraa Maadi'],
+                'status' => true,
+                'sort_order' => 1,
+            ]);
+        });
     }
 }

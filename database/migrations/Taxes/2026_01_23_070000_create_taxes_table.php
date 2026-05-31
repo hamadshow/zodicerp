@@ -25,21 +25,7 @@ return new class extends Migration
             $table->text('description_en')->nullable();
 
             // Geographic Application
-            $table->foreignId('country_id')->constrained('countries')->onDelete('cascade');
-
-            // state_id: check if states table exists, otherwise just integer
-            if (Schema::hasTable('states')) {
-                $table->foreignId('state_id')->nullable()->constrained('states')->nullOnDelete();
-            } else {
-                $table->unsignedBigInteger('state_id')->nullable();
-            }
-
-            // city_id: check if cities table exists
-            if (Schema::hasTable('cities')) {
-                $table->foreignId('city_id')->nullable()->constrained('cities')->nullOnDelete();
-            } else {
-                $table->unsignedBigInteger('city_id')->nullable();
-            }
+            $table->foreignId('location_id')->constrained('locations')->onDelete('cascade');
 
             $table->string('jurisdiction_code', 100)->nullable();
 
@@ -94,7 +80,7 @@ return new class extends Migration
 
             // Indexes
             $table->index('tax_code', 'idx_tax_code');
-            $table->index(['country_id', 'state_id'], 'idx_country_state');
+            $table->index('location_id', 'idx_location_id');
             $table->index(['effective_from', 'effective_to'], 'idx_effective_dates');
         });
     }

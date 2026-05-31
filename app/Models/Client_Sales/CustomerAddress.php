@@ -2,8 +2,7 @@
 
 namespace App\Models\Client_Sales;
 
-use App\Models\City;
-use App\Models\Country;
+use App\Models\Location;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,9 +15,7 @@ class CustomerAddress extends Model
         'customer_id',
         'address_type',
         'address_name',
-        'country_id',
-        'city_id',
-        'district',
+        'location_id',
         'street',
         'building_number',
         'postal_code',
@@ -47,13 +44,18 @@ class CustomerAddress extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    public function location()
+    {
+        return $this->belongsTo(Location::class, 'location_id');
+    }
+
     public function country()
     {
-        return $this->belongsTo(Country::class);
+        return $this->belongsTo(Location::class, 'location_id');
     }
 
     public function city()
     {
-        return $this->belongsTo(City::class);
+        return $this->belongsTo(Location::class, 'location_id');
     }
 }

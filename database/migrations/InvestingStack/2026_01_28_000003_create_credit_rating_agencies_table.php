@@ -35,9 +35,7 @@ return new class extends Migration
             $table->string('regulatory_authority', 200)->nullable();
 
             // Location
-            $table->foreignId('country_id')->constrained('countries');
-            $table->foreignId('state_id')->nullable()->constrained('states');
-            $table->foreignId('city_id')->nullable()->constrained('cities');
+            $table->foreignId('location_id')->constrained('locations');
             $table->string('headquarters_address_ar', 500)->nullable();
             $table->string('headquarters_address_en', 500)->nullable();
             $table->integer('global_offices_count')->default(1);
@@ -107,7 +105,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Additional Indexes
-            $table->index(['country_id', 'agency_type'], 'idx_country_type');
+            $table->index(['location_id', 'agency_type'], 'idx_location_type');
             $table->index('recognition_status', 'idx_recognition_status');
             $table->index('is_accepted', 'idx_is_accepted');
             $table->index(['status', 'is_accepted'], 'idx_status_active');

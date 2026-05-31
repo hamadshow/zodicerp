@@ -8,7 +8,7 @@ import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import Pagination from '../components/Pagination';
 
-export default function Suppliers({ suppliers, groups, countries, cities, currencies, accounts, filters }) {
+export default function Suppliers({ suppliers, groups, cities, currencies, accounts, filters }) {
     const [mode, setMode] = useState('list'); // list, create, edit
     const [activeTab, setActiveTab] = useState('general');
     const [search, setSearch] = useState(filters?.search || '');
@@ -990,7 +990,7 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                             {/* ADDRESSES TAB */}
                             <div className={`tab-content ${activeTab === 'addresses' ? 'active' : ''}`}>
                                 <div className="form-group">
-                                    <button type="button" className="btn-secondary" onClick={() => addNested('addresses', { address_type: '', address_name: '', street: '', city_id: '', country_id: '' })}>
+                                    <button type="button" className="btn-secondary" onClick={() => addNested('addresses', { address_type: '', address_name: '', street: '', location_id: '' })}>
                                         + {t('add_address', 'Add Address')}
                                     </button>
                                 </div>
@@ -1038,30 +1038,16 @@ export default function Suppliers({ suppliers, groups, countries, cities, curren
                                             </div>
                                             <div className="form-row">
                                                 <div className="form-group">
-                                                    <label className="form-label">{t('country', 'Country')}</label>
+                                                    <label className="form-label">{t('location', 'Location')}</label>
                                                     <select 
-                                                        className={`form-control ${getNestedError('addresses', index, 'country_id') ? 'is-invalid' : ''}`} 
-                                                        value={address.country_id} 
-                                                        onChange={e => updateNested('addresses', index, 'country_id', e.target.value)}
+                                                        className={`form-control ${getNestedError('addresses', index, 'location_id') ? 'is-invalid' : ''}`} 
+                                                        value={address.location_id} 
+                                                        onChange={e => updateNested('addresses', index, 'location_id', e.target.value)}
                                                     >
-                                                        <option value="">{t('select_country', 'Select Country')}</option>
-                                                        {countries.map(c => <option key={c.id} value={c.id}>{localization?.current_locale === 'ar' ? c.name_ar : c.name_en}</option>)}
+                                                        <option value="">{t('select_location', 'Select Location')}</option>
+                                                        {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                                     </select>
-                                                    {getNestedError('addresses', index, 'country_id') && <span className="invalid-feedback">{getNestedError('addresses', index, 'country_id')}</span>}
-                                                </div>
-                                                <div className="form-group">
-                                                    <label className="form-label">{t('city', 'City')}</label>
-                                                    <select 
-                                                        className={`form-control ${getNestedError('addresses', index, 'city_id') ? 'is-invalid' : ''}`} 
-                                                        value={address.city_id} 
-                                                        onChange={e => updateNested('addresses', index, 'city_id', e.target.value)}
-                                                    >
-                                                        <option value="">{t('select_city', 'Select City')}</option>
-                                                        {cities.filter(c => !address.country_id || c.country_id == address.country_id).map(c => (
-                                                            <option key={c.id} value={c.id}>{localization?.current_locale === 'ar' ? c.name_ar : c.name_en}</option>
-                                                        ))}
-                                                    </select>
-                                                    {getNestedError('addresses', index, 'city_id') && <span className="invalid-feedback">{getNestedError('addresses', index, 'city_id')}</span>}
+                                                    {getNestedError('addresses', index, 'location_id') && <span className="invalid-feedback">{getNestedError('addresses', index, 'location_id')}</span>}
                                                 </div>
                                             </div>
                                         </div>

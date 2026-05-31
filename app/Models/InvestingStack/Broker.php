@@ -39,16 +39,16 @@ class Broker extends Model
 
     public function country()
     {
-        return $this->belongsTo(\App\Models\Country::class);
+        return $this->belongsTo(\App\Models\Location::class);
     }
 
     public function state()
     {
-        return $this->belongsTo(\App\Models\State::class);
+        return $this->belongsTo(\App\Models\Location::class);
     }
 
     public function city()
     {
-        return $this->belongsTo(\App\Models\City::class);
+        return $this->belongsTo(\App\Models\Location::class);
     }
 }

@@ -12,7 +12,7 @@ return new class extends Migration
         if (! Schema::hasTable('country_configs')) {
             Schema::create('country_configs', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('country_id')->constrained('countries')->onDelete('cascade');
+                $table->foreignId('location_id')->constrained('locations')->onDelete('cascade');
                 $table->string('default_language')->default('en');
                 $table->string('default_currency')->default('USD');
                 $table->decimal('tax_percentage', 5, 2)->default(0);

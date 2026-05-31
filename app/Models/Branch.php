@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Location;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -18,18 +19,8 @@ class Branch extends Model
         return $this->belongsTo(Company::class, 'company_id');
     }
 
-    public function countryData()
+    public function location()
     {
-        return $this->belongsTo(Country::class, 'country');
-    }
-
-    public function cityData()
-    {
-        return $this->belongsTo(City::class, 'city');
-    }
-
-    public function areaData()
-    {
-        return $this->belongsTo(Area::class, 'area');
+        return $this->belongsTo(Location::class, 'location_id');
     }
 }

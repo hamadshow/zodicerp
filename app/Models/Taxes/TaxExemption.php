@@ -2,7 +2,7 @@
 
 namespace App\Models\Taxes;
 
-use App\Models\Country;
+use App\Models\Location;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -49,6 +49,6 @@ class TaxExemption extends Model
 
     public function country()
     {
-        return $this->belongsTo(Country::class);
+        return $this->belongsTo(Location::class, 'country_id');
     }
 }

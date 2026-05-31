@@ -33,8 +33,7 @@ class StoreSupplierRequest extends FormRequest
             // Addresses
             'addresses' => 'nullable|array',
             'addresses.*.address_type' => 'nullable|string',
-            'addresses.*.country_id' => 'nullable|exists:countries,id',
-            'addresses.*.city_id' => 'nullable|exists:cities,id',
+            'addresses.*.location_id' => 'nullable|exists:locations,id',
 
             // Contacts
             'contacts' => 'nullable|array',

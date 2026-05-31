@@ -3,11 +3,12 @@ import { Head } from '@inertiajs/react';
 import '../../../../css/backend/main.scss';
 import AdminLayout from '../components/AdminLayout';
 import { apiService } from '../../../services/api';
+import Table from '../components/Table';
+
 
 
 const Reward = ({ employees: propEmployees }) => {
   const [dbEmployees, setDbEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const propData = propEmployees?.data || propEmployees;
@@ -46,8 +47,6 @@ const Reward = ({ employees: propEmployees }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
   const [toast, setToast] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [currentFilter, setCurrentFilter] = useState('all');
 
   // Additional state for enhanced functionality
@@ -179,7 +178,6 @@ const Reward = ({ employees: propEmployees }) => {
   }, []);
 
   const fetchRewards = async () => {
-    setLoading(true);
     try {
       const response = await apiService.get('/rewards');
       const rewardsData = response.data.data || response.data;
@@ -188,8 +186,6 @@ const Reward = ({ employees: propEmployees }) => {
       console.error('Error fetching rewards:', error);
       showToast('Error loading rewards data', 'error');
       setRewards([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -461,24 +457,6 @@ const Reward = ({ employees: propEmployees }) => {
       }
     },
     [filteredRewards]
-  );
-
-  // Pagination
-  const totalPages = useMemo(
-    () => Math.ceil(filteredRewards.length / rowsPerPage),
-    [filteredRewards, rowsPerPage]
-  );
-  const startIndex = useMemo(
-    () => (currentPage - 1) * rowsPerPage,
-    [currentPage, rowsPerPage]
-  );
-  const endIndex = useMemo(
-    () => Math.min(startIndex + rowsPerPage, filteredRewards.length),
-    [startIndex, rowsPerPage, filteredRewards.length]
-  );
-  const paginatedRewards = useMemo(
-    () => filteredRewards.slice(startIndex, endIndex),
-    [filteredRewards, startIndex, endIndex]
   );
 
   // Recent timeline
@@ -1041,117 +1019,6 @@ const Reward = ({ employees: propEmployees }) => {
     </div>
   );
 
-  const RewardRow = ({ reward }) => {
-    const rewardType = reward.reward_type || reward.rewardType || '';
-    const employeeName = reward.employee_name || reward.employeeName || 'Unknown';
-    const awardDate = reward.award_date || reward.awardDate || '';
-    const rewardValue = reward.reward_value || reward.rewardValue || 0;
-    const category = reward.category || '';
-
-    const typeConfig = rewardTypeConfig[rewardType] || {
-      name: rewardType,
-      class: 'type-bonus',
-      icon: 'stars',
-    };
-
-    return (
-      <tr key={reward.id}>
-        <td>
-          <input
-            type="checkbox"
-            className="reward-checkbox"
-            checked={selectedIds.includes(reward.id)}
-            onChange={(e) => handleCheckboxChange(reward.id, e.target.checked)}
-          />
-        </td>
-        <td>{reward.id.toString().padStart(3, '0')}</td>
-        <td>
-          <div className="employee-info">
-            <div className="employee-avatar">
-              <span
-                className="material-icons-outlined"
-                style={{ color: '#94a3b8' }}
-              >
-                person
-              </span>
-            </div>
-            <div className="employee-details">
-              <div className="employee-name">{employeeName}</div>
-              <div className="employee-position">{reward.position || '-'}</div>
-            </div>
-          </div>
-        </td>
-        <td>
-          <span className={`reward-type ${typeConfig.class}`}>
-            <span
-              className="material-icons-outlined"
-              style={{
-                fontSize: '14px',
-                verticalAlign: 'middle',
-                marginRight: '4px',
-              }}
-            >
-              {typeConfig.icon}
-            </span>
-            {typeConfig.name}
-          </span>
-          {reward.badge && (
-            <span className="badge-icon">
-              <span className="material-icons-outlined">workspace_premium</span>
-            </span>
-          )}
-        </td>
-        <td>
-          {rewardValue > 0 ? (
-            <div className="reward-value">
-              ${rewardValue.toLocaleString()}
-            </div>
-          ) : (
-            <div style={{ fontSize: '0.85rem', color: 'var(--gray-color)' }}>
-              -
-            </div>
-          )}
-        </td>
-        <td>
-          <span style={{ fontSize: '0.85rem', textTransform: 'capitalize' }}>
-            {category.replace('_', ' ')}
-          </span>
-        </td>
-        <td>{awardDate}</td>
-        <td>
-          <span className={`reward-status status-${reward.status}`}>
-            {(reward.status || '').charAt(0).toUpperCase() + (reward.status || '').slice(1)}
-          </span>
-        </td>
-        <td>
-          <button className="icon-btn edit" onClick={() => openModal(reward)}>
-            <span className="material-icons-outlined">edit</span>
-          </button>
-          <button
-            className="icon-btn delete"
-            onClick={() => deleteReward(reward.id)}
-          >
-            <span className="material-icons-outlined">delete</span>
-          </button>
-          <button
-            className="icon-btn"
-            style={{ color: 'var(--info-color)' }}
-            onClick={() => openViewModal(reward)}
-          >
-            <span className="material-icons-outlined">visibility</span>
-          </button>
-          <button
-            className="icon-btn"
-            style={{ color: 'var(--success-color)' }}
-            onClick={() => approveReward(reward.id)}
-          >
-            <span className="material-icons-outlined">check_circle</span>
-          </button>
-        </td>
-      </tr>
-    );
-  };
-
   const TimelineItem = ({ reward, isAward = false, index = 0 }) => {
     let typeConfig, bgColor, iconColor;
     let awardDate = '', employeeName = '', reason = '';
@@ -1499,6 +1366,130 @@ const Reward = ({ employees: propEmployees }) => {
     </div>
   );
 
+  const tableColumns = [
+    {
+      header: 'ID',
+      key: 'id',
+      render: (row) => row.id.toString().padStart(3, '0'),
+    },
+    {
+      header: 'EMPLOYEE',
+      key: 'employee',
+      render: (row) => (
+        <div className="employee-info">
+          <div className="employee-avatar">
+            <span
+              className="material-icons-outlined"
+              style={{ color: '#94a3b8' }}
+            >
+              person
+            </span>
+          </div>
+          <div className="employee-details">
+            <div className="employee-name">{row.employee_name || row.employeeName || 'Unknown'}</div>
+            <div className="employee-position">{row.position || '-'}</div>
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'REWARD TYPE',
+      key: 'rewardType',
+      render: (row) => {
+        const rewardType = row.reward_type || row.rewardType || '';
+        const typeConfig = rewardTypeConfig[rewardType] || {
+          name: rewardType,
+          class: 'type-bonus',
+          icon: 'stars',
+        };
+        return (
+          <>
+            <span className={`reward-type ${typeConfig.class}`}>
+              <span
+                className="material-icons-outlined"
+                style={{
+                  fontSize: '14px',
+                  verticalAlign: 'middle',
+                  marginRight: '4px',
+                }}
+              >
+                {typeConfig.icon}
+              </span>
+              {typeConfig.name}
+            </span>
+            {row.badge && (
+              <span className="badge-icon">
+                <span className="material-icons-outlined">workspace_premium</span>
+              </span>
+            )}
+          </>
+        );
+      },
+    },
+    {
+      header: 'VALUE',
+      key: 'value',
+      render: (row) => {
+        const rewardValue = row.reward_value || row.rewardValue || 0;
+        return rewardValue > 0 ? (
+          <div className="reward-value">
+            ${rewardValue.toLocaleString()}
+          </div>
+        ) : (
+          <div style={{ fontSize: '0.85rem', color: 'var(--gray-color)' }}>
+            -
+          </div>
+        );
+      },
+    },
+    {
+      header: 'CATEGORY',
+      key: 'category',
+      render: (row) => (
+        <span style={{ fontSize: '0.85rem', textTransform: 'capitalize' }}>
+          {(row.category || '').replace('_', ' ')}
+        </span>
+      ),
+    },
+    {
+      header: 'AWARD DATE',
+      key: 'awardDate',
+      render: (row) => row.award_date || row.awardDate || '',
+    },
+    {
+      header: 'STATUS',
+      key: 'status',
+      render: (row) => (
+        <span className={`reward-status status-${row.status}`}>
+          {(row.status || '').charAt(0).toUpperCase() + (row.status || '').slice(1)}
+        </span>
+      ),
+    },
+    {
+      header: 'APPROVE',
+      key: 'approve',
+      render: (row) => (
+        row.status === 'pending' || row.status === 'approved' ? (
+          <button
+            className="icon-btn"
+            style={{ color: 'var(--success-color)' }}
+            onClick={() => approveReward(row.id)}
+            title={row.status === 'pending' ? 'Approve' : 'Mark as Delivered'}
+          >
+            <span className="material-icons-outlined">check_circle</span>
+          </button>
+        ) : null
+      ),
+    },
+  ];
+
+  const tableDataWithSelected = useMemo(() => {
+    return filteredRewards.map(reward => ({
+      ...reward,
+      selected: selectedIds.includes(reward.id)
+    }));
+  }, [filteredRewards, selectedIds]);
+
   return (
     <>
       <Head>
@@ -1578,180 +1569,63 @@ const Reward = ({ employees: propEmployees }) => {
 
         {/* Main Card */}
         <div className="rewards-card fade-in">
-          <div className="card-header">
-            <div className="rewards-actions">
-              <select
-                className="btn btn-outline"
-                id="bulkActions"
-                onChange={(e) => applyBulkAction(e.target.value)}
-              >
-                <option value="">Bulk Actions</option>
-                <option value="approve">Approve Selected</option>
-                <option value="complete">Mark as Completed</option>
-                <option value="delete">Delete Selected</option>
-                <option value="export">Export to CSV</option>
-              </select>
-            </div>
-            <div className="actions">
-              <input
-                type="text"
-                className="search-input"
-                placeholder="Search rewards..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ marginRight: '8px' }}
-              />
-              <button className="btn btn-primary" onClick={() => openModal()}>
-                <span className="material-icons-outlined">add</span>
-                <span>Add Reward</span>
-              </button>
-              <button
-                className="btn btn-outline"
-                onClick={() => showToast('Rewards list refreshed!', 'success')}
-              >
-                <span className="material-icons-outlined">refresh</span>
-                <span>Refresh</span>
-              </button>
-              <button className="btn btn-outline" onClick={exportToCSV}>
-                <span className="material-icons-outlined">download</span>
-                <span>Export</span>
-              </button>
-              <button
-                className="btn btn-outline"
-                onClick={openRewardTypeConfigModal}
-                title="Configure reward types"
-              >
-                <span className="material-icons-outlined">settings</span>
-                <span>Configure</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>
-                    <input
-                      type="checkbox"
-                      id="selectAll"
-                      checked={
-                        selectedIds.length === paginatedRewards.length &&
-                        paginatedRewards.length > 0
-                      }
-                      onChange={(e) => handleSelectAll(e.target.checked)}
-                    />
-                  </th>
-                  <th>ID</th>
-                  <th>EMPLOYEE</th>
-                  <th>REWARD TYPE</th>
-                  <th>VALUE</th>
-                  <th>CATEGORY</th>
-                  <th>AWARD DATE</th>
-                  <th>STATUS</th>
-                  <th>OPERATIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan="9" style={{ textAlign: 'center', padding: '40px' }}>
-                      Loading rewards...
-                    </td>
-                  </tr>
-                ) : paginatedRewards.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="9"
-                      style={{
-                        textAlign: 'center',
-                        padding: '40px',
-                        color: 'var(--gray-color)',
-                      }}
-                    >
-                      <span
-                        className="material-icons-outlined"
-                        style={{
-                          fontSize: '48px',
-                          marginBottom: '16px',
-                          display: 'block',
-                          color: '#cbd5e1',
-                        }}
-                      >
-                        info
-                      </span>
-                      No rewards found
-                    </td>
-                  </tr>
-                ) : (
-                  paginatedRewards.map((reward) => (
-                    <RewardRow key={reward.id} reward={reward} />
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="pagination">
-            <div className="pagination-info">
-              <select
-                className="select-dropdown"
-                value={rowsPerPage}
-                onChange={(e) => {
-                  setRowsPerPage(parseInt(e.target.value));
-                  setCurrentPage(1);
-                }}
-              >
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-              <span>
-                Show from {startIndex + 1} to {endIndex} in
-                <span
-                  style={{
-                    backgroundColor: '#64748b',
-                    color: 'white',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    fontWeight: '600',
-                    marginLeft: '8px',
+          <Table
+            tableData={tableDataWithSelected}
+            columns={tableColumns}
+            
+            selectAll={selectedIds.length === filteredRewards.length && filteredRewards.length > 0}
+            handleSelectAll={(e) => handleSelectAll(e.target.checked)}
+            handleRowSelect={(id) => handleCheckboxChange(id, !selectedIds.includes(id))}
+            
+            onView={(row) => openViewModal(row)}
+            onEdit={(row) => openModal(row)}
+            onDelete={(row) => deleteReward(row.id)}
+            
+            showToolbar={true}
+            toolbarSearch={true}
+            toolbarSearchValue={searchTerm}
+            onToolbarSearch={setSearchTerm}
+            
+            showRefreshButton={true}
+            onRefresh={() => {
+              fetchRewards();
+              showToast('Rewards list refreshed!', 'success');
+            }}
+            
+            showAddButton={true}
+            addButtonText="Add Reward"
+            onAdd={() => openModal()}
+            
+            showExportButton={true}
+            onExport={exportToCSV}
+            
+            toolbarActions={
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <select
+                  className="btn btn-outline"
+                  id="bulkActions"
+                  onChange={(e) => {
+                    applyBulkAction(e.target.value);
+                    e.target.value = '';
                   }}
+                  style={{ marginRight: '8px' }}
                 >
-                  {filteredRewards.length}
-                </span>{' '}
-                records
-              </span>
-            </div>
-            <div className="pagination-controls">
-              <button
-                className="page-btn"
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-              >
-                « Previous
-              </button>
-              {[...Array(totalPages)].map((_, i) => (
+                  <option value="">Bulk Actions</option>
+                  <option value="approve">Approve Selected</option>
+                  <option value="complete">Mark as Completed</option>
+                  <option value="delete">Delete Selected</option>
+                </select>
                 <button
-                  key={i}
-                  className={`page-btn ${currentPage === i + 1 ? 'active' : ''}`}
-                  onClick={() => setCurrentPage(i + 1)}
+                  className="btn btn-outline"
+                  onClick={openRewardTypeConfigModal}
+                  title="Configure reward types"
                 >
-                  {i + 1}
+                  <span className="material-icons-outlined">settings</span>
+                  <span>Configure</span>
                 </button>
-              ))}
-              <button
-                className="page-btn"
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
-                }
-                disabled={currentPage === totalPages}
-              >
-                Next »
-              </button>
-            </div>
-          </div>
+              </div>
+            }
+          />
         </div>
 
         {/* Recent Awards Timeline */}

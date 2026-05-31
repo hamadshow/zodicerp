@@ -38,12 +38,12 @@ class CrossBorderTax extends Model
 
     public function sourceCountry(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Country::class, 'source_country_id');
+        return $this->belongsTo(\App\Models\Location::class, 'source_country_id');
     }
 
     public function destinationCountry(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Country::class, 'destination_country_id');
+        return $this->belongsTo(\App\Models\Location::class, 'destination_country_id');
     }
 
     public function applicableTax(): BelongsTo

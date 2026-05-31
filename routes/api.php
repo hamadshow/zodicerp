@@ -98,6 +98,18 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('tasks/categories', [TaskCategoryController::class, 'index']);
     Route::get('tasks/priorities', [TaskPriorityController::class, 'index']);
     Route::get('tasks/statuses', [TaskStatusController::class, 'index']);
+
+    // Location Management API Routes
+    Route::get('locations/search', [App\Http\Controllers\Backend\Location\LocationController::class, 'index'])->name('api.locations.search');
+    Route::get('locations/{location}/path', [App\Http\Controllers\Backend\Location\LocationController::class, 'getPath'])->name('api.locations.path');
+    Route::patch('locations/{location}/toggle-status', [App\Http\Controllers\Backend\Location\LocationController::class, 'toggleStatus'])->name('api.locations.toggle-status');
+    Route::apiResource('locations', App\Http\Controllers\Backend\Location\LocationController::class)->names([
+        'index' => 'api.locations.index',
+        'store' => 'api.locations.store',
+        'show' => 'api.locations.show',
+        'update' => 'api.locations.update',
+        'destroy' => 'api.locations.destroy',
+    ]);
     Route::get('tasks/statistics', [TaskController::class, 'statistics']);
     Route::apiResource('tasks', TaskController::class);
     Route::apiResource('assignments', TaskAssignmentController::class);

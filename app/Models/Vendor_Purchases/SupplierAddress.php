@@ -2,8 +2,7 @@
 
 namespace App\Models\Vendor_Purchases;
 
-use App\Models\City;
-use App\Models\Country;
+use App\Models\Location;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,8 +15,7 @@ class SupplierAddress extends Model
         'supplier_id',
         'address_type',
         'address_name',
-        'country_id',
-        'city_id',
+        'location_id',
         'district',
         'street',
         'building_number',
@@ -34,8 +32,7 @@ class SupplierAddress extends Model
 
     protected $casts = [
         'supplier_id' => 'integer',
-        'city_id' => 'integer',
-        'country_id' => 'integer',
+        'location_id' => 'integer',
         'is_default' => 'boolean',
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
@@ -46,13 +43,18 @@ class SupplierAddress extends Model
         return $this->belongsTo(Supplier::class, 'supplier_id');
     }
 
+    public function location()
+    {
+        return $this->belongsTo(Location::class, 'location_id');
+    }
+
     public function city()
     {
-        return $this->belongsTo(City::class, 'city_id');
+        return $this->belongsTo(Location::class, 'location_id');
     }
 
     public function country()
     {
-        return $this->belongsTo(Country::class, 'country_id');
+        return $this->belongsTo(Location::class, 'location_id');
     }
 }

@@ -18,11 +18,7 @@ return new class extends Migration
             $table->string('name_en', 200);
 
             // Scope
-            if (Schema::hasTable('countries')) {
-                $table->foreignId('country_id')->constrained('countries');
-            } else {
-                $table->unsignedBigInteger('country_id');
-            }
+            $table->foreignId('location_id')->constrained('locations');
 
             $table->enum('exemption_type', ['customer', 'product', 'service', 'document', 'special']);
 

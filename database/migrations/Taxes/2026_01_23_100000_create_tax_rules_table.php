@@ -18,23 +18,7 @@ return new class extends Migration
             $table->string('name_en', 200);
 
             // Scope
-            if (Schema::hasTable('countries')) {
-                $table->foreignId('country_id')->constrained('countries');
-            } else {
-                $table->unsignedBigInteger('country_id');
-            }
-
-            if (Schema::hasTable('states')) {
-                $table->foreignId('state_id')->nullable()->constrained('states');
-            } else {
-                $table->unsignedBigInteger('state_id')->nullable();
-            }
-
-            if (Schema::hasTable('cities')) {
-                $table->foreignId('city_id')->nullable()->constrained('cities');
-            } else {
-                $table->unsignedBigInteger('city_id')->nullable();
-            }
+            $table->foreignId('location_id')->constrained('locations');
 
             // Application
             $table->enum('apply_to', ['customer', 'vendor', 'product', 'service', 'category', 'all']);
@@ -96,7 +80,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Indexes
-            $table->index(['country_id', 'state_id', 'city_id'], 'idx_rule_scope');
+            $table->index('location_id', 'idx_rule_scope');
             $table->index(['effective_from', 'effective_to'], 'idx_effective_dates');
             $table->index('priority');
         });

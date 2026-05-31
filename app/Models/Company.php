@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Location;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -16,17 +17,17 @@ class Company extends Model
 
     public function countryData()
     {
-        return $this->belongsTo(Country::class, 'country');
+        return $this->belongsTo(Location::class, 'country');
     }
 
     public function cityData()
     {
-        return $this->belongsTo(City::class, 'city');
+        return $this->belongsTo(Location::class, 'city');
     }
 
     public function areaData()
     {
-        return $this->belongsTo(Area::class, 'area');
+        return $this->belongsTo(Location::class, 'area');
     }
 
     public function users(): HasMany

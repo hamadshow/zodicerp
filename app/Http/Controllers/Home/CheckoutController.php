@@ -72,11 +72,10 @@ class CheckoutController extends Controller
                 ]);
             }
 
-            $country = \App\Models\Country::where('name_en', $validated['country'])
-                ->orWhere('name_ar', $validated['country'])
-                ->first();
-            $city = \App\Models\City::where('name', $validated['city'])
-                ->first();
+            $country = \App\Models\Location::where('location_type', 'country')->where('name_json->en', $validated['country'])
+                ->orWhere('name_json->ar', $validated['country'])->first();
+            $city = \App\Models\Location::where('location_type', 'city')->where('name_json->en', $validated['city'])
+                ->orWhere('name_json->ar', $validated['city'])->first();
 
             $customer = Customer::firstOrCreate(
                 ['email' => $validated['email']],
@@ -100,11 +99,10 @@ class CheckoutController extends Controller
 
         if (! $shippingAddress) {
             Log::info('Checkout: Shipping address not found, creating.');
-            $country = \App\Models\Country::where('name_en', $validated['country'])
-                ->orWhere('name_ar', $validated['country'])
-                ->first();
-            $city = \App\Models\City::where('name', $validated['city'])
-                ->first();
+            $country = \App\Models\Location::where('location_type', 'country')->where('name_json->en', $validated['country'])
+                ->orWhere('name_json->ar', $validated['country'])->first();
+            $city = \App\Models\Location::where('location_type', 'city')->where('name_json->en', $validated['city'])
+                ->orWhere('name_json->ar', $validated['city'])->first();
 
             $shippingAddress = CustomerAddress::create([
                 'customer_id' => $customer->id,

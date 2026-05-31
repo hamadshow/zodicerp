@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Backend\Taxes;
 
 use App\Http\Controllers\Controller;
-use App\Models\Country;
+use App\Models\Location;
 use App\Models\Taxes\TaxType;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -16,7 +16,7 @@ class TaxTypeController extends Controller
     public function index()
     {
         $taxTypes = TaxType::with('country')->get();
-        $countries = Country::all();
+        $countries = Location::where('location_type', 'country')->get();
 
         return Inertia::render('Backend/09-Taxes/TaxType', [
             'taxTypes' => $taxTypes,
@@ -44,7 +44,7 @@ class TaxTypeController extends Controller
             'tax_category' => 'required|in:sales,purchase,income,withholding,excise,customs,property,other',
             'tax_level' => 'required|in:federal,state,provincial,county,city,municipal,special',
             'tax_system_code' => 'nullable|string',
-            'country_id' => 'required|exists:countries,id',
+            'location_id' => 'required|exists:locations,id',
             'legal_reference' => 'nullable|string',
             'effective_date' => 'required|date',
             'expiry_date' => 'nullable|date',
@@ -87,7 +87,7 @@ class TaxTypeController extends Controller
             'tax_category' => 'required|in:sales,purchase,income,withholding,excise,customs,property,other',
             'tax_level' => 'required|in:federal,state,provincial,county,city,municipal,special',
             'tax_system_code' => 'nullable|string',
-            'country_id' => 'required|exists:countries,id',
+            'location_id' => 'required|exists:locations,id',
             'legal_reference' => 'nullable|string',
             'effective_date' => 'required|date',
             'expiry_date' => 'nullable|date',

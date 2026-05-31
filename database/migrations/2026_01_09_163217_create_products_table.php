@@ -28,12 +28,12 @@ return new class extends Migration
             // Identification
             $table->string('sku')->unique()->nullable();
             $table->string('barcode')->unique()->nullable();
+            $table->string('supplier_code', 50)->nullable();
 
             // Organization
             $table->foreignId('parent_id')->nullable()->constrained('products')->nullOnDelete();
             $table->foreignId('brand_id')->nullable()->constrained('brands')->nullOnDelete();
-            $table->foreignId('category_id')->nullable()->constrained('categories')->nullOnDelete();
-            $table->foreignId('store_id')->nullable(); // Assuming store/branch table
+            $table->foreignId('unit_id')->nullable()->constrained('item_units')->nullOnDelete();
             $table->integer('order')->default(0);
 
             // Stats
@@ -87,6 +87,7 @@ return new class extends Migration
             $table->unsignedBigInteger('approved_by')->nullable();
             $table->unsignedBigInteger('created_by_id')->nullable();
             $table->string('created_by_type')->nullable();
+            $table->foreignId('company_id')->nullable()->constrained('company')->nullOnDelete();
 
             $table->softDeletes();
             $table->timestamps();

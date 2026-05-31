@@ -1,40 +1,36 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import Table from '../components/Table';
+import BlankPage from '@/Components/BlankPage';
+import StatsCards from '@/Components/stats-cards';
+import Table from '@/Pages/Backend/components/Table';
 import '../../../../css/backend/main.scss';
-import { useForm, router, usePage } from '@inertiajs/react';
 
 const Profession = ({ professions = [], departments = [] }) => {
     const { props } = usePage();
     const localization = props.localization;
     const isArabic = localization?.current_locale === 'ar';
+    const translations = localization?.translations || {};
 
-    const getLocalizedRoute = (name, params = {}) => {
-        return route(name, {
-            country: localization?.country_code || 'sa',
-            lang: localization?.current_locale || 'ar',
-            ...params
-        });
-    };
+    const t = useCallback(
+        (key, fallback) => translations[`profession.${key}`] || translations[`common.${key}`] || fallback,
+        [translations]
+    );
 
-    const getDepartmentName = (deptId) => {
-        const dept = departments.find(d => d.id === parseInt(deptId));
-        if (!dept) return deptId || '';
-        return isArabic ? dept.name_ar : dept.name_en;
-    };
+    const getLocalizedRoute = useCallback(
+        (name, params = {}) =>
+            route(name, {
+                country: localization?.country_code || 'sa',
+                lang: localization?.current_locale || 'ar',
+                ...params,
+            }),
+        [localization]
+    );
 
-    const [filteredProfessions, setFilteredProfessions] = useState(professions);
     const [searchTerm, setSearchTerm] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [currentProfession, setCurrentProfession] = useState(null);
     const [selectedIds, setSelectedIds] = useState([]);
-    const [selectAll, setSelectAll] = useState(false);
-    const [stats, setStats] = useState({
-        total: 0,
-        active: 0,
-        employees: 0,
-        vacant: 0
-    });
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         company_id: 1, // Default company_id
@@ -51,52 +47,83 @@ const Profession = ({ professions = [], departments = [] }) => {
         sort_order: 0,
     });
 
-    useEffect(() => {
-        updateStats();
-        filterProfessions();
-    }, [professions, searchTerm]);
+    const departmentNameById = useMemo(() => {
+        const map = new Map();
+        departments.forEach((dept) => {
+            map.set(dept.id, isArabic ? dept.name_ar : dept.name_en);
+        });
+        return map;
+    }, [departments, isArabic]);
 
-    const updateStats = () => {
-        const total = professions.length;
-        const active = professions.filter(p => p.status === 'active').length;
-        const employees = professions.reduce((sum, p) => sum + (p.employees || 0), 0);
-        const vacant = professions.filter(p => (p.employees || 0) === 0 && p.status === 'active').length;
+    const getDepartmentName = useCallback(
+        (deptId) => {
+            const normalizedId = Number.parseInt(deptId, 10);
+            if (Number.isNaN(normalizedId)) return deptId || '';
+            return departmentNameById.get(normalizedId) || deptId || '';
+        },
+        [departmentNameById]
+    );
 
-        setStats({ total, active, employees, vacant });
-    };
-
-    const filterProfessions = () => {
-        if (!searchTerm) {
-            setFilteredProfessions(professions);
-            return;
-        }
+    const filteredProfessions = useMemo(() => {
+        if (!searchTerm) return professions;
         const lowerTerm = searchTerm.toLowerCase();
-        const filtered = professions.filter(p => 
-            p.profession_name.toLowerCase().includes(lowerTerm) ||
-            p.profession_code.toLowerCase().includes(lowerTerm) ||
+        return professions.filter((p) =>
+            (p.profession_name || '').toLowerCase().includes(lowerTerm) ||
+            (p.profession_code || '').toLowerCase().includes(lowerTerm) ||
             getDepartmentName(p.category).toLowerCase().includes(lowerTerm)
         );
-        setFilteredProfessions(filtered);
-    };
+    }, [getDepartmentName, professions, searchTerm]);
 
-    const handleSearch = (e) => {
-        setSearchTerm(e.target.value);
-    };
+    const stats = useMemo(() => {
+        const total = professions.length;
+        const active = professions.filter((p) => p.status === 'active').length;
+        const employees = professions.reduce((sum, p) => sum + (p.employees || 0), 0);
+        const vacant = professions.filter((p) => (p.employees || 0) === 0 && p.status === 'active').length;
+        return { total, active, employees, vacant };
+    }, [professions]);
 
-    const handleRowSelect = (id) => {
-        setSelectedIds(prev => 
-            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-        );
-    };
+    const statsItems = useMemo(
+        () => [
+            {
+                icon: 'work',
+                bgColor: 'var(--info-color)',
+                value: stats.total,
+                label: t('total_professions', isArabic ? 'إجمالي المهن' : 'Total Professions'),
+            },
+            {
+                icon: 'check_circle',
+                bgColor: 'var(--success-color)',
+                value: stats.active,
+                label: t('active_professions', isArabic ? 'المهن النشطة' : 'Active Professions'),
+            },
+            {
+                icon: 'people',
+                bgColor: 'var(--warning-color)',
+                value: stats.employees,
+                label: t('total_employees', isArabic ? 'إجمالي الموظفين' : 'Total Employees'),
+            },
+            {
+                icon: 'warning',
+                bgColor: 'var(--danger-color)',
+                value: stats.vacant,
+                label: t('vacant_positions', isArabic ? 'الوظائف الشاغرة' : 'Vacant Positions'),
+            },
+        ],
+        [isArabic, stats.active, stats.employees, stats.total, stats.vacant, t]
+    );
 
-    const handleSelectAll = () => {
-        if (selectAll) {
-            setSelectedIds([]);
-        } else {
-            setSelectedIds(filteredProfessions.map(p => p.id));
-        }
-        setSelectAll(!selectAll);
-    };
+    const selectAll = useMemo(
+        () => filteredProfessions.length > 0 && selectedIds.length === filteredProfessions.length,
+        [filteredProfessions.length, selectedIds.length]
+    );
+
+    const handleRowSelect = useCallback((id) => {
+        setSelectedIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+    }, []);
+
+    const handleSelectAll = useCallback(() => {
+        setSelectedIds(selectAll ? [] : filteredProfessions.map((p) => p.id));
+    }, [filteredProfessions, selectAll]);
 
     const columns = useMemo(() => [
         { 
@@ -111,7 +138,7 @@ const Profession = ({ professions = [], departments = [] }) => {
             sortable: true,
             render: (row) => (
                 <div className="profession-info">
-                    <div className="profession-icon" style={{ backgroundColor: getCategoryColor() }}>
+                    <div className="profession-icon">
                         <span className="material-icons-outlined">work</span>
                     </div>
                     <div className="profession-details">
@@ -133,7 +160,7 @@ const Profession = ({ professions = [], departments = [] }) => {
             sortable: true,
             render: (row) => (
                 <div className="employee-count">
-                    <span className="material-icons-outlined" style={{ fontSize: '16px' }}>people</span>
+                    <span className="material-icons-outlined employee-count-icon">people</span>
                     {row.employees || 0}
                 </div>
             )
@@ -154,7 +181,7 @@ const Profession = ({ professions = [], departments = [] }) => {
             sortable: true,
             render: (row) => (
                 <span className={`profession-status ${row.status === 'active' ? 'status-active' : 'status-inactive'}`}>
-                    {row.status === 'active' ? 'Active' : 'Inactive'}
+                    {row.status === 'active' ? t('active', isArabic ? 'نشط' : 'Active') : t('inactive', isArabic ? 'غير نشط' : 'Inactive')}
                 </span>
             )
         },
@@ -164,7 +191,7 @@ const Profession = ({ professions = [], departments = [] }) => {
             sortable: true,
             render: (row) => new Date(row.created_at).toLocaleDateString()
         }
-    ], [isArabic, departments]);
+    ], [getDepartmentName, isArabic, t]);
 
     const tableData = useMemo(() => {
         return filteredProfessions.map(p => ({
@@ -173,7 +200,7 @@ const Profession = ({ professions = [], departments = [] }) => {
         }));
     }, [filteredProfessions, selectedIds]);
 
-    const openModal = (prof = null) => {
+    const openModal = useCallback((prof = null) => {
         if (prof) {
             setCurrentProfession(prof);
             setData({
@@ -195,15 +222,15 @@ const Profession = ({ professions = [], departments = [] }) => {
             reset();
         }
         setIsModalOpen(true);
-    };
+    }, [reset, setData]);
 
-    const closeModal = () => {
+    const closeModal = useCallback(() => {
         setIsModalOpen(false);
         setCurrentProfession(null);
         reset();
-    };
+    }, [reset]);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = useCallback((e) => {
         e.preventDefault();
         
         if (currentProfession) {
@@ -215,298 +242,228 @@ const Profession = ({ professions = [], departments = [] }) => {
                 onSuccess: () => closeModal(),
             });
         }
-    };
+    }, [closeModal, currentProfession, getLocalizedRoute, post, put]);
 
-    const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this profession?')) {
-            router.delete(getLocalizedRoute('admin.professions.destroy', { profession: id }));
-        }
-    };
+    const handleDelete = useCallback((id) => {
+        if (!window.confirm(t('confirm_delete', isArabic ? 'هل أنت متأكد من حذف هذه المهنة؟' : 'Are you sure you want to delete this profession?'))) return;
+        router.delete(getLocalizedRoute('admin.professions.destroy', { profession: id }));
+    }, [getLocalizedRoute, isArabic, t]);
 
-    const getCategoryColor = () => {
-        return 'var(--primary-color)';
-    };
+    const breadcrumbs = useMemo(
+        () => [
+            { label: t('dashboard', isArabic ? 'لوحة التحكم' : 'Dashboard'), href: getLocalizedRoute('admin.dashboard') },
+            { label: t('human_resources', isArabic ? 'الموارد البشرية' : 'Human Resources') },
+            { label: t('professions', isArabic ? 'المهن' : 'Professions') },
+        ],
+        [getLocalizedRoute, isArabic, t]
+    );
 
     return (
         <AdminLayout activeMenu="Profession">
-            <div className="breadcrumb">
-                <a href="#">Dashboard</a>
-                <span>/</span>
-                <a href="#">Human Resources</a>
-                <span>/</span>
-                <span>Professions</span>
-            </div>
+            <Head title={t('professions', isArabic ? 'المهن' : 'Professions')} />
 
-            {/* Quick Stats */}
-            <div className="stats-cards">
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
-                        <span className="material-icons-outlined">work</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.total}</div>
-                        <div className="stat-label">Total Professions</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
-                        <span className="material-icons-outlined">check_circle</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.active}</div>
-                        <div className="stat-label">Active Professions</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--warning-color)' }}>
-                        <span className="material-icons-outlined">person</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.employees}</div>
-                        <div className="stat-label">Total Employees</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--danger-color)' }}>
-                        <span className="material-icons-outlined">warning</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.vacant}</div>
-                        <div className="stat-label">Vacant Positions</div>
-                    </div>
-                </div>
-            </div>
+            <BlankPage breadcrumbs={breadcrumbs} stats={<StatsCards items={statsItems} />}>
+                <div className="profession-page">
+                    <Table
+                        showToolbar={true}
+                        toolbarSearch={true}
+                        toolbarSearchValue={searchTerm}
+                        onToolbarSearch={setSearchTerm}
+                        toolbarSearchPlaceholder={t('search_placeholder', isArabic ? 'ابحث في المهن...' : 'Search professions...')}
+                        showAddButton={true}
+                        addButtonText={t('add_profession', isArabic ? 'إضافة مهنة' : 'Add Profession')}
+                        onAdd={() => openModal()}
+                        showRefreshButton={true}
+                        onRefresh={() => router.get(getLocalizedRoute('admin.professions.index'))}
+                        tableData={tableData}
+                        columns={columns}
+                        handleRowSelect={handleRowSelect}
+                        selectAll={selectAll}
+                        handleSelectAll={handleSelectAll}
+                        onEdit={(row) => openModal(row)}
+                        onDelete={(row) => handleDelete(row.id)}
+                        editTitle={t('edit', isArabic ? 'تعديل' : 'Edit')}
+                        deleteTitle={t('delete', isArabic ? 'حذف' : 'Delete')}
+                    />
 
-            {/* Main Card */}
-            <div className="profession-card fade-in">
-                <div className="card-header">
-                    <div className="profession-actions">
-                        <select className="btn btn-outline" defaultValue="">
-                            <option disabled value="">Bulk Actions</option>
-                            <option value="activate">Activate Selected</option>
-                            <option value="deactivate">Deactivate Selected</option>
-                            <option value="delete">Delete Selected</option>
-                        </select>
-                        <button className="btn btn-outline">
-                            <span className="material-icons-outlined">play_arrow</span>
-                            <span>Apply</span>
-                        </button>
-                        <div className="search-bar light">
-                            <input 
-                                type="text" 
-                                placeholder="Search professions..." 
-                                value={searchTerm}
-                                onChange={handleSearch}
-                            />
-                            <button>
-                                <span className="material-icons-outlined">search</span>
-                            </button>
+                    <div
+                        className={`modal-overlay ${isModalOpen ? 'active' : ''}`}
+                        onClick={(e) => {
+                            if (e.target === e.currentTarget) closeModal();
+                        }}
+                    >
+                        <div className="modal">
+                            <div className="modal-header">
+                                <h3 className="modal-title">
+                                    {currentProfession
+                                        ? t('edit_profession', isArabic ? 'تعديل المهنة' : 'Edit Profession')
+                                        : t('add_new_profession', isArabic ? 'إضافة مهنة جديدة' : 'Add New Profession')}
+                                </h3>
+                                <button type="button" className="modal-close" onClick={closeModal}>
+                                    <span className="material-icons-outlined">close</span>
+                                </button>
+                            </div>
+                            <form onSubmit={handleSubmit}>
+                                <div className="modal-body">
+                                    <div className="form-group">
+                                        <label className="form-label">
+                                            {t('profession_name', isArabic ? 'اسم المهنة' : 'Profession Name')} *
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className={`form-control ${errors.profession_name ? 'is-invalid' : ''}`}
+                                            value={data.profession_name}
+                                            onChange={(e) => setData('profession_name', e.target.value)}
+                                            placeholder={t('profession_name_placeholder', isArabic ? 'أدخل اسم المهنة' : 'Enter profession name')}
+                                            required
+                                        />
+                                        {errors.profession_name && <div className="invalid-feedback">{errors.profession_name}</div>}
+                                    </div>
+
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label className="form-label">
+                                                {t('profession_code', isArabic ? 'رمز المهنة' : 'Profession Code')} *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                className={`form-control ${errors.profession_code ? 'is-invalid' : ''}`}
+                                                value={data.profession_code}
+                                                onChange={(e) => setData('profession_code', e.target.value.toUpperCase())}
+                                                placeholder={t('profession_code_placeholder', isArabic ? 'أدخل رمز المهنة' : 'Enter profession code')}
+                                                required
+                                            />
+                                            {errors.profession_code && <div className="invalid-feedback">{errors.profession_code}</div>}
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">
+                                                {t('category_department', isArabic ? 'القسم' : 'Category (Department)')}
+                                            </label>
+                                            <select
+                                                className="form-control"
+                                                value={data.category}
+                                                onChange={(e) => setData('category', e.target.value)}
+                                            >
+                                                <option value="">{t('select_department', isArabic ? 'اختر القسم' : 'Select Department')}</option>
+                                                {departments.map((dept) => (
+                                                    <option key={dept.id} value={dept.id}>
+                                                        {isArabic ? dept.name_ar : dept.name_en}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label className="form-label">{t('description', isArabic ? 'الوصف' : 'Description')}</label>
+                                        <textarea
+                                            className="form-control form-textarea"
+                                            value={data.description}
+                                            onChange={(e) => setData('description', e.target.value)}
+                                            placeholder={t('description_placeholder', isArabic ? 'أدخل وصف المهنة' : 'Enter profession description')}
+                                        />
+                                    </div>
+
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label className="form-label">{t('min_salary', isArabic ? 'الحد الأدنى للراتب' : 'Minimum Salary')}</label>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                value={data.min_salary}
+                                                onChange={(e) => setData('min_salary', e.target.value)}
+                                                placeholder={t('min_salary_placeholder', isArabic ? 'أدخل الحد الأدنى للراتب' : 'Enter minimum salary')}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">{t('max_salary', isArabic ? 'الحد الأعلى للراتب' : 'Maximum Salary')}</label>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                value={data.max_salary}
+                                                onChange={(e) => setData('max_salary', e.target.value)}
+                                                placeholder={t('max_salary_placeholder', isArabic ? 'أدخل الحد الأعلى للراتب' : 'Enter maximum salary')}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label className="form-label">
+                                                {t('required_experience', isArabic ? 'الخبرة المطلوبة (سنوات)' : 'Required Experience (Years)')}
+                                            </label>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                value={data.required_experience}
+                                                onChange={(e) => setData('required_experience', e.target.value)}
+                                                placeholder={t('required_experience_placeholder', isArabic ? 'سنوات الخبرة' : 'Years of experience')}
+                                                min="0"
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">{t('education_level', isArabic ? 'المستوى التعليمي' : 'Education Level')}</label>
+                                            <select
+                                                className="form-control"
+                                                value={data.education_level}
+                                                onChange={(e) => setData('education_level', e.target.value)}
+                                            >
+                                                <option value="High School">{t('high_school', isArabic ? 'ثانوي' : 'High School')}</option>
+                                                <option value="Diploma">{t('diploma', isArabic ? 'دبلوم' : 'Diploma')}</option>
+                                                <option value="Bachelor">{t('bachelor', isArabic ? 'بكالوريوس' : "Bachelor's Degree")}</option>
+                                                <option value="Master">{t('master', isArabic ? 'ماجستير' : "Master's Degree")}</option>
+                                                <option value="PhD">{t('phd', isArabic ? 'دكتوراه' : 'PhD')}</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label className="form-label">{t('key_skills', isArabic ? 'المهارات الرئيسية' : 'Key Skills (comma separated)')}</label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            value={data.key_skills}
+                                            onChange={(e) => setData('key_skills', e.target.value)}
+                                            placeholder={t(
+                                                'key_skills_placeholder',
+                                                isArabic ? 'مثال: التواصل، القيادة، إدارة المشاريع' : 'e.g., Communication, Leadership, Project Management'
+                                            )}
+                                        />
+                                    </div>
+
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label className="form-label">{t('status', isArabic ? 'الحالة' : 'Status')}</label>
+                                            <select className="form-control" value={data.status} onChange={(e) => setData('status', e.target.value)}>
+                                                <option value="active">{t('active', isArabic ? 'نشط' : 'Active')}</option>
+                                                <option value="inactive">{t('inactive', isArabic ? 'غير نشط' : 'Inactive')}</option>
+                                            </select>
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">{t('sort_order', isArabic ? 'ترتيب العرض' : 'Sort Order')}</label>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                value={data.sort_order}
+                                                onChange={(e) => setData('sort_order', e.target.value)}
+                                                min="0"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="modal-actions">
+                                    <button type="button" className="btn" onClick={closeModal}>
+                                        {t('cancel', isArabic ? 'إلغاء' : 'Cancel')}
+                                    </button>
+                                    <button type="submit" className="btn btn-primary" disabled={processing}>
+                                        {processing ? t('saving', isArabic ? 'جارٍ الحفظ...' : 'Saving...') : t('save_profession', isArabic ? 'حفظ المهنة' : 'Save Profession')}
+                                    </button>
+                                </div>
+                            </form>
                         </div>
                     </div>
-                    <div className="actions">
-                        <button className="btn btn-primary" onClick={() => openModal()}>
-                            <span className="material-icons-outlined">add</span>
-                            <span>Add Profession</span>
-                        </button>
-                        <button className="btn btn-outline" onClick={() => router.get(getLocalizedRoute('admin.professions.index'))}>
-                            <span className="material-icons-outlined">refresh</span>
-                            <span>Refresh</span>
-                        </button>
-                    </div>
                 </div>
-
-                <Table 
-                    tableData={tableData}
-                    columns={columns}
-                    handleRowSelect={handleRowSelect}
-                    selectAll={selectAll}
-                    handleSelectAll={handleSelectAll}
-                    onView={(row) => console.log('View', row)}
-                    onEdit={(row) => openModal(row)}
-                    onDelete={(row) => handleDelete(row.id)}
-                    viewTitle={isArabic ? "عرض" : "View"}
-                    editTitle={isArabic ? "تعديل" : "Edit"}
-                    deleteTitle={isArabic ? "حذف" : "Delete"}
-                />
-
-                <div className="pagination">
-                    <div className="pagination-info">
-                        <select className="select-dropdown" defaultValue="10">
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                        </select>
-                        <span>Show from 1 to {filteredProfessions.length > 10 ? 10 : filteredProfessions.length} in <span style={{ backgroundColor: '#64748b', color: 'white', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>{filteredProfessions.length}</span> records</span>
-                    </div>
-                    <div className="pagination-controls">
-                        <button className="page-btn">« Previous</button>
-                        <button className="page-btn active">1</button>
-                        <button className="page-btn">2</button>
-                        <button className="page-btn">Next »</button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Modal Overlay */}
-            <div className={`modal-overlay ${isModalOpen ? 'active' : ''}`} onClick={(e) => { if(e.target.className.includes('modal-overlay')) closeModal(); }}>
-                <div className="modal">
-                    <div className="modal-header">
-                        <h3 className="modal-title">{currentProfession ? 'Edit Profession' : 'Add New Profession'}</h3>
-                        <button className="modal-close" onClick={closeModal}>
-                            <span className="material-icons-outlined">close</span>
-                        </button>
-                    </div>
-                    <form onSubmit={handleSubmit}>
-                        <div className="modal-body">
-                            <div className="form-group">
-                                <label className="form-label">Profession Name *</label>
-                                <input 
-                                    type="text" 
-                                    className={`form-control ${errors.profession_name ? 'is-invalid' : ''}`} 
-                                    value={data.profession_name} 
-                                    onChange={e => setData('profession_name', e.target.value)} 
-                                    placeholder="Enter profession name" 
-                                    required 
-                                />
-                                {errors.profession_name && <div className="invalid-feedback">{errors.profession_name}</div>}
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Profession Code *</label>
-                                    <input 
-                                        type="text" 
-                                        className={`form-control ${errors.profession_code ? 'is-invalid' : ''}`} 
-                                        value={data.profession_code} 
-                                        onChange={e => setData('profession_code', e.target.value.toUpperCase())} 
-                                        placeholder="Enter profession code" 
-                                        required 
-                                    />
-                                    {errors.profession_code && <div className="invalid-feedback">{errors.profession_code}</div>}
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Category (Department)</label>
-                                    <select 
-                                        className="form-control" 
-                                        value={data.category} 
-                                        onChange={e => setData('category', e.target.value)}
-                                    >
-                                        <option value="">Select Department</option>
-                                        {departments.map(dept => (
-                                            <option key={dept.id} value={dept.id}>
-                                                {isArabic ? dept.name_ar : dept.name_en}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">Description</label>
-                                <textarea 
-                                    className="form-control form-textarea" 
-                                    value={data.description} 
-                                    onChange={e => setData('description', e.target.value)} 
-                                    placeholder="Enter profession description"
-                                ></textarea>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Minimum Salary</label>
-                                    <input 
-                                        type="number" 
-                                        className="form-control" 
-                                        value={data.min_salary} 
-                                        onChange={e => setData('min_salary', e.target.value)} 
-                                        placeholder="Enter minimum salary" 
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Maximum Salary</label>
-                                    <input 
-                                        type="number" 
-                                        className="form-control" 
-                                        value={data.max_salary} 
-                                        onChange={e => setData('max_salary', e.target.value)} 
-                                        placeholder="Enter maximum salary" 
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Required Experience (Years)</label>
-                                    <input 
-                                        type="number" 
-                                        className="form-control" 
-                                        value={data.required_experience} 
-                                        onChange={e => setData('required_experience', e.target.value)} 
-                                        placeholder="Years of experience" 
-                                        min="0" 
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Education Level</label>
-                                    <select 
-                                        className="form-control" 
-                                        value={data.education_level} 
-                                        onChange={e => setData('education_level', e.target.value)}
-                                    >
-                                        <option value="High School">High School</option>
-                                        <option value="Diploma">Diploma</option>
-                                        <option value="Bachelor">Bachelor's Degree</option>
-                                        <option value="Master">Master's Degree</option>
-                                        <option value="PhD">PhD</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="form-group">
-                                <label className="form-label">Key Skills (comma separated)</label>
-                                <input 
-                                    type="text" 
-                                    className="form-control" 
-                                    value={data.key_skills} 
-                                    onChange={e => setData('key_skills', e.target.value)} 
-                                    placeholder="e.g., Communication, Leadership, Project Management" 
-                                />
-                            </div>
-
-                            <div className="form-row">
-                                <div className="form-group">
-                                    <label className="form-label">Status</label>
-                                    <select 
-                                        className="form-control" 
-                                        value={data.status} 
-                                        onChange={e => setData('status', e.target.value)}
-                                    >
-                                        <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label className="form-label">Sort Order</label>
-                                    <input 
-                                        type="number" 
-                                        className="form-control" 
-                                        value={data.sort_order} 
-                                        onChange={e => setData('sort_order', e.target.value)} 
-                                        min="0" 
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                        <div className="modal-actions">
-                            <button type="button" className="btn" onClick={closeModal}>Cancel</button>
-                            <button type="submit" className="btn btn-primary" disabled={processing}>
-                                {processing ? 'Saving...' : 'Save Profession'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+            </BlankPage>
         </AdminLayout>
     );
 };

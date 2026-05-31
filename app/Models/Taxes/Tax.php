@@ -3,14 +3,14 @@
 namespace App\Models\Taxes;
 
 use App\Models\Account;
-use App\Models\City;
-use App\Models\Country;
+use App\Models\Location;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model; // Assuming Account model exists in App\Models or App\Models\Accounting
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tax extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'taxes';
 
@@ -21,9 +21,7 @@ class Tax extends Model
         'name_en',
         'description_ar',
         'description_en',
-        'country_id',
-        'state_id',
-        'city_id',
+        'location_id',
         'jurisdiction_code',
         'tax_rate',
         'tax_amount',
@@ -68,14 +66,9 @@ class Tax extends Model
         return $this->belongsTo(TaxType::class);
     }
 
-    public function country()
+    public function location()
     {
-        return $this->belongsTo(Country::class);
-    }
-
-    public function city()
-    {
-        return $this->belongsTo(City::class);
+        return $this->belongsTo(Location::class, 'location_id');
     }
 
     // Relationships for accounts

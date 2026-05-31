@@ -75,9 +75,9 @@ const OverTime = ({ employees: propEmployees }) => {
     closeModal();
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = (record) => {
     if (confirm('Are you sure you want to delete this record?')) {
-      setOvertimeList(overtimeList.filter(o => o.id !== id));
+      setOvertimeList(overtimeList.filter(o => o.id !== record.id));
     }
   };
 
@@ -137,7 +137,7 @@ const OverTime = ({ employees: propEmployees }) => {
           tableData={filteredOvertime}
           columns={columns}
           onEdit={(record) => openModal(record)}
-          onDelete={(record) => handleDelete(record.id)}
+          onDelete={(record) => handleDelete(record)}
         />
       </BlankPage>
 

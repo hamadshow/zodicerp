@@ -15,10 +15,11 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->text('description')->nullable();
-            $table->foreignId('category_id')->constrained('task_categories');
-            $table->foreignId('priority_id')->constrained('task_priorities');
-            $table->foreignId('status_id')->constrained('task_statuses');
-            $table->foreignId('created_by')->constrained('users');
+            $table->foreignId('category_id')->constrained('task_categories')->onDelete('cascade');
+            $table->foreignId('priority_id')->constrained('task_priorities')->onDelete('cascade');
+            $table->foreignId('status_id')->constrained('task_statuses')->onDelete('cascade');
+            $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
+            $table->foreignId('company_id')->nullable()->constrained('company')->nullOnDelete();
             $table->date('due_date')->nullable();
             $table->timestamps();
         });

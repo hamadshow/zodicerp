@@ -43,21 +43,6 @@ return new class extends Migration
             });
         }
 
-        // 4. States
-        if (! Schema::hasTable('states')) {
-            Schema::create('states', function (Blueprint $table) {
-                $table->id();
-                $table->string('name_ar');
-                $table->string('name_en')->nullable();
-                // Assuming countries table exists, otherwise omit constraint
-                if (Schema::hasTable('countries')) {
-                    $table->foreignId('country_id')->constrained('countries')->cascadeOnDelete();
-                } else {
-                    $table->unsignedBigInteger('country_id');
-                }
-                $table->timestamps();
-            });
-        }
 
         // 5. Exchanges (Stock Exchanges)
         if (! Schema::hasTable('exchanges')) {

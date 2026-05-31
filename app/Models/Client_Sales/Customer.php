@@ -3,8 +3,7 @@
 namespace App\Models\Client_Sales;
 
 use App\Models\Account;
-use App\Models\City;
-use App\Models\Country;
+use App\Models\Location;
 use App\Models\Currency;
 use App\Models\Vendor_Purchases\PriceList;
 use App\Models\Vendor_Purchases\SalesAgent;
@@ -24,7 +23,7 @@ class Customer extends Authenticatable
         'currency_id', 'price_list_id', 'tax_number', 'commercial_register',
         'credit_limit', 'current_balance', 'credit_days', 'payment_terms',
         'default_payment_method', 'default_warehouse_id', 'sales_agent_id',
-        'country_id', 'city_id', 'primary_phone', 'secondary_phone', 'mobile',
+        'location_id', 'primary_phone', 'secondary_phone', 'mobile',
         'fax', 'email', 'website', 'customer_type', 'customer_class',
         'is_active', 'rating', 'registration_date', 'last_sale_date', 'notes',
         'created_by', 'password', 'company_id',
@@ -75,14 +74,19 @@ class Customer extends Authenticatable
         return $this->belongsTo(SalesAgent::class, 'sales_agent_id');
     }
 
+    public function location()
+    {
+        return $this->belongsTo(Location::class, 'location_id');
+    }
+
     public function country()
     {
-        return $this->belongsTo(Country::class, 'country_id');
+        return $this->belongsTo(Location::class, 'location_id');
     }
 
     public function city()
     {
-        return $this->belongsTo(City::class, 'city_id');
+        return $this->belongsTo(Location::class, 'location_id');
     }
 
     public function addresses()

@@ -19,8 +19,12 @@
 @use 'components/search-bar';
 @use 'components/NavigationLink';
 @use 'components/SearchableComboBox';
+@use 'components/TreeTable';
 @use 'components/action-buttons';
 @use 'components/CRUD-Actions';
+@use 'components/modal';
+@use 'components/badges';
+@use 'components/HierarchyManager';
 
 // Page-specific styles
 @use 'pages/Ads';
@@ -99,7 +103,6 @@
 @use 'pages/Employees';
 @use 'pages/Users';
 @use 'pages/Reward';
-@use 'pages/OverTime';
 @use 'pages/End-of-service';
 @use 'pages/ChartOfAccounts';
 @use 'pages/JournalEntity';

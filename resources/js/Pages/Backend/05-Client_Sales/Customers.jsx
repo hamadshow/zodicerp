@@ -8,7 +8,7 @@ import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import Pagination from '../components/Pagination';
 
-export default function Customers({ customers, groups, countries, cities, currencies, accounts, warehouses, priceLists, salesAgents, filters }) {
+export default function Customers({ customers, groups, cities, currencies, accounts, warehouses, priceLists, salesAgents, filters }) {
     const { props } = usePage();
     const [mode, setMode] = useState('list'); // list, create, edit
     const [activeTab, setActiveTab] = useState('general');
@@ -870,7 +870,7 @@ export default function Customers({ customers, groups, countries, cities, curren
                         {/* ADDRESSES TAB */}
                         <div className={`customers-module__tab-content ${activeTab === 'addresses' ? 'active' : ''}`}>
                              <button type="button" className="add-more-btn" onClick={() => addNested('addresses', {
-                                address: '', country_id: '', city_id: '', state: '', postal_code: '', 
+                                address: '', location_id: '', state: '', postal_code: '', 
                                 is_default: false, is_billing: false, is_shipping: false
                             })}>
                                 + Add Address
@@ -896,19 +896,10 @@ export default function Customers({ customers, groups, countries, cities, curren
                                                 />
                                             </div>
                                             <div className="customers-module__group">
-                                                <label>Country</label>
-                                                <select value={addr.country_id} onChange={e => updateNested('addresses', index, 'country_id', e.target.value)}>
-                                                    <option value="">Select Country</option>
-                                                    {countries.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                                </select>
-                                            </div>
-                                            <div className="customers-module__group">
-                                                <label>City</label>
-                                                <select value={addr.city_id} onChange={e => updateNested('addresses', index, 'city_id', e.target.value)}>
-                                                    <option value="">Select City</option>
-                                                    {cities.filter(c => !addr.country_id || c.country_id == addr.country_id).map(c => (
-                                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                                    ))}
+                                                <label>Location</label>
+                                                <select value={addr.location_id} onChange={e => updateNested('addresses', index, 'location_id', e.target.value)}>
+                                                    <option value="">Select Location</option>
+                                                    {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                                 </select>
                                             </div>
                                             <div className="customers-module__group">

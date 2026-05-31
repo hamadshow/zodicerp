@@ -10,13 +10,13 @@ return new class extends Migration
     {
         Schema::create('accounts', function (Blueprint $table) {
             $table->increments('AccID');
-            $table->integer('AccCode');
-            $table->string('AccName', 50);
+            $table->string('AccCode', 50)->unique();
+            $table->string('AccName', 100);
             $table->tinyInteger('AccType')->nullable();
-            $table->decimal('AccParent', 18, 0)->nullable();
+            $table->string('AccParent', 50)->nullable()->index();
             $table->tinyInteger('AccDmType')->nullable();
             $table->tinyInteger('AccFinal')->nullable();
-            $table->integer('AccMaxLimt')->nullable();
+            $table->decimal('AccMaxLimt', 15, 3)->nullable();
             $table->smallInteger('AccMaxDuration')->nullable();
             $table->tinyInteger('AccBranch')->nullable();
             $table->tinyInteger('AddUser')->nullable();
@@ -26,6 +26,9 @@ return new class extends Migration
             $table->tinyInteger('NumOfEdit')->default(0);
             $table->boolean('AccStopped')->default(false);
             $table->longText('AccNote')->nullable();
+            $table->string('Nature', 50)->nullable(); // bank, cash, revenue, etc.
+            $table->foreignId('company_id')->nullable()->constrained('company')->nullOnDelete();
+            $table->timestamps();
         });
     }
 

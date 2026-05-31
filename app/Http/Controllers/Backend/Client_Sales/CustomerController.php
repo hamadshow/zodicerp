@@ -4,10 +4,9 @@ namespace App\Http\Controllers\Backend\Client_Sales;
 
 use App\Http\Controllers\Controller;
 use App\Models\Account;
-use App\Models\City;
 use App\Models\Client_Sales\Customer;
 use App\Models\Client_Sales\CustomerGroup;
-use App\Models\Country;
+use App\Models\Location;
 use App\Models\Currency;
 use App\Models\Vendor_Purchases\PriceList;
 use App\Models\Vendor_Purchases\SalesAgent;
@@ -32,8 +31,8 @@ class CustomerController extends Controller
             'customers' => $customers,
             'filters' => request()->all(['search', 'group_id']),
             'groups' => CustomerGroup::where('is_active', true)->get(),
-            'countries' => Country::all(),
-            'cities' => City::all(),
+            'countries' => Location::where('location_type', 'country')->get(),
+            'cities' => Location::where('location_type', 'city')->get(),
             'currencies' => Currency::all(),
             'warehouses' => Warehouses::all(),
             'accounts' => Account::where('AccStopped', false)->get(),
@@ -66,8 +65,7 @@ class CustomerController extends Controller
             'website' => 'nullable|url|max:255',
             'is_active' => 'boolean',
             'notes' => 'nullable|string',
-            'country_id' => 'nullable|exists:countries,id',
-            'city_id' => 'nullable|exists:cities,id',
+            'location_id' => 'nullable|exists:locations,id',
             'addresses' => 'array',
             'contacts' => 'array',
             'opening_balance' => 'array',
@@ -150,8 +148,7 @@ class CustomerController extends Controller
             'website' => 'nullable|url|max:255',
             'is_active' => 'boolean',
             'notes' => 'nullable|string',
-            'country_id' => 'nullable|exists:countries,id',
-            'city_id' => 'nullable|exists:cities,id',
+            'location_id' => 'nullable|exists:locations,id',
             'addresses' => 'array',
             'contacts' => 'array',
             'opening_balance' => 'array',

@@ -40,8 +40,7 @@ class UpdateSupplierRequest extends FormRequest
             'addresses' => 'nullable|array',
             'addresses.*.id' => 'nullable|integer',
             'addresses.*.address_type' => 'nullable|string',
-            'addresses.*.country_id' => 'nullable|exists:countries,id',
-            'addresses.*.city_id' => 'nullable|exists:cities,id',
+            'addresses.*.location_id' => 'nullable|exists:locations,id',
 
             // Contacts
             'contacts' => 'nullable|array',

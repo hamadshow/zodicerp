@@ -10,10 +10,9 @@ use App\Http\Requests\Purchases\UpdateSupplierRequest;
 use App\Models\Account;
 use App\Models\Brands;
 use App\Models\Categories;
-use App\Models\City;
+use App\Models\Location;
 use App\Models\Client_Sales\SalesOrder;
 use App\Models\Client_Sales\SalesOrderDetail;
-use App\Models\Country;
 use App\Models\Currency;
 use App\Models\ItemAttribute;
 use App\Models\Products;
@@ -431,7 +430,7 @@ class SupplierController extends Controller
             // Optimization: checking ID to update instead of delete/create would be better but complex.
             $product->variations()->delete();
             if (! empty($existingVariationProductIds)) {
-                \App\Models\Products::whereIn('id', $existingVariationProductIds)->forceDelete();
+                Products::whereIn('id', $existingVariationProductIds)->forceDelete();
             }
 
             $total = 0;
@@ -514,7 +513,7 @@ class SupplierController extends Controller
                 $childProductData['images'] = $variationImages;
                 $childProductData['supplier_code'] = $product->supplier_code;
 
-                $childProduct = \App\Models\Products::create($childProductData);
+                $childProduct = Products::create($childProductData);
 
                 $variation = \App\Models\ProductVariation::create([
                     'product_id' => $childProduct->id,
@@ -562,7 +561,7 @@ class SupplierController extends Controller
             $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
             $product->variations()->delete();
             if (! empty($existingVariationProductIds)) {
-                \App\Models\Products::whereIn('id', $existingVariationProductIds)->delete();
+                Products::whereIn('id', $existingVariationProductIds)->forceDelete();
             }
             $product->update([
                 'is_variation' => false,
@@ -636,8 +635,8 @@ class SupplierController extends Controller
             'filters' => request()->all(['search', 'group_id']),
             // Pass auxiliary data for the Create/Edit form modal/view
             'groups' => SupplierGroup::where('is_active', true)->get(),
-            'countries' => Country::all(),
-            'cities' => City::all(),
+            'countries' => Location::where('location_type', 'country')->get(),
+            'cities' => Location::where('location_type', 'city')->get(),
             'currencies' => Currency::all(),
             'warehouses' => Warehouses::all(), // Assuming model name is Warehouses
             'accounts' => Account::where('AccStopped', false)->get(),

@@ -6,9 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Ad;
 use App\Models\Backend\Client_Sales\FlashSale;
 use App\Models\Categories;
-use App\Models\City;
 use App\Models\Client_Sales\CustomerAddress;
-use App\Models\Country;
+use App\Models\Location;
 use App\Models\ProductCollection;
 use App\Models\Products;
 use App\Services\CurrencyConverter;
@@ -681,8 +680,8 @@ class HomeController extends Controller
             'categories' => $categories,
             'addresses' => $addresses,
             'orders' => $orders,
-            'countries' => Country::where('status', 'active')->get(['id', 'name_en', 'name_ar', 'name']),
-            'cities' => City::where('status', 'active')->get(['id', 'name', 'country_id']),
+            'countries' => Location::where('location_type', 'country')->where('status', true)->get(['id', 'name_json', 'code']),
+            'cities' => Location::where('location_type', 'city')->where('status', true)->get(['id', 'name_json', 'parent_id as country_id']),
         ]);
     }
 

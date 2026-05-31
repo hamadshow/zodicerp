@@ -39,9 +39,7 @@ return new class extends Migration
             $table->enum('membership_class', ['regular', 'market_maker', 'specialist', 'clearing_member'])->default('regular');
 
             // Location
-            $table->foreignId('country_id')->constrained('countries');
-            $table->foreignId('state_id')->nullable()->constrained('states');
-            $table->foreignId('city_id')->nullable()->constrained('cities');
+            $table->foreignId('location_id')->constrained('locations');
             $table->string('headquarters_address_ar', 500)->nullable();
             $table->string('headquarters_address_en', 500)->nullable();
             $table->integer('branches_count')->default(1);
@@ -114,7 +112,7 @@ return new class extends Migration
 
             // Additional Indexes
             $table->index('broker_type');
-            $table->index(['country_id', 'status'], 'idx_country_status');
+            $table->index(['location_id', 'status'], 'idx_location_status');
             $table->index('is_preferred');
             // Laravel migration doesn't directly support prefix length for index in fluent syntax easily without raw SQL or specific method.
             // However, we can use DB::statement for the specific index if needed, or just index the whole column if length permits.

@@ -69,8 +69,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('bank_receipts');
-        Schema::dropIfExists('bank_payments');
         Schema::dropIfExists('bank_accounts');
         Schema::dropIfExists('banks');
     }
