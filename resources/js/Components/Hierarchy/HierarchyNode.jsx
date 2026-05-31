@@ -57,7 +57,7 @@ const HierarchyNode = ({
 
                 <div className="row-meta">
                     <span className="badge">{childrenCount}</span>
-                    <span className="ms-1">{node.type_text || (isRtl ? 'مدين' : 'debit')}</span>
+                    <span className="ms-1">{isRtl ? 'عناصر' : 'ITEMS'}</span>
                 </div>
 
                 <div 

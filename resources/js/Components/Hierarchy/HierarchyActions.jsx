@@ -2,6 +2,7 @@ import React, { memo, useState, useRef, useEffect } from 'react';
 
 const HierarchyActions = ({ node, onAction, config, isRtl }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [confirmAction, setConfirmAction] = useState(null);
     const dropdownRef = useRef(null);
 
     // Close dropdown when clicking outside
@@ -15,13 +16,6 @@ const HierarchyActions = ({ node, onAction, config, isRtl }) => {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleActionClick = (action, e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onAction(action, node);
-        setIsOpen(false);
-    };
-
     const typeTranslations = {
         'ar': {
             'country': 'دولة',
@@ -34,7 +28,11 @@ const HierarchyActions = ({ node, onAction, config, isRtl }) => {
             'activate': 'تفعيل',
             'deactivate': 'تعطيل',
             'delete': 'حذف',
-            'add': 'أضف'
+            'add': 'إضافة',
+            'confirm_deactivate': 'هل تريد فعلاً تعطيل هذا العنصر؟',
+            'confirm_delete': 'هل تريد فعلاً حذف هذا العنصر؟ سيتم حذف جميع العناصر الفرعية أيضاً.',
+            'yes': 'نعم، تابع',
+            'cancel': 'إلغاء'
         },
         'en': {
             'country': 'Country',
@@ -47,7 +45,11 @@ const HierarchyActions = ({ node, onAction, config, isRtl }) => {
             'activate': 'Activate',
             'deactivate': 'Deactivate',
             'delete': 'Delete',
-            'add': 'Add'
+            'add': 'Add',
+            'confirm_deactivate': 'Are you sure you want to deactivate this item?',
+            'confirm_delete': 'Are you sure you want to delete this item? All sub-items will also be deleted.',
+            'yes': 'Yes, Continue',
+            'cancel': 'Cancel'
         }
     };
 
@@ -56,17 +58,90 @@ const HierarchyActions = ({ node, onAction, config, isRtl }) => {
     const getAddLabel = () => {
         if (!config.canAddChild?.(node)) return '';
         const rawLabel = config.getAddChildLabel?.(node) || '';
-        // Extract type from raw label "+ Add Type"
         const type = rawLabel.toLowerCase().replace('+ add ', '').trim();
         const translatedType = t(type);
         return isRtl ? `${t('add')} ${translatedType}` : `${t('add')} ${translatedType}`;
     };
+
+    const handleActionClick = (action, e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Require confirmation for dangerous actions
+        if (action === 'delete' || action === 'deactivate') {
+            setConfirmAction(action);
+        } else {
+            onAction(action, node);
+            setIsOpen(false);
+        }
+    };
+
+    const handleConfirm = (e) => {
+        e?.preventDefault();
+        e?.stopPropagation();
+        if (confirmAction) {
+            onAction(confirmAction, node);
+            setConfirmAction(null);
+            setIsOpen(false);
+        }
+    };
+
+    const handleCancel = (e) => {
+        e?.preventDefault();
+        e?.stopPropagation();
+        setConfirmAction(null);
+    };
+
+    // Action list ordered by frequency of use
+    const actions = [
+        // Most used actions first
+        config.canAddChild?.(node) && {
+            id: 'add_child',
+            label: getAddLabel(),
+            icon: 'fas fa-plus-circle',
+            className: 'action-add',
+            isDanger: false
+        },
+        {
+            id: 'edit',
+            label: t('edit'),
+            icon: 'fas fa-edit',
+            className: 'action-edit',
+            isDanger: false
+        },
+        {
+            id: 'duplicate',
+            label: t('duplicate'),
+            icon: 'fas fa-copy',
+            className: 'action-duplicate',
+            isDanger: false
+        },
+        // Separator
+        'divider',
+        // Status toggle
+        {
+            id: node.status ? 'deactivate' : 'activate',
+            label: node.status ? t('deactivate') : t('activate'),
+            icon: node.status ? 'fas fa-ban' : 'fas fa-check-circle',
+            className: node.status ? 'action-deactivate' : 'action-activate',
+            isDanger: node.status
+        },
+        // Dangerous action last
+        {
+            id: 'delete',
+            label: t('delete'),
+            icon: 'fas fa-trash-alt',
+            className: 'action-delete',
+            isDanger: true
+        }
+    ].filter(Boolean);
 
     return (
         <div className={`hierarchy-dropdown ${isOpen ? 'is-open' : ''}`} ref={dropdownRef}>
             <button 
                 className="dropdown-toggle-btn" 
                 type="button" 
+                title={isRtl ? 'خيارات' : 'Actions'}
                 onClick={(e) => {
                     e.stopPropagation();
                     setIsOpen(!isOpen);
@@ -75,42 +150,55 @@ const HierarchyActions = ({ node, onAction, config, isRtl }) => {
                 <i className="fas fa-ellipsis-v" />
             </button>
             
-            {isOpen && (
+            {isOpen && !confirmAction && (
                 <ul className={`dropdown-content-menu ${isRtl ? 'rtl' : 'ltr'}`}>
-                    {config.canAddChild?.(node) && (
-                        <li>
-                            <a href="#" onClick={(e) => handleActionClick('add_child', e)}>
-                                <i className="fas fa-plus-circle text-primary" /> 
-                                <span>{getAddLabel()}</span>
-                            </a>
-                        </li>
-                    )}
-                    <li>
-                        <a href="#" onClick={(e) => handleActionClick('edit', e)}>
-                            <i className="fas fa-edit text-info" /> 
-                            <span>{t('edit')}</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" onClick={(e) => handleActionClick('duplicate', e)}>
-                            <i className="fas fa-copy text-secondary" /> 
-                            <span>{t('duplicate')}</span>
-                        </a>
-                    </li>
-                    <li className="divider"></li>
-                    <li>
-                        <a href="#" onClick={(e) => handleActionClick(node.status ? 'deactivate' : 'activate', e)}>
-                            <i className={`fas ${node.status ? 'fa-ban text-warning' : 'fa-check-circle text-success'}`} /> 
-                            <span>{node.status ? t('deactivate') : t('activate')}</span>
-                        </a>
-                    </li>
-                    <li>
-                        <a href="#" className="text-danger" onClick={(e) => handleActionClick('delete', e)}>
-                            <i className="fas fa-trash-alt" /> 
-                            <span>{t('delete')}</span>
-                        </a>
-                    </li>
+                    {actions.map((action, idx) => {
+                        if (action === 'divider') {
+                            return <li key={`divider-${idx}`} className="divider"></li>;
+                        }
+                        return (
+                            <li key={action.id}>
+                                <a 
+                                    href="#" 
+                                    className={`action-item ${action.className} ${action.isDanger ? 'is-danger' : ''}`}
+                                    onClick={(e) => handleActionClick(action.id, e)}
+                                >
+                                    <i className={action.icon} /> 
+                                    <span>{action.label}</span>
+                                </a>
+                            </li>
+                        );
+                    })}
                 </ul>
+            )}
+
+            {confirmAction && (
+                <div className="confirmation-dialog">
+                    <div className="dialog-content">
+                        <div className="dialog-icon">
+                            <i className={confirmAction === 'delete' ? 'fas fa-exclamation-triangle' : 'fas fa-question-circle'} />
+                        </div>
+                        <div className="dialog-text">
+                            <p className="dialog-message">
+                                {confirmAction === 'delete' ? t('confirm_delete') : t('confirm_deactivate')}
+                            </p>
+                        </div>
+                        <div className="dialog-actions">
+                            <button 
+                                className="btn btn-sm btn-outline-secondary"
+                                onClick={handleCancel}
+                            >
+                                {t('cancel')}
+                            </button>
+                            <button 
+                                className={`btn btn-sm ${confirmAction === 'delete' ? 'btn-danger' : 'btn-warning'}`}
+                                onClick={handleConfirm}
+                            >
+                                {t('yes')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

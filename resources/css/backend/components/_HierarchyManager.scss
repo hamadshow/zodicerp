@@ -193,7 +193,19 @@
                             align-items: center;
                             justify-content: center;
                             transition: all 0.2s;
-                            &:hover { background: #e0e0e0; color: var(--hierarchy-primary); }
+                            cursor: pointer;
+                            font-size: 16px;
+                            
+                            &:hover { 
+                                background: #e0e0e0; 
+                                color: var(--hierarchy-primary);
+                                transform: scale(1.05);
+                            }
+                            
+                            &:active {
+                                transform: scale(0.95);
+                                background: #d0d0d0;
+                            }
                         }
 
                         .dropdown-content-menu {
@@ -201,35 +213,190 @@
                             top: 100%;
                             right: 0;
                             background: #fff;
-                            min-width: 160px;
-                            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+                            min-width: 180px;
+                            max-width: 220px;
+                            box-shadow: 0 12px 32px rgba(0,0,0,0.15);
                             border: 1px solid #eee;
                             border-radius: 8px;
                             padding: 6px 0;
                             z-index: 1000;
                             list-style: none;
-                            margin: 5px 0 0;
+                            margin: 8px 0 0;
+                            animation: slideDown 0.2s ease;
                             
                             &.rtl { right: auto; left: 0; text-align: right; }
 
                             li {
-                                a {
+                                a.action-item {
                                     display: flex;
                                     align-items: center;
-                                    gap: 10px;
-                                    padding: 8px 15px;
+                                    gap: 12px;
+                                    padding: 10px 15px;
                                     color: #444;
                                     text-decoration: none;
                                     font-size: 13px;
                                     font-weight: 500;
-                                    transition: all 0.2s;
+                                    transition: all 0.15s;
+                                    position: relative;
                                     
-                                    i { width: 16px; text-align: center; font-size: 14px; }
-                                    &:hover { background: #f5f8ff; color: var(--hierarchy-primary); }
-                                    &.text-danger:hover { background: #fff5f5; color: #dc3545; }
+                                    i { 
+                                        width: 18px; 
+                                        text-align: center; 
+                                        font-size: 15px;
+                                        flex-shrink: 0;
+                                    }
+                                    
+                                    span {
+                                        flex: 1;
+                                        white-space: nowrap;
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;
+                                    }
+                                    
+                                    &:hover { 
+                                        background: #f5f8ff; 
+                                        color: var(--hierarchy-primary);
+                                        padding-left: 18px;
+                                        
+                                        &::before {
+                                            content: '';
+                                            position: absolute;
+                                            left: 0;
+                                            top: 0;
+                                            bottom: 0;
+                                            width: 3px;
+                                            background: var(--hierarchy-primary);
+                                            border-radius: 0 2px 2px 0;
+                                        }
+                                    }
+                                    
+                                    // Danger actions styling
+                                    &.is-danger {
+                                        i { color: #dc3545; }
+                                        
+                                        &:hover { 
+                                            background: #fff5f5 !important; 
+                                            color: #dc3545 !important;
+                                            
+                                            &::before {
+                                                background: #dc3545 !important;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // Action-specific colors
+                                    &.action-add i { color: #28a745; }
+                                    &.action-edit i { color: #17a2b8; }
+                                    &.action-duplicate i { color: #6c757d; }
+                                    &.action-activate i { color: #28a745; }
+                                    &.action-deactivate i { color: #ffc107; }
+                                    &.action-delete i { color: #dc3545; }
                                 }
                                 
-                                &.divider { height: 1px; background: #eee; margin: 6px 0; }
+                                &.divider { 
+                                    height: 1px; 
+                                    background: #eee; 
+                                    margin: 6px 0;
+                                }
+                            }
+                        }
+
+                        // Confirmation Dialog
+                        .confirmation-dialog {
+                            position: absolute;
+                            top: 100%;
+                            right: 0;
+                            background: #fff;
+                            min-width: 280px;
+                            box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+                            border: 1px solid #eee;
+                            border-radius: 8px;
+                            padding: 0;
+                            z-index: 1000;
+                            margin: 8px 0 0;
+                            animation: slideDown 0.2s ease;
+                            
+                            &.rtl { right: auto; left: 0; text-align: right; }
+
+                            .dialog-content {
+                                display: flex;
+                                flex-direction: column;
+                                align-items: center;
+                                padding: 20px;
+                                text-align: center;
+                                gap: 15px;
+
+                                .dialog-icon {
+                                    width: 50px;
+                                    height: 50px;
+                                    border-radius: 50%;
+                                    background: #fff5f5;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 24px;
+                                    color: #dc3545;
+                                }
+
+                                .dialog-message {
+                                    margin: 0;
+                                    color: #333;
+                                    font-size: 14px;
+                                    font-weight: 500;
+                                    line-height: 1.5;
+                                }
+
+                                .dialog-actions {
+                                    display: flex;
+                                    gap: 10px;
+                                    width: 100%;
+                                    margin-top: 10px;
+
+                                    .btn {
+                                        flex: 1;
+                                        padding: 8px 12px;
+                                        font-size: 13px;
+                                        border-radius: 6px;
+                                        border: none;
+                                        font-weight: 600;
+                                        cursor: pointer;
+                                        transition: all 0.2s;
+
+                                        &.btn-outline-secondary {
+                                            background: #f0f0f0;
+                                            color: #666;
+                                            
+                                            &:hover {
+                                                background: #e0e0e0;
+                                                color: #333;
+                                            }
+                                        }
+
+                                        &.btn-danger {
+                                            background: #dc3545;
+                                            color: #fff;
+                                            
+                                            &:hover {
+                                                background: #c82333;
+                                                box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+                                            }
+                                        }
+
+                                        &.btn-warning {
+                                            background: #ffc107;
+                                            color: #333;
+                                            
+                                            &:hover {
+                                                background: #e0a800;
+                                                box-shadow: 0 4px 12px rgba(255, 193, 7, 0.3);
+                                            }
+                                        }
+
+                                        &:active {
+                                            transform: scale(0.98);
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -348,6 +515,17 @@
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(5px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+    from { 
+        opacity: 0; 
+        transform: translateY(-8px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
 }
 
 // Dark Mode Support
