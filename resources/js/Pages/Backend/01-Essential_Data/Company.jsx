@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import AdminLayout from '../components/AdminLayout';
@@ -26,6 +26,16 @@ const resolveMediaUrl = (value) => {
     return `/media-files/${relativePath}`;
 };
 
+const LoadingScreen = () => (
+    <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary mx-auto mb-4"></div>
+            <h2 className="text-xl font-semibold text-gray-700">Loading Company Data...</h2>
+            <p className="text-gray-500 mt-2">Please wait while we prepare the form</p>
+        </div>
+    </div>
+);
+
 const CompanyForm = ({ company }) => {
     const { props } = usePage();
     const { localization } = props;
@@ -46,8 +56,16 @@ const CompanyForm = ({ company }) => {
     );
     const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
     
+    // Loading and readiness states
+    const [pageReady, setPageReady] = useState(false);
+    const [loadingCountries, setLoadingCountries] = useState(false);
+    const [loadingStates, setLoadingStates] = useState(false);
+    const [loadingCities, setLoadingCities] = useState(false);
+    const [loadingAreas, setLoadingAreas] = useState(false);
+
     // State for dependent dropdowns
     const [countries, setCountries] = useState([]);
+    const [states, setStates] = useState([]);
     const [cities, setCities] = useState([]);
     const [areas, setAreas] = useState([]);
 
@@ -94,41 +112,132 @@ const CompanyForm = ({ company }) => {
         bank_address: company?.bank_address || '',
     });
 
-    // Fetch Countries on Mount
-    useEffect(() => {
-        axios.get('/api/countries')
-            .then(response => {
-                setCountries(response.data.data || response.data);
-            })
-            .catch(error => console.error("Error fetching countries:", error));
+    // Helper function to load countries
+    const loadCountries = useCallback(async () => {
+        setLoadingCountries(true);
+        try {
+            const response = await axios.get('/api/locations/countries');
+            setCountries(response.data.data || response.data);
+        } catch (error) {
+            console.error("Error fetching countries:", error);
+            toast.error("Failed to load countries. Please try again.");
+        } finally {
+            setLoadingCountries(false);
+        }
     }, []);
 
-    // Fetch States when Country changes
-    useEffect(() => {
-        if (data.country) {
-            axios.get(`/api/states?country_id=${data.country}`)
-                .then(response => {
-                    setCities(response.data.data || response.data);
-                })
-                .catch(error => console.error("Error fetching states:", error));
-        } else {
-            setCities([]);
-            setAreas([]);
+    // Helper function to load states
+    const loadStates = useCallback(async (countryId) => {
+        if (!countryId) {
+            setStates([]);
+            return;
         }
-    }, [data.country]);
+        setLoadingStates(true);
+        try {
+            const response = await axios.get(`/api/locations/states/${countryId}`);
+            setStates(response.data.data || response.data);
+        } catch (error) {
+            console.error("Error fetching states:", error);
+            toast.error("Failed to load states. Please try again.");
+        } finally {
+            setLoadingStates(false);
+        }
+    }, []);
 
-    // Fetch Cities/Areas when State changes
-    useEffect(() => {
-        if (data.city) {
-            axios.get(`/api/cities?state_id=${data.city}`)
-                .then(response => {
-                    setAreas(response.data.data || response.data);
-                })
-                .catch(error => console.error("Error fetching cities:", error));
-        } else {
-            setAreas([]);
+    // Helper function to load cities
+    const loadCities = useCallback(async (stateId) => {
+        if (!stateId) {
+            setCities([]);
+            return;
         }
-    }, [data.city]);
+        setLoadingCities(true);
+        try {
+            const response = await axios.get(`/api/locations/cities/${stateId}`);
+            setCities(response.data.data || response.data);
+        } catch (error) {
+            console.error("Error fetching cities:", error);
+            toast.error("Failed to load cities. Please try again.");
+        } finally {
+            setLoadingCities(false);
+        }
+    }, []);
+
+    // Helper function to load areas
+    const loadAreas = useCallback(async (cityId) => {
+        if (!cityId) {
+            setAreas([]);
+            return;
+        }
+        setLoadingAreas(true);
+        try {
+            const response = await axios.get(`/api/locations/areas/${cityId}`);
+            setAreas(response.data.data || response.data);
+        } catch (error) {
+            console.error("Error fetching areas:", error);
+            toast.error("Failed to load areas. Please try again.");
+        } finally {
+            setLoadingAreas(false);
+        }
+    }, []);
+
+    // Initialize page data with proper async/await to prevent race conditions
+    const initializePage = useCallback(async () => {
+        try {
+            await loadCountries();
+            
+            if (company?.country) {
+                await loadStates(company.country);
+                if (company?.city) {
+                    await loadCities(company.city);
+                    if (company?.area) {
+                        await loadAreas(company.area);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("Error initializing page:", error);
+            toast.error("Failed to initialize the form. Please refresh the page.");
+        } finally {
+            setPageReady(true);
+        }
+    }, [company, loadCountries, loadStates, loadCities, loadAreas]);
+
+    useEffect(() => {
+        initializePage();
+    }, [initializePage]);
+
+    // Handle country change
+    const handleCountryChange = async (e) => {
+        const countryId = e.target.value;
+        setData(prev => ({ ...prev, country: countryId, city: '', area: '' }));
+        setStates([]);
+        setCities([]);
+        setAreas([]);
+        if (countryId) {
+            await loadStates(countryId);
+        }
+    };
+
+    // Handle state (city dropdown in UI) change
+    const handleStateChange = async (e) => {
+        const stateId = e.target.value;
+        setData(prev => ({ ...prev, city: stateId, area: '' }));
+        setCities([]);
+        setAreas([]);
+        if (stateId) {
+            await loadCities(stateId);
+        }
+    };
+
+    // Handle city (area dropdown in UI) change
+    const handleCityChange = async (e) => {
+        const cityId = e.target.value;
+        setData('area', cityId);
+        setAreas([]);
+        if (cityId) {
+            await loadAreas(cityId);
+        }
+    };
 
     const handleLogoMediaSelect = (selected) => {
         if (!selected) {
@@ -140,9 +249,7 @@ const CompanyForm = ({ company }) => {
                 return '';
             }
             const withoutProtocol =
-                typeof path === 'string'
-                    ? path.replace(/^https?:\/\/[^/]+/, '')
-                    : '';
+                typeof path === 'string' ? path.replace(/^https?:\/\/[^/]+/, '') : '';
 
             return withoutProtocol.replace(
                 /^\/?(files|storage|media-files)\//,
@@ -304,6 +411,17 @@ const CompanyForm = ({ company }) => {
         { label: isEdit ? 'Edit Company' : 'Add Company' }
     ];
 
+    if (!pageReady) {
+        return (
+            <AdminLayout activeMenu="Companies">
+                <Head title={isEdit ? "Edit Company" : "Add Company"} />
+                <BlankPage breadcrumbs={breadcrumbs}>
+                    <LoadingScreen />
+                </BlankPage>
+            </AdminLayout>
+        );
+    }
+
     return (
         <AdminLayout activeMenu="Companies">
             <Head title={isEdit ? "Edit Company" : "Add Company"} />
@@ -324,238 +442,239 @@ const CompanyForm = ({ company }) => {
                             </Link>
                         </div>
                     </div>
+                </div>
 
-                    <div className="tabs">
-                        {['basic', 'government', 'contact', 'financial'].map((tab) => (
-                            <div
-                                key={tab}
-                                className={`tab ${activeTab === tab ? 'active' : ''}`}
-                                onClick={() => setActiveTab(tab)}
-                            >
-                                {tab.charAt(0).toUpperCase() + tab.slice(1)} Information
+                <div className="tabs">
+                    {['basic', 'government', 'contact', 'financial'].map((tab) => (
+                        <div
+                            key={tab}
+                            className={`tab ${activeTab === tab ? 'active' : ''}`}
+                            onClick={() => setActiveTab(tab)}
+                        >
+                            {tab.charAt(0).toUpperCase() + tab.slice(1)} Information
+                        </div>
+                    ))}
+                </div>
+
+                <form onSubmit={submitForm} noValidate>
+                    <div className={`tab-content ${activeTab === 'basic' ? 'active' : ''}`}>
+                        <div className="form-columns">
+                            <div className="form-column">
+                                <div className="form-row">
+                                    <label className="form-label" htmlFor="company_code">Company Code:</label>
+                                    <input
+                                        type="text"
+                                        id="company_code"
+                                        name="company_code"
+                                        className="form-input bg-gray-100 cursor-not-allowed"
+                                        value={data.company_code}
+                                        readOnly
+                                        disabled
+                                        placeholder={isEdit ? "Company Code" : "Auto-generated"}
+                                        aria-describedby="company_code-error"
+                                    />
+                                </div>
+                                {renderInput("Company Name:", "company_name", "text", "Enter company name")}
+                                {renderInput("English Name:", "english_name", "text", "Enter English name")}
+                                <div className="form-row">
+                                    <label className="form-label" htmlFor="company_type">Company Type:</label>
+                                    <select
+                                        className="form-select"
+                                        id="company_type"
+                                        name="company_type"
+                                        value={data.company_type}
+                                        onChange={e => setData('company_type', e.target.value)}
+                                        aria-describedby="company_type-error"
+                                    >
+                                        <option value="">Select company type</option>
+                                        <option value="llc">Limited Liability Company (LLC)</option>
+                                        <option value="corporation">Corporation</option>
+                                        <option value="partnership">Partnership</option>
+                                        <option value="sole">Sole Proprietorship</option>
+                                    </select>
+                                </div>
+                                {renderInput("Job Title:", "job_title", "text", "Enter job title")}
+                                {renderInput("Mobile:", "mobile", "tel", "Enter mobile number")}
                             </div>
-                        ))}
+
+                            <div className="form-column">
+                                <div className="form-row">
+                                    <label className="form-label" htmlFor="country">Country:</label>
+                                    <select
+                                        className="form-select"
+                                        id="country"
+                                        name="country"
+                                        value={data.country}
+                                        onChange={handleCountryChange}
+                                        disabled={loadingCountries}
+                                        aria-describedby="country-error"
+                                    >
+                                        <option value="">Select country</option>
+                                        {countries.map(country => (
+                                            <option key={country.id} value={country.id}>
+                                                {country.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {loadingCountries && <span className="text-sm text-gray-500">Loading...</span>}
+                                </div>
+                                <div className="form-row">
+                                    <label className="form-label" htmlFor="city">State:</label>
+                                    <select
+                                        className="form-select"
+                                        id="city"
+                                        name="city"
+                                        value={data.city}
+                                        onChange={handleStateChange}
+                                        disabled={!data.country || loadingStates}
+                                        aria-describedby="city-error"
+                                    >
+                                        <option value="">Select state</option>
+                                        {states.map(state => (
+                                            <option key={state.id} value={state.id}>
+                                                {state.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {loadingStates && <span className="text-sm text-gray-500">Loading...</span>}
+                                </div>
+                                <div className="form-row">
+                                    <label className="form-label" htmlFor="area">City:</label>
+                                    <select
+                                        className="form-select"
+                                        id="area"
+                                        name="area"
+                                        value={data.area}
+                                        onChange={handleCityChange}
+                                        disabled={!data.city || loadingCities}
+                                        aria-describedby="area-error"
+                                    >
+                                        <option value="">Select city</option>
+                                        {cities.map(city => (
+                                            <option key={city.id} value={city.id}>
+                                                {city.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    {loadingCities && <span className="text-sm text-gray-500">Loading...</span>}
+                                </div>
+                                {renderTextarea("Address:", "address", "Enter full address")}
+                            </div>
+
+                            <div
+                                className="logo-container"
+                                onClick={() => setIsMediaPickerOpen(true)}
+                            >
+                                {logoPreview ? (
+                                    <img
+                                        src={logoPreview}
+                                        alt="Logo Preview"
+                                        className="logo-preview"
+                                    />
+                                ) : (
+                                    <div className="logo-placeholder">
+                                        <span
+                                            className="material-icons-outlined"
+                                            style={{
+                                                fontSize: '48px',
+                                                color: '#94a3b8',
+                                            }}
+                                        >
+                                            add_photo_alternate
+                                        </span>
+                                        <div>Company Logo</div>
+                                        <div
+                                            style={{
+                                                fontSize: '0.8rem',
+                                                marginTop: '5px',
+                                            }}
+                                        >
+                                            Click to choose from media
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
-                    <form onSubmit={submitForm} noValidate>
-                        <div className={`tab-content ${activeTab === 'basic' ? 'active' : ''}`}>
-                            <div className="form-columns">
-                                <div className="form-column">
-                                    <div className="form-row">
-                                        <label className="form-label" htmlFor="company_code">Company Code:</label>
-                                        <input
-                                            type="text"
-                                            id="company_code"
-                                            name="company_code"
-                                            className="form-input bg-gray-100 cursor-not-allowed"
-                                            value={data.company_code}
-                                            readOnly
-                                            disabled
-                                            placeholder={isEdit ? "Company Code" : "Auto-generated"}
-                                            aria-describedby="company_code-error"
-                                        />
-                                    </div>
-                                    {renderInput("Company Name:", "company_name", "text", "Enter company name")}
-                                    {renderInput("English Name:", "english_name", "text", "Enter English name")}
-                                    <div className="form-row">
-                                        <label className="form-label" htmlFor="company_type">Company Type:</label>
-                                        <select
-                                            className="form-select"
-                                            id="company_type"
-                                            name="company_type"
-                                            value={data.company_type}
-                                            onChange={e => setData('company_type', e.target.value)}
-                                            aria-describedby="company_type-error"
-                                        >
-                                            <option value="">Select company type</option>
-                                            <option value="llc">Limited Liability Company (LLC)</option>
-                                            <option value="corporation">Corporation</option>
-                                            <option value="partnership">Partnership</option>
-                                            <option value="sole">Sole Proprietorship</option>
-                                        </select>
-                                    </div>
-                                    {renderInput("Job Title:", "job_title", "text", "Enter job title")}
-                                    {renderInput("Mobile:", "mobile", "tel", "Enter mobile number")}
-                                </div>
-
-                                <div className="form-column">
-                                    <div className="form-row">
-                                        <label className="form-label" htmlFor="country">Country:</label>
-                                        <select
-                                            className="form-select"
-                                            id="country"
-                                            name="country"
-                                            value={data.country}
-                                            onChange={e => {
-                                                setData(prev => ({ ...prev, country: e.target.value, city: '', area: '' }));
-                                            }}
-                                            aria-describedby="country-error"
-                                        >
-                                            <option value="">Select country</option>
-                                            {countries.map(country => (
-                                                <option key={country.id} value={country.id}>
-                                                    {country.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-row">
-                                        <label className="form-label" htmlFor="city">City:</label>
-                                        <select
-                                            className="form-select"
-                                            id="city"
-                                            name="city"
-                                            value={data.city}
-                                            onChange={e => {
-                                                setData(prev => ({ ...prev, city: e.target.value, area: '' }));
-                                            }}
-                                            disabled={!data.country}
-                                            aria-describedby="city-error"
-                                        >
-                                            <option value="">Select city</option>
-                                            {cities.map(city => (
-                                                <option key={city.id} value={city.id}>
-                                                    {city.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div className="form-row">
-                                        <label className="form-label" htmlFor="area">Area:</label>
-                                        <select
-                                            className="form-select"
-                                            id="area"
-                                            name="area"
-                                            value={data.area}
-                                            onChange={e => setData('area', e.target.value)}
-                                            disabled={!data.city}
-                                            aria-describedby="area-error"
-                                        >
-                                            <option value="">Select area</option>
-                                            {areas.map(area => (
-                                                <option key={area.id} value={area.id}>
-                                                    {area.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    {renderTextarea("Address:", "address", "Enter full address")}
-                                </div>
-
-                                <div
-                                    className="logo-container"
-                                    onClick={() => setIsMediaPickerOpen(true)}
-                                >
-                                    {logoPreview ? (
-                                        <img
-                                            src={logoPreview}
-                                            alt="Logo Preview"
-                                            className="logo-preview"
-                                        />
-                                    ) : (
-                                        <div className="logo-placeholder">
-                                            <span
-                                                className="material-icons-outlined"
-                                                style={{
-                                                    fontSize: '48px',
-                                                    color: '#94a3b8',
-                                                }}
-                                            >
-                                                add_photo_alternate
-                                            </span>
-                                            <div>Company Logo</div>
-                                            <div
-                                                style={{
-                                                    fontSize: '0.8rem',
-                                                    marginTop: '5px',
-                                                }}
-                                            >
-                                                Click to choose from media
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
+                    <div className={`tab-content ${activeTab === 'government' ? 'active' : ''}`}>
+                        <div className="form-columns">
+                            <div className="form-column">
+                                {renderInput("Accountant Name:", "accountant_name", "text", "Enter accountant name")}
+                                {renderInput("Commercial Registration:", "commercial_registration", "text", "Enter CR number")}
+                                {renderInput("Tax Number:", "tax_number", "text", "Enter tax number")}
+                                {renderInput("VAT Number:", "vat_number", "text", "Enter VAT number")}
+                                {renderInput("Date of Establishment:", "date_of_establishment", "date")}
+                            </div>
+                            <div className="form-column">
+                                {renderInput("Social Insurance Number:", "social_insurance_number", "text", "Enter insurance number")}
+                                {renderInput("Annual Goals:", "annual_goals", "text", "Enter annual goals")}
+                                {renderInput("Storage:", "storage", "text", "Enter storage details")}
+                                {renderInput("Work Center:", "work_center", "text", "Enter work center")}
+                                {renderInput("Subsidiary Company:", "subsidiary_company", "text", "Enter subsidiary details")}
                             </div>
                         </div>
+                    </div>
 
-                        <div className={`tab-content ${activeTab === 'government' ? 'active' : ''}`}>
-                            <div className="form-columns">
-                                <div className="form-column">
-                                    {renderInput("Accountant Name:", "accountant_name", "text", "Enter accountant name")}
-                                    {renderInput("Commercial Registration:", "commercial_registration", "text", "Enter CR number")}
-                                    {renderInput("Tax Number:", "tax_number", "text", "Enter tax number")}
-                                    {renderInput("VAT Number:", "vat_number", "text", "Enter VAT number")}
-                                    {renderInput("Date of Establishment:", "date_of_establishment", "date")}
-                                </div>
-                                <div className="form-column">
-                                    {renderInput("Social Insurance Number:", "social_insurance_number", "text", "Enter insurance number")}
-                                    {renderInput("Annual Goals:", "annual_goals", "text", "Enter annual goals")}
-                                    {renderInput("Storage:", "storage", "text", "Enter storage details")}
-                                    {renderInput("Work Center:", "work_center", "text", "Enter work center")}
-                                    {renderInput("Subsidiary Company:", "subsidiary_company", "text", "Enter subsidiary details")}
-                                </div>
+                    <div className={`tab-content ${activeTab === 'contact' ? 'active' : ''}`}>
+                        <div className="form-columns">
+                            <div className="form-column">
+                                {renderInput("Email Address:", "email_address", "email", "Enter email address")}
+                                {renderInput("Official Email:", "official_email", "email", "Enter official email")}
+                                {renderInput("Facebook:", "facebook", "url", "Enter Facebook URL")}
+                            </div>
+                            <div className="form-column">
+                                {renderInput("Telegram:", "telegram", "text", "Enter Telegram handle/URL")}
+                                {renderInput("YouTube:", "youtube", "url", "Enter YouTube channel URL")}
+                                {renderInput("Instagram:", "instagram", "text", "Enter Instagram handle/URL")}
                             </div>
                         </div>
+                    </div>
 
-                        <div className={`tab-content ${activeTab === 'contact' ? 'active' : ''}`}>
-                            <div className="form-columns">
-                                <div className="form-column">
-                                    {renderInput("Email Address:", "email_address", "email", "Enter email address")}
-                                    {renderInput("Official Email:", "official_email", "email", "Enter official email")}
-                                    {renderInput("Facebook:", "facebook", "url", "Enter Facebook URL")}
-                                </div>
-                                <div className="form-column">
-                                    {renderInput("Telegram:", "telegram", "text", "Enter Telegram handle/URL")}
-                                    {renderInput("YouTube:", "youtube", "url", "Enter YouTube channel URL")}
-                                    {renderInput("Instagram:", "instagram", "text", "Enter Instagram handle/URL")}
-                                </div>
+                    <div className={`tab-content ${activeTab === 'financial' ? 'active' : ''}`}>
+                        <div className="form-columns">
+                            <div className="form-column">
+                                {renderInput("Account Holder Name:", "account_holder_name", "text", "Enter account holder name")}
+                                {renderInput("Bank Name:", "bank_name", "text", "Enter bank name")}
+                                {renderInput("IBAN:", "iban", "text", "Enter IBAN")}
+                            </div>
+                            <div className="form-column">
+                                {renderInput("Branch Name:", "branch_name", "text", "Enter branch name")}
+                                {renderInput("SWIFT/BIC:", "swift_bic", "text", "Enter SWIFT/BIC code")}
+                                {renderTextarea("Bank Address:", "bank_address", "Enter bank address")}
                             </div>
                         </div>
+                    </div>
 
-                        <div className={`tab-content ${activeTab === 'financial' ? 'active' : ''}`}>
-                            <div className="form-columns">
-                                <div className="form-column">
-                                    {renderInput("Account Holder Name:", "account_holder_name", "text", "Enter account holder name")}
-                                    {renderInput("Bank Name:", "bank_name", "text", "Enter bank name")}
-                                    {renderInput("IBAN:", "iban", "text", "Enter IBAN")}
-                                </div>
-                                <div className="form-column">
-                                    {renderInput("Branch Name:", "branch_name", "text", "Enter branch name")}
-                                    {renderInput("SWIFT/BIC:", "swift_bic", "text", "Enter SWIFT/BIC code")}
-                                    {renderTextarea("Bank Address:", "bank_address", "Enter bank address")}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="form-actions">
-                            <button
-                                type="button"
-                                className="btn btn-outline"
-                                onClick={() => router.visit(getLocalizedRoute('admin.companies.index'))}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                className="btn btn-primary"
-                                disabled={processing}
-                            >
-                                {processing ? (
-                                    <>
-                                        <span className="material-icons-outlined spin">sync</span>
-                                        Saving...
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="material-icons-outlined">save</span>
-                                        {isEdit ? 'Update Company' : 'Save Company'}
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                </BlankPage>
+                    <div className="form-actions">
+                        <button
+                            type="button"
+                            className="btn btn-outline"
+                            onClick={() => router.visit(getLocalizedRoute('admin.companies.index'))}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            className="btn btn-primary"
+                            disabled={processing || loadingCountries || loadingStates || loadingCities || loadingAreas}
+                        >
+                            {processing ? (
+                                <>
+                                    <span className="material-icons-outlined spin">sync</span>
+                                    Saving...
+                                </>
+                            ) : (
+                                <>
+                                    <span className="material-icons-outlined">save</span>
+                                    {isEdit ? 'Update Company' : 'Save Company'}
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </form>
+            </div>
+            </BlankPage>
 
 
             <MediaPickerModal

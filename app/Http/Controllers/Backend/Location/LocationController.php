@@ -143,9 +143,8 @@ class LocationController extends Controller
     /**
      * API: Get all states by country
      */
-    public function getStates(Request $request)
+    public function getStates($countryId = null)
     {
-        $countryId = $request->input('country_id');
         $query = Location::where('location_type', 'state')->where('status', true);
         if ($countryId) {
             $query->where('parent_id', $countryId);
@@ -155,40 +154,29 @@ class LocationController extends Controller
     }
 
     /**
-     * API: Get all cities by parent (state)
+     * API: Get all cities by state
      */
-    public function getCitiesByParent(Request $request)
+    public function getCities($stateId = null)
     {
-        $parentId = $request->input('country_id') ?? $request->input('state_id');
         $query = Location::where('location_type', 'city')->where('status', true);
-        if ($parentId) {
-            $query->where('parent_id', $parentId);
+        if ($stateId) {
+            $query->where('parent_id', $stateId);
         }
         $cities = $query->orderBy('sort_order')->get();
         return LocationResource::collection($cities);
     }
 
     /**
-     * API: Get all areas by parent (city)
+     * API: Get all areas by city
      */
-    public function getAreasByParent(Request $request)
+    public function getAreas($cityId = null)
     {
-        $parentId = $request->input('city_id');
         $query = Location::where('location_type', 'area')->where('status', true);
-        if ($parentId) {
-            $query->where('parent_id', $parentId);
+        if ($cityId) {
+            $query->where('parent_id', $cityId);
         }
         $areas = $query->orderBy('sort_order')->get();
         return LocationResource::collection($areas);
-    }
-
-    /**
-     * API: Get all cities
-     */
-    public function getCities()
-    {
-        $cities = Location::where('location_type', 'city')->where('status', true)->orderBy('sort_order')->get();
-        return LocationResource::collection($cities);
     }
 
     /**

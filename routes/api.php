@@ -113,11 +113,13 @@ Route::middleware(['web', 'auth'])->group(function () {
         'destroy' => 'api.locations.destroy',
     ]);
     
-    // Country/City/Area API Routes for select dropdowns
-    Route::get('countries', [App\Http\Controllers\Backend\Location\LocationController::class, 'getCountries']);
-    Route::get('states', [App\Http\Controllers\Backend\Location\LocationController::class, 'getStates']);
-    Route::get('cities', [App\Http\Controllers\Backend\Location\LocationController::class, 'getCitiesByParent']);
-    Route::get('areas', [App\Http\Controllers\Backend\Location\LocationController::class, 'getAreasByParent']);
+    // Country/City/Area API Routes for select dropdowns (under /api/locations)
+    Route::prefix('locations')->group(function () {
+        Route::get('countries', [App\Http\Controllers\Backend\Location\LocationController::class, 'getCountries']);
+        Route::get('states/{countryId}', [App\Http\Controllers\Backend\Location\LocationController::class, 'getStates']);
+        Route::get('cities/{stateId}', [App\Http\Controllers\Backend\Location\LocationController::class, 'getCities']);
+        Route::get('areas/{cityId}', [App\Http\Controllers\Backend\Location\LocationController::class, 'getAreas']);
+    });
     Route::get('tasks/statistics', [TaskController::class, 'statistics']);
     Route::apiResource('tasks', TaskController::class);
     Route::apiResource('assignments', TaskAssignmentController::class);
