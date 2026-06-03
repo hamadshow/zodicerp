@@ -57,9 +57,14 @@ class SetLocalization
             $appDefaultLocale = $supportedLocales[0] ?? 'en';
         }
 
+        // Validate country code from URL
+        if ($countryCode && !preg_match('/^[a-zA-Z]{2,3}$/', $countryCode)) {
+            $countryCode = null;
+        }
+
         // Handle Country
         $country = null;
-        if ($countryCode && strlen($countryCode) === 2) {
+        if ($countryCode && strlen($countryCode) >= 2 && strlen($countryCode) <= 3) {
             $country = \Illuminate\Support\Facades\Cache::remember("country.{$countryCode}", 86400, function () use ($countryCode) {
                 return Location::where('location_type', 'country')->where('code', strtoupper($countryCode))->where('status', true)->first();
             });
@@ -75,9 +80,11 @@ class SetLocalization
             }
         }
 
+        $defaultCountryCode = 'sa';
         if ($country) {
             Config::set('app.country', $country);
-            Session::put('country_code', strtolower($country->code));
+            $defaultCountryCode = strtolower($country->code);
+            Session::put('country_code', $defaultCountryCode);
         } else {
             // Default country if not specified or invalid
             $defaultCountry = \Illuminate\Support\Facades\Cache::remember('country.default', 86400, function () {
@@ -85,8 +92,15 @@ class SetLocalization
             });
             if ($defaultCountry) {
                 Config::set('app.country', $defaultCountry);
-                Session::put('country_code', strtolower($defaultCountry->code));
+                $defaultCountryCode = strtolower($defaultCountry->code);
+                Session::put('country_code', $defaultCountryCode);
             }
+        }
+
+        // Validate and sanitize existing country code in session
+        $sessionCountryCode = Session::get('country_code');
+        if ($sessionCountryCode && !preg_match('/^[a-zA-Z]{2,3}$/', $sessionCountryCode)) {
+            Session::put('country_code', $defaultCountryCode);
         }
 
         $currencyCode = session('currency_code', 'SAR');
@@ -104,7 +118,7 @@ class SetLocalization
         }
 
         // Set URL defaults for country and lang
-        $currentCountry = strtolower($countryCode ?: session('country_code', 'sa'));
+        $currentCountry = strtolower($countryCode ?: session('country_code', $defaultCountryCode));
         $currentLocale = strtolower($langCode ?: session('locale', $appDefaultLocale));
 
         URL::defaults([

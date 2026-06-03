@@ -104,6 +104,13 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
+        // Validate and sanitize country code
+        $countryCode = $request->session()->get('country_code');
+        if (!preg_match('/^[a-zA-Z]{2,3}$/', $countryCode)) {
+            $countryCode = 'sa';
+            $request->session()->put('country_code', $countryCode);
+        }
+
         return array_merge(is_array(parent::share($request)) ? parent::share($request) : [], [
             'auth' => [
                 'user' => $request->user(),
@@ -111,11 +118,11 @@ class HandleInertiaRequests extends Middleware
                 'supplier' => $isAdminRoute ? null : $request->user('supplier'),
             ],
             'localization' => [
-                'current_country' => (string)session('country_code', config('app.country.code', 'sa')),
+                'current_country' => strtolower($countryCode),
                 'current_locale' => (string)app()->getLocale(),
                 'is_rtl' => app()->getLocale() === 'ar',
-                'country_code' => (string)session('country_code', 'sa'),
-                'currency_code' => (string)session('currency_code', 'SAR'),
+                'country_code' => strtolower($countryCode),
+                'currency_code' => (string)$request->session()->get('currency_code', 'SAR'),
                 'translations' => $translations,
             ],
             'flash' => [

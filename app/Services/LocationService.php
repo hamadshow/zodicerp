@@ -9,6 +9,7 @@ class LocationService
 {
     /**
      * Get tree data for navigation
+     * NOTE: Uses ONLY real Eloquent queries, NO mock data injected!
      */
     public function getTree(?int $parentId = null)
     {

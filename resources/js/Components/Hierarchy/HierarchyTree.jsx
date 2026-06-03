@@ -13,6 +13,8 @@ const HierarchyTree = ({
     onAction,
     isRtl
 }) => {
+    console.log("[HierarchyTree] Loading data from database, data length:", data.length);
+
     return (
         <div className="tree-content d-flex flex-column">
             {data.map(node => (
@@ -33,7 +35,7 @@ const HierarchyTree = ({
             ))}
             
             {/* Root Add New Button */}
-            {config.canAddRoot && (
+            {data.length > 0 && config.canAddRoot && (
                 <div 
                     className="add-new-node-btn mt-3 mx-3"
                     onClick={() => onAction('add_root')}
@@ -53,9 +55,15 @@ const HierarchyTree = ({
             )}
 
             {data.length === 0 && (
-                <div className="text-center py-5 text-muted opacity-50">
-                    <i className="fas fa-sitemap d-block mb-3" style={{ fontSize: '3rem' }} />
-                    <p>{isRtl ? 'لا توجد بيانات' : 'No records found'}</p>
+                <div className="text-center py-5">
+                    <i className="fas fa-sitemap d-block mb-3 text-muted" style={{ fontSize: '3rem' }} />
+                    <p className="mb-3 text-muted">{isRtl ? 'لا توجد مواقع' : 'No Locations Found'}</p>
+                    <button 
+                        className="btn btn-primary"
+                        onClick={() => onAction('add_root')}
+                    >
+                        {isRtl ? 'أنشئ أول موقع' : 'Create First Location'}
+                    </button>
                 </div>
             )}
         </div>

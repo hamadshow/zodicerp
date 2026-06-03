@@ -2,16 +2,7 @@ import React, { memo } from 'react';
 import HierarchyActions from './HierarchyActions';
 
 const HierarchyDetails = ({ selectedNode, onAction, config, isRtl }) => {
-    if (!selectedNode) {
-        return (
-            <div className="empty-details">
-                <i className="fas fa-folder-open" />
-                <p>{isRtl ? 'اختر عنصراً من الشجرة لعرض تفاصيله' : 'Select an item from the tree to view its details'}</p>
-            </div>
-        );
-    }
-
-    const displayNodes = [selectedNode, ...(selectedNode.children || [])];
+    const displayNodes = selectedNode ? [selectedNode, ...(selectedNode.children || [])] : [];
 
     return (
         <div className="hierarchy-details-panel">
@@ -45,7 +36,7 @@ const HierarchyDetails = ({ selectedNode, onAction, config, isRtl }) => {
                     </div>
                 ))}
 
-                {config.canAddChild?.(selectedNode) && (
+                {selectedNode && config.canAddChild?.(selectedNode) && (
                     <div 
                         className="add-account-bar"
                         onClick={() => onAction('add_child', selectedNode)}

@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 
 export const useHierarchy = (initialData = [], options = {}) => {
+    console.log("[useHierarchy] Initializing with database-only data (no mock/demo data), initialData:", initialData);
     const { onFetchChildren } = options;
     
     const [data, setData] = useState(initialData);
@@ -19,6 +20,7 @@ export const useHierarchy = (initialData = [], options = {}) => {
     // Sync data state when initialData prop changes
     useEffect(() => {
         if (Array.isArray(initialData)) {
+            console.log("[useHierarchy] Updating state with database data, length:", initialData.length);
             setData(initialData);
         }
     }, [initialData]);

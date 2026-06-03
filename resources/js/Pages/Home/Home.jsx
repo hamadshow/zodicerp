@@ -12,11 +12,20 @@ const Home = () => {
   console.log('Localization Props:', localization);
   console.log('Translations:', localization?.translations);
   const isRtl = localization?.is_rtl;
+  // Ensure countryCode is a valid 2-3 letter code
+  const extractValidCountryCode = (val) => {
+    if (typeof val !== 'string') return null;
+    const cleaned = val.trim().toLowerCase();
+    if (/^[a-z]{2,3}$/.test(cleaned)) {
+      return cleaned;
+    }
+    return null;
+  };
+
   const countryCode =
-    localization?.country_code ||
-    (typeof localization?.current_country === 'string'
-      ? localization.current_country
-      : localization?.current_country?.code?.toLowerCase?.()) ||
+    extractValidCountryCode(localization?.country_code) ||
+    extractValidCountryCode(localization?.current_country) ||
+    extractValidCountryCode(localization?.current_country?.code) ||
     'sa';
   const locale = localization?.current_locale || localization?.locale || 'en';
 

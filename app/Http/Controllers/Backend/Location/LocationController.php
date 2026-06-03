@@ -20,22 +20,35 @@ class LocationController extends Controller
 
     /**
      * Display the main manager interface
+     * NOTE: Returns ONLY real records from database, NO mock/demo data!
      */
     public function index(Request $request)
     {
-        if ($request->wantsJson()) {
-            if ($request->search) {
-                $locations = $this->locationService->search($request->search);
-                return LocationResource::collection($locations);
-            }
-            
-            $parentId = $request->parent_id === 'null' ? null : $request->parent_id;
-            $locations = $this->locationService->getTree($parentId);
-            return LocationResource::collection($locations);
-        }
-
         return Inertia::render('Backend/01-Essential_Data/Location', [
-            'initialLocations' => LocationResource::collection($this->locationService->getTree(null)),
+            'initialRootLocations' => LocationResource::collection($this->locationService->getTree(null)),
+        ]);
+    }
+
+    /**
+     * API: Get root locations only
+     */
+    public function getRoots()
+    {
+        $locations = $this->locationService->getTree(null);
+        return LocationResource::collection($locations);
+    }
+
+    /**
+     * API: Get children for specific location
+     */
+    public function getChildren($id)
+    {
+        $parent = Location::findOrFail($id);
+        $children = $this->locationService->getTree($id);
+
+        return response()->json([
+            'parent' => new LocationResource($parent),
+            'children' => LocationResource::collection($children)
         ]);
     }
 

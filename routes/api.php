@@ -100,6 +100,8 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('tasks/statuses', [TaskStatusController::class, 'index']);
 
     // Location Management API Routes
+    Route::get('locations/roots', [App\Http\Controllers\Backend\Location\LocationController::class, 'getRoots'])->name('api.locations.roots');
+    Route::get('locations/{id}/children', [App\Http\Controllers\Backend\Location\LocationController::class, 'getChildren'])->name('api.locations.children');
     Route::get('locations/search', [App\Http\Controllers\Backend\Location\LocationController::class, 'index'])->name('api.locations.search');
     Route::get('locations/{location}/path', [App\Http\Controllers\Backend\Location\LocationController::class, 'getPath'])->name('api.locations.path');
     Route::patch('locations/{location}/toggle-status', [App\Http\Controllers\Backend\Location\LocationController::class, 'toggleStatus'])->name('api.locations.toggle-status');
