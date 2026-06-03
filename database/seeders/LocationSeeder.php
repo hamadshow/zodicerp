@@ -23,11 +23,21 @@ class LocationSeeder extends Seeder
                 'sort_order' => 1,
             ]);
 
+            // Cairo Governorate (State)
+            $cairoGovernorate = Location::create([
+                'parent_id' => $egypt->id,
+                'location_type' => 'state',
+                'code' => '01-01',
+                'name_json' => ['ar' => 'محافظة القاهرة', 'en' => 'Cairo Governorate'],
+                'status' => true,
+                'sort_order' => 1,
+            ]);
+
             // Cairo (City)
             $cairo = Location::create([
-                'parent_id' => $egypt->id,
+                'parent_id' => $cairoGovernorate->id,
                 'location_type' => 'city',
-                'code' => '01-01',
+                'code' => '01-01-01',
                 'name_json' => ['ar' => 'القاهرة', 'en' => 'Cairo'],
                 'status' => true,
                 'sort_order' => 1,
@@ -37,7 +47,7 @@ class LocationSeeder extends Seeder
             $maadi = Location::create([
                 'parent_id' => $cairo->id,
                 'location_type' => 'district',
-                'code' => '01-01-01',
+                'code' => '01-01-01-01',
                 'name_json' => ['ar' => 'المعادي', 'en' => 'Maadi'],
                 'status' => true,
                 'sort_order' => 1,
@@ -47,8 +57,28 @@ class LocationSeeder extends Seeder
             $zahraaMaadi = Location::create([
                 'parent_id' => $maadi->id,
                 'location_type' => 'area',
-                'code' => '01-01-01-01',
+                'code' => '01-01-01-01-01',
                 'name_json' => ['ar' => 'زهراء المعادي', 'en' => 'Zahraa Maadi'],
+                'status' => true,
+                'sort_order' => 1,
+            ]);
+
+            // Giza Governorate (State)
+            $gizaGovernorate = Location::create([
+                'parent_id' => $egypt->id,
+                'location_type' => 'state',
+                'code' => '01-02',
+                'name_json' => ['ar' => 'محافظة الجيزة', 'en' => 'Giza Governorate'],
+                'status' => true,
+                'sort_order' => 2,
+            ]);
+
+            // Giza (City)
+            $giza = Location::create([
+                'parent_id' => $gizaGovernorate->id,
+                'location_type' => 'city',
+                'code' => '01-02-01',
+                'name_json' => ['ar' => 'الجيزة', 'en' => 'Giza'],
                 'status' => true,
                 'sort_order' => 1,
             ]);

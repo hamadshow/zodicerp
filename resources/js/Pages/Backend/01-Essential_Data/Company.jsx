@@ -98,32 +98,33 @@ const CompanyForm = ({ company }) => {
     useEffect(() => {
         axios.get('/api/countries')
             .then(response => {
-                setCountries(response.data);
+                setCountries(response.data.data || response.data);
             })
             .catch(error => console.error("Error fetching countries:", error));
     }, []);
 
-    // Fetch Cities when Country changes
+    // Fetch States when Country changes
     useEffect(() => {
         if (data.country) {
-            axios.get(`/api/cities?country_id=${data.country}`)
+            axios.get(`/api/states?country_id=${data.country}`)
                 .then(response => {
-                    setCities(response.data);
+                    setCities(response.data.data || response.data);
                 })
-                .catch(error => console.error("Error fetching cities:", error));
+                .catch(error => console.error("Error fetching states:", error));
         } else {
             setCities([]);
+            setAreas([]);
         }
     }, [data.country]);
 
-    // Fetch Areas when City changes
+    // Fetch Cities/Areas when State changes
     useEffect(() => {
         if (data.city) {
-            axios.get(`/api/areas?city_id=${data.city}`)
+            axios.get(`/api/cities?state_id=${data.city}`)
                 .then(response => {
-                    setAreas(response.data);
+                    setAreas(response.data.data || response.data);
                 })
-                .catch(error => console.error("Error fetching areas:", error));
+                .catch(error => console.error("Error fetching cities:", error));
         } else {
             setAreas([]);
         }
