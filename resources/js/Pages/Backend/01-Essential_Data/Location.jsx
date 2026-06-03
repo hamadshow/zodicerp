@@ -239,16 +239,10 @@ const LocationManager = ({ initialRootLocations }) => {
         <AdminLayout activeMenu="Location">
             <Head title="Geographic Hierarchy Manager" />
 
-            <div className="hierarchy-manager d-flex" style={{ height: 'calc(100vh - 120px)' }}>
+            <div className="hierarchy-manager d-flex">
                 {/* Tree Panel */}
                 <div 
-                    className="hierarchy-tree-panel" 
-                    style={{ 
-                        width: showForm ? '60%' : '100%', 
-                        transition: 'width 0.3s ease',
-                        overflow: 'auto',
-                        borderRight: showForm ? '1px solid #e9ecef' : 'none'
-                    }}
+                    className={`hierarchy-tree-panel ${showForm ? 'form-open' : 'form-closed'}`}
                 >
                     <div className="panel-header">
                         <h3>{getPageTitle()}</h3>
@@ -277,7 +271,7 @@ const LocationManager = ({ initialRootLocations }) => {
                                     navigateToLocation(node);
                                 }}
                             >
-                                <div className="child-connector-line" style={{ display: 'none' }}></div>
+                                <div className="child-connector-line"></div>
                                 <div className="row-id">#{node.id}</div>
                                 <div className="row-icon">
                                     <i className={((node.children_count ?? 0) > 0) ? 'fas fa-folder' : 'far fa-folder'}></i>
@@ -312,22 +306,13 @@ const LocationManager = ({ initialRootLocations }) => {
 
                         {addButtonLabel && (
                             <div
-                                className="add-new-node-btn mt-3 mx-3"
+                                className="add-new-node-btn"
                                 onClick={() => {
                                     if (!currentParent) {
                                         handleAction('add_root');
                                     } else {
                                         handleAction('add_child', currentParent);
                                     }
-                                }}
-                                style={{
-                                    border: '1px dashed #ccc',
-                                    padding: '15px',
-                                    borderRadius: '4px',
-                                    textAlign: locale === 'ar' ? 'right' : 'left',
-                                    color: '#0066CC',
-                                    fontWeight: 800,
-                                    cursor: 'pointer'
                                 }}
                             >
                                 <i className={`fas fa-plus-square ${locale === 'ar' ? 'ms-1' : 'me-1'}`}></i>
@@ -337,7 +322,7 @@ const LocationManager = ({ initialRootLocations }) => {
 
                         {children.length === 0 && (
                             <div className="text-center py-5">
-                                <i className="fas fa-sitemap d-block mb-3 text-muted" style={{ fontSize: '3rem' }}></i>
+                                <i className="fas fa-sitemap d-block mb-3 text-muted"></i>
                                 <p className="mb-3 text-muted">{locale === 'ar' ? 'لا توجد مواقع' : 'No Locations Found'}</p>
                                 {addButtonLabel && (
                                     <button
@@ -360,21 +345,9 @@ const LocationManager = ({ initialRootLocations }) => {
 
                 {/* Form Panel */}
                 {showForm && (
-                    <div 
-                        className="form-panel"
-                        style={{ 
-                            width: '40%', 
-                            backgroundColor: '#f8f9fa',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            transition: 'all 0.3s ease'
-                        }}
-                    >
+                    <div className="form-panel">
                         {/* Form Header */}
-                        <div 
-                            className="p-4 border-bottom"
-                            style={{ backgroundColor: 'white' }}
-                        >
+                        <div className="p-4 border-bottom">
                             <div className="d-flex justify-content-between align-items-center">
                                 <h4 className="mb-0 fw-bold">
                                     <i className={`fas fa-${isEditing ? 'edit' : 'plus'} me-2`}></i>
@@ -390,19 +363,11 @@ const LocationManager = ({ initialRootLocations }) => {
                         </div>
 
                         {/* Tabs */}
-                        <div 
-                            className="d-flex border-bottom bg-white px-4"
-                            style={{ gap: 0 }}
-                        >
+                        <div className="d-flex border-bottom bg-white px-4">
                             {['general', 'translations', 'advanced'].map(tab => (
                                 <button
                                     key={tab}
-                                    className={`px-4 py-3 border-0 bg-transparent text-decoration-none fw-semibold`}
-                                    style={{
-                                        borderBottom: activeTab === tab ? '3px solid #0066CC' : '3px solid transparent',
-                                        color: activeTab === tab ? '#0066CC' : '#6c757d',
-                                        cursor: 'pointer'
-                                    }}
+                                    className={`px-4 py-3 border-0 bg-transparent text-decoration-none fw-semibold ${activeTab === tab ? 'active' : ''}`}
                                     onClick={() => setActiveTab(tab)}
                                 >
                                     {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -411,10 +376,7 @@ const LocationManager = ({ initialRootLocations }) => {
                         </div>
 
                         {/* Form Content */}
-                        <div 
-                            className="p-4 overflow-auto"
-                            style={{ flex: 1 }}
-                        >
+                        <div className="p-4 overflow-auto">
                             {activeTab === 'general' && (
                                 <div className="card border shadow-sm mb-4">
                                     <div className="card-body">
@@ -550,10 +512,7 @@ const LocationManager = ({ initialRootLocations }) => {
                         </div>
 
                         {/* Form Footer */}
-                        <div 
-                            className="p-4 border-top bg-white"
-                            style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}
-                        >
+                        <div className="p-4 border-top bg-white">
                             <button 
                                 className="btn btn-light px-4"
                                 onClick={handleCancel}
@@ -569,28 +528,6 @@ const LocationManager = ({ initialRootLocations }) => {
                                 Save Changes
                             </button>
                         </div>
-                    </div>
-                )}
-
-                {/* Empty State when form is hidden but we need placeholder */}
-                {!showForm && false && (
-                    <div 
-                        className="form-panel"
-                        style={{ 
-                            width: '40%', 
-                            backgroundColor: '#f8f9fa',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#adb5bd',
-                            textAlign: 'center',
-                            padding: '40px'
-                        }}
-                    >
-                        <i className="fas fa-edit" style={{ fontSize: '64px', marginBottom: '20px' }}></i>
-                        <h4 className="fw-semibold mb-2">Select an Action</h4>
-                        <p className="mb-0">Click "Add" or "Edit" to open the form panel</p>
                     </div>
                 )}
             </div>
