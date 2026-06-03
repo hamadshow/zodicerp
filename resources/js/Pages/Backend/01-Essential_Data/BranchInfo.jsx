@@ -256,7 +256,7 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
         apiService
             .get('/countries')
             .then((response) => {
-                setCountries(response.data);
+                setCountries(response.data.data || response.data);
             })
             .catch(() => {
                 setCountries([]);
@@ -266,24 +266,25 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
     useEffect(() => {
         if (data.country) {
             apiService
-                .get(`/cities?country_id=${data.country}`)
+                .get(`/states?country_id=${data.country}`)
                 .then((response) => {
-                    setCities(response.data);
+                    setCities(response.data.data || response.data);
                 })
                 .catch(() => {
                     setCities([]);
                 });
         } else {
             setCities([]);
+            setAreas([]);
         }
     }, [data.country]);
 
     useEffect(() => {
         if (data.city) {
             apiService
-                .get(`/areas?city_id=${data.city}`)
+                .get(`/cities?state_id=${data.city}`)
                 .then((response) => {
-                    setAreas(response.data);
+                    setAreas(response.data.data || response.data);
                 })
                 .catch(() => {
                     setAreas([]);
@@ -621,7 +622,9 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
                                                     name="country"
                                                     className="form-select"
                                                     value={data.country}
-                                                    onChange={(e) => setData('country', e.target.value)}
+                                                    onChange={(e) => {
+                                                        setData(prev => ({ ...prev, country: e.target.value, city: '', area: '' }));
+                                                    }}
                                                     disabled={isViewMode}
                                                 >
                                                     <option value="" disabled>Select Country</option>
@@ -637,7 +640,9 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
                                                     name="city"
                                                     className="form-select"
                                                     value={data.city}
-                                                    onChange={(e) => setData('city', e.target.value)}
+                                                    onChange={(e) => {
+                                                        setData(prev => ({ ...prev, city: e.target.value, area: '' }));
+                                                    }}
                                                     disabled={!data.country || isViewMode}
                                                 >
                                                     <option value="" disabled>Select City</option>
