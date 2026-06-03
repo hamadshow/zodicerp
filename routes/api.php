@@ -105,13 +105,6 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::get('locations/search', [App\Http\Controllers\Backend\Location\LocationController::class, 'index'])->name('api.locations.search');
     Route::get('locations/{location}/path', [App\Http\Controllers\Backend\Location\LocationController::class, 'getPath'])->name('api.locations.path');
     Route::patch('locations/{location}/toggle-status', [App\Http\Controllers\Backend\Location\LocationController::class, 'toggleStatus'])->name('api.locations.toggle-status');
-    Route::apiResource('locations', App\Http\Controllers\Backend\Location\LocationController::class)->names([
-        'index' => 'api.locations.index',
-        'store' => 'api.locations.store',
-        'show' => 'api.locations.show',
-        'update' => 'api.locations.update',
-        'destroy' => 'api.locations.destroy',
-    ]);
     
     // Country/City/Area API Routes for select dropdowns (under /api/locations)
     Route::prefix('locations')->group(function () {
@@ -120,6 +113,14 @@ Route::middleware(['web', 'auth'])->group(function () {
         Route::get('cities/{stateId}', [App\Http\Controllers\Backend\Location\LocationController::class, 'getCities']);
         Route::get('areas/{cityId}', [App\Http\Controllers\Backend\Location\LocationController::class, 'getAreas']);
     });
+    
+    Route::apiResource('locations', App\Http\Controllers\Backend\Location\LocationController::class)->names([
+        'index' => 'api.locations.index',
+        'store' => 'api.locations.store',
+        'show' => 'api.locations.show',
+        'update' => 'api.locations.update',
+        'destroy' => 'api.locations.destroy',
+    ]);
     Route::get('tasks/statistics', [TaskController::class, 'statistics']);
     Route::apiResource('tasks', TaskController::class);
     Route::apiResource('assignments', TaskAssignmentController::class);
