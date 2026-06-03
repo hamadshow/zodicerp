@@ -112,6 +112,23 @@ Route::middleware(['web', 'auth'])->group(function () {
         'update' => 'api.locations.update',
         'destroy' => 'api.locations.destroy',
     ]);
+    
+    // Country/City/Area API Routes for select dropdowns
+    Route::get('countries', function () {
+        return App\Models\Location::active()->byType('country')->get(['id', 'name_json', 'name']);
+    });
+    
+    Route::get('cities', function (Request $request) {
+        $countryId = $request->input('country_id');
+        if (!$countryId) return [];
+        return App\Models\Location::active()->byType('state')->where('parent_id', $countryId)->get(['id', 'name_json', 'name']);
+    });
+    
+    Route::get('areas', function (Request $request) {
+        $cityId = $request->input('city_id');
+        if (!$cityId) return [];
+        return App\Models\Location::active()->byType('city')->where('parent_id', $cityId)->get(['id', 'name_json', 'name']);
+    });
     Route::get('tasks/statistics', [TaskController::class, 'statistics']);
     Route::apiResource('tasks', TaskController::class);
     Route::apiResource('assignments', TaskAssignmentController::class);
