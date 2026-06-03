@@ -1,11 +1,22 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
+import axios from 'axios';
 import AdminLayout from '../components/AdminLayout';
 import Table from '../components/Table';
 import BlankPage from '@/Components/BlankPage';
 import { apiService } from '@/services/api';
 import '../../../../css/backend/main.scss';
 import { toast } from 'react-toastify';
+
+const LoadingScreen = () => (
+    <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-primary mx-auto mb-4"></div>
+            <h2 className="text-xl font-semibold text-gray-700">Loading Branch Data...</h2>
+            <p className="text-gray-500 mt-2">Please wait while we prepare the form</p>
+        </div>
+    </div>
+);
 
 const resolveMediaUrl = (value) => {
     if (!value) {
@@ -252,47 +263,104 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
         setCurrentBranch(null);
     }, [mode, branchId, branches]);
 
-    useEffect(() => {
-        apiService
-            .get('/countries')
-            .then((response) => {
-                setCountries(response.data.data || response.data);
-            })
-            .catch(() => {
-                setCountries([]);
-            });
+    // Loading states
+    const [loadingCountries, setLoadingCountries] = useState(false);
+    const [loadingStates, setLoadingStates] = useState(false);
+    const [loadingCities, setLoadingCities] = useState(false);
+    const [pageReady, setPageReady] = useState(false);
+
+    // Load countries
+    const loadCountries = useCallback(async () => {
+        setLoadingCountries(true);
+        try {
+            const response = await axios.get('/api/locations/countries');
+            setCountries(response.data.data || response.data);
+        } catch (error) {
+            console.error("Error fetching countries:", error);
+            toast.error("Failed to load countries");
+        } finally {
+            setLoadingCountries(false);
+        }
     }, []);
 
-    useEffect(() => {
-        if (data.country) {
-            apiService
-                .get(`/states?country_id=${data.country}`)
-                .then((response) => {
-                    setCities(response.data.data || response.data);
-                })
-                .catch(() => {
-                    setCities([]);
-                });
-        } else {
-            setCities([]);
-            setAreas([]);
+    // Load states
+    const loadStates = useCallback(async (countryId) => {
+        if (!countryId) {
+            setStates([]);
+            return;
         }
-    }, [data.country]);
+        setLoadingStates(true);
+        try {
+            const response = await axios.get(`/api/locations/states/${countryId}`);
+            setCities(response.data.data || response.data);
+        } catch (error) {
+            console.error("Error fetching states:", error);
+            toast.error("Failed to load states");
+        } finally {
+            setLoadingStates(false);
+        }
+    }, []);
+
+    // Load cities (which are areas in the UI)
+    const loadCities = useCallback(async (stateId) => {
+        if (!stateId) {
+            setAreas([]);
+            return;
+        }
+        setLoadingCities(true);
+        try {
+            const response = await axios.get(`/api/locations/cities/${stateId}`);
+            setAreas(response.data.data || response.data);
+        } catch (error) {
+            console.error("Error fetching cities:", error);
+            toast.error("Failed to load cities");
+        } finally {
+            setLoadingCities(false);
+        }
+    }, []);
+
+    // Initialize page
+    const initializePage = useCallback(async () => {
+        try {
+            await loadCountries();
+            if (branch?.country) {
+                await loadStates(branch.country);
+                if (branch?.city) {
+                    await loadCities(branch.city);
+                }
+            }
+        } catch (error) {
+            console.error("Error initializing page:", error);
+            toast.error("Failed to initialize form");
+        } finally {
+            setPageReady(true);
+        }
+    }, [branch, loadCountries, loadStates, loadCities]);
 
     useEffect(() => {
-        if (data.city) {
-            apiService
-                .get(`/cities?state_id=${data.city}`)
-                .then((response) => {
-                    setAreas(response.data.data || response.data);
-                })
-                .catch(() => {
-                    setAreas([]);
-                });
-        } else {
-            setAreas([]);
+        initializePage();
+    }, [initializePage]);
+
+    // Handle country change
+    const handleCountryChange = async (e) => {
+        const countryId = e.target.value;
+        setData(prev => ({ ...prev, country: countryId, city: '', area: '' }));
+        setCities([]);
+        setAreas([]);
+        if (countryId) {
+            await loadStates(countryId);
         }
-    }, [data.city]);
+    };
+
+    // Handle state (city dropdown) change
+    const handleStateChange = async (e) => {
+        const stateId = e.target.value;
+        setData(prev => ({ ...prev, city: stateId, area: '' }));
+        setAreas([]);
+        if (stateId) {
+            await loadCities(stateId);
+        }
+    };
 
     const openCreateForm = () => {
         router.visit(`${window.location.pathname}?mode=create`);
@@ -472,6 +540,9 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
                 ) : null}
             >
                 {isFormOpen ? (
+                    !pageReady ? (
+                        <LoadingScreen />
+                    ) : (
                     <div className="tasks-card">
                         <div className="card-header">
                             <h1 className="text-2xl font-bold text-gray-800">
@@ -622,50 +693,49 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
                                                     name="country"
                                                     className="form-select"
                                                     value={data.country}
-                                                    onChange={(e) => {
-                                                        setData(prev => ({ ...prev, country: e.target.value, city: '', area: '' }));
-                                                    }}
-                                                    disabled={isViewMode}
+                                                    onChange={handleCountryChange}
+                                                    disabled={isViewMode || loadingCountries}
                                                 >
                                                     <option value="" disabled>Select Country</option>
                                                     {countries.map((country) => (
                                                         <option key={country.id} value={country.id}>{country.name}</option>
                                                     ))}
                                                 </select>
+                                                {loadingCountries && <span className="text-sm text-gray-500">Loading...</span>}
                                             </div>
                                             <div className="form-row">
-                                                <label className="form-label" htmlFor="city">City</label>
+                                                <label className="form-label" htmlFor="city">State</label>
                                                 <select
                                                     id="city"
                                                     name="city"
                                                     className="form-select"
                                                     value={data.city}
-                                                    onChange={(e) => {
-                                                        setData(prev => ({ ...prev, city: e.target.value, area: '' }));
-                                                    }}
-                                                    disabled={!data.country || isViewMode}
+                                                    onChange={handleStateChange}
+                                                    disabled={!data.country || isViewMode || loadingStates}
                                                 >
-                                                    <option value="" disabled>Select City</option>
+                                                    <option value="" disabled>Select State</option>
                                                     {cities.map((city) => (
                                                         <option key={city.id} value={city.id}>{city.name}</option>
                                                     ))}
                                                 </select>
+                                                {loadingStates && <span className="text-sm text-gray-500">Loading...</span>}
                                             </div>
                                             <div className="form-row">
-                                                <label className="form-label" htmlFor="area">Area</label>
+                                                <label className="form-label" htmlFor="area">City</label>
                                                 <select
                                                     id="area"
                                                     name="area"
                                                     className="form-select"
                                                     value={data.area}
                                                     onChange={(e) => setData('area', e.target.value)}
-                                                    disabled={!data.city || isViewMode}
+                                                    disabled={!data.city || isViewMode || loadingCities}
                                                 >
-                                                    <option value="" disabled>Select Area</option>
+                                                    <option value="" disabled>Select City</option>
                                                     {areas.map((area) => (
                                                         <option key={area.id} value={area.id}>{area.name}</option>
                                                     ))}
                                                 </select>
+                                                {loadingCities && <span className="text-sm text-gray-500">Loading...</span>}
                                             </div>
                                             <div className="form-row">
                                                 <label className="form-label" htmlFor="address">Address</label>
@@ -1017,6 +1087,7 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
                             </div>
                         </form>
                     </div>
+                    )
                 ) : (
                     <>
                         <div className="tasks-card">
