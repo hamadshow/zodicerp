@@ -4,7 +4,6 @@ import axios from 'axios';
 import AdminLayout from '../components/AdminLayout';
 import Table from '../components/Table';
 import BlankPage from '@/Components/BlankPage';
-import { apiService } from '@/services/api';
 import '../../../../css/backend/main.scss';
 import { toast } from 'react-toastify';
 
@@ -286,7 +285,7 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
     // Load states
     const loadStates = useCallback(async (countryId) => {
         if (!countryId) {
-            setStates([]);
+            setCities([]);
             return;
         }
         setLoadingStates(true);

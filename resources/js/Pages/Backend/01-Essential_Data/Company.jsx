@@ -61,13 +61,11 @@ const CompanyForm = ({ company }) => {
     const [loadingCountries, setLoadingCountries] = useState(false);
     const [loadingStates, setLoadingStates] = useState(false);
     const [loadingCities, setLoadingCities] = useState(false);
-    const [loadingAreas, setLoadingAreas] = useState(false);
 
     // State for dependent dropdowns
     const [countries, setCountries] = useState([]);
     const [states, setStates] = useState([]);
     const [cities, setCities] = useState([]);
-    const [areas, setAreas] = useState([]);
 
     // Client-side validation errors
     const [localErrors, setLocalErrors] = useState({});
@@ -162,24 +160,6 @@ const CompanyForm = ({ company }) => {
         }
     }, []);
 
-    // Helper function to load areas
-    const loadAreas = useCallback(async (cityId) => {
-        if (!cityId) {
-            setAreas([]);
-            return;
-        }
-        setLoadingAreas(true);
-        try {
-            const response = await axios.get(`/api/locations/areas/${cityId}`);
-            setAreas(response.data.data || response.data);
-        } catch (error) {
-            console.error("Error fetching areas:", error);
-            toast.error("Failed to load areas. Please try again.");
-        } finally {
-            setLoadingAreas(false);
-        }
-    }, []);
-
     // Initialize page data with proper async/await to prevent race conditions
     const initializePage = useCallback(async () => {
         try {
@@ -189,9 +169,6 @@ const CompanyForm = ({ company }) => {
                 await loadStates(company.country);
                 if (company?.city) {
                     await loadCities(company.city);
-                    if (company?.area) {
-                        await loadAreas(company.area);
-                    }
                 }
             }
         } catch (error) {
@@ -200,7 +177,7 @@ const CompanyForm = ({ company }) => {
         } finally {
             setPageReady(true);
         }
-    }, [company, loadCountries, loadStates, loadCities, loadAreas]);
+    }, [company, loadCountries, loadStates, loadCities]);
 
     useEffect(() => {
         initializePage();
@@ -212,30 +189,18 @@ const CompanyForm = ({ company }) => {
         setData(prev => ({ ...prev, country: countryId, city: '', area: '' }));
         setStates([]);
         setCities([]);
-        setAreas([]);
         if (countryId) {
             await loadStates(countryId);
         }
     };
 
-    // Handle state (city dropdown in UI) change
+    // Handle state change
     const handleStateChange = async (e) => {
         const stateId = e.target.value;
         setData(prev => ({ ...prev, city: stateId, area: '' }));
         setCities([]);
-        setAreas([]);
         if (stateId) {
             await loadCities(stateId);
-        }
-    };
-
-    // Handle city (area dropdown in UI) change
-    const handleCityChange = async (e) => {
-        const cityId = e.target.value;
-        setData('area', cityId);
-        setAreas([]);
-        if (cityId) {
-            await loadAreas(cityId);
         }
     };
 
@@ -442,7 +407,6 @@ const CompanyForm = ({ company }) => {
                             </Link>
                         </div>
                     </div>
-                </div>
 
                 <div className="tabs">
                     {['basic', 'government', 'contact', 'financial'].map((tab) => (
@@ -545,7 +509,7 @@ const CompanyForm = ({ company }) => {
                                         id="area"
                                         name="area"
                                         value={data.area}
-                                        onChange={handleCityChange}
+                                        onChange={e => setData('area', e.target.value)}
                                         disabled={!data.city || loadingCities}
                                         aria-describedby="area-error"
                                     >
@@ -657,7 +621,7 @@ const CompanyForm = ({ company }) => {
                         <button
                             type="submit"
                             className="btn btn-primary"
-                            disabled={processing || loadingCountries || loadingStates || loadingCities || loadingAreas}
+                            disabled={processing || loadingCountries || loadingStates || loadingCities}
                         >
                             {processing ? (
                                 <>
@@ -673,7 +637,7 @@ const CompanyForm = ({ company }) => {
                         </button>
                     </div>
                 </form>
-            </div>
+                </div>
             </BlankPage>
 
 
