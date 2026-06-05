@@ -1,13 +1,29 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import '../../../../css/backend/main.scss';
 import AdminLayout from '../components/AdminLayout';
 import { apiService } from '../../../services/api';
 import Table from '../components/Table';
+import BlankPage from '../../../Components/BlankPage';
 
 
 
 const Reward = ({ employees: propEmployees }) => {
+  const { props } = usePage();
+  const localization = props?.localization;
+
+  const getLocalizedRoute = useCallback((name, params = {}) => {
+    try {
+      return route(name, {
+        country: localization?.country_code || 'sa',
+        lang: localization?.current_locale || 'ar',
+        ...params
+      });
+    } catch {
+      return '#';
+    }
+  }, [localization]);
+
   const [dbEmployees, setDbEmployees] = useState([]);
 
   useEffect(() => {
@@ -1494,7 +1510,6 @@ const Reward = ({ employees: propEmployees }) => {
     <>
       <Head>
         <title>Rewards & Recognition Management</title>
-
       </Head>
 
       {/* Toast Notification */}
@@ -1518,172 +1533,172 @@ const Reward = ({ employees: propEmployees }) => {
       <NotificationPanel />
 
       <AdminLayout activeMenu="Reward">
-        <div className="breadcrumb">
-          <a href="#">Dashboard</a>
-          <span>/</span>
-          <a href="#">Human Resources</a>
-          <span>/</span>
-          <span>Rewards & Recognition</span>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="stats-cards">
-          <StatsCard
-            icon="emoji_events"
-            bgColor="#f59e0b"
-            value={stats.totalRewards}
-            label="Total Rewards Given"
-          />
-          <StatsCard
-            icon="attach_money"
-            bgColor="var(--success-color)"
-            value={`$${stats.totalValue.toLocaleString()}`}
-            label="Total Reward Value"
-          />
-          <StatsCard
-            icon="stars"
-            bgColor="var(--info-color)"
-            value={stats.topPerformers}
-            label="Top Performers"
-          />
-          <StatsCard
-            icon="workspace_premium"
-            bgColor="#8b5cf6"
-            value={stats.badgesAwarded}
-            label="Badges Awarded"
-          />
-        </div>
-
-        {/* Filter Tabs */}
-        <div className="filter-tabs">
-          {filterTabs.map((tab) => (
-            <FilterTab
-              key={tab.id}
-              id={tab.id}
-              label={tab.label}
-              isActive={currentFilter === tab.id}
-              onClick={setCurrentFilter}
-            />
-          ))}
-        </div>
-
-        {/* Main Card */}
-        <div className="rewards-card fade-in">
-          <Table
-            tableData={tableDataWithSelected}
-            columns={tableColumns}
-            
-            selectAll={selectedIds.length === filteredRewards.length && filteredRewards.length > 0}
-            handleSelectAll={(e) => handleSelectAll(e.target.checked)}
-            handleRowSelect={(id) => handleCheckboxChange(id, !selectedIds.includes(id))}
-            
-            onView={(row) => openViewModal(row)}
-            onEdit={(row) => openModal(row)}
-            onDelete={(row) => deleteReward(row.id)}
-            
-            showToolbar={true}
-            toolbarSearch={true}
-            toolbarSearchValue={searchTerm}
-            onToolbarSearch={setSearchTerm}
-            
-            showRefreshButton={true}
-            onRefresh={() => {
-              fetchRewards();
-              showToast('Rewards list refreshed!', 'success');
-            }}
-            
-            showAddButton={true}
-            addButtonText="Add Reward"
-            onAdd={() => openModal()}
-            
-            showExportButton={true}
-            onExport={exportToCSV}
-            
-            toolbarActions={
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <select
-                  className="btn btn-outline"
-                  id="bulkActions"
-                  onChange={(e) => {
-                    applyBulkAction(e.target.value);
-                    e.target.value = '';
-                  }}
-                  style={{ marginRight: '8px' }}
-                >
-                  <option value="">Bulk Actions</option>
-                  <option value="approve">Approve Selected</option>
-                  <option value="complete">Mark as Completed</option>
-                  <option value="delete">Delete Selected</option>
-                </select>
-                <button
-                  className="btn btn-outline"
-                  onClick={openRewardTypeConfigModal}
-                  title="Configure reward types"
-                >
-                  <span className="material-icons-outlined">settings</span>
-                  <span>Configure</span>
-                </button>
-              </div>
-            }
-          />
-        </div>
-
-        {/* Recent Awards Timeline */}
-        <div className="rewards-card" style={{ marginTop: '24px' }}>
-          <div className="card-header">
-            <h3
-              style={{
-                margin: 0,
-                fontSize: '1.1rem',
-                color: 'var(--dark-color)',
-              }}
-            >
-              <span
-                className="material-icons-outlined"
-                style={{ verticalAlign: 'middle', marginRight: '8px' }}
-              >
-                timeline
-              </span>
-              Recent Awards Timeline
-            </h3>
-          </div>
-          <div>
-            {recentRewards.map((reward) => (
-              <TimelineItem key={reward.id} reward={reward} />
-            ))}
-          </div>
-        </div>
-
-        {/* Top Performers Leaderboard */}
-        <div className="rewards-card" style={{ marginTop: '24px' }}>
-          <div className="card-header">
-            <h3
-              style={{
-                margin: 0,
-                fontSize: '1.1rem',
-                color: 'var(--dark-color)',
-              }}
-            >
-              <span
-                className="material-icons-outlined"
-                style={{ verticalAlign: 'middle', marginRight: '8px' }}
-              >
-                leaderboard
-              </span>
-              Top Performers
-            </h3>
-          </div>
-          <div>
-            {leaderboard.map((emp, index) => (
-              <TimelineItem
-                key={emp.id}
-                reward={emp}
-                isAward={true}
-                index={index}
+        <BlankPage
+          breadcrumbs={[
+            { label: 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+            { label: 'Human Resources', href: '#' },
+            { label: 'Rewards & Recognition', href: '#' }
+          ]}
+          stats={
+            <div className="stats-cards">
+              <StatsCard
+                icon="emoji_events"
+                bgColor="#f59e0b"
+                value={stats.totalRewards}
+                label="Total Rewards Given"
               />
-            ))}
+              <StatsCard
+                icon="attach_money"
+                bgColor="var(--success-color)"
+                value={`$${stats.totalValue.toLocaleString()}`}
+                label="Total Reward Value"
+              />
+              <StatsCard
+                icon="stars"
+                bgColor="var(--info-color)"
+                value={stats.topPerformers}
+                label="Top Performers"
+              />
+              <StatsCard
+                icon="workspace_premium"
+                bgColor="#8b5cf6"
+                value={stats.badgesAwarded}
+                label="Badges Awarded"
+              />
+            </div>
+          }
+          filters={
+            <div className="filter-tabs">
+              {filterTabs.map((tab) => (
+                <FilterTab
+                  key={tab.id}
+                  id={tab.id}
+                  label={tab.label}
+                  isActive={currentFilter === tab.id}
+                  onClick={setCurrentFilter}
+                />
+              ))}
+            </div>
+          }
+        >
+          {/* Main Card */}
+          <div className="rewards-card fade-in">
+            <Table
+              tableData={tableDataWithSelected}
+              columns={tableColumns}
+              
+              selectAll={selectedIds.length === filteredRewards.length && filteredRewards.length > 0}
+              handleSelectAll={(e) => handleSelectAll(e.target.checked)}
+              handleRowSelect={(id) => handleCheckboxChange(id, !selectedIds.includes(id))}
+              
+              onView={(row) => openViewModal(row)}
+              onEdit={(row) => openModal(row)}
+              onDelete={(row) => deleteReward(row.id)}
+              
+              showToolbar={true}
+              toolbarSearch={true}
+              toolbarSearchValue={searchTerm}
+              onToolbarSearch={setSearchTerm}
+              
+              showRefreshButton={true}
+              onRefresh={() => {
+                fetchRewards();
+                showToast('Rewards list refreshed!', 'success');
+              }}
+              
+              showAddButton={true}
+              addButtonText="Add Reward"
+              onAdd={() => openModal()}
+              
+              showExportButton={true}
+              onExport={exportToCSV}
+              
+              toolbarActions={
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <select
+                    className="btn btn-outline"
+                    id="bulkActions"
+                    onChange={(e) => {
+                      applyBulkAction(e.target.value);
+                      e.target.value = '';
+                    }}
+                    style={{ marginRight: '8px' }}
+                  >
+                    <option value="">Bulk Actions</option>
+                    <option value="approve">Approve Selected</option>
+                    <option value="complete">Mark as Completed</option>
+                    <option value="delete">Delete Selected</option>
+                  </select>
+                  <button
+                    className="btn btn-outline"
+                    onClick={openRewardTypeConfigModal}
+                    title="Configure reward types"
+                  >
+                    <span className="material-icons-outlined">settings</span>
+                    <span>Configure</span>
+                  </button>
+                </div>
+              }
+            />
           </div>
-        </div>
+
+          {/* Recent Awards Timeline */}
+          <div className="rewards-card" style={{ marginTop: '24px' }}>
+            <div className="card-header">
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: '1.1rem',
+                  color: 'var(--dark-color)',
+                }}
+              >
+                <span
+                  className="material-icons-outlined"
+                  style={{ verticalAlign: 'middle', marginRight: '8px' }}
+                >
+                  timeline
+                </span>
+                Recent Awards Timeline
+              </h3>
+            </div>
+            <div>
+              {recentRewards.map((reward) => (
+                <TimelineItem key={reward.id} reward={reward} />
+              ))}
+            </div>
+          </div>
+
+          {/* Top Performers Leaderboard */}
+          <div className="rewards-card" style={{ marginTop: '24px' }}>
+            <div className="card-header">
+              <h3
+                style={{
+                  margin: 0,
+                  fontSize: '1.1rem',
+                  color: 'var(--dark-color)',
+                }}
+              >
+                <span
+                  className="material-icons-outlined"
+                  style={{ verticalAlign: 'middle', marginRight: '8px' }}
+                >
+                  leaderboard
+                </span>
+                Top Performers
+              </h3>
+            </div>
+            <div>
+              {leaderboard.map((emp, index) => (
+                <TimelineItem
+                  key={emp.id}
+                  reward={emp}
+                  isAward={true}
+                  index={index}
+                />
+              ))}
+            </div>
+          </div>
+        </BlankPage>
       </AdminLayout>
     </>
   );
