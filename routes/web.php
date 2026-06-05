@@ -336,18 +336,7 @@ Route::group([
                 'employees' => $employees
             ]);
         })->name('vacations.index');
-        Route::get('reward', function () {
-            $employees = Employee::select('id', 'name', 'position', 'department')->get();
-            return Inertia::render('Backend/02_human_resource/Reward', [
-                'employees' => $employees
-            ]);
-        })->name('reward.index');
-        Route::get('overtime', function () {
-            $employees = Employee::select('id', 'name', 'position', 'department')->get();
-            return Inertia::render('Backend/02_human_resource/OverTime', [
-                'employees' => $employees
-            ]);
-        })->name('overtime.index');
+        Route::resource('rewards', \App\Http\Controllers\Backend\HumanResource\RewardController::class);
         Route::get('end-of-service', function () {
             $employees = Employee::select('id', 'name', 'position', 'department')->get();
             return Inertia::render('Backend/02_human_resource/End-of-service', [

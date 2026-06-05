@@ -527,32 +527,32 @@ const AdsList = () => {
             </div>
 
             <Modal show={showPreview} onClose={() => setShowPreview(false)} maxWidth="2xl">
-                <div className="p-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">
-                        Ad Preview
-                    </h3>
-                    <div className="mt-2 relative h-96 border rounded bg-gray-100">
+                <div className="p-0 overflow-hidden rounded-lg">
+                    <div className="preview-header" style={{ background: '#f8fafc', padding: '10px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e2e8f0' }}>
+                        <span style={{ fontWeight: 600 }}>Ad Preview</span>
+                        <div className="preview-actions" style={{ display: 'flex', gap: '10px' }}>
+                            <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="btn btn-sm btn-outline" title="Open in New Tab">
+                                <span className="material-icons-outlined" style={{ fontSize: '18px' }}>open_in_new</span>
+                            </a>
+                            <button type="button" className="btn btn-sm btn-outline" onClick={() => setShowPreview(false)}>
+                                <span className="material-icons-outlined" style={{ fontSize: '18px' }}>close</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div className="mt-0 relative h-[600px] border-0 bg-white">
                         {previewUrl ? (
                             <iframe
                                 src={previewUrl}
                                 className="w-full h-full border-0"
                                 title="Ad Preview"
                                 onError={(e) => console.error('Iframe error:', e)}
+                                style={{ width: '100%', height: '100%', border: 'none' }}
                             />
                         ) : (
                             <div className="flex items-center justify-center h-full text-gray-500">
                                 No URL to preview
                             </div>
                         )}
-                    </div>
-                    <div className="mt-6 flex justify-end">
-                        <button
-                            type="button"
-                            className="btn btn-secondary"
-                            onClick={() => setShowPreview(false)}
-                        >
-                            Close
-                        </button>
                     </div>
                 </div>
             </Modal>

@@ -1,1707 +1,362 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Head, usePage } from '@inertiajs/react';
-import '../../../../css/backend/main.scss';
+import React, { useState, useMemo } from 'react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
-import { apiService } from '../../../services/api';
+import BlankPage from '@/Components/BlankPage';
 import Table from '../components/Table';
-import BlankPage from '../../../Components/BlankPage';
+import '../../../../css/backend/main.scss';
 
+const Reward = ({ rewards: propRewards, employees }) => {
+    const { props } = usePage();
+    const localization = props.localization;
+    const translations = localization?.translations || {};
 
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
 
-const Reward = ({ employees: propEmployees }) => {
-  const { props } = usePage();
-  const localization = props?.localization;
+    const rewardsData = propRewards?.data || (Array.isArray(propRewards) ? propRewards : []);
+    const employeesData = employees?.data || (Array.isArray(employees) ? employees : []);
+    
+    const [searchTerm, setSearchTerm] = useState('');
+    const [showForm, setShowForm] = useState(false);
+    const [currentReward, setCurrentReward] = useState(null);
 
-  const getLocalizedRoute = useCallback((name, params = {}) => {
-    try {
-      return route(name, {
-        country: localization?.country_code || 'sa',
-        lang: localization?.current_locale || 'ar',
-        ...params
-      });
-    } catch {
-      return '#';
-    }
-  }, [localization]);
-
-  const [dbEmployees, setDbEmployees] = useState([]);
-
-  useEffect(() => {
-    const propData = propEmployees?.data || propEmployees;
-    if (!propData || !Array.isArray(propData) || propData.length === 0) {
-      apiService.get('/employees')
-        .then(response => {
-          const data = response.data;
-          const employeeData = data.data || data;
-          setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
-        })
-        .catch(error => console.error('Error fetching employees:', error));
-    }
-  }, [propEmployees]);
-
-  const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
-
-  // State management
-  const [rewards, setRewards] = useState([]);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [editingReward, setEditingReward] = useState(null);
-  const [selectedReward, setSelectedReward] = useState(null);
-  const [formData, setFormData] = useState({
-    employee: '',
-    rewardType: '',
-    rewardValue: '',
-    category: '',
-    awardDate: new Date().toISOString().split('T')[0],
-    rewardStatus: 'pending',
-    selectedBadge: '',
-    reason: '',
-    awardedBy: '',
-    points: '',
-    notes: '',
-  });
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [toast, setToast] = useState(null);
-  const [currentFilter, setCurrentFilter] = useState('all');
-
-  // Additional state for enhanced functionality
-  const [notifications, setNotifications] = useState([]);
-  const [showNotifications, setShowNotifications] = useState(false);
-
-  // Reward type configurations
-  const rewardTypeConfig = {
-    monetary: {
-      name: 'Monetary Bonus',
-      class: 'type-bonus',
-      icon: 'attach_money',
-    },
-    points: {
-      name: 'Reward Points',
-      class: 'type-award',
-      icon: 'emoji_events',
-    },
-    badge: {
-      name: 'Achievement Badge',
-      class: 'type-award',
-      icon: 'workspace_premium',
-    },
-    certificate: {
-      name: 'Certificate',
-      class: 'type-recognition',
-      icon: 'description',
-    },
-    gift: { name: 'Gift Card', class: 'type-gift', icon: 'card_giftcard' },
-  };
-
-  // Reward templates for quick selection
-  const rewardTemplates = [
-    {
-      id: 'excellent_performance',
-      name: 'Excellent Performance',
-      rewardType: 'monetary',
-      rewardValue: '1000 EGP',
-      category: 'performance',
-      reason: 'Outstanding work performance and exceeding targets',
-      points: 100,
-    },
-    {
-      id: 'employee_of_month',
-      name: 'Employee of the Month',
-      rewardType: 'points',
-      rewardValue: '0',
-      category: 'leadership',
-      reason: 'Employee of the month recognition for exceptional work',
-      points: 150,
-    },
-    {
-      id: 'innovation_award',
-      name: 'Innovation Award',
-      rewardType: 'certificate',
-      rewardValue: '500 EGP',
-      category: 'innovation',
-      reason: 'Creative solution that improved efficiency',
-      points: 75,
-    },
-    {
-      id: 'teamwork_excellence',
-      name: 'Teamwork Excellence',
-      rewardType: 'badge',
-      rewardValue: '0',
-      category: 'teamwork',
-      reason: 'Outstanding teamwork and collaboration',
-      points: 50,
-    },
-  ];
-
-  // State for reward templates
-  const [templateModalOpen, setTemplateModalOpen] = useState(false);
-
-  // Badge configurations
-  const badgeConfig = {
-    star_performer: { name: 'Star Performer', color: '#f59e0b', icon: 'stars' },
-    team_player: { name: 'Team Player', color: '#3b82f6', icon: 'groups' },
-    innovation: {
-      name: 'Innovation Award',
-      color: '#8b5cf6',
-      icon: 'lightbulb',
-    },
-    leadership: { name: 'Leadership', color: '#10b981', icon: 'military_tech' },
-  };
-
-  // Badge items for selection
-  const badgeItems = [
-    {
-      id: 'star_performer',
-      name: 'Star Performer',
-      description: 'Top performance',
-      icon: 'stars',
-    },
-    {
-      id: 'team_player',
-      name: 'Team Player',
-      description: 'Excellent teamwork',
-      icon: 'groups',
-    },
-    {
-      id: 'innovation',
-      name: 'Innovation Award',
-      description: 'Creative solutions',
-      icon: 'lightbulb',
-    },
-    {
-      id: 'leadership',
-      name: 'Leadership',
-      description: 'Outstanding leadership',
-      icon: 'military_tech',
-    },
-  ];
-
-  // Filter tabs
-  const filterTabs = [
-    { id: 'all', label: 'All Rewards' },
-    { id: 'monetary', label: 'Monetary' },
-    { id: 'points', label: 'Points' },
-    { id: 'badge', label: 'Badges' },
-    { id: 'pending', label: 'Pending' },
-    { id: 'delivered', label: 'Delivered' },
-    { id: 'recent', label: 'Recent (30 days)' },
-  ];
-
-  // Initialize component
-  useEffect(() => {
-    fetchRewards();
-  }, []);
-
-  const fetchRewards = async () => {
-    try {
-      const response = await apiService.get('/rewards');
-      const rewardsData = response.data.data || response.data;
-      setRewards(Array.isArray(rewardsData) ? rewardsData : []);
-    } catch (error) {
-      console.error('Error fetching rewards:', error);
-      showToast('Error loading rewards data', 'error');
-      setRewards([]);
-    }
-  };
-
-  // Toast notification
-  const showToast = (message, type = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  // Modal handlers
-  const openModal = useCallback((reward = null) => {
-    setEditingReward(reward);
-    if (reward) {
-      setFormData({
-        employee: reward.employee_id?.toString() || reward.employeeId?.toString() || '',
-        rewardType: reward.reward_type || reward.rewardType || '',
-        rewardValue: reward.reward_value || reward.rewardValue || '',
-        category: reward.category || '',
-        awardDate: reward.award_date || reward.awardDate || new Date().toISOString().split('T')[0],
-        rewardStatus: reward.status || 'pending',
-        selectedBadge: reward.badge || '',
-        reason: reward.reason || '',
-        awardedBy: reward.awarded_by || reward.awardedBy || '',
-        points: reward.points || '',
-        notes: reward.notes || '',
-      });
-    } else {
-      resetForm();
-    }
-    setModalOpen(true);
-  }, []);
-
-  const closeModal = useCallback(() => {
-    setModalOpen(false);
-    setEditingReward(null);
-    resetForm();
-  }, []);
-
-  const openViewModal = useCallback((reward) => {
-    setSelectedReward(reward);
-    setViewModalOpen(true);
-  }, []);
-
-  const closeViewModal = useCallback(() => {
-    setViewModalOpen(false);
-    setSelectedReward(null);
-  }, []);
-
-  const resetForm = useCallback(() => {
-    setFormData({
-      employee: '',
-      rewardType: '',
-      rewardValue: '',
-      category: '',
-      awardDate: new Date().toISOString().split('T')[0],
-      rewardStatus: 'pending',
-      selectedBadge: '',
-      reason: '',
-      awardedBy: '',
-      points: '',
-      notes: '',
+    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
+        employee_id: '',
+        reward_type: '',
+        reward_value: '',
+        category: '',
+        award_date: new Date().toISOString().split('T')[0],
+        status: 'pending',
+        badge: '',
+        reason: '',
+        awarded_by: '',
+        points: '',
+        notes: '',
     });
-  }, []);
 
-  // Form handlers
-  const handleInputChange = useCallback((e) => {
-    const { id, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [id]: value,
-    }));
-  }, []);
+    const getTranslation = (key, fallback) => {
+        return translations[`reward.${key}`] || translations[`common.${key}`] || fallback;
+    };
 
-  const handleBadgeSelect = useCallback((badgeId) => {
-    setFormData((prev) => ({
-      ...prev,
-      selectedBadge: badgeId === prev.selectedBadge ? '' : badgeId,
-    }));
-  }, []);
+    const filteredRewards = useMemo(() => {
+        if (!searchTerm) return rewardsData;
+        const lowerTerm = searchTerm.toLowerCase();
+        return rewardsData.filter(r => 
+            (r.employee_name && r.employee_name.toLowerCase().includes(lowerTerm)) ||
+            (r.reward_type && r.reward_type.toLowerCase().includes(lowerTerm)) ||
+            (r.category && r.category.toLowerCase().includes(lowerTerm))
+        );
+    }, [rewardsData, searchTerm]);
 
-  const handleSubmit = useCallback(
-    async (e) => {
-      e.preventDefault();
+    const stats = {
+        total: rewardsData.length,
+        delivered: rewardsData.filter(r => r.status === 'delivered').length,
+        totalPoints: rewardsData.reduce((acc, r) => acc + (parseInt(r.points) || 0), 0),
+    };
 
-      // Basic validation
-      if (!formData.employee || !formData.rewardType || !formData.reason) {
-        showToast('Please fill in all required fields', 'error');
-        return;
-      }
-
-      try {
-        const rewardData = {
-          employee_id: parseInt(formData.employee),
-          reward_type: formData.rewardType,
-          reward_value: parseFloat(formData.rewardValue) || 0,
-          category: formData.category,
-          award_date: formData.awardDate,
-          status: formData.rewardStatus,
-          badge: formData.selectedBadge,
-          reason: formData.reason,
-          awarded_by: formData.awardedBy,
-          points: parseInt(formData.points) || 0,
-          notes: formData.notes,
-        };
-
-        if (editingReward) {
-          // Update existing reward
-          await apiService.put(`/rewards/${editingReward.id}`, rewardData);
-          showToast('Reward updated successfully!', 'success');
+    const openForm = (reward = null) => {
+        clearErrors();
+        if (reward) {
+            setCurrentReward(reward);
+            setData({
+                employee_id: reward.employee_id || '',
+                reward_type: reward.reward_type || '',
+                reward_value: reward.reward_value || '',
+                category: reward.category || '',
+                award_date: reward.award_date || new Date().toISOString().split('T')[0],
+                status: reward.status || 'pending',
+                badge: reward.badge || '',
+                reason: reward.reason || '',
+                awarded_by: reward.awarded_by || '',
+                points: reward.points || '',
+                notes: reward.notes || '',
+            });
         } else {
-          // Add new reward
-          await apiService.post('/rewards', rewardData);
-          showToast('Reward added successfully!', 'success');
+            setCurrentReward(null);
+            reset();
         }
-
-        fetchRewards(); // Refresh list from server
-        closeModal();
-      } catch (error) {
-        showToast('Error saving reward. Please try again.', 'error');
-        console.error('Error saving reward:', error);
-      }
-    },
-    [formData, editingReward, employees, closeModal]
-  );
-
-  // Reward operations
-  const deleteReward = useCallback(async (id) => {
-    if (
-      window.confirm(
-        'Are you sure you want to delete this reward? This action cannot be undone.'
-      )
-    ) {
-      try {
-        await apiService.delete(`/rewards/${id}`);
-        showToast('Reward deleted successfully!', 'success');
-        fetchRewards();
-      } catch (error) {
-        console.error('Error deleting reward:', error);
-        showToast('Error deleting reward.', 'error');
-      }
-    }
-  }, []);
-
-  const approveReward = useCallback(async (id) => {
-    const reward = rewards.find(r => r.id === id);
-    if (!reward) return;
-
-    let nextStatus = reward.status;
-    if (reward.status === 'pending') {
-      nextStatus = 'approved';
-    } else if (reward.status === 'approved') {
-      nextStatus = 'delivered';
-    }
-
-    if (nextStatus === reward.status) return;
-
-    try {
-      await apiService.put(`/rewards/${id}`, { ...reward, status: nextStatus });
-      showToast('Reward status updated!', 'success');
-      fetchRewards();
-    } catch (error) {
-      console.error('Error updating status:', error);
-      showToast('Error updating status.', 'error');
-    }
-  }, [rewards]);
-
-  const handleCheckboxChange = useCallback((id, checked) => {
-    if (checked) {
-      setSelectedIds((prev) => [...prev, id]);
-    } else {
-      setSelectedIds((prev) => prev.filter((itemId) => itemId !== id));
-    }
-  }, []);
-
-  const applyBulkAction = useCallback(
-    async (action) => {
-      if (selectedIds.length === 0) {
-        showToast('Please select at least one reward.', 'warning');
-        return;
-      }
-
-      if (action === 'delete') {
-        if (
-          window.confirm(
-            `Are you sure you want to delete ${selectedIds.length} selected reward(s)?`
-          )
-        ) {
-          try {
-            // Sequential delete for now, ideally bulk delete endpoint
-            for (const id of selectedIds) {
-              await apiService.delete(`/rewards/${id}`);
-            }
-            setSelectedIds([]);
-            showToast(`${selectedIds.length} reward(s) deleted!`, 'success');
-            fetchRewards();
-          } catch (error) {
-            console.error('Error bulk deleting:', error);
-            showToast('Error during bulk deletion.', 'error');
-          }
-        }
-        return;
-      }
-
-      try {
-        for (const id of selectedIds) {
-          const reward = rewards.find(r => r.id === id);
-          if (!reward) continue;
-
-          let nextStatus = reward.status;
-          if (action === 'approve' && reward.status === 'pending') {
-            nextStatus = 'approved';
-          } else if (action === 'complete' && reward.status === 'approved') {
-            nextStatus = 'delivered';
-          }
-
-          if (nextStatus !== reward.status) {
-            await apiService.put(`/rewards/${id}`, { ...reward, status: nextStatus });
-          }
-        }
-        setSelectedIds([]);
-        showToast(`${selectedIds.length} reward(s) updated!`, 'success');
-        fetchRewards();
-      } catch (error) {
-        console.error('Error bulk updating:', error);
-        showToast('Error during bulk update.', 'error');
-      }
-    },
-    [selectedIds, rewards]
-  );
-
-  // Search and filter
-  const filteredRewards = useMemo(() => {
-    return rewards.filter((reward) => {
-      const searchLower = searchTerm.toLowerCase();
-      const employeeName = reward.employee_name || reward.employeeName || '';
-      const position = reward.position || '';
-      const reason = reward.reason || '';
-      const category = reward.category || '';
-      const rewardType = reward.reward_type || reward.rewardType || '';
-      const awardDate = reward.award_date || reward.awardDate || '';
-
-      const matchesSearch =
-        employeeName.toLowerCase().includes(searchLower) ||
-        position.toLowerCase().includes(searchLower) ||
-        reason.toLowerCase().includes(searchLower) ||
-        category.toLowerCase().includes(searchLower) ||
-        (rewardTypeConfig[rewardType]?.name || rewardType || '').toLowerCase().includes(searchLower);
-
-      if (currentFilter === 'all') return matchesSearch;
-      if (currentFilter === 'recent') {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        return matchesSearch && new Date(awardDate) >= thirtyDaysAgo;
-      }
-      return (
-        matchesSearch &&
-        (rewardType === currentFilter || reward.status === currentFilter)
-      );
-    });
-  }, [rewards, searchTerm, currentFilter, rewardTypeConfig]);
-
-  // Bulk actions
-  const handleSelectAll = useCallback(
-    (checked) => {
-      if (checked) {
-        setSelectedIds(filteredRewards.map((reward) => reward.id));
-      } else {
-        setSelectedIds([]);
-      }
-    },
-    [filteredRewards]
-  );
-
-  // Recent timeline
-  const recentRewards = useMemo(() => {
-    return [...rewards]
-      .sort((a, b) => {
-        const dateA = a.award_date || a.awardDate || '';
-        const dateB = b.award_date || b.awardDate || '';
-        return new Date(dateB) - new Date(dateA);
-      })
-      .slice(0, 8);
-  }, [rewards]);
-
-  // Leaderboard calculation
-  const leaderboard = useMemo(() => {
-    return Object.values(
-      rewards.reduce((acc, reward) => {
-        const empId = reward.employee_id || reward.employeeId;
-        if (!empId) return acc;
-        if (!acc[empId]) {
-          acc[empId] = {
-            id: empId,
-            name: reward.employee_name || reward.employeeName || 'Unknown',
-            position: reward.position || '-',
-            points: 0,
-            rewards: 0,
-          };
-        }
-        acc[empId].points += reward.points || 0;
-        acc[empId].rewards += 1;
-        return acc;
-      }, {})
-    )
-      .sort((a, b) => b.points - a.points)
-      .slice(0, 5);
-  }, [rewards]);
-
-  // Export to CSV
-  const exportToCSV = useCallback(() => {
-    if (rewards.length === 0) {
-      showToast('No rewards to export.', 'warning');
-      return;
-    }
-
-    const headers = [
-      'ID',
-      'Employee',
-      'Position',
-      'Reward Type',
-      'Value',
-      'Category',
-      'Award Date',
-      'Status',
-      'Reason',
-      'Points',
-    ];
-    const csvRows = [
-      headers.join(','),
-      ...rewards.map((reward) => {
-        const rewardType = reward.reward_type || reward.rewardType || '';
-        const employeeName = reward.employee_name || reward.employeeName || 'Unknown';
-        const awardDate = reward.award_date || reward.awardDate || '';
-        const reason = reward.reason || '';
-
-        return [
-          reward.id,
-          `"${employeeName}"`,
-          `"${reward.position || '-'}"`,
-          rewardTypeConfig[rewardType]?.name || rewardType,
-          reward.reward_value || reward.rewardValue || 0,
-          reward.category || '',
-          awardDate,
-          reward.status,
-          `"${reason.replace(/"/g, '""')}"`,
-          reward.points || 0,
-        ].join(',');
-      }),
-    ];
-
-    const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `rewards_export_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-
-    showToast(`${rewards.length} reward(s) exported to CSV!`, 'success');
-  }, [rewards, rewardTypeConfig]);
-
-  // Format date helper
-  const formatDate = useCallback((dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  }, []);
-
-  // Calculate stats
-  const stats = useMemo(() => {
-    return {
-      totalRewards: rewards.length,
-      totalValue: rewards.reduce((sum, r) => sum + (r.reward_value || r.rewardValue || 0), 0),
-      topPerformers: [
-        ...new Set(
-          rewards
-            .filter((r) => (r.reward_type || r.rewardType) === 'award' || r.badge)
-            .map((r) => r.employee_id || r.employeeId)
-        ),
-      ].length,
-      badgesAwarded: rewards.filter((r) => r.badge).length,
+        setShowForm(true);
     };
-  }, [rewards]);
 
-  // State for reward type configuration
-  const [rewardTypeConfigModalOpen, setRewardTypeConfigModalOpen] =
-    useState(false);
-  const [customRewardTypes, setCustomRewardTypes] = useState(rewardTypeConfig);
-
-  // Function to open reward type configuration modal
-  const openRewardTypeConfigModal = () => {
-    setRewardTypeConfigModalOpen(true);
-  };
-
-  // Function to close reward type configuration modal
-  const closeRewardTypeConfigModal = () => {
-    setRewardTypeConfigModalOpen(false);
-  };
-
-  // Function to handle changes to reward type configurations
-  const handleRewardTypeConfigChange = (typeId, field, value) => {
-    setCustomRewardTypes((prev) => ({
-      ...prev,
-      [typeId]: {
-        ...prev[typeId],
-        [field]: value,
-      },
-    }));
-  };
-
-  // Function to add a new reward type
-  const addNewRewardType = () => {
-    const newTypeId = `custom_${Date.now()}`;
-    setCustomRewardTypes((prev) => ({
-      ...prev,
-      [newTypeId]: {
-        name: 'New Reward Type',
-        class: 'type-custom',
-        icon: 'star',
-      },
-    }));
-  };
-
-  // Function to delete a reward type
-  const deleteRewardType = (typeId) => {
-    if (Object.keys(customRewardTypes).length <= 1) {
-      showToast('You must have at least one reward type', 'error');
-      return;
-    }
-    setCustomRewardTypes((prev) => {
-      const newConfig = { ...prev };
-      delete newConfig[typeId];
-      return newConfig;
-    });
-  };
-
-  // Function to save reward type configurations
-  const saveRewardTypeConfig = () => {
-    // In a real app, you would save this to a database
-    // For now, just update the local rewardTypeConfig
-    Object.assign(rewardTypeConfig, customRewardTypes);
-    showToast('Reward type configurations saved successfully!', 'success');
-    closeRewardTypeConfigModal();
-  };
-
-  // Function to open template selection modal
-  const openTemplateModal = () => {
-    setTemplateModalOpen(true);
-  };
-
-  // Function to close template selection modal
-  const closeTemplateModal = () => {
-    setTemplateModalOpen(false);
-  };
-
-  // Function to apply a template to the form
-  const applyTemplate = (template) => {
-    setFormData((prev) => ({
-      ...prev,
-      rewardType: template.rewardType,
-      rewardValue: template.rewardValue,
-      category: template.category,
-      reason: template.reason,
-      points: template.points,
-    }));
-    showToast(`Applied template: ${template.name}`, 'success');
-    closeTemplateModal();
-  };
-
-  // Function to create a new template
-  const createTemplateFromCurrentForm = () => {
-    const newTemplate = {
-      id: `template_${Date.now()}`,
-      name: `Template ${Date.now()}`,
-      rewardType: formData.rewardType,
-      rewardValue: formData.rewardValue,
-      category: formData.category,
-      reason: formData.reason,
-      points: formData.points,
+    const closeForm = () => {
+        setShowForm(false);
+        setCurrentReward(null);
+        reset();
     };
-    // In a real app, you would save this to a database
-    // For now, just add it to the local templates
-    rewardTemplates.push(newTemplate);
-    showToast('Template saved successfully!', 'success');
-  };
 
-  // Function to clear notifications
-  const clearNotifications = useCallback(() => {
-    setNotifications([]);
-    setShowNotifications(false);
-  }, []);
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (currentReward) {
+            put(getLocalizedRoute('admin.rewards.update', { reward: currentReward.id }), {
+                onSuccess: () => closeForm(),
+            });
+        } else {
+            post(getLocalizedRoute('admin.rewards.store'), {
+                onSuccess: () => closeForm(),
+            });
+        }
+    };
 
-  // Function to handle advanced search changes
+    const handleDelete = (id) => {
+        if (window.confirm(translations['confirm.delete'] || translations['common.confirm_delete'] || 'Are you sure?')) {
+            router.delete(getLocalizedRoute('admin.rewards.destroy', { reward: id }));
+        }
+    };
 
-  // Separate components for better maintainability
-  const AddEditRewardModal = () => (
-    <div className="modal-overlay active" onClick={closeModal}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3 className="modal-title">
-            {editingReward ? 'Edit Reward' : 'Add New Reward'}
-          </h3>
-          <button className="modal-close" onClick={closeModal}>
-            <span className="material-icons-outlined">close</span>
-          </button>
-        </div>
-        <div className="modal-body">
-          <form id="rewardForm" onSubmit={handleSubmit}>
-            <div className="form-actions">
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={openTemplateModal}
-              >
-                <span className="material-icons-outlined">inventory</span>
-                Apply Template
-              </button>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Employee *</label>
-              <select
-                className="form-control"
-                id="employee"
-                value={formData.employee}
-                onChange={handleInputChange}
-                required
-              >
-                <option value="">Select Employee</option>
-                {Array.isArray(employees) && employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.name} - {emp.position}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Reward Type *</label>
-                <select
-                  className="form-control"
-                  id="rewardType"
-                  value={formData.rewardType}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="">Select Type</option>
-                  <option value="monetary">Monetary Bonus</option>
-                  <option value="points">Reward Points</option>
-                  <option value="badge">Achievement Badge</option>
-                  <option value="certificate">Certificate</option>
-                  <option value="gift">Gift Card</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Value ($)</label>
-                <input
-                  type="number"
-                  className="form-control"
-                  id="rewardValue"
-                  value={formData.rewardValue}
-                  onChange={handleInputChange}
-                  placeholder="Enter reward value"
-                  min="0"
-                  step="0.01"
-                />
-              </div>
-            </div>
-
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Award Date *</label>
-                <input
-                  type="date"
-                  className="form-control"
-                  id="awardDate"
-                  value={formData.awardDate}
-                  onChange={handleInputChange}
-                  required
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Status</label>
-                <select
-                  className="form-control"
-                  id="rewardStatus"
-                  value={formData.rewardStatus}
-                  onChange={handleInputChange}
-                >
-                  <option value="pending">Pending</option>
-                  <option value="approved">Approved</option>
-                  <option value="delivered">Delivered</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Achievement Badge</label>
-              <div className="badges-grid">
-                {badgeItems.map((badge) => (
-                  <div
-                    key={badge.id}
-                    className={`badge-item ${formData.selectedBadge === badge.id ? 'selected' : ''}`}
-                    onClick={() => handleBadgeSelect(badge.id)}
-                  >
-                    <div className="badge-icon-large">
-                      <span className="material-icons-outlined">
-                        {badge.icon}
-                      </span>
-                    </div>
-                    <div className="badge-name">{badge.name}</div>
-                    <div className="badge-desc">{badge.description}</div>
-                  </div>
-                ))}
-              </div>
-              <input
-                type="hidden"
-                id="selectedBadge"
-                value={formData.selectedBadge}
-                onChange={handleInputChange}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Category</label>
-              <select
-                className="form-control"
-                id="category"
-                value={formData.category}
-                onChange={handleInputChange}
-              >
-                <option value="">Select Category</option>
-                <option value="performance">Performance</option>
-                <option value="innovation">Innovation</option>
-                <option value="teamwork">Teamwork</option>
-                <option value="leadership">Leadership</option>
-                <option value="customer_service">Customer Service</option>
-                <option value="sales">Sales Excellence</option>
-                <option value="safety">Safety</option>
-                <option value="anniversary">Work Anniversary</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Reason for Reward *</label>
-              <textarea
-                className="form-control form-textarea"
-                id="reason"
-                value={formData.reason}
-                onChange={handleInputChange}
-                placeholder="Describe the achievement or reason for this reward..."
-                required
-                rows="3"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Awarded By</label>
-              <input
-                type="text"
-                className="form-control"
-                id="awardedBy"
-                value={formData.awardedBy}
-                onChange={handleInputChange}
-                placeholder="Manager or department head"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Points Awarded</label>
-              <input
-                type="number"
-                className="form-control"
-                id="points"
-                value={formData.points}
-                onChange={handleInputChange}
-                placeholder="Enter points (if applicable)"
-                min="0"
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Notes</label>
-              <textarea
-                className="form-control form-textarea"
-                id="notes"
-                value={formData.notes}
-                onChange={handleInputChange}
-                placeholder="Any additional notes or comments"
-                rows="3"
-              />
-            </div>
-          </form>
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="btn" onClick={closeModal}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleSubmit}
-          >
-            {editingReward ? 'Update' : 'Save'} Reward
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const ViewRewardModal = () => (
-    <div className="modal-overlay active" onClick={closeViewModal}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3 className="modal-title">Reward Details</h3>
-          <button className="modal-close" onClick={closeViewModal}>
-            <span className="material-icons-outlined">close</span>
-          </button>
-        </div>
-        <div className="modal-body">
-          <div className="reward-details">
-            <div className="detail-row">
-              <span className="detail-label">Employee:</span>
-              <span className="detail-value">
-                {selectedReward.employee_name || selectedReward.employeeName || 'Unknown'}
-              </span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Position:</span>
-              <span className="detail-value">{selectedReward.position || '-'}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Reward Type:</span>
-              <span className="detail-value">
-                {rewardTypeConfig[selectedReward.reward_type || selectedReward.rewardType]?.name ||
-                  (selectedReward.reward_type || selectedReward.rewardType)}
-              </span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Value:</span>
-              <span className="detail-value">
-                {(selectedReward.reward_value || selectedReward.rewardValue) > 0
-                  ? `$${(selectedReward.reward_value || selectedReward.rewardValue).toLocaleString()}`
-                  : 'N/A'}
-              </span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Category:</span>
-              <span className="detail-value">
-                {(selectedReward.category || '').replace('_', ' ')}
-              </span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Award Date:</span>
-              <span className="detail-value">{selectedReward.award_date || selectedReward.awardDate || ''}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Status:</span>
-              <span className="detail-value">
-                {(selectedReward.status || '').charAt(0).toUpperCase() +
-                  (selectedReward.status || '').slice(1)}
-              </span>
-            </div>
-            {selectedReward.badge && (
-              <div className="detail-row">
-                <span className="detail-label">Badge:</span>
-                <span className="detail-value">
-                  {badgeConfig[selectedReward.badge]?.name ||
-                    selectedReward.badge}
+    const tableColumns = [
+        { 
+            header: 'ID', 
+            key: 'id',
+            sortable: true,
+            render: (row) => row.id.toString().padStart(3, '0')
+        },
+        { 
+            header: getTranslation('employee', 'EMPLOYEE'), 
+            key: 'employee_name',
+            sortable: true
+        },
+        { 
+            header: getTranslation('type', 'TYPE'), 
+            key: 'reward_type',
+            sortable: true,
+            render: (row) => (
+                <span className="reward-type-tag">
+                    {getTranslation(row.reward_type, row.reward_type)}
                 </span>
-              </div>
-            )}
-            <div className="detail-row">
-              <span className="detail-label">Reason:</span>
-              <span className="detail-value">{selectedReward.reason || ''}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Awarded By:</span>
-              <span className="detail-value">
-                {selectedReward.awarded_by || selectedReward.awardedBy || 'N/A'}
-              </span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Points Awarded:</span>
-              <span className="detail-value">{selectedReward.points || 0}</span>
-            </div>
-            <div className="detail-row">
-              <span className="detail-label">Notes:</span>
-              <span className="detail-value">
-                {selectedReward.notes || 'None'}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="modal-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={closeViewModal}
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+            )
+        },
+        { 
+            header: getTranslation('value', 'VALUE'), 
+            key: 'reward_value',
+            render: (row) => row.reward_value ? `${row.reward_value}` : 'N/A'
+        },
+        { 
+            header: getTranslation('points', 'POINTS'), 
+            key: 'points',
+            sortable: true
+        },
+        { 
+            header: getTranslation('status', 'STATUS'), 
+            key: 'status',
+            render: (row) => (
+                <span className={`reward-status status-${row.status}`}>
+                    {getTranslation(row.status, row.status)}
+                </span>
+            )
+        },
+    ];
 
-  const StatsCard = ({ icon, bgColor, value, label }) => (
-    <div className="stat-card">
-      <div className="stat-icon" style={{ backgroundColor: bgColor }}>
-        <span className="material-icons-outlined">{icon}</span>
-      </div>
-      <div className="stat-content">
-        <div className="stat-value">{value}</div>
-        <div className="stat-label">{label}</div>
-      </div>
-    </div>
-  );
+    const breadcrumbs = [
+        { label: translations['sidebar.Dashboard'] || 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+        { label: translations['sidebar.hr'] || 'Human Resource', onClick: (e) => { e.preventDefault(); closeForm(); } },
+        { label: translations['sidebar.rewards'] || 'Rewards' }
+    ];
 
-  const FilterTab = ({ id, label, isActive, onClick }) => (
-    <div
-      className={`filter-tab ${isActive ? 'active' : ''}`}
-      onClick={() => onClick(id)}
-    >
-      {label}
-    </div>
-  );
-
-  const TimelineItem = ({ reward, isAward = false, index = 0 }) => {
-    let typeConfig, bgColor, iconColor;
-    let awardDate = '', employeeName = '', reason = '';
-
-    if (isAward) {
-      // For leaderboard items
-      typeConfig = {
-        name: reward.rewardType,
-        class: 'type-bonus',
-        icon: 'stars',
-      };
-      bgColor = index === 0 ? '#fef3c7' : '#f8fafc';
-      iconColor = index === 0 ? '#92400e' : '#475569';
-    } else {
-      // For reward timeline items
-      const rewardType = reward.reward_type || reward.rewardType || '';
-      awardDate = reward.award_date || reward.awardDate || '';
-      employeeName = reward.employee_name || reward.employeeName || 'Unknown';
-      reason = reward.reason || '';
-
-      typeConfig = rewardTypeConfig[rewardType] || {
-        name: rewardType,
-        class: 'type-bonus',
-        icon: 'stars',
-      };
-      bgColor =
-        {
-          'type-bonus': '#dcfce7',
-          'type-award': '#f0f9ff',
-          'type-gift': '#fef3c7',
-          'type-recognition': '#f3e8ff',
-          'type-promotion': '#ffe4e6',
-        }[typeConfig.class] || '#f8fafc';
-
-      iconColor =
-        {
-          'type-bonus': '#166534',
-          'type-award': '#075985',
-          'type-gift': '#92400e',
-          'type-recognition': '#6b21a8',
-          'type-promotion': '#be123c',
-        }[typeConfig.class] || '#475569';
+    if (showForm) {
+        breadcrumbs.push({ 
+            label: currentReward ? getTranslation('edit_reward', 'Edit Reward') : getTranslation('add_reward', 'Add Reward') 
+        });
     }
+
+    const statsContent = !showForm && (
+        <div className="stats-cards">
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
+                    <span className="material-icons-outlined">emoji_events</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.total}</div>
+                    <div className="stat-label">{getTranslation('total_rewards', 'Total Rewards')}</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
+                    <span className="material-icons-outlined">check_circle</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.delivered}</div>
+                    <div className="stat-label">{getTranslation('delivered_rewards', 'Delivered')}</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
+                    <span className="material-icons-outlined">stars</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.totalPoints}</div>
+                    <div className="stat-label">{getTranslation('total_points', 'Total Points')}</div>
+                </div>
+            </div>
+        </div>
+    );
 
     return (
-      <div key={reward.id || index} className="timeline-item">
-        <div
-          className="timeline-icon"
-          style={{ backgroundColor: bgColor, color: iconColor }}
-        >
-          {isAward ? (
-            <span style={{ fontWeight: '600' }}>{index + 1}</span>
-          ) : (
-            <span className="material-icons-outlined">{typeConfig.icon}</span>
-          )}
-        </div>
-        <div className="timeline-content">
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <div>
-              <div className="timeline-title">
-                {isAward ? (
-                  reward.name
+        <AdminLayout activeMenu={translations['sidebar.rewards'] || 'Reward'}>
+            <Head title={getTranslation('title', 'Rewards Management')} />
+            
+            <BlankPage breadcrumbs={breadcrumbs} stats={statsContent}>
+                {!showForm ? (
+                    <div className="fade-in">
+                        <Table
+                            showToolbar={true}
+                            toolbarSearch={true}
+                            toolbarSearchValue={searchTerm}
+                            onToolbarSearch={setSearchTerm}
+                            toolbarSearchPlaceholder={getTranslation('search_placeholder', 'Search rewards...')}
+                            showAddButton={true}
+                            addButtonText={getTranslation('add_reward', 'Add Reward')}
+                            onAdd={() => openForm()}
+                            showRefreshButton={true}
+                            onRefresh={() => router.reload()}
+                            tableData={filteredRewards}
+                            columns={tableColumns}
+                            onEdit={(row) => openForm(row)}
+                            onDelete={(row) => handleDelete(row.id)}
+                        />
+                    </div>
                 ) : (
-                  <>
-                    <strong>{employeeName}</strong> received{' '}
-                    {typeConfig.name.toLowerCase()}
-                  </>
+                    /* Reward Form View */
+                    <div className="fade-in">
+                        <div className="card">
+                            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                    <button className="btn btn-outline btn-sm" onClick={closeForm}>
+                                        <span className="material-icons-outlined">arrow_back</span>
+                                        <span>{translations['common.back'] || 'Back'}</span>
+                                    </button>
+                                    <h2 style={{ margin: 0 }}>{currentReward ? getTranslation('edit_reward', 'Edit Reward') : getTranslation('add_reward', 'Add New Reward')}</h2>
+                                </div>
+                            </div>
+                            <form onSubmit={handleSubmit}>
+                                <div className="card-body" style={{ padding: '30px' }}>
+                                    <div className="form-grid">
+                                        <div className="form-group">
+                                            <label className="form-label">{getTranslation('employee', 'Employee')} *</label>
+                                            <select 
+                                                className="form-control" 
+                                                value={data.employee_id}
+                                                onChange={e => setData('employee_id', e.target.value)}
+                                                required
+                                            >
+                                                <option value="">{getTranslation('select_employee', 'Select Employee')}</option>
+                                                {employeesData.map(emp => (
+                                                    <option key={emp.id} value={emp.id}>{emp.name}</option>
+                                                ))}
+                                            </select>
+                                            {errors.employee_id && <div className="text-error">{errors.employee_id}</div>}
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">{getTranslation('reward_type', 'Reward Type')} *</label>
+                                            <select 
+                                                className="form-control" 
+                                                value={data.reward_type}
+                                                onChange={e => setData('reward_type', e.target.value)}
+                                                required
+                                            >
+                                                <option value="">{getTranslation('select_type', 'Select Type')}</option>
+                                                <option value="monetary">{getTranslation('monetary', 'Monetary Bonus')}</option>
+                                                <option value="points">{getTranslation('points', 'Reward Points')}</option>
+                                                <option value="badge">{getTranslation('badge', 'Achievement Badge')}</option>
+                                                <option value="certificate">{getTranslation('certificate', 'Certificate')}</option>
+                                                <option value="gift">{getTranslation('gift', 'Gift Card')}</option>
+                                            </select>
+                                            {errors.reward_type && <div className="text-error">{errors.reward_type}</div>}
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">{getTranslation('reward_value', 'Value')}</label>
+                                            <input 
+                                                type="number" 
+                                                className="form-control" 
+                                                value={data.reward_value}
+                                                onChange={e => setData('reward_value', e.target.value)}
+                                                placeholder="e.g. 1000"
+                                            />
+                                            {errors.reward_value && <div className="text-error">{errors.reward_value}</div>}
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">{getTranslation('points', 'Points')}</label>
+                                            <input 
+                                                type="number" 
+                                                className="form-control" 
+                                                value={data.points}
+                                                onChange={e => setData('points', e.target.value)}
+                                                placeholder="e.g. 50"
+                                            />
+                                            {errors.points && <div className="text-error">{errors.points}</div>}
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">{getTranslation('award_date', 'Award Date')} *</label>
+                                            <input 
+                                                type="date" 
+                                                className="form-control" 
+                                                value={data.award_date}
+                                                onChange={e => setData('award_date', e.target.value)}
+                                                required 
+                                            />
+                                            {errors.award_date && <div className="text-error">{errors.award_date}</div>}
+                                        </div>
+
+                                        <div className="form-group">
+                                            <label className="form-label">{translations['common.status'] || 'Status'}</label>
+                                            <select 
+                                                className="form-control" 
+                                                value={data.status}
+                                                onChange={e => setData('status', e.target.value)}
+                                            >
+                                                <option value="pending">{getTranslation('pending', 'Pending')}</option>
+                                                <option value="approved">{getTranslation('approved', 'Approved')}</option>
+                                                <option value="delivered">{getTranslation('delivered', 'Delivered')}</option>
+                                                <option value="cancelled">{getTranslation('cancelled', 'Cancelled')}</option>
+                                            </select>
+                                            {errors.status && <div className="text-error">{errors.status}</div>}
+                                        </div>
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label className="form-label">{getTranslation('reason', 'Reason for Reward')} *</label>
+                                        <textarea 
+                                            className="form-control form-textarea" 
+                                            value={data.reason}
+                                            onChange={e => setData('reason', e.target.value)}
+                                            rows="3"
+                                            required
+                                        ></textarea>
+                                        {errors.reason && <div className="text-error">{errors.reason}</div>}
+                                    </div>
+
+                                    <div className="form-group">
+                                        <label className="form-label">{getTranslation('notes', 'Notes')}</label>
+                                        <textarea 
+                                            className="form-control form-textarea" 
+                                            value={data.notes}
+                                            onChange={e => setData('notes', e.target.value)}
+                                            rows="2"
+                                        ></textarea>
+                                        {errors.notes && <div className="text-error">{errors.notes}</div>}
+                                    </div>
+                                </div>
+                                <div className="card-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px', padding: '20px 30px', borderTop: '1px solid #eee' }}>
+                                    <button type="button" className="btn btn-outline" onClick={closeForm}>{translations['common.cancel'] || 'Cancel'}</button>
+                                    <button type="submit" className="btn btn-primary" disabled={processing}>
+                                        {currentReward ? translations['common.update'] || 'Update Reward' : translations['common.save'] || 'Save Reward'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                 )}
-              </div>
-              <div className="timeline-date">
-                {isAward
-                  ? reward.position
-                  : `${formatDate(awardDate)} • ${reason.substring(0, 60)}${reason.length > 60 ? '...' : ''}`}
-              </div>
-            </div>
-            {isAward && (
-              <div style={{ textAlign: 'right' }}>
-                <div
-                  style={{ fontWeight: '600', color: 'var(--success-color)' }}
-                >
-                  {reward.points} pts
-                </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--gray-color)' }}>
-                  {reward.rewards} rewards
-                </div>
-              </div>
-            )}
-          </div>
-          {isAward && (
-            <div className="progress-container">
-              <div
-                className="progress-bar"
-                style={{
-                  width: `${(reward.points / (leaderboard[0]?.points || 1)) * 100}%`,
-                  backgroundColor: index === 0 ? '#f59e0b' : '#3b82f6',
-                }}
-              />
-            </div>
-          )}
-        </div>
-      </div>
+            </BlankPage>
+        </AdminLayout>
     );
-  };
-
-  // Reward Type Configuration Modal
-  const RewardTypeConfigModal = () => (
-    <div className="modal-overlay active" onClick={closeRewardTypeConfigModal}>
-      <div
-        className="modal"
-        style={{ width: '700px' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h3 className="modal-title">Configure Reward Types</h3>
-          <button className="modal-close" onClick={closeRewardTypeConfigModal}>
-            <span className="material-icons-outlined">close</span>
-          </button>
-        </div>
-        <div className="modal-body">
-          <div className="reward-type-config">
-            <div className="config-actions">
-              <button className="btn btn-primary" onClick={addNewRewardType}>
-                <span className="material-icons-outlined">add</span>
-                Add New Reward Type
-              </button>
-            </div>
-
-            <div className="config-list">
-              {Object.entries(customRewardTypes).map(([typeId, config]) => (
-                <div key={typeId} className="config-item">
-                  <div className="config-fields">
-                    <div className="form-group">
-                      <label className="form-label">Type ID</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={typeId}
-                        disabled
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Display Name</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={config.name}
-                        onChange={(e) =>
-                          handleRewardTypeConfigChange(
-                            typeId,
-                            'name',
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">CSS Class</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={config.class}
-                        onChange={(e) =>
-                          handleRewardTypeConfigChange(
-                            typeId,
-                            'class',
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Icon</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={config.icon}
-                        onChange={(e) =>
-                          handleRewardTypeConfigChange(
-                            typeId,
-                            'icon',
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                  <button
-                    className="btn btn-danger"
-                    onClick={() => deleteRewardType(typeId)}
-                    disabled={Object.keys(customRewardTypes).length <= 1}
-                  >
-                    <span className="material-icons-outlined">delete</span>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="modal-actions">
-          <button
-            type="button"
-            className="btn"
-            onClick={closeRewardTypeConfigModal}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={saveRewardTypeConfig}
-          >
-            Save Configurations
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Template Selection Modal
-  const TemplateModal = () => (
-    <div className="modal-overlay active" onClick={closeTemplateModal}>
-      <div
-        className="modal"
-        style={{ width: '600px' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h3 className="modal-title">Select a Reward Template</h3>
-          <button className="modal-close" onClick={closeTemplateModal}>
-            <span className="material-icons-outlined">close</span>
-          </button>
-        </div>
-        <div className="modal-body">
-          <div className="template-list">
-            {rewardTemplates.map((template) => (
-              <div
-                key={template.id}
-                className="template-item"
-                onClick={() => applyTemplate(template)}
-              >
-                <div className="template-header">
-                  <h4>{template.name}</h4>
-                  <span
-                    className="reward-type-badge"
-                    style={{
-                      backgroundColor:
-                        rewardTypeConfig[template.rewardType]?.class ===
-                        'type-bonus'
-                          ? '#dcfce7'
-                          : rewardTypeConfig[template.rewardType]?.class ===
-                              'type-award'
-                            ? '#f0f9ff'
-                            : rewardTypeConfig[template.rewardType]?.class ===
-                                'type-gift'
-                              ? '#fef3c7'
-                              : rewardTypeConfig[template.rewardType]?.class ===
-                                  'type-recognition'
-                                ? '#f3e8ff'
-                                : '#f8fafc',
-                      color:
-                        rewardTypeConfig[template.rewardType]?.class ===
-                        'type-bonus'
-                          ? '#166534'
-                          : rewardTypeConfig[template.rewardType]?.class ===
-                              'type-award'
-                            ? '#075985'
-                            : rewardTypeConfig[template.rewardType]?.class ===
-                                'type-gift'
-                              ? '#92400e'
-                              : rewardTypeConfig[template.rewardType]?.class ===
-                                  'type-recognition'
-                                ? '#6b21a8'
-                                : '#475569',
-                    }}
-                  >
-                    {rewardTypeConfig[template.rewardType]?.name ||
-                      template.rewardType}
-                  </span>
-                </div>
-                <div className="template-details">
-                  <p>{template.reason}</p>
-                  {template.rewardValue > 0 && (
-                    <span className="template-value">
-                      ${template.rewardValue}
-                    </span>
-                  )}
-                  <span className="template-points">{template.points} pts</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="modal-actions">
-          <button type="button" className="btn" onClick={closeTemplateModal}>
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={createTemplateFromCurrentForm}
-          >
-            Save Current as Template
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Notification Panel Component
-  const NotificationPanel = () => (
-    <div className={`notification-panel ${showNotifications ? 'show' : ''}`}>
-      <div className="notification-header">
-        <h4>Notifications</h4>
-        <button className="notification-clear" onClick={clearNotifications}>
-          <span className="material-icons-outlined">clear</span>
-        </button>
-      </div>
-      <div className="notification-list">
-        {notifications.length === 0 ? (
-          <div className="notification-empty">No notifications</div>
-        ) : (
-          notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`notification-item notification-${notification.type}`}
-            >
-              <div className="notification-content">
-                <span className="notification-message">
-                  {notification.message}
-                </span>
-                <span className="notification-time">
-                  {notification.timestamp.toLocaleTimeString()}
-                </span>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-
-  const tableColumns = [
-    {
-      header: 'ID',
-      key: 'id',
-      render: (row) => row.id.toString().padStart(3, '0'),
-    },
-    {
-      header: 'EMPLOYEE',
-      key: 'employee',
-      render: (row) => (
-        <div className="employee-info">
-          <div className="employee-avatar">
-            <span
-              className="material-icons-outlined"
-              style={{ color: '#94a3b8' }}
-            >
-              person
-            </span>
-          </div>
-          <div className="employee-details">
-            <div className="employee-name">{row.employee_name || row.employeeName || 'Unknown'}</div>
-            <div className="employee-position">{row.position || '-'}</div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      header: 'REWARD TYPE',
-      key: 'rewardType',
-      render: (row) => {
-        const rewardType = row.reward_type || row.rewardType || '';
-        const typeConfig = rewardTypeConfig[rewardType] || {
-          name: rewardType,
-          class: 'type-bonus',
-          icon: 'stars',
-        };
-        return (
-          <>
-            <span className={`reward-type ${typeConfig.class}`}>
-              <span
-                className="material-icons-outlined"
-                style={{
-                  fontSize: '14px',
-                  verticalAlign: 'middle',
-                  marginRight: '4px',
-                }}
-              >
-                {typeConfig.icon}
-              </span>
-              {typeConfig.name}
-            </span>
-            {row.badge && (
-              <span className="badge-icon">
-                <span className="material-icons-outlined">workspace_premium</span>
-              </span>
-            )}
-          </>
-        );
-      },
-    },
-    {
-      header: 'VALUE',
-      key: 'value',
-      render: (row) => {
-        const rewardValue = row.reward_value || row.rewardValue || 0;
-        return rewardValue > 0 ? (
-          <div className="reward-value">
-            ${rewardValue.toLocaleString()}
-          </div>
-        ) : (
-          <div style={{ fontSize: '0.85rem', color: 'var(--gray-color)' }}>
-            -
-          </div>
-        );
-      },
-    },
-    {
-      header: 'CATEGORY',
-      key: 'category',
-      render: (row) => (
-        <span style={{ fontSize: '0.85rem', textTransform: 'capitalize' }}>
-          {(row.category || '').replace('_', ' ')}
-        </span>
-      ),
-    },
-    {
-      header: 'AWARD DATE',
-      key: 'awardDate',
-      render: (row) => row.award_date || row.awardDate || '',
-    },
-    {
-      header: 'STATUS',
-      key: 'status',
-      render: (row) => (
-        <span className={`reward-status status-${row.status}`}>
-          {(row.status || '').charAt(0).toUpperCase() + (row.status || '').slice(1)}
-        </span>
-      ),
-    },
-    {
-      header: 'APPROVE',
-      key: 'approve',
-      render: (row) => (
-        row.status === 'pending' || row.status === 'approved' ? (
-          <button
-            className="icon-btn"
-            style={{ color: 'var(--success-color)' }}
-            onClick={() => approveReward(row.id)}
-            title={row.status === 'pending' ? 'Approve' : 'Mark as Delivered'}
-          >
-            <span className="material-icons-outlined">check_circle</span>
-          </button>
-        ) : null
-      ),
-    },
-  ];
-
-  const tableDataWithSelected = useMemo(() => {
-    return filteredRewards.map(reward => ({
-      ...reward,
-      selected: selectedIds.includes(reward.id)
-    }));
-  }, [filteredRewards, selectedIds]);
-
-  return (
-    <>
-      <Head>
-        <title>Rewards & Recognition Management</title>
-      </Head>
-
-      {/* Toast Notification */}
-      {toast && (
-        <div className={`toast toast-${toast.type}`}>{toast.message}</div>
-      )}
-
-      {/* Add/Edit Reward Modal */}
-      {modalOpen && <AddEditRewardModal />}
-
-      {/* View Reward Modal */}
-      {viewModalOpen && selectedReward && <ViewRewardModal />}
-
-      {/* Reward Type Configuration Modal */}
-      {rewardTypeConfigModalOpen && <RewardTypeConfigModal />}
-
-      {/* Template Selection Modal */}
-      {templateModalOpen && <TemplateModal />}
-
-      {/* Notification Panel */}
-      <NotificationPanel />
-
-      <AdminLayout activeMenu="Reward">
-        <BlankPage
-          breadcrumbs={[
-            { label: 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
-            { label: 'Human Resources', href: '#' },
-            { label: 'Rewards & Recognition', href: '#' }
-          ]}
-          stats={
-            <div className="stats-cards">
-              <StatsCard
-                icon="emoji_events"
-                bgColor="#f59e0b"
-                value={stats.totalRewards}
-                label="Total Rewards Given"
-              />
-              <StatsCard
-                icon="attach_money"
-                bgColor="var(--success-color)"
-                value={`$${stats.totalValue.toLocaleString()}`}
-                label="Total Reward Value"
-              />
-              <StatsCard
-                icon="stars"
-                bgColor="var(--info-color)"
-                value={stats.topPerformers}
-                label="Top Performers"
-              />
-              <StatsCard
-                icon="workspace_premium"
-                bgColor="#8b5cf6"
-                value={stats.badgesAwarded}
-                label="Badges Awarded"
-              />
-            </div>
-          }
-          filters={
-            <div className="filter-tabs">
-              {filterTabs.map((tab) => (
-                <FilterTab
-                  key={tab.id}
-                  id={tab.id}
-                  label={tab.label}
-                  isActive={currentFilter === tab.id}
-                  onClick={setCurrentFilter}
-                />
-              ))}
-            </div>
-          }
-        >
-          {/* Main Card */}
-          <div className="rewards-card fade-in">
-            <Table
-              tableData={tableDataWithSelected}
-              columns={tableColumns}
-              
-              selectAll={selectedIds.length === filteredRewards.length && filteredRewards.length > 0}
-              handleSelectAll={(e) => handleSelectAll(e.target.checked)}
-              handleRowSelect={(id) => handleCheckboxChange(id, !selectedIds.includes(id))}
-              
-              onView={(row) => openViewModal(row)}
-              onEdit={(row) => openModal(row)}
-              onDelete={(row) => deleteReward(row.id)}
-              
-              showToolbar={true}
-              toolbarSearch={true}
-              toolbarSearchValue={searchTerm}
-              onToolbarSearch={setSearchTerm}
-              
-              showRefreshButton={true}
-              onRefresh={() => {
-                fetchRewards();
-                showToast('Rewards list refreshed!', 'success');
-              }}
-              
-              showAddButton={true}
-              addButtonText="Add Reward"
-              onAdd={() => openModal()}
-              
-              showExportButton={true}
-              onExport={exportToCSV}
-              
-              toolbarActions={
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <select
-                    className="btn btn-outline"
-                    id="bulkActions"
-                    onChange={(e) => {
-                      applyBulkAction(e.target.value);
-                      e.target.value = '';
-                    }}
-                    style={{ marginRight: '8px' }}
-                  >
-                    <option value="">Bulk Actions</option>
-                    <option value="approve">Approve Selected</option>
-                    <option value="complete">Mark as Completed</option>
-                    <option value="delete">Delete Selected</option>
-                  </select>
-                  <button
-                    className="btn btn-outline"
-                    onClick={openRewardTypeConfigModal}
-                    title="Configure reward types"
-                  >
-                    <span className="material-icons-outlined">settings</span>
-                    <span>Configure</span>
-                  </button>
-                </div>
-              }
-            />
-          </div>
-
-          {/* Recent Awards Timeline */}
-          <div className="rewards-card" style={{ marginTop: '24px' }}>
-            <div className="card-header">
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: '1.1rem',
-                  color: 'var(--dark-color)',
-                }}
-              >
-                <span
-                  className="material-icons-outlined"
-                  style={{ verticalAlign: 'middle', marginRight: '8px' }}
-                >
-                  timeline
-                </span>
-                Recent Awards Timeline
-              </h3>
-            </div>
-            <div>
-              {recentRewards.map((reward) => (
-                <TimelineItem key={reward.id} reward={reward} />
-              ))}
-            </div>
-          </div>
-
-          {/* Top Performers Leaderboard */}
-          <div className="rewards-card" style={{ marginTop: '24px' }}>
-            <div className="card-header">
-              <h3
-                style={{
-                  margin: 0,
-                  fontSize: '1.1rem',
-                  color: 'var(--dark-color)',
-                }}
-              >
-                <span
-                  className="material-icons-outlined"
-                  style={{ verticalAlign: 'middle', marginRight: '8px' }}
-                >
-                  leaderboard
-                </span>
-                Top Performers
-              </h3>
-            </div>
-            <div>
-              {leaderboard.map((emp, index) => (
-                <TimelineItem
-                  key={emp.id}
-                  reward={emp}
-                  isAward={true}
-                  index={index}
-                />
-              ))}
-            </div>
-          </div>
-        </BlankPage>
-      </AdminLayout>
-    </>
-  );
 };
 
 export default Reward;

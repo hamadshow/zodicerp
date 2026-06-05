@@ -1,53 +1,24 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Head, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import Table from '../components/Table';
+import BlankPage from '@/Components/BlankPage';
+import '../../../../css/backend/main.scss';
 import { apiService } from '../../../services/api';
 
-// Toast component
-const Toast = ({ toasts, removeToast }) => {
-  return (
-    <div className="toast-container">
-      {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          className={`toast toast-${toast.type}`}
-          style={{
-            animation: 'slideIn 0.3s ease, fadeOut 0.5s ease 2.5s forwards',
-          }}
-        >
-          {toast.message}
-          <button className="toast-close" onClick={() => removeToast(toast.id)}>
-            ×
-          </button>
-        </div>
-      ))}
-    </div>
-  );
-};
-
 const TrafficViolations = ({ employees: propEmployees }) => {
+  const { props } = usePage();
+  const localization = props?.localization;
+  const isArabic = localization?.current_locale === 'ar';
   const [dbEmployees, setDbEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const propData = propEmployees?.data || propEmployees;
-    if (!propData || !Array.isArray(propData) || propData.length === 0) {
-      apiService.get('/employees')
-        .then(response => {
-          const data = response.data;
-          const employeeData = data.data || data;
-          setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
-        })
-        .catch(error => console.error('Error fetching employees:', error));
-    }
-  }, [propEmployees]);
-
-  const employees = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
-  // State for modal visibility
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingViolationId, setEditingViolationId] = useState(null);
   const [violations, setViolations] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
 
-  // State for form data
+  // Form data state
   const [formData, setFormData] = useState({
     employee_id: '',
     vehiclePlate: '',
@@ -65,111 +36,70 @@ const TrafficViolations = ({ employees: propEmployees }) => {
     evidenceNotes: '',
   });
 
-  // State for search and filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [selectedViolations, setSelectedViolations] = useState([]);
-  const [bulkAction, setBulkAction] = useState('Bulk Actions');
-
-  // State for toast notifications
-  const [toasts, setToasts] = useState([]);
-  let toastId = 0;
-
-  // Violation type names mapping
-  const violationTypeNames = {
-    speeding: 'Speeding',
-    'red-light': 'Red Light',
-    parking: 'Illegal Parking',
-    seatbelt: 'No Seatbelt',
-    license: 'License Violation',
-    insurance: 'No Insurance',
-    phone: 'Mobile Phone Use',
-    dui: 'DUI',
-    reckless: 'Reckless Driving',
-    equipment: 'Equipment Violation',
-  };
-
-  // Toast notification functions
   const showToast = (message, type = 'info') => {
-    const id = toastId++;
-    const newToast = { id, message, type };
-    setToasts((prev) => [...prev, newToast]);
-
-    // Auto remove toast after 3 seconds
-    setTimeout(() => {
-      removeToast(id);
-    }, 3000);
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
   };
 
-  const removeToast = (id) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
+  const getLocalizedRoute = useCallback((name, params = {}) => {
+    try {
+      return route(name, {
+        country: localization?.country_code || 'sa',
+        lang: localization?.current_locale || 'ar',
+        ...params
+      });
+    } catch {
+      return '#';
+    }
+  }, [localization]);
+
+  useEffect(() => {
+    const propData = propEmployees?.data || propEmployees;
+    if (!propData || !Array.isArray(propData) || propData.length === 0) {
+      apiService.get('/employees')
+        .then(response => {
+          const data = response.data;
+          const employeeData = data.data || data;
+          setDbEmployees(Array.isArray(employeeData) ? employeeData : []);
+        })
+        .catch(error => console.error('Error fetching employees:', error));
+    }
+  }, [propEmployees]);
+
+  const employeesData = propEmployees?.data || (Array.isArray(propEmployees) ? propEmployees : (Array.isArray(dbEmployees) ? dbEmployees : []));
 
   const fetchViolations = useCallback(async () => {
-    setLoading(true);
     try {
       const response = await apiService.get('/traffic-violations');
       setViolations(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching violations:', error);
       showToast('Error loading violations data', 'error');
-    } finally {
-      setLoading(false);
     }
   }, []);
 
-  // Vehicle type names mapping
-  const vehicleTypeNames = {
-    car: 'Car',
-    truck: 'Truck',
-    motorcycle: 'Motorcycle',
-    bus: 'Bus',
-    van: 'Van',
-    taxi: 'Taxi',
-  };
-
-  // Status names mapping
-  const statusNames = {
-    pending: 'Pending',
-    paid: 'Paid',
-    disputed: 'Disputed',
-    cancelled: 'Cancelled',
-  };
-
-  // Initialize the page
   useEffect(() => {
-    // Set default date range (last 30 days)
-    const today = new Date();
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(today.getDate() - 30);
-
-    setStartDate(thirtyDaysAgo.toISOString().split('T')[0]);
-    setEndDate(today.toISOString().split('T')[0]);
-    
     fetchViolations();
   }, [fetchViolations]);
 
-  // Calculate statistics
-  const totalViolations = violations.length;
-  const pendingViolations = violations.filter(
-    (v) => v.status === 'pending'
-  ).length;
-  const highSeverity = violations.filter((v) => v.severity === 'high').length;
-  const totalFines = violations.reduce((sum, v) => sum + (v.fineAmount || 0), 0);
+  const filteredViolations = useMemo(() => {
+    const lowerSearch = searchTerm.toLowerCase();
+    return violations.filter(v =>
+      v.vehiclePlate.toLowerCase().includes(lowerSearch) ||
+      (v.driverName || '').toLowerCase().includes(lowerSearch) ||
+      v.location.toLowerCase().includes(lowerSearch)
+    );
+  }, [searchTerm, violations]);
 
-  // Handle form input changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
+  const stats = useMemo(() => ({
+    total: violations.length,
+    pending: violations.filter(v => v.status === 'pending').length,
+    highSeverity: violations.filter(v => v.severity === 'high').length,
+    totalFines: violations.reduce((sum, v) => sum + (parseFloat(v.fineAmount) || 0), 0)
+  }), [violations]);
 
-  // Open modal for adding new violation
-  const openAddModal = () => {
-    setEditingViolationId(null);
+  const handleAdd = () => {
+    setEditingId(null);
     setFormData({
       employee_id: '',
       vehiclePlate: '',
@@ -186,12 +116,11 @@ const TrafficViolations = ({ employees: propEmployees }) => {
       description: '',
       evidenceNotes: '',
     });
-    setIsModalOpen(true);
+    setShowForm(true);
   };
 
-  // Open modal for editing violation
-  const openEditModal = (violation) => {
-    setEditingViolationId(violation.id);
+  const handleEdit = (violation) => {
+    setEditingId(violation.id);
     setFormData({
       employee_id: violation.employee_id,
       vehiclePlate: violation.vehiclePlate,
@@ -208,52 +137,44 @@ const TrafficViolations = ({ employees: propEmployees }) => {
       description: violation.description || '',
       evidenceNotes: violation.evidenceNotes || '',
     });
-    setIsModalOpen(true);
+    setShowForm(true);
   };
 
-  // Close modal
-  const closeModal = () => {
-    setIsModalOpen(false);
+  const handleCancel = () => {
+    setShowForm(false);
+    setEditingId(null);
   };
 
-  // Save violation (add or update)
-  const saveViolation = async () => {
-    if (
-      !formData.vehiclePlate ||
-      !formData.employee_id ||
-      !formData.violationType ||
-      !formData.location
-    ) {
-      showToast(
-        'Please fill in all required fields: Vehicle Plate, Driver Name, Violation Type, and Location',
-        'error'
-      );
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.vehiclePlate || !formData.employee_id || !formData.violationType || !formData.location) {
+      showToast('Please fill in all required fields', 'error');
       return;
     }
 
     try {
-      if (editingViolationId) {
-        await apiService.put(`/traffic-violations/${editingViolationId}`, formData);
+      if (editingId) {
+        await apiService.put(`/traffic-violations/${editingId}`, formData);
         showToast('Violation updated successfully!', 'success');
       } else {
         await apiService.post('/traffic-violations', formData);
         showToast('Violation added successfully!', 'success');
       }
       fetchViolations();
-      closeModal();
+      handleCancel();
     } catch (error) {
       console.error('Error saving violation:', error);
       showToast('Error saving violation record', 'error');
     }
   };
 
-  // Delete violation
-  const deleteViolation = async (id) => {
-    if (
-      window.confirm(
-        'Are you sure you want to delete this violation record? This action cannot be undone.'
-      )
-    ) {
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this violation record?')) {
       try {
         await apiService.delete(`/traffic-violations/${id}`);
         showToast('Violation deleted successfully!', 'success');
@@ -265,631 +186,156 @@ const TrafficViolations = ({ employees: propEmployees }) => {
     }
   };
 
-  // Mark violation as paid
-  const markAsPaid = async (id) => {
-    const violation = violations.find(v => v.id === id);
-    if (!violation) return;
-
-    try {
-      await apiService.put(`/traffic-violations/${id}`, {
-        ...violation,
-        status: 'paid'
-      });
-      showToast('Violation marked as paid!', 'success');
-      fetchViolations();
-    } catch (error) {
-      console.error('Error marking as paid:', error);
-      showToast('Error updating status', 'error');
-    }
+  const handleRowSelect = (id) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(itemId => itemId !== id) : [...prev, id]
+    );
   };
 
-  // View violation details
-  const viewViolation = (id) => {
-    const violation = violations.find((v) => v.id === id);
-    if (violation) {
-      const violationDate = new Date(violation.violationDate);
-      const formattedDate =
-        violationDate.toLocaleDateString() +
-        ' ' +
-        violationDate.toLocaleTimeString();
-
-      const details =
-        `ID: ${violation.id}\n` +
-        `Vehicle: ${violation.vehiclePlate} (${vehicleTypeNames[violation.vehicleType]})\n` +
-        `Driver: ${violation.driverName}\n` +
-        `License: ${violation.driverLicense || 'N/A'}\n` +
-        `Violation: ${violationTypeNames[violation.violationType]}\n` +
-        `Severity: ${violation.severity}\n` +
-        `Date & Time: ${formattedDate}\n` +
-        `Location: ${violation.location}\n` +
-        `Fine: $${(violation.fineAmount || 0).toLocaleString()}\n` +
-        `Points Deducted: ${violation.points}\n` +
-        `Status: ${statusNames[violation.status]}\n` +
-        `Officer ID: ${violation.officerId || 'N/A'}\n\n` +
-        `Description: ${violation.description || 'No description'}\n\n` +
-        `Evidence/Notes: ${violation.evidenceNotes || 'No additional notes'}`;
-
-      console.log(details);
-      showToast('Violation details logged to console', 'info');
-    }
-  };
-
-  // Handle bulk action
-  const handleBulkAction = async () => {
-    if (selectedViolations.length === 0) {
-      showToast('Please select at least one violation.', 'error');
-      return;
-    }
-
-    try {
-      if (bulkAction.startsWith('mark-')) {
-        const newStatus = bulkAction.replace('mark-', '');
-        for (const id of selectedViolations) {
-          const v = violations.find(v => v.id === id);
-          if (v) {
-            await apiService.put(`/traffic-violations/${id}`, { ...v, status: newStatus });
-          }
-        }
-        showToast(
-          `${selectedViolations.length} violation(s) marked as ${newStatus}!`,
-          'success'
-        );
-      } else if (bulkAction === 'delete') {
-        if (
-          window.confirm(
-            `Are you sure you want to delete ${selectedViolations.length} selected violation(s)?`
-          )
-        ) {
-          for (const id of selectedViolations) {
-            await apiService.delete(`/traffic-violations/${id}`);
-          }
-          showToast(
-            `${selectedViolations.length} violation(s) deleted!`,
-            'success'
-          );
-        } else {
-          return;
-        }
-      }
-      fetchViolations();
-    } catch (error) {
-      console.error('Error performing bulk action:', error);
-      showToast('Error during bulk action', 'error');
-    }
-
-    setSelectedViolations([]);
-    setBulkAction('Bulk Actions');
-  };
-
-  // Handle search
-  const handleSearch = () => {
-    // Search functionality is handled in the filteredViolations calculation
-  };
-
-  // Handle date filter
-  const handleDateFilter = () => {
-    // Date filter functionality is handled in the filteredViolations calculation
-  };
-
-  // Clear date filter
-  const clearDateFilter = () => {
-    setStartDate('');
-    setEndDate('');
-  };
-
-  // Toggle select all violations
-  const toggleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedViolations(filteredViolations.map((v) => v.id));
+  const handleSelectAll = () => {
+    if (selectedIds.length === filteredViolations.length && filteredViolations.length > 0) {
+      setSelectedIds([]);
     } else {
-      setSelectedViolations([]);
+      setSelectedIds(filteredViolations.map(v => v.id));
     }
   };
 
-  // Toggle individual violation selection
-  const toggleSelectViolation = (id) => {
-    setSelectedViolations((prev) =>
-      prev.includes(id) ? prev.filter((vId) => vId !== id) : [...prev, id]
-    );
-  };
-
-  // Filter violations based on search term and date range
-  const filteredViolations = violations.filter((violation) => {
-    // Apply search filter
-    const matchesSearch =
-      !searchTerm ||
-      violation.vehiclePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      violation.driverName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      violation.driverLicense
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      violation.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (violationTypeNames[violation.violationType] &&
-        violationTypeNames[violation.violationType]
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()));
-
-    // Apply date filter
-    const violationDate = new Date(violation.violationDate);
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
-
-    const matchesDate =
-      (!start || violationDate >= start) &&
-      (!end || violationDate <= new Date(end + 'T23:59:59'));
-
-    return matchesSearch && matchesDate;
-  });
-
-  // Render violation severity badge
-  const renderSeverityBadge = (severity) => {
-    let className = 'violation-severity ';
-    switch (severity) {
-      case 'low':
-        className += 'severity-low';
-        break;
-      case 'medium':
-        className += 'severity-medium';
-        break;
-      case 'high':
-        className += 'severity-high';
-        break;
-      default:
-        className += 'severity-low';
+  const columns = useMemo(() => [
+    { 
+      header: 'ID', 
+      key: 'id', 
+      sortable: true,
+      render: (row) => row.id.toString().padStart(3, '0')
+    },
+    { 
+      header: 'VEHICLE', 
+      key: 'vehiclePlate', 
+      sortable: true,
+      render: (row) => (
+        <div className="employee-info">
+          <div className="employee-avatar">
+            <span className="material-icons-outlined" style={{ color: '#94a3b8' }}>
+              {row.vehicleType === 'motorcycle' ? 'two_wheeler' : 'directions_car'}
+            </span>
+          </div>
+          <div className="employee-details">
+            <div className="employee-name" style={{ fontWeight: 600 }}>{row.vehiclePlate}</div>
+            <div className="employee-position" style={{ fontSize: '0.8rem', color: '#64748b' }}>{row.vehicleType}</div>
+          </div>
+        </div>
+      )
+    },
+    { 
+      header: 'DRIVER', 
+      key: 'driverName', 
+      sortable: true,
+      render: (row) => (
+        <div className="employee-details">
+          <div className="employee-name">{row.driverName}</div>
+          <div className="employee-position" style={{ fontSize: '0.8rem', color: '#64748b' }}>{row.driverLicense || 'No license'}</div>
+        </div>
+      )
+    },
+    { 
+      header: 'VIOLATION', 
+      key: 'violationType', 
+      render: (row) => <span className="department-badge">{row.violationType}</span>
+    },
+    { 
+      header: 'SEVERITY', 
+      key: 'severity', 
+      render: (row) => (
+        <span className={`employee-status status-${row.severity}`}>
+          {row.severity.charAt(0).toUpperCase() + row.severity.slice(1)}
+        </span>
+      )
+    },
+    { 
+      header: 'FINE', 
+      key: 'fineAmount', 
+      sortable: true,
+      render: (row) => <div className="salary-display">${(row.fineAmount || 0).toLocaleString()}</div>
+    },
+    { 
+      header: 'STATUS', 
+      key: 'status', 
+      sortable: true,
+      render: (row) => (
+        <span className={`employee-status status-${row.status.toLowerCase()}`}>
+          {row.status}
+        </span>
+      )
     }
-    return (
-      <span className={className}>
-        {severity.charAt(0).toUpperCase() + severity.slice(1)}
-      </span>
-    );
-  };
+  ], []);
 
-  // Render violation status badge
-  const renderStatusBadge = (status) => {
-    let className = 'violation-status ';
-    switch (status) {
-      case 'pending':
-        className += 'status-pending';
-        break;
-      case 'paid':
-        className += 'status-paid';
-        break;
-      case 'disputed':
-        className += 'status-disputed';
-        break;
-      case 'cancelled':
-        className += 'status-cancelled';
-        break;
-      default:
-        className += 'status-pending';
-    }
-    return <span className={className}>{statusNames[status] || status}</span>;
-  };
-
-  // Render violation type badge
-  const renderViolationTypeBadge = (type) => {
-    let className = `violation-type-badge type-${type}`;
-    return (
-      <span className={className}>{violationTypeNames[type] || type}</span>
-    );
-  };
+  const breadcrumbs = [
+    { label: isArabic ? 'لوحة التحكم' : 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+    { label: isArabic ? 'إدارة المرور' : 'Traffic Management', href: '#' },
+    { label: isArabic ? 'المخالفات' : 'Violations', active: true }
+  ];
 
   return (
     <AdminLayout activeMenu="Traffic Violations">
-      {/* Content */}
-      <main className="content">
-        <div className="breadcrumb">
-          <a href="#">Dashboard</a>
-          <span>/</span>
-          <a href="#">Traffic Management</a>
-          <span>/</span>
-          <span>Violations</span>
-        </div>
+      <Head title="Traffic Violations" />
+      
+      {toast && (
+        <div className={`toast toast-${toast.type}`}>{toast.message}</div>
+      )}
 
-        {/* Quick Stats */}
-        <div className="stats-cards">
-          <div className="stat-card">
-            <div
-              className="stat-icon"
-              style={{ backgroundColor: 'var(--primary-color)' }}
-            >
-              <span className="material-icons-outlined">local_police</span>
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{totalViolations}</div>
-              <div className="stat-label">Total Violations</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div
-              className="stat-icon"
-              style={{ backgroundColor: 'var(--warning-color)' }}
-            >
-              <span className="material-icons-outlined">pending</span>
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{pendingViolations}</div>
-              <div className="stat-label">Pending</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div
-              className="stat-icon"
-              style={{ backgroundColor: 'var(--danger-color)' }}
-            >
-              <span className="material-icons-outlined">warning</span>
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{highSeverity}</div>
-              <div className="stat-label">High Severity</div>
-            </div>
-          </div>
-          <div className="stat-card">
-            <div
-              className="stat-icon"
-              style={{ backgroundColor: 'var(--success-color)' }}
-            >
-              <span className="material-icons-outlined">attach_money</span>
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">${totalFines.toLocaleString()}</div>
-              <div className="stat-label">Total Fines</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Date Filter */}
-        <div
-          className="violations-card"
-          style={{ marginBottom: '16px', padding: '16px' }}
-        >
-          <div className="date-filter">
-            <span style={{ fontWeight: 500, color: 'var(--dark-color)' }}>
-              Filter by Date:
-            </span>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
-            <span>to</span>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-            />
-            <button className="btn btn-outline" onClick={handleDateFilter}>
-              <span className="material-icons-outlined">filter_alt</span>
-              <span>Apply Filter</span>
-            </button>
-            <button className="btn" onClick={clearDateFilter}>
-              <span className="material-icons-outlined">clear</span>
-              <span>Clear</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Main Card */}
-        <div className="violations-card fade-in">
-          <div className="card-header">
-            <div className="violations-actions">
-              <select
-                className="btn btn-outline"
-                value={bulkAction}
-                onChange={(e) => setBulkAction(e.target.value)}
-              >
-                <option>Bulk Actions</option>
-                <option value="mark-paid">Mark as Paid</option>
-                <option value="mark-disputed">Mark as Disputed</option>
-                <option value="mark-pending">Mark as Pending</option>
-                <option value="delete">Delete Selected</option>
-              </select>
-              <button className="btn btn-outline" onClick={handleBulkAction}>
-                <span className="material-icons-outlined">play_arrow</span>
-                <span>Apply</span>
-              </button>
-              <div className="search-bar light">
-                <input
-                  type="text"
-                  placeholder="Search violations..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <button onClick={handleSearch}>
-                  <span className="material-icons-outlined">search</span>
-                </button>
+      <BlankPage
+        breadcrumbs={breadcrumbs}
+        stats={!showForm && (
+          <div className="stats-cards">
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
+                <span className="material-icons-outlined">local_police</span>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{stats.total}</div>
+                <div className="stat-label">Total Violations</div>
               </div>
             </div>
-            <div className="actions">
-              <button className="btn btn-primary" onClick={openAddModal}>
-                <span className="material-icons-outlined">add</span>
-                <span>Add Violation</span>
-              </button>
-              <button className="btn btn-outline">
-                <span className="material-icons-outlined">refresh</span>
-                <span>Refresh</span>
-              </button>
-              <button className="btn btn-outline">
-                <span className="material-icons-outlined">download</span>
-                <span>Export</span>
-              </button>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: 'var(--warning-color)' }}>
+                <span className="material-icons-outlined">pending</span>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{stats.pending}</div>
+                <div className="stat-label">Pending</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: 'var(--danger-color)' }}>
+                <span className="material-icons-outlined">warning</span>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{stats.highSeverity}</div>
+                <div className="stat-label">High Severity</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
+                <span className="material-icons-outlined">attach_money</span>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">${stats.totalFines.toLocaleString()}</div>
+                <div className="stat-label">Total Fines</div>
+              </div>
             </div>
           </div>
-
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>
-                    <input
-                      type="checkbox"
-                      checked={
-                        selectedViolations.length ===
-                          filteredViolations.length &&
-                        filteredViolations.length > 0
-                      }
-                      onChange={toggleSelectAll}
-                    />
-                  </th>
-                  <th>
-                    ID{' '}
-                    <span
-                      className="material-icons-outlined"
-                      style={{ fontSize: '16px' }}
-                    >
-                      arrow_drop_down
-                    </span>
-                  </th>
-                  <th>
-                    VEHICLE{' '}
-                    <span
-                      className="material-icons-outlined"
-                      style={{ fontSize: '16px' }}
-                    >
-                      arrow_drop_down
-                    </span>
-                  </th>
-                  <th>
-                    DRIVER{' '}
-                    <span
-                      className="material-icons-outlined"
-                      style={{ fontSize: '16px' }}
-                    >
-                      arrow_drop_down
-                    </span>
-                  </th>
-                  <th>
-                    VIOLATION{' '}
-                    <span
-                      className="material-icons-outlined"
-                      style={{ fontSize: '16px' }}
-                    >
-                      arrow_drop_down
-                    </span>
-                  </th>
-                  <th>
-                    LOCATION{' '}
-                    <span
-                      className="material-icons-outlined"
-                      style={{ fontSize: '16px' }}
-                    >
-                      arrow_drop_down
-                    </span>
-                  </th>
-                  <th>
-                    SEVERITY{' '}
-                    <span
-                      className="material-icons-outlined"
-                      style={{ fontSize: '16px' }}
-                    >
-                      arrow_drop_down
-                    </span>
-                  </th>
-                  <th>
-                    FINE{' '}
-                    <span
-                      className="material-icons-outlined"
-                      style={{ fontSize: '16px' }}
-                    >
-                      arrow_drop_down
-                    </span>
-                  </th>
-                  <th>
-                    DATE{' '}
-                    <span
-                      className="material-icons-outlined"
-                      style={{ fontSize: '16px' }}
-                    >
-                      arrow_drop_down
-                    </span>
-                  </th>
-                  <th>
-                    STATUS{' '}
-                    <span
-                      className="material-icons-outlined"
-                      style={{ fontSize: '16px' }}
-                    >
-                      arrow_drop_down
-                    </span>
-                  </th>
-                  <th>OPERATIONS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr>
-                    <td colSpan="11" style={{ textAlign: 'center', padding: '40px' }}>
-                      Loading violations...
-                    </td>
-                  </tr>
-                ) : filteredViolations.length === 0 ? (
-                  <tr>
-                    <td colSpan="11" style={{ textAlign: 'center', padding: '40px' }}>
-                      No violations found
-                    </td>
-                  </tr>
-                ) : (
-                  filteredViolations.map((violation) => {
-                  const violationDate = new Date(violation.violationDate);
-                  const formattedDate =
-                    violationDate.toLocaleDateString() +
-                    ' ' +
-                    violationDate.toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    });
-
-                  return (
-                    <tr key={violation.id}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          checked={selectedViolations.includes(violation.id)}
-                          onChange={() => toggleSelectViolation(violation.id)}
-                        />
-                      </td>
-                      <td>{violation.id.toString().padStart(3, '0')}</td>
-                      <td>
-                        <div className="vehicle-info">
-                          <div className="vehicle-icon">
-                            <span className="material-icons-outlined">
-                              {violation.vehicleType === 'motorcycle'
-                                ? 'two_wheeler'
-                                : 'directions_car'}
-                            </span>
-                          </div>
-                          <div className="vehicle-details">
-                            <div className="vehicle-plate">
-                              {violation.vehiclePlate}
-                            </div>
-                            <div className="vehicle-type">
-                              {vehicleTypeNames[violation.vehicleType] ||
-                                violation.vehicleType}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                  <td>
-                    <div style={{ fontWeight: 500 }}>
-                      {violation.driverName}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '0.8rem',
-                        color: 'var(--gray-color)',
-                      }}
-                    >
-                      {violation.driverLicense || 'No license'}
-                    </div>
-                  </td>
-                      <td>
-                        {renderViolationTypeBadge(violation.violationType)}
-                      </td>
-                      <td>
-                        <span className="location-badge">
-                          {violation.location}
-                        </span>
-                      </td>
-                      <td>{renderSeverityBadge(violation.severity)}</td>
-                      <td>
-                        <div className="fine-display">
-                          ${violation.fineAmount.toLocaleString()}
-                        </div>
-                      </td>
-                      <td>{formattedDate}</td>
-                      <td>{renderStatusBadge(violation.status)}</td>
-                      <td>
-                        <button
-                          className="icon-btn edit"
-                          onClick={() => openEditModal(violation)}
-                        >
-                          <span className="material-icons-outlined">edit</span>
-                        </button>
-                        <button
-                          className="icon-btn delete"
-                          onClick={() => deleteViolation(violation.id)}
-                        >
-                          <span className="material-icons-outlined">
-                            delete
-                          </span>
-                        </button>
-                        <button
-                          className="icon-btn"
-                          style={{ color: 'var(--info-color)' }}
-                          onClick={() => viewViolation(violation.id)}
-                        >
-                          <span className="material-icons-outlined">
-                            visibility
-                          </span>
-                        </button>
-                        {violation.status === 'pending' && (
-                          <button
-                            className="icon-btn"
-                            style={{ color: 'var(--success-color)' }}
-                            onClick={() => markAsPaid(violation.id)}
-                          >
-                            <span className="material-icons-outlined">
-                              check_circle
-                            </span>
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="pagination">
-            <div className="pagination-info">
-              <select className="select-dropdown">
-                <option value="10">10</option>
-                <option value="25">25</option>
-                <option value="50">50</option>
-                <option value="100">100</option>
-              </select>
-              <span>
-                Show from 1 to {Math.min(10, filteredViolations.length)} in
-                <span
-                  style={{
-                    backgroundColor: '#64748b',
-                    color: 'white',
-                    padding: '2px 8px',
-                    borderRadius: '4px',
-                    fontWeight: 600,
-                  }}
-                >
-                  {filteredViolations.length}
-                </span>{' '}
-                records
-              </span>
-            </div>
-            <div className="pagination-controls">
-              <button className="page-btn">« Previous</button>
-              <button className="page-btn active">1</button>
-              <button className="page-btn">2</button>
-              <button className="page-btn">Next »</button>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* Modal Overlay */}
-      {isModalOpen && (
-        <div className="modal-overlay active">
-          <div className="modal">
-            <div className="modal-header">
-              <h3 className="modal-title">
-                {editingViolationId ? 'Edit Violation' : 'Add New Violation'}
-              </h3>
-              <button className="modal-close" onClick={closeModal}>
-                <span className="material-icons-outlined">close</span>
+        )}
+      >
+        {showForm ? (
+          <div className="employees-card fade-in">
+            <div className="card-header">
+              <h3>{editingId ? 'Edit Violation Record' : 'Add New Violation'}</h3>
+              <button className="btn btn-outline" onClick={handleCancel}>
+                <span className="material-icons-outlined">arrow_back</span>
+                <span>Back to List</span>
               </button>
             </div>
-            <div className="modal-body">
-              <form id="violationForm">
+            <div className="card-body" style={{ padding: '20px' }}>
+              <form onSubmit={handleSubmit}>
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Vehicle Plate *</label>
@@ -934,7 +380,9 @@ const TrafficViolations = ({ employees: propEmployees }) => {
                       required
                     >
                       <option value="">Select Employee</option>
-                      {Array.isArray(employees) && employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                      {Array.isArray(employeesData) && employeesData.map(e => (
+                        <option key={e.id} value={e.id}>{e.name}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="form-group">
@@ -966,7 +414,6 @@ const TrafficViolations = ({ employees: propEmployees }) => {
                       <option value="parking">Illegal Parking</option>
                       <option value="seatbelt">No Seatbelt</option>
                       <option value="license">License Violation</option>
-                      <option value="insurance">No Insurance</option>
                       <option value="phone">Mobile Phone Use</option>
                       <option value="dui">DUI</option>
                       <option value="reckless">Reckless Driving</option>
@@ -1002,16 +449,15 @@ const TrafficViolations = ({ employees: propEmployees }) => {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Fine Amount ($)</label>
+                    <label className="form-label">Fine Amount ($) *</label>
                     <input
                       type="number"
                       className="form-control"
                       name="fineAmount"
                       value={formData.fineAmount}
                       onChange={handleInputChange}
-                      placeholder="Enter fine amount"
-                      min="0"
-                      step="0.01"
+                      placeholder="0.00"
+                      required
                     />
                   </div>
                 </div>
@@ -1030,20 +476,6 @@ const TrafficViolations = ({ employees: propEmployees }) => {
                     />
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Officer ID</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      name="officerId"
-                      value={formData.officerId}
-                      onChange={handleInputChange}
-                      placeholder="Enter officer ID"
-                    />
-                  </div>
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
                     <label className="form-label">Status</label>
                     <select
                       className="form-control"
@@ -1057,19 +489,6 @@ const TrafficViolations = ({ employees: propEmployees }) => {
                       <option value="cancelled">Cancelled</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label className="form-label">Points Deducted</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      name="points"
-                      value={formData.points}
-                      onChange={handleInputChange}
-                      placeholder="License points"
-                      min="0"
-                      max="12"
-                    />
-                  </div>
                 </div>
 
                 <div className="form-group">
@@ -1079,40 +498,48 @@ const TrafficViolations = ({ employees: propEmployees }) => {
                     name="description"
                     value={formData.description}
                     onChange={handleInputChange}
-                    placeholder="Enter violation details"
+                    placeholder="Enter violation details..."
+                    style={{ minHeight: '100px' }}
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Evidence Notes</label>
-                  <textarea
-                    className="form-control form-textarea"
-                    name="evidenceNotes"
-                    value={formData.evidenceNotes}
-                    onChange={handleInputChange}
-                    placeholder="Enter evidence or notes"
-                  />
+                <div className="form-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+                  <button type="submit" className="btn btn-primary">
+                    {editingId ? 'Update Violation' : 'Save Violation'}
+                  </button>
+                  <button type="button" className="btn btn-outline" onClick={handleCancel}>
+                    Cancel
+                  </button>
                 </div>
               </form>
             </div>
-            <div className="modal-actions">
-              <button type="button" className="btn" onClick={closeModal}>
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={saveViolation}
-              >
-                Save Violation
-              </button>
-            </div>
           </div>
-        </div>
-      )}
-
-      {/* Toast notifications */}
-      <Toast toasts={toasts} removeToast={removeToast} />
+        ) : (
+          <div className="employees-card fade-in">
+            <Table
+              showToolbar={true}
+              toolbarSearch={true}
+              toolbarSearchValue={searchTerm}
+              onToolbarSearch={setSearchTerm}
+              showAddButton={true}
+              addButtonText="Add Violation"
+              onAdd={handleAdd}
+              showRefreshButton={true}
+              onRefresh={() => {
+                fetchViolations();
+                showToast('Violations list refreshed!', 'success');
+              }}
+              tableData={filteredViolations}
+              columns={columns}
+              handleRowSelect={handleRowSelect}
+              selectAll={selectedIds.length === filteredViolations.length && filteredViolations.length > 0}
+              handleSelectAll={handleSelectAll}
+              onEdit={handleEdit}
+              onDelete={(row) => handleDelete(row.id)}
+            />
+          </div>
+        )}
+      </BlankPage>
     </AdminLayout>
   );
 };

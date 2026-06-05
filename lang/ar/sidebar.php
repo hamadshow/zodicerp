@@ -18,7 +18,6 @@ return [
     'permissions' => 'الصلاحيات',
     'attendance' => 'الحضور والانصراف',
     'reward' => 'المكافآت',
-    'overtime' => 'الوقت الإضافي',
     'end_of_service' => 'نهاية الخدمة',
     'payroll_advance' => 'سلف الرواتب',
     'deductions' => 'الخصومات',

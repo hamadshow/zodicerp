@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Backend\HumanResource;
 
 use App\Http\Controllers\Controller;
 use App\Models\Reward;
+use App\Models\Employee;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Inertia\Inertia;
 
 class RewardController extends Controller
 {
@@ -50,9 +52,14 @@ class RewardController extends Controller
                 }
             });
 
-            return response()->json($rewards);
+            $employees = Employee::select('id', 'name', 'position', 'department')->get();
+
+            return Inertia::render('Backend/02_human_resource/Reward', [
+                'rewards' => $rewards,
+                'employees' => $employees
+            ]);
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return back()->withErrors(['error' => $e->getMessage()]);
         }
     }
 
@@ -75,7 +82,7 @@ class RewardController extends Controller
             'notes' => 'nullable|string',
         ]);
 
-        $reward = Reward::create([
+        Reward::create([
             'employee_id' => $validated['employee_id'],
             'reward_type' => $validated['reward_type'],
             'reward_value' => $validated['reward_value'] ?? 0,
@@ -90,11 +97,7 @@ class RewardController extends Controller
             'company_id' => 1, // Default for now
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Reward awarded successfully!',
-            'data' => $reward
-        ]);
+        return redirect()->back()->with('success', 'Reward awarded successfully!');
     }
 
     /**
@@ -141,11 +144,7 @@ class RewardController extends Controller
             'notes' => $validated['notes'] ?? null,
         ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Reward updated successfully!',
-            'data' => $reward
-        ]);
+        return redirect()->back()->with('success', 'Reward updated successfully!');
     }
 
     /**
@@ -156,9 +155,6 @@ class RewardController extends Controller
         $reward = Reward::findOrFail($id);
         $reward->delete();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Reward record deleted successfully!'
-        ]);
+        return redirect()->back()->with('success', 'Reward record deleted successfully!');
     }
 }

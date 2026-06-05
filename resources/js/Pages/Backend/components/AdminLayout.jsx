@@ -155,8 +155,7 @@ const AdminLayout = ({
         },
         { icon: 'person', label: translations['sidebar.employees'] || 'Employees', href: getLocalizedRoute('admin.employees.index'), permission: 'employees.view' },
         { icon: 'access_time', label: translations['sidebar.attendance'] || 'Attendance', href: getLocalizedRoute('admin.attendance.index'), permission: 'attendance.view' },
-        { icon: 'stars', label: translations['sidebar.reward'] || 'Reward', href: getLocalizedRoute('admin.reward.index'), permission: 'employees.view' },
-        { icon: 'schedule', label: translations['sidebar.overtime'] || 'OverTime', href: getLocalizedRoute('admin.overtime.index'), permission: 'employees.view' },
+        { icon: 'stars', label: translations['sidebar.reward'] || 'Reward', href: getLocalizedRoute('admin.rewards.index'), permission: 'employees.view' },
         {
           icon: 'work_off',
           label: translations['sidebar.end_of_service'] || 'End-of-service',

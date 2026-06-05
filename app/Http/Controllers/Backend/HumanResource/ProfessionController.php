@@ -29,7 +29,7 @@ class ProfessionController extends Controller
 
         $professions = $query->get();
 
-        if ($request->wantsJson() || $request->ajax()) {
+        if ($request->wantsJson() || ($request->ajax() && !$request->header('X-Inertia'))) {
             return response()->json($professions);
         }
 
