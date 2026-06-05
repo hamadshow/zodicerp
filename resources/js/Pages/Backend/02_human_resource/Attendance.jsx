@@ -1,12 +1,28 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { usePage } from '@inertiajs/react';
 import AdminLayout from '@/Pages/Backend/components/AdminLayout';
 import Table from '@/Pages/Backend/components/Table';
+import BlankPage from '@/Components/BlankPage';
 import '@/../css/backend/main.scss';
 import { apiService } from '@/services/api';
 
 
 export default function Attendance({ employees: propEmployees }) {
+  const { props } = usePage();
+  const localization = props?.localization;
   const [dbEmployees, setDbEmployees] = useState([]);
+
+  const getLocalizedRoute = useCallback((name, params = {}) => {
+    try {
+      return route(name, {
+        country: localization?.country_code || 'sa',
+        lang: localization?.current_locale || 'ar',
+        ...params
+      });
+    } catch {
+      return '#';
+    }
+  }, [localization]);
 
   useEffect(() => {
     const propData = propEmployees?.data || propEmployees;
@@ -433,176 +449,176 @@ export default function Attendance({ employees: propEmployees }) {
 
   return (
     <AdminLayout activeMenu="Attendance">
-      <div className="breadcrumb">
-        <a href="#">Dashboard</a>
-        <span>/</span>
-        <a href="#">Human Resources</a>
-        <span>/</span>
-        <span>Attendance</span>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="stats-cards">
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ backgroundColor: 'var(--success-color)' }}
-          >
-            <span className="material-icons-outlined">check_circle</span>
+      <BlankPage
+        breadcrumbs={[
+          { label: 'Dashboard', href: getLocalizedRoute('admin.dashboard') },
+          { label: 'Human Resources', href: '#' },
+          { label: 'Attendance', href: '#' }
+        ]}
+        stats={
+          <div className="stats-cards">
+            <div className="stat-card">
+              <div
+                className="stat-icon"
+                style={{ backgroundColor: 'var(--success-color)' }}
+              >
+                <span className="material-icons-outlined">check_circle</span>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{present}</div>
+                <div className="stat-label">Present Today</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div
+                className="stat-icon"
+                style={{ backgroundColor: 'var(--danger-color)' }}
+              >
+                <span className="material-icons-outlined">cancel</span>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{absent}</div>
+                <div className="stat-label">Absent Today</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div
+                className="stat-icon"
+                style={{ backgroundColor: 'var(--warning-color)' }}
+              >
+                <span className="material-icons-outlined">schedule</span>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{late}</div>
+                <div className="stat-label">Late Today</div>
+              </div>
+            </div>
+            <div className="stat-card">
+              <div
+                className="stat-icon"
+                style={{ backgroundColor: 'var(--info-color)' }}
+              >
+                <span className="material-icons-outlined">beach_access</span>
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{leave}</div>
+                <div className="stat-label">On Leave</div>
+              </div>
+            </div>
           </div>
-          <div className="stat-content">
-            <div className="stat-value">{present}</div>
-            <div className="stat-label">Present Today</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ backgroundColor: 'var(--danger-color)' }}
-          >
-            <span className="material-icons-outlined">cancel</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{absent}</div>
-            <div className="stat-label">Absent Today</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ backgroundColor: 'var(--warning-color)' }}
-          >
-            <span className="material-icons-outlined">schedule</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{late}</div>
-            <div className="stat-label">Late Today</div>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div
-            className="stat-icon"
-            style={{ backgroundColor: 'var(--info-color)' }}
-          >
-            <span className="material-icons-outlined">beach_access</span>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{leave}</div>
-            <div className="stat-label">On Leave</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Date Filter and Summary */}
-      <div className="attendance-summary">
-        <div className="date-filter">
-          <span
-            className="material-icons-outlined"
-            style={{ color: 'var(--gray-color)' }}
-          >
-            calendar_today
-          </span>
-          <input
-            type="date"
-            value={currentFilterDate}
-            onChange={handleDateFilter}
-          />
-          <button className="btn btn-sm btn-outline" onClick={() => {}}>
-            Go
-          </button>
-          <button className="btn btn-sm btn-outline" onClick={resetDateFilter}>
-            Today
-          </button>
-        </div>
-
-        <div className="attendance-buttons">
-          {['all', 'present', 'absent', 'late', 'leave'].map((status) => (
-            <button
-              key={status}
-              className={`attendance-btn ${currentFilterStatus === status ? 'active' : ''}`}
-              data-status={status}
-              onClick={() => handleStatusFilter(status)}
-            >
+        }
+        filters={
+          <div className="attendance-summary">
+            <div className="date-filter">
               <span
                 className="material-icons-outlined"
-                style={{ fontSize: '16px' }}
+                style={{ color: 'var(--gray-color)' }}
               >
-                {status === 'all'
-                  ? 'all_inclusive'
-                  : status === 'present'
-                    ? 'check_circle'
-                    : status === 'absent'
-                      ? 'cancel'
-                      : status === 'late'
-                        ? 'schedule'
-                        : 'beach_access'}
+                calendar_today
               </span>
-              {status === 'all'
-                ? 'All'
-                : status.charAt(0).toUpperCase() + status.slice(1)}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ marginLeft: 'auto' }}>
-          <button
-            className={`punch-btn ${isPunchedIn ? 'out' : ''}`}
-            onClick={togglePunch}
-          >
-            <span className="material-icons-outlined">fingerprint</span>
-            {isPunchedIn ? 'Punch Out' : 'Punch In'}
-          </button>
-        </div>
-      </div>
-
-      {/* Main Card */}
-      <div className="attendance-card fade-in">
-        <Table
-          showToolbar={true}
-          toolbarSearch={true}
-          toolbarSearchValue={searchTerm}
-          onToolbarSearch={setSearchTerm}
-          showAddButton={true}
-          addButtonText="Add Attendance"
-          onAdd={openModal}
-          showRefreshButton={true}
-          onRefresh={() => {
-            fetchAttendance();
-            showToast('Attendance list refreshed!', 'success');
-          }}
-          showExportButton={true}
-          onExport={exportAttendance}
-          toolbarActions={
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <select className="btn-toolbar btn-refresh" id="bulkActions" style={{ height: '42px' }}>
-                <option>Bulk Actions</option>
-                <option value="mark-present">Mark as Present</option>
-                <option value="mark-absent">Mark as Absent</option>
-                <option value="mark-late">Mark as Late</option>
-                <option value="delete">Delete Selected</option>
-              </select>
-              <button className="btn-toolbar btn-refresh" onClick={applyBulkAction}>
-                <span className="material-icons-outlined">play_arrow</span>
-                <span>Apply</span>
+              <input
+                type="date"
+                value={currentFilterDate}
+                onChange={handleDateFilter}
+              />
+              <button className="btn btn-sm btn-outline" onClick={() => {}}>
+                Go
+              </button>
+              <button className="btn btn-sm btn-outline" onClick={resetDateFilter}>
+                Today
               </button>
             </div>
-          }
-          tableData={tableData}
-          columns={columns}
-          handleRowSelect={handleSelectRecord}
-          selectAll={selectedRecords.length === filteredRecords.length && filteredRecords.length > 0}
-          handleSelectAll={handleSelectAll}
-          onEdit={(record) => editAttendance(record.id)}
-          onDelete={(record) => deleteAttendance(record.id)}
-          onView={(record) => {
-            if (record.notes) {
-              viewNotes(record.id);
-            } else {
-              showToast('No notes for this record', 'info');
+
+            <div className="attendance-buttons">
+              {['all', 'present', 'absent', 'late', 'leave'].map((status) => (
+                <button
+                  key={status}
+                  className={`attendance-btn ${currentFilterStatus === status ? 'active' : ''}`}
+                  data-status={status}
+                  onClick={() => handleStatusFilter(status)}
+                >
+                  <span
+                    className="material-icons-outlined"
+                    style={{ fontSize: '16px' }}
+                  >
+                    {status === 'all'
+                      ? 'all_inclusive'
+                      : status === 'present'
+                        ? 'check_circle'
+                        : status === 'absent'
+                          ? 'cancel'
+                          : status === 'late'
+                            ? 'schedule'
+                            : 'beach_access'}
+                  </span>
+                  {status === 'all'
+                    ? 'All'
+                    : status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ marginLeft: 'auto' }}>
+              <button
+                className={`punch-btn ${isPunchedIn ? 'out' : ''}`}
+                onClick={togglePunch}
+              >
+                <span className="material-icons-outlined">fingerprint</span>
+                {isPunchedIn ? 'Punch Out' : 'Punch In'}
+              </button>
+            </div>
+          </div>
+        }
+      >
+        {/* Main Card */}
+        <div className="attendance-card fade-in">
+          <Table
+            showToolbar={true}
+            toolbarSearch={true}
+            toolbarSearchValue={searchTerm}
+            onToolbarSearch={setSearchTerm}
+            showAddButton={true}
+            addButtonText="Add Attendance"
+            onAdd={openModal}
+            showRefreshButton={true}
+            onRefresh={() => {
+              fetchAttendance();
+              showToast('Attendance list refreshed!', 'success');
+            }}
+            showExportButton={true}
+            onExport={exportAttendance}
+            toolbarActions={
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <select className="btn-toolbar btn-refresh" id="bulkActions" style={{ height: '42px' }}>
+                  <option>Bulk Actions</option>
+                  <option value="mark-present">Mark as Present</option>
+                  <option value="mark-absent">Mark as Absent</option>
+                  <option value="mark-late">Mark as Late</option>
+                  <option value="delete">Delete Selected</option>
+                </select>
+                <button className="btn-toolbar btn-refresh" onClick={applyBulkAction}>
+                  <span className="material-icons-outlined">play_arrow</span>
+                  <span>Apply</span>
+                </button>
+              </div>
             }
-          }}
-        />
-      </div>
+            tableData={tableData}
+            columns={columns}
+            handleRowSelect={handleSelectRecord}
+            selectAll={selectedRecords.length === filteredRecords.length && filteredRecords.length > 0}
+            handleSelectAll={handleSelectAll}
+            onEdit={(record) => editAttendance(record.id)}
+            onDelete={(record) => deleteAttendance(record.id)}
+            onView={(record) => {
+              if (record.notes) {
+                viewNotes(record.id);
+              } else {
+                showToast('No notes for this record', 'info');
+              }
+            }}
+          />
+        </div>
+      </BlankPage>
 
       {/* Add Attendance Modal */}
       {isModalOpen && (
