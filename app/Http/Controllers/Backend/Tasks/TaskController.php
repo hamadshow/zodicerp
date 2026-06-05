@@ -14,7 +14,7 @@ class TaskController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('auth');
+        $this->middleware('auth:web,employee');
     }
 
     public function index(Request $request)
@@ -31,7 +31,7 @@ class TaskController extends Controller
                         $subQ->where('name', 'like', "%{$search}%");
                     })
                     ->orWhereHas('creator', function ($subQ) use ($search) {
-                        $subQ->where('name', 'like', "%{$search}%");
+                        $subQ->where('username', 'like', "%{$search}%");
                     });
             });
         }

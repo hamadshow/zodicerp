@@ -1,0 +1,352 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+// ERP Welcome Interface Variables
+:root {
+    --erp-glass-bg: rgba(255, 255, 255, 0.7);
+    --erp-glass-border: rgba(255, 255, 255, 0.3);
+    --erp-glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+    --erp-card-blur: 10px;
+    
+    // Gradient definitions
+    --grad-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --grad-success: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    --grad-info: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --grad-warning: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+    --grad-danger: linear-gradient(135deg, #ff0844 0%, #ffb199 100%);
+}
+
+// Dark Mode Support
+[data-theme='dark'] {
+    --erp-glass-bg: rgba(30, 41, 59, 0.7);
+    --erp-glass-border: rgba(255, 255, 255, 0.1);
+    --erp-glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.welcome-interface {
+    padding: $spacing-lg;
+    background-color: $bg-color;
+    min-height: calc(100vh - #{$header-height} - #{$footer-height});
+    animation: fadeIn 0.5s ease-out;
+
+    @include media-breakpoint-down(sm) {
+        padding: $spacing-md;
+    }
+
+    // Glassmorphism Card Base
+    .glass-card {
+        background: var(--erp-glass-bg);
+        backdrop-filter: blur(var(--erp-card-blur));
+        -webkit-backdrop-filter: blur(var(--erp-card-blur));
+        border: 1px solid var(--erp-glass-border);
+        box-shadow: var(--erp-glass-shadow);
+        border-radius: $radius-xl;
+        padding: $spacing-lg;
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%;
+
+        &:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.15);
+        }
+    }
+
+    // 1. Welcome Header
+    .welcome-header {
+        margin-bottom: $spacing-xl;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: $spacing-md;
+
+        .greeting-content {
+            h1 {
+                font-size: $font-size-2xl;
+                font-weight: $font-weight-bold;
+                color: $text-primary;
+                margin-bottom: $spacing-xs;
+            }
+            .sub-welcome {
+                font-size: $font-size-lg;
+                color: $text-secondary;
+            }
+        }
+
+        .company-badge {
+            display: flex;
+            align-items: center;
+            gap: $spacing-md;
+            background: var(--grad-primary);
+            color: $white;
+            padding: $spacing-sm $spacing-lg;
+            border-radius: $radius-full;
+            box-shadow: $shadow-md;
+
+            .logo-placeholder {
+                width: 40px;
+                height: 40px;
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 50%;
+                @include flex-center;
+                font-weight: bold;
+            }
+        }
+    }
+
+    // 2. Digital Clock Section
+    .clock-section {
+        margin-bottom: $spacing-xl;
+        
+        .clock-card {
+            text-align: center;
+            background: var(--grad-primary);
+            color: $white;
+            border: none;
+
+            .time-display {
+                font-size: 4rem;
+                font-weight: $font-weight-bold;
+                font-family: $font-family-mono;
+                letter-spacing: 2px;
+                margin-bottom: $spacing-xs;
+
+                span.seconds {
+                    font-size: 2rem;
+                    opacity: 0.8;
+                    margin-left: $spacing-xs;
+                }
+            }
+
+            .date-display {
+                font-size: $font-size-xl;
+                opacity: 0.9;
+                font-weight: $font-weight-medium;
+            }
+        }
+    }
+
+    // 3. Quick Access Grid
+    .section-title {
+        font-size: $font-size-xl;
+        font-weight: $font-weight-semibold;
+        color: $text-primary;
+        margin-bottom: $spacing-lg;
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+
+        i {
+            color: var(--primary-color);
+        }
+    }
+
+    .quick-access-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: $spacing-lg;
+        margin-bottom: $spacing-2xl;
+
+        .access-card {
+            text-decoration: none;
+            @include flex-center;
+            flex-direction: column;
+            gap: $spacing-md;
+            cursor: pointer;
+
+            .icon-wrapper {
+                width: 64px;
+                height: 64px;
+                border-radius: $radius-lg;
+                @include flex-center;
+                font-size: 2rem;
+                background: $primary-light;
+                color: var(--primary-color);
+                transition: background 0.3s ease, color 0.3s ease, transform 0.3s ease;
+            }
+
+            span {
+                font-weight: $font-weight-semibold;
+                color: $text-primary;
+                font-size: $font-size-md;
+            }
+
+            &:hover {
+                .icon-wrapper {
+                    background: var(--primary-color);
+                    color: $white;
+                    transform: scale(1.1);
+                }
+            }
+        }
+    }
+
+    // 4. Summary Stats
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: $spacing-lg;
+        margin-bottom: $spacing-2xl;
+
+        .stat-card {
+            display: flex;
+            align-items: center;
+            gap: $spacing-md;
+
+            .stat-icon {
+                width: 50px;
+                height: 50px;
+                border-radius: $radius-md;
+                @include flex-center;
+                font-size: 1.5rem;
+                color: $white;
+            }
+
+            .stat-info {
+                .stat-value {
+                    display: block;
+                    font-size: $font-size-xl;
+                    font-weight: $font-weight-bold;
+                    color: $text-primary;
+                }
+                .stat-label {
+                    font-size: $font-size-sm;
+                    color: $text-secondary;
+                }
+            }
+        }
+    }
+
+    // 5 & 7. Activity and Productivity
+    .content-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: $spacing-xl;
+        margin-bottom: $spacing-2xl;
+
+        @include media-breakpoint-down(lg) {
+            grid-template-columns: 1fr;
+        }
+
+        .scroll-panel {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: $spacing-sm;
+
+            &::-webkit-scrollbar {
+                width: 4px;
+            }
+            &::-webkit-scrollbar-thumb {
+                background: $border-color;
+                border-radius: $radius-full;
+            }
+        }
+    }
+
+    // Timeline component
+    .timeline {
+        position: relative;
+        padding-left: 20px;
+
+        &::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: $border-color;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: $spacing-lg;
+
+            &::before {
+                content: '';
+                position: absolute;
+                left: -24px;
+                top: 5px;
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: var(--primary-color);
+                border: 2px solid $white;
+                z-index: 1;
+            }
+
+            .item-time {
+                font-size: $font-size-xs;
+                color: $text-light;
+                display: block;
+            }
+            .item-desc {
+                font-size: $font-size-sm;
+                color: $text-primary;
+                font-weight: $font-weight-medium;
+            }
+        }
+    }
+
+    // Tasks List
+    .task-item {
+        display: flex;
+        align-items: center;
+        gap: $spacing-md;
+        padding: $spacing-sm 0;
+        border-bottom: 1px solid $border-color;
+
+        &:last-child {
+            border-bottom: none;
+        }
+
+        .task-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .task-text {
+            flex: 1;
+            font-size: $font-size-sm;
+            color: $text-primary;
+        }
+
+        .task-date {
+            font-size: $font-size-xs;
+            color: $text-light;
+        }
+    }
+
+    // 8. Footer
+    .motivational-footer {
+        text-align: center;
+        margin-top: $spacing-2xl;
+        padding: $spacing-xl;
+        border-top: 1px solid $border-color;
+
+        .quote-text {
+            font-size: $font-size-lg;
+            font-style: italic;
+            color: $text-secondary;
+            max-width: 800px;
+            margin: 0 auto;
+            
+            &::before { content: '"'; }
+            &::after { content: '"'; }
+        }
+    }
+}
+
+// Animations
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+// Color Utility classes
+.bg-grad-primary { background: var(--grad-primary); }
+.bg-grad-success { background: var(--grad-success); }
+.bg-grad-info { background: var(--grad-info); }
+.bg-grad-warning { background: var(--grad-warning); }
+.bg-grad-danger { background: var(--grad-danger); }

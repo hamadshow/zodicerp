@@ -74,6 +74,28 @@ class HandleInertiaRequests extends Middleware
         });
     }
 
+    private function getUserPermissions($user)
+    {
+        $permissions = [];
+        // Ensure roles are loaded
+        if ($user && method_exists($user, 'roles')) {
+            $roles = $user->roles;
+            foreach ($roles as $role) {
+                if (is_array($role->permissions)) {
+                    foreach ($role->permissions as $group => $resources) {
+                        foreach ($resources as $resource => $actions) {
+                            $normalizedResource = str_replace(' ', '_', strtolower($resource));
+                            foreach ($actions as $action) {
+                                $permissions[] = $normalizedResource . '.' . strtolower($action);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return array_unique($permissions);
+    }
+
     /**
      * Define the props that are shared by default.
      *
@@ -111,9 +133,25 @@ class HandleInertiaRequests extends Middleware
             $request->session()->put('country_code', $countryCode);
         }
 
+        $user = $request->user() ?: $request->user('employee');
+        $permissions = [];
+        if ($user) {
+            if ($user instanceof \App\Models\User) {
+                // System users get all permissions if they have specific roles
+                $systemRoles = ['admin', 'superadmin', 'super_admin', 'owner', 'developer', 'programmer', 'technical_administrator'];
+                if (in_array(strtolower($user->role), $systemRoles)) {
+                    $permissions = ['*']; // All access
+                } else {
+                    $permissions = $this->getUserPermissions($user);
+                }
+            } else if ($user instanceof \App\Models\Employee) {
+                $permissions = $this->getUserPermissions($user);
+            }
+        }
+
         return array_merge(is_array(parent::share($request)) ? parent::share($request) : [], [
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user ? array_merge($user->toArray(), ['permissions' => $permissions]) : null,
                 'customer' => $isAdminRoute ? null : $request->user('customer'),
                 'supplier' => $isAdminRoute ? null : $request->user('supplier'),
             ],

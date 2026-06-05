@@ -96,14 +96,44 @@ class User extends Authenticatable
     /**
      * Check if the user has a specific permission.
      */
-    /**
-     * Check if the user has a specific permission.
-     */
     public function hasPermission(string $permission): bool
     {
-        return $this->roles->contains(function ($role) use ($permission) {
-            return is_array($role->permissions) && in_array($permission, $role->permissions);
-        });
+        // System users (Super Admin, etc.) have full access
+        $systemRoles = ['admin', 'superadmin', 'super_admin', 'owner', 'developer', 'programmer', 'technical_administrator'];
+        if (in_array(strtolower($this->role), $systemRoles)) {
+            return true;
+        }
+
+        foreach ($this->roles as $role) {
+            if (is_array($role->permissions) && $this->checkPermissionInArray($permission, $role->permissions)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function checkPermissionInArray($permission, $permissionsArray)
+    {
+        // The permissions array structure: { group: { resource: [actions] } }
+        // Permission string format: "resource.action" (e.g., "employees.view")
+        if (str_contains($permission, '.')) {
+            [$targetResource, $targetAction] = explode('.', strtolower($permission));
+            
+            foreach ($permissionsArray as $group => $resources) {
+                foreach ($resources as $resource => $actions) {
+                    $normalizedResource = str_replace(' ', '_', strtolower($resource));
+                    if ($normalizedResource === $targetResource) {
+                        foreach ($actions as $action) {
+                            if (strtolower($action) === $targetAction) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**

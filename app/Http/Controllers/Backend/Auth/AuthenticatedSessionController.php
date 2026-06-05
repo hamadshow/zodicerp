@@ -38,11 +38,14 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        $user = $request->user();
+        // Check both guards for the authenticated user
+        $user = Auth::guard('web')->user() ?: Auth::guard('employee')->user();
 
         // Check if user is active after authentication
         if (! $user || $user->status !== 'active') {
             Auth::guard('web')->logout();
+            Auth::guard('employee')->logout();
+            
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
@@ -74,6 +77,7 @@ class AuthenticatedSessionController extends Controller
         ];
 
         Auth::guard('web')->logout();
+        Auth::guard('employee')->logout();
 
         $request->session()->forget('company_id');
         $request->session()->invalidate();

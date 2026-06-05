@@ -11,10 +11,10 @@ class AdminMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $user = Auth::user();
+        $user = Auth::user() ?: Auth::guard('employee')->user();
 
         if (! $user) {
-            // Check other guards just in case
+            // Check other guards
             if (Auth::guard('customer')->check()) {
                 $user = Auth::guard('customer')->user();
             } elseif (Auth::guard('supplier')->check()) {
@@ -28,29 +28,36 @@ class AdminMiddleware
             return redirect()->to("/{$country}/{$lang}/login");
         }
 
-        if (Auth::check() && $user instanceof \App\Models\User) {
-            // Also check role for safety, though previously it was allowed
+        // Allow System Users (User model with admin role)
+        if ($user instanceof \App\Models\User) {
             $role = strtolower($user->role ?? '');
-            if (in_array($role, ['admin', 'superadmin'])) {
+            $systemRoles = ['admin', 'superadmin', 'super_admin', 'owner', 'developer', 'programmer', 'technical_administrator'];
+            if (in_array($role, $systemRoles)) {
+                return $next($request);
+            }
+        }
+
+        // Allow Employees if they have any backend permission
+        if ($user instanceof \App\Models\Employee) {
+            // If they have any permission defined in roles, allow them to access admin area
+            // Specific page access will be handled by Gates/Policies
+            if ($user->roles()->exists()) {
                 return $next($request);
             }
         }
 
         $role = strtolower($user->role ?? '');
 
-        if (! in_array($role, ['admin', 'superadmin'])) {
+        if ($role === 'customer' || Auth::guard('customer')->check()) {
             $country = $request->segment(1) ?: session('country_code', 'sa');
             $lang = $request->segment(2) ?: session('locale', 'ar');
-
-            if ($role === 'customer' || Auth::guard('customer')->check()) {
-                return redirect()->to("/{$country}/{$lang}/customer/dashboard");
-            } elseif ($role === 'supplier' || Auth::guard('supplier')->check()) {
-                return redirect()->to("/{$country}/{$lang}/supplier/dashboard");
-            }
-
-            abort(403, 'Unauthorized');
+            return redirect()->to("/{$country}/{$lang}/customer/dashboard");
+        } elseif ($role === 'supplier' || Auth::guard('supplier')->check()) {
+            $country = $request->segment(1) ?: session('country_code', 'sa');
+            $lang = $request->segment(2) ?: session('locale', 'ar');
+            return redirect()->to("/{$country}/{$lang}/supplier/dashboard");
         }
 
-        return $next($request);
+        abort(403, 'Unauthorized');
     }
 }

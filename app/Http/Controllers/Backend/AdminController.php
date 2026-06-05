@@ -18,6 +18,11 @@ class AdminController extends Controller
 
     public function index(): Response
     {
+        return Inertia::render('Backend/Interface');
+    }
+
+    public function dashboard(): Response
+    {
         // Get dashboard data
         $stats = $this->dashboardService->getDashboardStats();
         $salesChart = $this->dashboardService->getSalesChartData();

@@ -99,6 +99,58 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
         swift_bic: branch?.swift_bic || '',
         bank_address: branch?.bank_address || '',
     });
+
+    // Loading states
+    const [loadingCountries, setLoadingCountries] = useState(false);
+    const [loadingStates, setLoadingStates] = useState(false);
+    const [loadingCities, setLoadingCities] = useState(false);
+    const [pageReady, setPageReady] = useState(false);
+
+    // Fetching functions
+    const loadCountries = useCallback(async () => {
+        setLoadingCountries(true);
+        try {
+            const response = await axios.get('/api/locations/countries');
+            setCountries(response.data.data || response.data || []);
+        } catch (error) {
+            console.error("Error fetching countries:", error);
+        } finally {
+            setLoadingCountries(false);
+        }
+    }, []);
+
+    const loadStates = useCallback(async (countryId) => {
+        if (!countryId) {
+            setCities([]);
+            return;
+        }
+        setLoadingStates(true);
+        try {
+            const response = await axios.get(`/api/locations/states/${countryId}`);
+            setCities(response.data.data || response.data || []);
+        } catch (error) {
+            console.error("Error fetching states:", error);
+        } finally {
+            setLoadingStates(false);
+        }
+    }, []);
+
+    const loadCities = useCallback(async (stateId) => {
+        if (!stateId) {
+            setAreas([]);
+            return;
+        }
+        setLoadingCities(true);
+        try {
+            const response = await axios.get(`/api/locations/cities/${stateId}`);
+            setAreas(response.data.data || response.data || []);
+        } catch (error) {
+            console.error("Error fetching cities:", error);
+        } finally {
+            setLoadingCities(false);
+        }
+    }, []);
+
     const [stats, setStats] = useState({
         total: 0,
         withCompany: 0,
@@ -238,112 +290,57 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
         setLogoPreview(source?.logo ? resolveMediaUrl(source.logo) : null);
     };
 
+    // Form Initialization
     useEffect(() => {
-        if ((mode === 'edit' || mode === 'view') && branchId) {
-            const selected = branches.find((b) => String(b.id) === String(branchId));
-            setCurrentBranch(selected || null);
-            applyBranchToForm(selected);
-            setActiveTab('basic');
-            return;
-        }
-        if ((mode === 'edit' || mode === 'view') && branch) {
-            setCurrentBranch(branch);
-            applyBranchToForm(branch);
-            setActiveTab('basic');
-            return;
-        }
-        if (mode === 'create') {
-            setCurrentBranch(null);
-            reset();
-            setLogoPreview(null);
-            setActiveTab('basic');
-            return;
-        }
-        setCurrentBranch(null);
-    }, [mode, branchId, branches]);
+        const initForm = async () => {
+            let activeBranch = null;
 
-    // Loading states
-    const [loadingCountries, setLoadingCountries] = useState(false);
-    const [loadingStates, setLoadingStates] = useState(false);
-    const [loadingCities, setLoadingCities] = useState(false);
-    const [pageReady, setPageReady] = useState(false);
-
-    // Load countries
-    const loadCountries = useCallback(async () => {
-        setLoadingCountries(true);
-        try {
-            const response = await axios.get('/api/locations/countries');
-            setCountries(response.data.data || response.data);
-        } catch (error) {
-            console.error("Error fetching countries:", error);
-            toast.error("Failed to load countries");
-        } finally {
-            setLoadingCountries(false);
-        }
-    }, []);
-
-    // Load states
-    const loadStates = useCallback(async (countryId) => {
-        if (!countryId) {
-            setCities([]);
-            return;
-        }
-        setLoadingStates(true);
-        try {
-            const response = await axios.get(`/api/locations/states/${countryId}`);
-            setCities(response.data.data || response.data);
-        } catch (error) {
-            console.error("Error fetching states:", error);
-            toast.error("Failed to load states");
-        } finally {
-            setLoadingStates(false);
-        }
-    }, []);
-
-    // Load cities (which are areas in the UI)
-    const loadCities = useCallback(async (stateId) => {
-        if (!stateId) {
-            setAreas([]);
-            return;
-        }
-        setLoadingCities(true);
-        try {
-            const response = await axios.get(`/api/locations/cities/${stateId}`);
-            setAreas(response.data.data || response.data);
-        } catch (error) {
-            console.error("Error fetching cities:", error);
-            toast.error("Failed to load cities");
-        } finally {
-            setLoadingCities(false);
-        }
-    }, []);
-
-    // Initialize page
-    const initializePage = useCallback(async () => {
-        try {
-            await loadCountries();
-            if (branch?.country) {
-                await loadStates(branch.country);
-                if (branch?.city) {
-                    await loadCities(branch.city);
-                }
+            if ((mode === 'edit' || mode === 'view') && branchId) {
+                activeBranch = branches.find((b) => String(b.id) === String(branchId));
+            } else if ((mode === 'edit' || mode === 'view') && branch) {
+                activeBranch = branch;
             }
-        } catch (error) {
-            console.error("Error initializing page:", error);
-            toast.error("Failed to initialize form");
-        } finally {
-            setPageReady(true);
-        }
-    }, [branch, loadCountries, loadStates, loadCities]);
 
+            if (activeBranch) {
+                setCurrentBranch(activeBranch);
+                applyBranchToForm(activeBranch);
+                
+                // Load dependent data sequentially
+                if (activeBranch.country) {
+                    await loadStates(activeBranch.country);
+                    if (activeBranch.city) {
+                        await loadCities(activeBranch.city);
+                    }
+                }
+                setActiveTab('basic');
+            } else if (mode === 'create') {
+                setCurrentBranch(null);
+                reset();
+                setLogoPreview(null);
+                setActiveTab('basic');
+                setCities([]);
+                setAreas([]);
+            } else {
+                setCurrentBranch(null);
+            }
+        };
+
+        initForm();
+    }, [mode, branchId, branches, branch]);
+
+    // Initial page load
     useEffect(() => {
-        initializePage();
-    }, [initializePage]);
+        const loadInitialData = async () => {
+            await loadCountries();
+            setPageReady(true);
+        };
+        loadInitialData();
+    }, [loadCountries]);
 
     // Handle country change
     const handleCountryChange = async (e) => {
         const countryId = e.target.value;
-        setData(prev => ({ ...prev, country: countryId, city: '', area: '' }));
+        setData({ ...data, country: countryId, city: '', area: '' });
         setCities([]);
         setAreas([]);
         if (countryId) {
@@ -354,7 +351,7 @@ const BranchInfo = ({ branches = [], companies = [], branch = null, formMode = n
     // Handle state (city dropdown) change
     const handleStateChange = async (e) => {
         const stateId = e.target.value;
-        setData(prev => ({ ...prev, city: stateId, area: '' }));
+        setData({ ...data, city: stateId, area: '' });
         setAreas([]);
         if (stateId) {
             await loadCities(stateId);

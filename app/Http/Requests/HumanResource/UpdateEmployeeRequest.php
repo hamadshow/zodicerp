@@ -3,6 +3,7 @@
 namespace App\Http\Requests\HumanResource;
 
 use Illuminate\Foundation\Http\FormRequest;
+use App\Models\Backend\HumanResource\Profession;
 
 class UpdateEmployeeRequest extends FormRequest
 {
@@ -30,7 +31,7 @@ class UpdateEmployeeRequest extends FormRequest
             'email' => 'required|string|email|max:255|unique:employees,email,'.$employeeId,
             'password' => 'nullable|string|min:8',
             'role' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:20',
+            'phone' => 'nullable|string|max:20|unique:employees,phone,'.$employeeId,
             'department' => 'required|string|max:255',
             'position' => 'required|string|max:255',
             'hire_date' => 'required|date',
@@ -41,5 +42,28 @@ class UpdateEmployeeRequest extends FormRequest
             'notes' => 'nullable|string',
             'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ];
+    }
+
+    /**
+     * Configure the validator instance.
+     *
+     * @param  \Illuminate\Validation\Validator  $validator
+     * @return void
+     */
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $salary = $this->input('salary');
+            $position = $this->input('position');
+
+            if ($salary && $position) {
+                $profession = Profession::where('profession_name', $position)->first();
+                if ($profession) {
+                    if ($salary < $profession->min_salary || $salary > $profession->max_salary) {
+                        $validator->errors()->add('salary', "Salary must be between {$profession->min_salary} and {$profession->max_salary} for the selected profession.");
+                    }
+                }
+            }
+        });
     }
 }

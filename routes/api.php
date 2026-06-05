@@ -11,7 +11,7 @@ use App\Http\Controllers\Backend\Tasks\TaskAttachmentController;
 use App\Http\Controllers\Backend\Tasks\TaskCommentController;
 
 // Authenticated API Routes
-Route::middleware(['web', 'auth'])->group(function () {
+Route::middleware(['web', 'auth:web,employee'])->group(function () {
     // Dashboard API Routes
     Route::prefix('dashboard')->group(function () {
         Route::get('/stats', [App\Http\Controllers\Api\DashboardController::class, 'stats']);
@@ -28,7 +28,6 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/users/bulk-delete', [App\Http\Controllers\Api\UserController::class, 'bulkDelete']);
     Route::post('/users/{userId}/assign-role', [App\Http\Controllers\Api\UserController::class, 'assignRole']);
     Route::post('/users/{userId}/remove-role', [App\Http\Controllers\Api\UserController::class, 'removeRole']);
-    Route::post('/users/{userId}/check-permission', [App\Http\Controllers\Api\UserController::class, 'checkPermission']);
 
     // Product Management API Routes
     Route::apiResource('products', App\Http\Controllers\Api\ProductController::class);
@@ -43,19 +42,14 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::post('/orders/bulk-update-status', [App\Http\Controllers\Api\OrderController::class, 'bulkUpdateStatus']);
 
     // Human resource API Routes
-    Route::get('/employees', function (Request $request) {
-        return App\Models\Employee::query()
-            ->when($request->search, fn($q) => $q->where(function ($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('first_name', 'like', "%{$request->search}%")
-                  ->orWhere('last_name', 'like', "%{$request->search}%")
-                  ->orWhere('email', 'like', "%{$request->search}%")
-                  ->orWhere('position', 'like', "%{$request->search}%")
-                  ->orWhere('department', 'like', "%{$request->search}%");
-            }))
-            ->orderBy('created_at', 'desc')
-            ->paginate($request->input('per_page', 10));
-    });
+    Route::get('/employees', [App\Http\Controllers\Backend\HumanResource\EmployeeController::class, 'getEmployees']);
+    Route::post('/employees', [App\Http\Controllers\Backend\HumanResource\EmployeeController::class, 'store']);
+    Route::get('/employees/{employee}', [App\Http\Controllers\Backend\HumanResource\EmployeeController::class, 'show']);
+    Route::put('/employees/{employee}', [App\Http\Controllers\Backend\HumanResource\EmployeeController::class, 'update']);
+    Route::post('/employees/{employee}', [App\Http\Controllers\Backend\HumanResource\EmployeeController::class, 'update']); // For FormData (multipart/form-data) with _method PUT
+    Route::delete('/employees/{employee}', [App\Http\Controllers\Backend\HumanResource\EmployeeController::class, 'destroy']);
+    Route::post('/employees/bulk-delete', [App\Http\Controllers\Backend\HumanResource\EmployeeController::class, 'bulkDelete']);
+    Route::post('/employees/bulk-update-status', [App\Http\Controllers\Backend\HumanResource\EmployeeController::class, 'bulkUpdateStatus']);
 
     Route::get('/departments', function () {
         return App\Models\Assets\Department::all();
@@ -73,6 +67,9 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::apiResource('traffic-violations', App\Http\Controllers\Backend\HumanResource\TrafficViolationController::class);
     Route::apiResource('nationalities', App\Http\Controllers\Backend\HumanResource\NationalityController::class);
     Route::apiResource('professions', App\Http\Controllers\Backend\HumanResource\ProfessionController::class);
+    Route::get('/currencies', function () {
+        return App\Models\Currency::where('status', 'active')->orderBy('code')->get();
+    });
 
     // Accounting API Routes
     Route::get('/accounts/tree', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'tree']);
@@ -126,12 +123,6 @@ Route::middleware(['web', 'auth'])->group(function () {
     Route::apiResource('assignments', TaskAssignmentController::class);
     Route::apiResource('attachments', TaskAttachmentController::class);
     Route::apiResource('comments', TaskCommentController::class);
-
-    // Role and Permission Management API Routes
-    Route::apiResource('roles', App\Http\Controllers\Api\RoleController::class);
-    Route::post('/roles/{roleId}/assign-permission', [App\Http\Controllers\Api\RoleController::class, 'assignPermission']);
-    Route::post('/roles/{roleId}/remove-permission', [App\Http\Controllers\Api\RoleController::class, 'removePermission']);
-    Route::apiResource('permissions', App\Http\Controllers\Api\PermissionController::class);
 });
 
 // Cache Management API Routes (Can remain outside or inside depending on security needs)

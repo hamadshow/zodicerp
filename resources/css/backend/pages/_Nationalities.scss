@@ -1,99 +1,134 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+/* ==========================================================================
+   Nationalities Management - Backend Styles
+   ========================================================================== */
+
 .nationalities-page {
-  padding: 24px;
-  background: #f8fafc;
-}
+    .page-header {
+        margin-bottom: $spacing-lg;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: $spacing-md;
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
+        @include media-breakpoint-down(sm) {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
 
-.toolbar input {
-  padding: 10px;
-  width: 300px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-}
+    .table-responsive {
+        @include card-base;
+        border-radius: $radius-xl;
+        overflow: hidden;
+        background: $white;
+        box-shadow: $shadow-sm;
+        border: 1px solid $border-color;
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            
+            thead {
+                background-color: $light-color;
+                border-bottom: 1px solid $border-color;
+                
+                th {
+                    padding: $spacing-md $spacing-lg;
+                    text-align: left;
+                    font-size: $font-size-xs;
+                    font-weight: $font-weight-semibold;
+                    color: $text-muted;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                }
+            }
+            
+            tbody {
+                tr {
+                    border-bottom: 1px solid rgba($border-color, 0.5);
+                    @include transition-standard(background-color);
+                    
+                    &:hover {
+                        background-color: rgba($light-color, 0.3);
+                    }
+                    
+                    &:last-child {
+                        border-bottom: none;
+                    }
+                }
+                
+                td {
+                    padding: $spacing-md $spacing-lg;
+                    font-size: $font-size-sm;
+                    color: $text-primary;
+                    vertical-align: middle;
+                }
+            }
+        }
+    }
 
-.data-table {
-  width: 100%;
-  background: white;
-  border-radius: 8px;
-  overflow: hidden;
-  border-collapse: collapse;
-}
+    // Status badges
+    .status-badge {
+        padding: 4px 10px;
+        border-radius: $radius-full;
+        font-size: 10px;
+        font-weight: $font-weight-bold;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        display: inline-block;
 
-.data-table th,
-.data-table td {
-  padding: 12px;
-  border-bottom: 1px solid #e2e8f0;
-}
+        &--active {
+            background-color: $success-light;
+            color: $success-color;
+        }
 
-.data-table th {
-  background: #f1f5f9;
-  text-align: left;
-}
+        &--inactive {
+            background-color: $light-color;
+            color: $text-muted;
+        }
+    }
 
-.status {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  color: white;
-}
+    // Country code badge
+    .code-badge {
+        background-color: $light-color;
+        color: $text-secondary;
+        padding: 2px 6px;
+        border-radius: $radius-sm;
+        font-size: 11px;
+        font-weight: $font-weight-bold;
+        text-transform: uppercase;
+        border: 1px solid $border-color;
+    }
 
-.status.active {
-  background: #10b981;
-}
-
-.status.inactive {
-  background: #64748b;
-}
-
-.btn {
-  padding: 8px 14px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.btn.primary {
-  background: #2563eb;
-  color: white;
-}
-
-.icon-btn {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-}
-
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modal {
-  background: white;
-  padding: 20px;
-  width: 400px;
-  border-radius: 8px;
-}
-
-.modal input {
-  width: 100%;
-  margin-bottom: 10px;
-  padding: 8px;
-}
-
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+    // Action buttons
+    .action-btn {
+        width: 32px;
+        height: 32px;
+        @include flex-center;
+        border-radius: $radius-md;
+        @include transition-standard(background-color, color);
+        border: none;
+        cursor: pointer;
+        
+        &--edit {
+            background-color: $info-light;
+            color: $info-color;
+            &:hover { 
+                background-color: $info-color; 
+                color: $white; 
+            }
+        }
+        
+        &--delete {
+            background-color: $danger-light;
+            color: $danger-color;
+            &:hover { 
+                background-color: $danger-color; 
+                color: $white; 
+            }
+        }
+    }
 }

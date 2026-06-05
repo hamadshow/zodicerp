@@ -52,6 +52,8 @@
 @use 'pages/industries';
 @use 'pages/ItemAttributes';
 @use 'pages/ItemUnits';
+@use 'pages/locations';
+@use 'pages/interface';
 @use 'pages/ListedCompanies';
 @use 'pages/BuyShares';
 @use 'pages/SellShares';
@@ -61,7 +63,7 @@
 @use 'pages/MarketPrices';
 @use 'pages/Nationalities';
 @use 'pages/Payroll-Advance';
-@use 'pages/Permissions';
+@use 'pages/RolesAndPermissions';
 @use 'pages/Purchase_quotations';
 @use 'pages/PurchaseInvoice';
 @use 'pages/PurchaseOrder';
@@ -83,7 +85,7 @@
 @use 'pages/JobApplications';
 
 // Existing/Additional pages
-@use 'pages/Location';
+
 @use 'pages/Purchases';
 @use 'pages/Categories';
 @use 'pages/AssetsTaxes';
@@ -117,7 +119,6 @@
 @use 'pages/Locales';
 @use 'pages/FlashSales';
 @use 'pages/PlatformAdmin';
-@use 'pages/RolesAndPermissions';
 @use 'pages/TransferStock';
 @use 'pages/DashboardTreasury';
 

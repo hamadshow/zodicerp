@@ -1,84 +1,60 @@
 import React, { memo } from 'react';
 import HierarchyTree from './HierarchyTree';
-import HierarchyDetails from './HierarchyDetails';
 
 const HierarchyManager = ({ 
     title,
     data,
-    expandedNodes,
-    onToggle,
     onSelect,
-    selectedNodes,
     activeNode,
     config,
     onAction,
-    searchQuery,
-    onSearchChange,
-    filters,
-    onFilterChange,
-    loadingNodes,
     locale = 'ar'
 }) => {
     const isRtl = locale === 'ar';
 
     return (
-        <div className={`hierarchy-manager ${isRtl ? 'rtl' : 'ltr'}`}>
-            {/* Details Panel (Left Column in LTR, Right Column in RTL) */}
-            <HierarchyDetails 
-                selectedNode={activeNode} 
-                onAction={onAction}
-                config={config} 
-                isRtl={isRtl}
-            />
+        <div className={`hierarchy-manager-full-width ${isRtl ? 'rtl' : 'ltr'}`}>
+            {/* Header with Back Button */}
+            <div className="hierarchy-header">
+                <button 
+                    className="btn btn-light border btn-back"
+                    onClick={() => onAction('navigate_back')}
+                    style={{ fontSize: '14px', padding: '8px 16px' }}
+                >
+                    <i className="fas fa-arrow-left me-2" />
+                    {isRtl ? 'رجوع' : 'Back'}
+                </button>
+            </div>
 
-            {/* Tree Panel */}
-            <div className="hierarchy-tree-panel">
-                <div className="panel-header">
+            {/* Full Width Row List Container */}
+            <div className="hierarchy-row-list-container">
+                {/* Title Section */}
+                <div className="row-list-title">
                     <h3>{title}</h3>
-                    <div className="d-flex gap-1">
-                        <button className="btn btn-xs btn-light border p-1" onClick={() => onAction('expand_all')} title={isRtl ? 'توسيع الكل' : 'Expand All'}>
-                            <i className="fas fa-expand-alt" style={{ fontSize: '10px' }} />
-                        </button>
-                        <button className="btn btn-xs btn-light border p-1" onClick={() => onAction('collapse_all')} title={isRtl ? 'طي الكل' : 'Collapse All'}>
-                            <i className="fas fa-compress-alt" style={{ fontSize: '10px' }} />
-                        </button>
-                    </div>
                 </div>
 
-                <div className="tree-search">
-                    <div className="d-flex gap-2">
-                        <input 
-                            type="text" 
-                            className="search-input" 
-                            placeholder={isRtl ? 'بحث...' : 'Search...'} 
-                            value={searchQuery}
-                            onChange={(e) => onSearchChange(e.target.value)}
-                        />
-                        <select 
-                            className="form-select form-select-sm" 
-                            style={{ width: 'auto', fontSize: '11px' }}
-                            value={filters?.status || 'all'}
-                            onChange={(e) => onFilterChange({ status: e.target.value })}
-                        >
-                            <option value="all">{isRtl ? 'الكل' : 'All'}</option>
-                            <option value="active">{isRtl ? 'نشط' : 'Active'}</option>
-                            <option value="inactive">{isRtl ? 'غير نشط' : 'Inactive'}</option>
-                        </select>
-                    </div>
-                </div>
-
+                {/* Row List */}
                 <HierarchyTree 
                     data={data}
-                    expandedNodes={expandedNodes}
-                    loadingNodes={loadingNodes}
-                    onToggle={onToggle}
                     onSelect={onSelect}
-                    selectedNodes={selectedNodes}
                     activeNode={activeNode}
                     config={config}
                     onAction={onAction}
                     isRtl={isRtl}
                 />
+
+                {/* Footer Add Button */}
+                {data.length > 0 && config.canAddRoot && (
+                    <div className="row-list-footer">
+                        <button
+                            className="btn btn-add-item"
+                            onClick={() => onAction('add_root')}
+                        >
+                            <i className="fas fa-plus me-2" />
+                            {config.getAddRootLabel?.() || (isRtl ? 'إضافة جديد' : 'Add State')}
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );

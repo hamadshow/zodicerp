@@ -221,8 +221,8 @@ Route::group([
         Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     });
 
-    Route::middleware('auth')->get('dashboard', function () {
-        return Inertia::render('Backend/dashboard');
+    Route::middleware('auth:web,employee')->get('dashboard', function () {
+        return Inertia::render('Backend/Interface');
     })->name('dashboard');
 
     // 4. Customer Auth (مصادقة العملاء)
@@ -274,10 +274,11 @@ Route::group([
     // ------------------------------------------------------------------------
     // C. Admin & Backend Routes (مسارات لوحة التحكم والإدارة)
     // ------------------------------------------------------------------------
-    Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware(['auth:web,employee', 'admin'])->prefix('admin')->name('admin.')->group(function () {
 
         // Dashboard (لوحة التحكم الرئيسية)
         Route::get('', [AdminController::class, 'index'])->name('dashboard');
+        Route::get('system-dashboard', [AdminController::class, 'dashboard'])->name('system.dashboard');
 
         // 1. Media Management (إدارة الوسائط)
         Route::prefix('media')->name('media.')->group(function () {
@@ -359,9 +360,6 @@ Route::group([
                 'employees' => $employees
             ]);
         })->name('salary-receipt.index');
-        Route::get('permissions', function () {
-            return Inertia::render('Backend/02_human_resource/Permissions');
-        })->name('permissions.index');
         Route::get('traffic-violations', function () {
             $employees = Employee::select('id', 'name', 'position', 'department')->get();
             return Inertia::render('Backend/02_human_resource/Traffic-Violations', [

@@ -23,4 +23,19 @@ class Branch extends Model
     {
         return $this->belongsTo(Location::class, 'location_id');
     }
+
+    public function countryData()
+    {
+        return $this->belongsTo(Location::class, 'country');
+    }
+
+    public function cityData()
+    {
+        return $this->belongsTo(Location::class, 'city');
+    }
+
+    public function areaData()
+    {
+        return $this->belongsTo(Location::class, 'area');
+    }
 }

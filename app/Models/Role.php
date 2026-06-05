@@ -35,4 +35,14 @@ class Role extends Model
     {
         return $this->belongsToMany(User::class, 'role_users');
     }
+
+    public function employees()
+    {
+        return $this->belongsToMany(Employee::class, 'employee_roles');
+    }
+
+    public function permissions_list()
+    {
+        return $this->belongsToMany(Permission::class, 'role_permissions');
+    }
 }

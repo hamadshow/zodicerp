@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
+use Illuminate\Support\Facades\Gate;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -28,6 +30,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Centralized Authorization Gate
+        Gate::before(function ($user, $ability) {
+            if (method_exists($user, 'hasPermission')) {
+                if ($user->hasPermission($ability)) {
+                    return true;
+                }
+            }
+            return null; // Fall through to other gates if any
+        });
+
         Relation::morphMap([
             'bank' => BankAccount::class,
             'cash' => CashAccount::class,

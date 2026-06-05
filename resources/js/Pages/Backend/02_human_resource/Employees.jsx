@@ -30,6 +30,7 @@ const resolveMediaUrl = (value) => {
 const EmployeesManagement = () => {
   // Admin layout state - Removed redundant state
   const page = usePage();
+  const { nationalities = [], professions: initialProfessions = [], roles = [] } = page.props;
   const localization = page?.props?.localization;
   const isArabic = localization?.current_locale === 'ar';
 
@@ -56,6 +57,7 @@ const EmployeesManagement = () => {
     address: '',
     notes: '',
     avatar: null,
+    role_ids: [],
   });
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
@@ -65,8 +67,10 @@ const EmployeesManagement = () => {
   const [rowsPerPage] = useState(10);
   const [toast, setToast] = useState(null);
   const [departments, setDepartments] = useState([]);
-  const [professions, setProfessions] = useState([]);
+  const [professions, setProfessions] = useState(initialProfessions);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
+  const [salaryError, setSalaryError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
 
   // Department and nationality mappings
   const departmentNames = {
@@ -80,16 +84,25 @@ const EmployeesManagement = () => {
     engineering: 'Engineering',
   };
 
-  const nationalityNames = {
-    egyptian: 'Egyptian',
-    american: 'American',
-    british: 'British',
-    saudi: 'Saudi Arabian',
-    emirati: 'Emirati',
-    indian: 'Indian',
-    pakistani: 'Pakistani',
-    french: 'French',
-  };
+  const nationalityNames = useMemo(() => {
+    const names = {
+      egyptian: 'Egyptian',
+      american: 'American',
+      british: 'British',
+      saudi: 'Saudi Arabian',
+      emirati: 'Emirati',
+      indian: 'Indian',
+      pakistani: 'Pakistani',
+      french: 'French',
+    };
+
+    // Add nationalities from database to the mapping
+    nationalities.forEach(nat => {
+      names[nat.name] = nat.name;
+    });
+
+    return names;
+  }, [nationalities]);
 
   // Sample data (in production, this would come from an API)
   const sampleEmployees = [];
@@ -216,6 +229,7 @@ const EmployeesManagement = () => {
         email: employee.email,
         phone: employee.phone || '',
         role: employee.role || 'employee',
+        role_ids: employee.roles ? employee.roles.map(r => r.id) : [],
         department: employee.department,
         position: employee.position,
         hire_date: employee.hire_date ? employee.hire_date.split('T')[0] : '',
@@ -247,6 +261,7 @@ const EmployeesManagement = () => {
       password: '',
       phone: '',
       role: 'employee',
+      role_ids: [],
       department: '',
       position: '',
       hire_date: new Date().toISOString().split('T')[0],
@@ -257,6 +272,10 @@ const EmployeesManagement = () => {
       notes: '',
       avatar: null,
     });
+    setSelectedDepartmentId('');
+    setSalaryError('');
+    setPhoneError('');
+    setProfessions([]);
     setAvatarFile(null);
     setAvatarPreview(null);
   };
@@ -268,6 +287,39 @@ const EmployeesManagement = () => {
       ...prev,
       [id]: value,
     }));
+
+    if (id === 'phone') {
+      setPhoneError('');
+    }
+
+    if (id === 'salary' || id === 'position') {
+      validateSalary(id === 'salary' ? value : formData.salary, id === 'position' ? value : formData.position);
+    }
+  };
+
+  const validateSalary = (salary, professionName) => {
+    if (!salary || !professionName) {
+      setSalaryError('');
+      return true;
+    }
+
+    const profession = professions.find(p => p.profession_name === professionName);
+    if (!profession) {
+      setSalaryError('');
+      return true;
+    }
+
+    const min = parseFloat(profession.min_salary);
+    const max = parseFloat(profession.max_salary);
+    const val = parseFloat(salary);
+
+    if (val < min || val > max) {
+      setSalaryError(`Salary must be between ${min} and ${max}`);
+      return false;
+    }
+
+    setSalaryError('');
+    return true;
   };
 
   const handleAvatarChange = (e) => {
@@ -310,6 +362,11 @@ const EmployeesManagement = () => {
       return;
     }
 
+    if (!validateSalary(formData.salary, formData.position)) {
+      showToast('Salary is out of range for the selected profession', 'error');
+      return;
+    }
+
     if (!editingEmployee) {
       if (!formData.password) {
         showToast('Password is required for new employees', 'error');
@@ -332,6 +389,14 @@ const EmployeesManagement = () => {
       if (formData.password) submitData.append('password', formData.password);
       if (formData.phone) submitData.append('phone', formData.phone);
       if (formData.role) submitData.append('role', formData.role);
+      
+      // Add role_ids to submitData
+      if (formData.role_ids && formData.role_ids.length > 0) {
+        formData.role_ids.forEach(id => {
+            submitData.append('role_ids[]', id);
+        });
+      }
+
       submitData.append('department', formData.department);
       submitData.append('position', formData.position);
       submitData.append('hire_date', formData.hire_date);
@@ -364,11 +429,22 @@ const EmployeesManagement = () => {
       const status = error?.response?.status;
       if (status === 422) {
         const errs = error?.response?.data?.errors || {};
+        
+        if (errs.phone) {
+          setPhoneError(Array.isArray(errs.phone) ? errs.phone[0] : errs.phone);
+        }
+
+        if (errs.salary) {
+          setSalaryError(Array.isArray(errs.salary) ? errs.salary[0] : errs.salary);
+        }
+
         const msg =
           (Array.isArray(errs.password) && errs.password[0]) ||
           (Array.isArray(errs.email) && errs.email[0]) ||
           (Array.isArray(errs.first_name) && errs.first_name[0]) ||
           (Array.isArray(errs.last_name) && errs.last_name[0]) ||
+          (Array.isArray(errs.phone) && errs.phone[0]) ||
+          (Array.isArray(errs.salary) && errs.salary[0]) ||
           'Validation error';
         showToast(msg, 'error');
       } else {
@@ -733,33 +809,41 @@ const EmployeesManagement = () => {
 
               <div className="form-row">
                 <div className="form-group">
-                  <label className="form-label">Phone</label>
+                  <label className="form-label">Phone Number</label>
                   <input
                     type="tel"
-                    className="form-control"
+                    className={`form-control ${phoneError ? 'is-invalid' : ''}`}
                     id="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
                     placeholder="Enter phone number"
                   />
+                  {phoneError && (
+                    <div className="text-danger" style={{ fontSize: '12px', marginTop: '4px', color: '#dc3545', fontWeight: '500' }}>
+                      {phoneError}
+                    </div>
+                  )}
                 </div>
                 <div className="form-group">
-                  <label className="form-label">Role *</label>
-                  <select
-                    className="form-control"
-                    id="role"
-                    value={formData.role}
-                    onChange={handleInputChange}
-                    required
-                  >
-                    {!['admin', 'supplier', 'customer', 'employee'].includes(formData.role) && formData.role && (
-                      <option value={formData.role}>{formData.role}</option>
-                    )}
-                    <option value="employee">Employee</option>
-                    <option value="admin">Admin</option>
-                    <option value="supplier">Supplier</option>
-                    <option value="customer">Customer</option>
-                  </select>
+                  <label className="form-label">Employee Roles</label>
+                  <div className="roles-selection-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', maxHeight: '150px', overflowY: 'auto', border: '1px solid #e2e8f0', padding: '10px', borderRadius: '8px' }}>
+                    {roles.map(role => (
+                        <label key={role.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <input 
+                                type="checkbox" 
+                                checked={formData.role_ids.includes(role.id)}
+                                onChange={(e) => {
+                                    if (e.target.checked) {
+                                        setFormData(prev => ({ ...prev, role_ids: [...prev.role_ids, role.id] }));
+                                    } else {
+                                        setFormData(prev => ({ ...prev, role_ids: prev.role_ids.filter(id => id !== role.id) }));
+                                    }
+                                }}
+                            />
+                            <span>{role.name}</span>
+                        </label>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -781,20 +865,26 @@ const EmployeesManagement = () => {
                     ))}
                   </select>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Position *</label>
+                <div className={`form-group transition-all duration-300 ${!selectedDepartmentId ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                  <label className="form-label">Professions *</label>
                   <select
                     className="form-control"
                     id="position"
                     value={formData.position}
                     onChange={handleInputChange}
                     required
-                    disabled={professions.length === 0}
+                    disabled={!selectedDepartmentId || professions.length === 0}
                   >
-                    <option value="">Select Position</option>
-                    {professions.map((p) => (
-                      <option key={p.id} value={p.profession_name}>
-                        {p.profession_name}
+                    <option value="">
+                      {!selectedDepartmentId 
+                        ? 'Select Department First' 
+                        : professions.length === 0 
+                          ? 'No Professions Found' 
+                          : 'Select Profession'}
+                    </option>
+                    {professions.map((prof) => (
+                      <option key={prof.id} value={prof.profession_name}>
+                        {prof.profession_name}
                       </option>
                     ))}
                   </select>
@@ -817,7 +907,7 @@ const EmployeesManagement = () => {
                   <label className="form-label">Salary ($)</label>
                   <input
                     type="number"
-                    className="form-control"
+                    className={`form-control ${salaryError ? 'is-invalid' : ''}`}
                     id="salary"
                     value={formData.salary}
                     onChange={handleInputChange}
@@ -825,6 +915,11 @@ const EmployeesManagement = () => {
                     min="0"
                     step="0.01"
                   />
+                  {salaryError && (
+                    <div className="text-danger" style={{ fontSize: '12px', marginTop: '4px', color: '#dc3545', fontWeight: '500' }}>
+                      {salaryError}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -838,14 +933,11 @@ const EmployeesManagement = () => {
                     onChange={handleInputChange}
                   >
                     <option value="">Select Nationality</option>
-                    <option value="egyptian">Egyptian</option>
-                    <option value="american">American</option>
-                    <option value="british">British</option>
-                    <option value="saudi">Saudi Arabian</option>
-                    <option value="emirati">Emirati</option>
-                    <option value="indian">Indian</option>
-                    <option value="pakistani">Pakistani</option>
-                    <option value="french">French</option>
+                    {nationalities.map((nat) => (
+                      <option key={nat.id} value={nat.name}>
+                        {nat.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="form-group">
@@ -1006,9 +1098,11 @@ const EmployeesManagement = () => {
                     </span>
                   </div>
                   <div className="detail-row">
-                    <span className="detail-label">Role:</span>
-                    <span className="detail-value" style={{ textTransform: 'capitalize' }}>
-                      {viewingEmployee.role || 'Employee'}
+                    <span className="detail-label">Roles:</span>
+                    <span className="detail-value">
+                      {viewingEmployee.roles && viewingEmployee.roles.length > 0 
+                        ? viewingEmployee.roles.map(r => r.name).join(', ') 
+                        : (viewingEmployee.role || 'Employee')}
                     </span>
                   </div>
                   <div className="detail-row">

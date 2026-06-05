@@ -15,9 +15,24 @@ class ProfessionController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $professions = Profession::orderBy('sort_order', 'asc')->get();
+        $query = Profession::orderBy('sort_order', 'asc');
+
+        if ($request->has('department_id') && $request->department_id) {
+            $query->where('category', $request->department_id);
+        }
+
+        if ($request->has('status') && $request->status) {
+            $query->where('status', $request->status);
+        }
+
+        $professions = $query->get();
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json($professions);
+        }
+
         $departments = Department::where('is_active', true)->select('id', 'name_en', 'name_ar')->get();
         
         return Inertia::render('Backend/02_human_resource/Profession', [
