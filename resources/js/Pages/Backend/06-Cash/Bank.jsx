@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import React, { useState, useEffect } from 'react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import BlankPage from '../../../Components/BlankPage';
 import '../../../../css/backend/main.scss';
 
 
@@ -26,27 +27,6 @@ const resolveMediaUrl = (value) => {
 
 // --- Components ---
 
-const StatsCard = ({ icon, bgColor, value, label }) => (
-    <div className="stat-card">
-        <div className="stat-icon" style={{ backgroundColor: bgColor }}>
-            <span className="material-icons-outlined">{icon}</span>
-        </div>
-        <div className="stat-content">
-            <div className="stat-value">{value}</div>
-            <div className="stat-label">{label}</div>
-        </div>
-    </div>
-);
-
-const FilterTab = ({ id, label, isActive, onClick }) => (
-    <div
-        className={`filter-tab ${isActive ? 'active' : ''}`}
-        onClick={() => onClick(id)}
-    >
-        {label}
-    </div>
-);
-
 // --- Modals ---
 
 const AddEditBankModal = ({ isOpen, onClose, bank, isEditing, currencies }) => {
@@ -63,7 +43,7 @@ const AddEditBankModal = ({ isOpen, onClose, bank, isEditing, currencies }) => {
         });
     };
 
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors, clearErrors } = useForm({
         bank_code: '',
         name: '',
         short_name: '',
@@ -76,6 +56,8 @@ const AddEditBankModal = ({ isOpen, onClose, bank, isEditing, currencies }) => {
     });
 
     useEffect(() => {
+        if (!isOpen) return;
+
         if (bank) {
             setData({
                 bank_code: bank.bank_code || '',
@@ -86,10 +68,21 @@ const AddEditBankModal = ({ isOpen, onClose, bank, isEditing, currencies }) => {
                 country: bank.country || '',
                 currency: bank.currency || '',
                 status: bank.status || 'active',
-                logo: null, // Don't set file input value
+                logo: null,
             });
         } else {
-            reset();
+            setData({
+                bank_code: '',
+                name: '',
+                short_name: '',
+                swift_code: '',
+                iban_prefix: '',
+                country: '',
+                currency: '',
+                status: 'active',
+                logo: null,
+            });
+            clearErrors();
         }
     }, [bank, isOpen]);
 
@@ -113,7 +106,7 @@ const AddEditBankModal = ({ isOpen, onClose, bank, isEditing, currencies }) => {
     if (!isOpen) return null;
 
     return (
-        <div className={`modal-overlay ${isOpen ? 'active' : ''}`}>
+        <div className={`modal-overlay bank-modal-overlay ${isOpen ? 'active' : ''}`}>
             <div className="modal-content">
                 <div className="modal-header">
                     <h2>{isEditing ? t('edit_bank', 'Edit Bank') : t('add_new_bank', 'Add New Bank')}</h2>
@@ -249,7 +242,7 @@ const AddEditBankModal = ({ isOpen, onClose, bank, isEditing, currencies }) => {
     );
 };
 
-const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAccounts, onSuccess, currencies }) => {
+const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAccounts, currencies, onSuccess, parentBank }) => {
     const { props } = usePage();
     const localization = props.localization;
     const translations = localization?.translations || {};
@@ -263,7 +256,8 @@ const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAc
         });
     };
 
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, put, processing, errors, clearErrors } = useForm({
+        account_type: 'bank',
         bank_id: bankId,
         account_name: '',
         account_number: '',
@@ -277,8 +271,11 @@ const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAc
     });
 
     useEffect(() => {
+        if (!isOpen) return;
+
         if (account) {
             setData({
+                account_type: account.account_type || 'bank',
                 bank_id: account.bank_id,
                 account_name: account.account_name || '',
                 account_number: account.account_number || '',
@@ -291,11 +288,22 @@ const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAc
                 status: account.status || 'active',
             });
         } else {
-            reset();
-            setData('bank_id', bankId);
-            setData('currency', '');
+            setData({
+                account_type: parentBank?.bank_code === 'CASH' ? 'cash' : 'bank',
+                bank_id: bankId,
+                account_name: '',
+                account_number: '',
+                iban: '',
+                currency: '',
+                opening_balance: 0,
+                current_balance: 0,
+                gl_account_id: '',
+                is_default: false,
+                status: 'active',
+            });
+            clearErrors();
         }
-    }, [account, bankId, isOpen]);
+    }, [account, bankId, isOpen, parentBank]);
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -317,7 +325,7 @@ const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAc
     if (!isOpen) return null;
 
     return (
-        <div className={`modal-overlay ${isOpen ? 'active' : ''}`} style={{ zIndex: 1100 }}>
+        <div className={`modal-overlay bank-modal-overlay ${isOpen ? 'active' : ''}`} style={{ zIndex: 1100 }}>
             <div className="modal-content">
                 <div className="modal-header">
                     <h2>{isEditing ? t('edit_account', 'Edit Account') : t('add_bank_account', 'Add Bank Account')}</h2>
@@ -457,205 +465,6 @@ const AddEditAccountModal = ({ isOpen, onClose, bankId, account, isEditing, glAc
     );
 };
 
-const ViewBankModal = ({ isOpen, onClose, bank, glAccounts, currencies }) => {
-    const { props } = usePage();
-    const localization = props.localization;
-    const translations = localization?.translations || {};
-    const t = (key, fallback) => translations[`Bank.${key}`] || translations[`common.${key}`] || fallback;
-
-    const getLocalizedRoute = (name, params = {}) => {
-        return route(name, {
-            country: localization?.country_code || 'sa',
-            lang: localization?.current_locale || 'ar',
-            ...params
-        });
-    };
-
-    const [accounts, setAccounts] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [accountModalOpen, setAccountModalOpen] = useState(false);
-    const [editingAccount, setEditingAccount] = useState(null);
-
-    const fetchAccounts = useCallback(async () => {
-        if (!bank) return;
-        setLoading(true);
-        try {
-            const response = await fetch(getLocalizedRoute('admin.banks.accounts.index', { bank: bank.id }));
-            if (response.ok) {
-                const data = await response.json();
-                setAccounts(data);
-            }
-        } catch (error) {
-            console.error('Error fetching accounts:', error);
-        } finally {
-            setLoading(false);
-        }
-    }, [bank]);
-
-    useEffect(() => {
-        if (isOpen && bank) {
-            fetchAccounts();
-        }
-    }, [isOpen, bank, fetchAccounts]);
-
-    const handleAddAccount = () => {
-        setEditingAccount(null);
-        setAccountModalOpen(true);
-    };
-
-    const handleEditAccount = (account) => {
-        setEditingAccount(account);
-        setAccountModalOpen(true);
-    };
-
-    const handleDeleteAccount = (id) => {
-        if (confirm(t('delete_account_confirm', 'Are you sure you want to delete this account?'))) {
-            router.delete(getLocalizedRoute('admin.banks.accounts.destroy', { bankAccount: id }), {
-                onSuccess: () => fetchAccounts(),
-                preserveScroll: true,
-            });
-        }
-    };
-
-    if (!isOpen || !bank) return null;
-
-    return (
-        <>
-            <div className={`modal-overlay ${isOpen ? 'active' : ''}`}>
-                <div className="modal-content large">
-                    <div className="modal-header">
-                        <h2>{bank.name} - {t('bank_details_accounts', 'Details & Accounts')}</h2>
-                        <button className="close-btn" onClick={onClose}>
-                            <span className="material-icons-outlined">close</span>
-                        </button>
-                    </div>
-                    <div className="modal-body">
-                        <div className="bank-details-grid">
-                            <div className="bank-info-sidebar">
-                                <div className="bank-logo-preview">
-                                    {bank.logo ? (
-                                        <img src={resolveMediaUrl(bank.logo)} alt={bank.name} />
-                                    ) : (
-                                        <span className="material-icons-outlined text-4xl text-gray-300">account_balance</span>
-                                    )}
-                                </div>
-                                <div className="info-item">
-                                    <div className="info-label">{t('bank_code', 'Bank Code')}</div>
-                                    <div className="info-value">{bank.bank_code}</div>
-                                </div>
-                                <div className="info-item">
-                                    <div className="info-label">{t('swift_code', 'Swift Code')}</div>
-                                    <div className="info-value">{bank.swift_code || '-'}</div>
-                                </div>
-                                <div className="info-item">
-                                    <div className="info-label">{t('country', 'Country')}</div>
-                                    <div className="info-value">{bank.country || '-'}</div>
-                                </div>
-                                <div className="info-item">
-                                    <div className="info-label">{t('currency', 'Currency')}</div>
-                                    <div className="info-value">{bank.currency}</div>
-                                </div>
-                                <div className="info-item">
-                                    <div className="info-label">{t('status', 'Status')}</div>
-                                    <span className={`status-badge status-${bank.status}`}>
-                                        {bank.status === 'active' ? t('active', 'Active') : t('inactive', 'Inactive')}
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="accounts-section">
-                                <div className="section-header">
-                                    <div className="section-title">{t('bank_accounts', 'Bank Accounts')}</div>
-                                    <button className="btn btn-primary" onClick={handleAddAccount} style={{ padding: '6px 12px', fontSize: '12px' }}>
-                                        <span className="material-icons-outlined" style={{ fontSize: '16px' }}>add</span>
-                                        {t('add_account', 'Add Account')}
-                                    </button>
-                                </div>
-
-                                {loading ? (
-                                    <div className="loading-spinner">
-                                        <div className="spinner"></div>
-                                        <p>{t('loading_accounts', 'Loading accounts...')}</p>
-                                    </div>
-                                ) : (
-                                    <table className="accounts-table">
-                                        <thead>
-                                            <tr>
-                                                <th>{t('account_name', 'Account Name')}</th>
-                                                <th>{t('number_iban', 'Number / IBAN')}</th>
-                                                <th>{t('currency', 'Currency')}</th>
-                                                <th>{t('balance', 'Balance')}</th>
-                                                <th>{t('status', 'Status')}</th>
-                                                <th>{t('actions', 'Actions')}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {accounts.length === 0 ? (
-                                                <tr>
-                                                    <td colSpan="6" className="text-center text-gray-500 py-4">
-                                                        {t('no_accounts_found', 'No accounts found.')}
-                                                    </td>
-                                                </tr>
-                                            ) : (
-                                                accounts.map(acc => (
-                                                    <tr key={acc.id}>
-                                                        <td>
-                                                            <div className="font-medium">{acc.account_name}</div>
-                                                            {acc.is_default && (
-                                                                <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full">{t('default', 'Default')}</span>
-                                                            )}
-                                                        </td>
-                                                        <td>
-                                                            <div className="text-sm">{acc.account_number}</div>
-                                                            <div className="text-xs text-gray-500">{acc.iban}</div>
-                                                        </td>
-                                                        <td>
-                                                            <span className="currency-badge">{acc.currency_info?.code || acc.currency}</span>
-                                                        </td>
-                                                        <td>
-                                                            <div className="balance-value">{new Intl.NumberFormat('en-US', { minimumFractionDigits: 2 }).format(acc.current_balance)}</div>
-                                                        </td>
-                                                        <td>
-                                                            <span className={`status-badge status-${acc.status}`}>
-                                                                {acc.status === 'active' ? t('active', 'Active') : t('inactive', 'Inactive')}
-                                                            </span>
-                                                        </td>
-                                                        <td>
-                                                            <div className="flex gap-2">
-                                                                <button className="icon-btn edit" onClick={() => handleEditAccount(acc)}>
-                                                                    <span className="material-icons-outlined" style={{ fontSize: '18px' }}>edit</span>
-                                                                </button>
-                                                                <button className="icon-btn delete" onClick={() => handleDeleteAccount(acc.id)}>
-                                                                    <span className="material-icons-outlined" style={{ fontSize: '18px' }}>delete</span>
-                                                                </button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))
-                                            )}
-                                        </tbody>
-                                    </table>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <AddEditAccountModal
-                isOpen={accountModalOpen}
-                onClose={() => setAccountModalOpen(false)}
-                bankId={bank?.id}
-                account={editingAccount}
-                isEditing={!!editingAccount}
-                glAccounts={glAccounts}
-                onSuccess={fetchAccounts}
-                currencies={currencies}
-            />
-        </>
-    );
-};
-
 // --- Main Page Component ---
 
 const Bank = ({ banks, currencies, glAccounts }) => {
@@ -741,210 +550,221 @@ const Bank = ({ banks, currencies, glAccounts }) => {
         }
     };
 
-    const stats = {
+    const stats_info = {
         total: banksData.length,
         active: banksData.filter(b => b.status === 'active').length,
         accounts: banksData.reduce((acc, b) => acc + (b.accounts_count || 0), 0)
     };
 
+    const breadcrumbs = [
+        { label: t('dashboard', 'Dashboard'), href: getLocalizedRoute('admin.dashboard') },
+        { label: t('title', 'Bank Management') }
+    ];
+
+    const statsCards = (
+        <div className="stats-cards">
+            <div className="stat-card">
+                <div className="stat-icon bg-blue-500"><span className="material-icons-outlined">account_balance</span></div>
+                <div className="stat-info">
+                    <h3>{stats_info.total}</h3>
+                    <p>{t('total_banks', 'Total Banks')}</p>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon bg-green-500"><span className="material-icons-outlined">check_circle</span></div>
+                <div className="stat-info">
+                    <h3>{stats_info.active}</h3>
+                    <p>{t('active_page', 'Active (Page)')}</p>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon bg-purple-500"><span className="material-icons-outlined">account_balance_wallet</span></div>
+                <div className="stat-info">
+                    <h3>{stats_info.accounts}</h3>
+                    <p>{t('total_accounts_page', 'Total Accounts (Page)')}</p>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <AdminLayout activeMenu="Cash">
             <Head title={t('title', 'Bank Management')} />
             
-            <div className="breadcrumb">
-                <Link href={getLocalizedRoute('admin.dashboard')}>{t('dashboard', 'Dashboard')}</Link>
-                <span>/</span>
-                <span>{t('title', 'Bank Management')}</span>
-            </div>
-
-            <div className="stats-cards">
-                <div className="stat-card">
-                    <div className="stat-icon bg-blue-500"><span className="material-icons-outlined">account_balance</span></div>
-                    <div className="stat-info">
-                        <h3>{stats.total}</h3>
-                        <p>{t('total_banks', 'Total Banks')}</p>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon bg-green-500"><span className="material-icons-outlined">check_circle</span></div>
-                    <div className="stat-info">
-                        <h3>{stats.active}</h3>
-                        <p>{t('active_page', 'Active (Page)')}</p>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon bg-purple-500"><span className="material-icons-outlined">account_balance_wallet</span></div>
-                    <div className="stat-info">
-                        <h3>{stats.accounts}</h3>
-                        <p>{t('total_accounts_page', 'Total Accounts (Page)')}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="bank-management-container">
-                <div className="banks-section card">
-                    <div className="card-header">
-                        <h2>{t('all_banks', 'All Banks')}</h2>
-                        <div className="header-actions">
-                            <div className="search-bar light">
-                                <input 
-                                    type="text" 
-                                    placeholder={t('search_banks', 'Search banks...')} 
-                                    value={searchTerm}
-                                    onChange={e => setSearchTerm(e.target.value)}
-                                />
-                                <button><span className="material-icons-outlined">search</span></button>
+            <BlankPage
+                breadcrumbs={breadcrumbs}
+                stats={statsCards}
+            >
+                <div className="bank-management-container">
+                    <div className="banks-section card">
+                        <div className="card-header">
+                            <h2>{t('all_banks', 'All Banks')}</h2>
+                            <div className="header-actions">
+                                <div className="search-bar light">
+                                    <input 
+                                        type="text" 
+                                        placeholder={t('search_banks', 'Search banks...')} 
+                                        value={searchTerm}
+                                        onChange={e => setSearchTerm(e.target.value)}
+                                    />
+                                    <button><span className="material-icons-outlined">search</span></button>
+                                </div>
+                                <button className="btn btn-primary" onClick={() => { setCurrentBank(null); setIsBankModalOpen(true); }}>
+                                    <span className="material-icons-outlined">add</span>
+                                    <span>{t('add_bank', 'Add Bank')}</span>
+                                </button>
                             </div>
-                            <button className="btn btn-primary" onClick={() => { setCurrentBank(null); setIsBankModalOpen(true); }}>
-                                <span className="material-icons-outlined">add</span>
-                                <span>{t('add_bank', 'Add Bank')}</span>
-                            </button>
                         </div>
-                    </div>
-                    <div className="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th onClick={() => requestSort('id')} className="cursor-pointer">
-                                        <div className="flex items-center gap-1">
-                                            ID
-                                            <span className="material-icons-outlined text-xs">
-                                                {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'sort'}
-                                            </span>
-                                        </div>
-                                    </th>
-                                    <th>{t('bank', 'Bank')}</th>
-                                    <th>{t('code', 'Code')}</th>
-                                    <th>{t('swift_iban_prefix', 'Swift / IBAN Prefix')}</th>
-                                    <th>{t('status', 'Status')}</th>
-                                    <th>{t('actions', 'Actions')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredBanks.map(bank => (
-                                    <tr key={bank.id} className={selectedBankId === bank.id ? 'selected-row' : ''}>
-                                        <td>{bank.id}</td>
-                                        <td>
-                                            <div className="bank-info" onClick={() => { setSelectedBankId(bank.id); fetchBankAccounts(bank.id); }}>
-                                                {bank.logo ? <img src={resolveMediaUrl(bank.logo)} alt="" className="bank-logo" /> : <span className="material-icons-outlined">account_balance</span>}
-                                                <div className="bank-name-details">
-                                                    <strong>{bank.name}</strong>
-                                                    <span>{bank.short_name}</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>{bank.bank_code}</td>
-                                        <td>
-                                            <div className="prefix-info">
-                                                <span>{bank.swift_code || '-'}</span>
-                                                <small>{bank.iban_prefix || '-'}</small>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span className={`status-badge ${bank.status}`}>
-                                                {bank.status === 'active' ? t('active', 'Active') : t('inactive', 'Inactive')}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div className="action-buttons">
-                                                <button className="icon-btn edit" onClick={() => { setCurrentBank(bank); setIsBankModalOpen(true); }}><span className="material-icons-outlined">edit</span></button>
-                                                <button className="icon-btn delete" onClick={() => handleBankDelete(bank.id)}><span className="material-icons-outlined">delete</span></button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {filteredBanks.length === 0 && (
-                                    <tr><td colSpan="6" className="text-center py-8">{t('no_banks_found', 'No banks found.')}</td></tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <div className="accounts-section card">
-                    <div className="card-header">
-                        <h2>{t('bank_accounts', 'Bank Accounts')}</h2>
-                        {selectedBankId && (
-                            <button className="btn btn-sm btn-primary" onClick={() => { setCurrentAccount(null); setIsAccountModalOpen(true); }}>
-                                <span className="material-icons-outlined">add</span>
-                                <span>{t('add_account', 'Add Account')}</span>
-                            </button>
-                        )}
-                    </div>
-                    <div className="table-container">
-                        {loadingAccounts ? (
-                            <div className="loading-state py-8 text-center">{t('loading_accounts', 'Loading accounts...')}</div>
-                        ) : selectedBankId ? (
+                        <div className="table-container">
                             <table>
                                 <thead>
                                     <tr>
-                                        <th>{t('account_name', 'Account Name')}</th>
-                                        <th>{t('number_iban', 'Number / IBAN')}</th>
-                                        <th>{t('balance', 'Balance')}</th>
+                                        <th onClick={() => requestSort('id')} className="cursor-pointer">
+                                            <div className="flex items-center gap-1">
+                                                ID
+                                                <span className="material-icons-outlined text-xs">
+                                                    {sortConfig.key === 'id' ? (sortConfig.direction === 'asc' ? 'arrow_upward' : 'arrow_downward') : 'sort'}
+                                                </span>
+                                            </div>
+                                        </th>
+                                        <th>{t('bank', 'Bank')}</th>
+                                        <th>{t('code', 'Code')}</th>
+                                        <th>{t('swift_iban_prefix', 'Swift / IBAN Prefix')}</th>
+                                        <th>{t('status', 'Status')}</th>
                                         <th>{t('actions', 'Actions')}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {bankAccounts.map(account => (
-                                        <tr key={account.id}>
+                                    {filteredBanks.map(bank => (
+                                        <tr key={bank.id} className={selectedBankId === bank.id ? 'selected-row' : ''}>
+                                            <td>{bank.id}</td>
                                             <td>
-                                                <div className="account-info">
-                                                    <strong>{account.account_name}</strong>
-                                                    {account.is_default && <span className="default-tag">{t('default', 'Default')}</span>}
+                                                <div className="bank-info" onClick={() => { setSelectedBankId(bank.id); fetchBankAccounts(bank.id); }}>
+                                                    {bank.logo ? <img src={resolveMediaUrl(bank.logo)} alt="" className="bank-logo" /> : <span className="material-icons-outlined">account_balance</span>}
+                                                    <div className="bank-name-details">
+                                                        <strong>{bank.name}</strong>
+                                                        <span>{bank.short_name}</span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{bank.bank_code}</td>
+                                            <td>
+                                                <div className="prefix-info">
+                                                    <span>{bank.swift_code || '-'}</span>
+                                                    <small>{bank.iban_prefix || '-'}</small>
                                                 </div>
                                             </td>
                                             <td>
-                                                <div className="number-info">
-                                                    <span>{account.account_number}</span>
-                                                    <small>{account.iban || '-'}</small>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <div className="balance-info">
-                                                    <strong>{account.current_balance.toLocaleString()} {account.currency_info?.code || account.currency}</strong>
-                                                </div>
+                                                <span className={`status-badge ${bank.status}`}>
+                                                    {bank.status === 'active' ? t('active', 'Active') : t('inactive', 'Inactive')}
+                                                </span>
                                             </td>
                                             <td>
                                                 <div className="action-buttons">
-                                                    <button className="icon-btn edit" onClick={() => { setCurrentAccount(account); setIsAccountModalOpen(true); }}><span className="material-icons-outlined">edit</span></button>
-                                                    <button className="icon-btn delete" onClick={() => handleAccountDelete(account.id)}><span className="material-icons-outlined">delete</span></button>
+                                                    <button className="icon-btn edit" onClick={() => { setCurrentBank(bank); setIsBankModalOpen(true); }}><span className="material-icons-outlined">edit</span></button>
+                                                    <button className="icon-btn delete" onClick={() => handleBankDelete(bank.id)}><span className="material-icons-outlined">delete</span></button>
                                                 </div>
                                             </td>
                                         </tr>
                                     ))}
-                                    {bankAccounts.length === 0 && (
-                                        <tr><td colSpan="4" className="text-center py-8">{t('no_accounts_found', 'No accounts found.')}</td></tr>
+                                    {filteredBanks.length === 0 && (
+                                        <tr><td colSpan="6" className="text-center py-8">{t('no_banks_found', 'No banks found.')}</td></tr>
                                     )}
                                 </tbody>
                             </table>
-                        ) : (
-                            <div className="select-bank-prompt py-12 text-center text-gray-500">
-                                <span className="material-icons-outlined text-4xl mb-2">touch_app</span>
-                                <p>{t('select_bank_to_view_accounts', 'Select a bank to view its accounts')}</p>
-                            </div>
-                        )}
+                        </div>
+                    </div>
+
+                    <div className="accounts-section card">
+                        <div className="card-header">
+                            <h2>{t('bank_accounts', 'Bank Accounts')}</h2>
+                            {selectedBankId && (
+                                <button className="btn btn-sm btn-primary" onClick={() => { setCurrentAccount(null); setIsAccountModalOpen(true); }}>
+                                    <span className="material-icons-outlined">add</span>
+                                    <span>{t('add_account', 'Add Account')}</span>
+                                </button>
+                            )}
+                        </div>
+                        <div className="table-container">
+                            {loadingAccounts ? (
+                                <div className="loading-state py-8 text-center">{t('loading_accounts', 'Loading accounts...')}</div>
+                            ) : selectedBankId ? (
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>{t('account_name', 'Account Name')}</th>
+                                            <th>{t('number_iban', 'Number / IBAN')}</th>
+                                            <th>{t('balance', 'Balance')}</th>
+                                            <th>{t('actions', 'Actions')}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {bankAccounts.map(account => (
+                                            <tr key={account.id}>
+                                                <td>
+                                                    <div className="account-info">
+                                                        <strong>{account.account_name}</strong>
+                                                        {account.is_default && <span className="default-tag">{t('default', 'Default')}</span>}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className="number-info">
+                                                        <span>{account.account_number}</span>
+                                                        <small>{account.iban || '-'}</small>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className="balance-info">
+                                                        <strong>{account.current_balance.toLocaleString()} {account.currency_info?.code || account.currency}</strong>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div className="action-buttons">
+                                                        <button className="icon-btn edit" onClick={() => { setCurrentAccount(account); setIsAccountModalOpen(true); }}><span className="material-icons-outlined">edit</span></button>
+                                                        <button className="icon-btn delete" onClick={() => handleAccountDelete(account.id)}><span className="material-icons-outlined">delete</span></button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {bankAccounts.length === 0 && (
+                                            <tr><td colSpan="4" className="text-center py-8">{t('no_accounts_found', 'No accounts found.')}</td></tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div className="select-bank-prompt py-12 text-center text-gray-500">
+                                    <span className="material-icons-outlined text-4xl mb-2">touch_app</span>
+                                    <p>{t('select_bank_to_view_accounts', 'Select a bank to view its accounts')}</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            </BlankPage>
 
-            <AddEditBankModal 
-                isOpen={isBankModalOpen} 
-                onClose={() => setIsBankModalOpen(false)} 
-                bank={currentBank} 
-                isEditing={!!currentBank}
-                currencies={currencies}
-            />
+            {isBankModalOpen && (
+                <AddEditBankModal 
+                    isOpen={isBankModalOpen} 
+                    onClose={() => setIsBankModalOpen(false)} 
+                    bank={currentBank} 
+                    isEditing={!!currentBank}
+                    currencies={currencies}
+                />
+            )}
 
-            <AddEditAccountModal 
-                isOpen={isAccountModalOpen} 
-                onClose={() => setIsAccountModalOpen(false)} 
-                bankId={selectedBankId}
-                account={currentAccount}
-                isEditing={!!currentAccount}
-                glAccounts={glAccounts}
-                currencies={currencies}
-                onSuccess={() => fetchBankAccounts(selectedBankId)}
-            />
+            {isAccountModalOpen && (
+                <AddEditAccountModal 
+                    isOpen={isAccountModalOpen} 
+                    onClose={() => setIsAccountModalOpen(false)} 
+                    bankId={selectedBankId}
+                    parentBank={banks.data.find(b => b.id === selectedBankId)}
+                    account={currentAccount}
+                    isEditing={!!currentAccount}
+                    glAccounts={glAccounts}
+                    currencies={currencies}
+                    onSuccess={() => fetchBankAccounts(selectedBankId)}
+                />
+            )}
         </AdminLayout>
     );
 };

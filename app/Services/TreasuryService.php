@@ -7,7 +7,6 @@ use App\Models\Accounting\JournalEntryLine;
 use App\Models\Accounting\AccountPosting;
 use App\Models\Account;
 use App\Models\BankAccount;
-use App\Models\CashAccount;
 use App\Models\TreasuryTransaction;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,14 +18,11 @@ class TreasuryService
 
     /**
      * Resolve account model based on type and ID.
+     * Unified to use BankAccount for both bank and cash types.
      */
     public function resolveTreasuryAccount(string $type, int $id)
     {
-        return match ($type) {
-            'bank' => BankAccount::find($id),
-            'cash' => CashAccount::find($id),
-            default => null,
-        };
+        return BankAccount::find($id);
     }
 
     /**
@@ -56,14 +52,6 @@ class TreasuryService
     public function updateTransaction(TreasuryTransaction $transaction, array $data): TreasuryTransaction
     {
         return DB::transaction(function () use ($transaction, $data) {
-            $oldStatus = $transaction->status;
-            
-            // If it was posted, we might need to reverse balance before update
-            if ($oldStatus === 'posted') {
-                // For simplicity, we recalculate everything at the end or reverse now.
-                // Recalculating postings is what the original controller did.
-            }
-
             $transaction->update($data);
 
             if ($transaction->status === 'posted') {
@@ -257,8 +245,6 @@ class TreasuryService
 
     public function updateTreasuryBalance(TreasuryTransaction $transaction): void
     {
-        // In this ERP, balance is derived from Journal Postings (AccountPosting).
-        // So recalculatePostings handles it.
         $this->recalculatePostings($transaction->company_id);
     }
 

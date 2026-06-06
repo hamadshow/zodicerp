@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Backend\Cash;
 use App\Http\Controllers\Controller;
 use App\Models\Account;
 use App\Models\BankAccount;
-use App\Models\CashAccount;
 use App\Models\TreasuryTransaction;
 use App\Services\TreasuryService;
 use Illuminate\Http\Request;
@@ -99,33 +98,20 @@ class BankTransactionController extends Controller
             ];
         })->values();
 
-        $bankAccounts = BankAccount::with(['bank', 'glAccount'])
+        $allAccounts = BankAccount::with(['bank', 'glAccount'])
             ->where('status', 'active')
             ->get();
 
-        $cashAccounts = CashAccount::with('glAccount')
-            ->where('status', 'active')
-            ->get();
-
-        $combinedAccounts = $bankAccounts->map(function ($account) {
+        $combinedAccounts = $allAccounts->map(function ($account) {
             return [
                 'id' => $account->id,
-                'type' => 'bank',
+                'type' => $account->account_type, // 'bank' or 'cash'
                 'account_name' => $account->account_name,
                 'account_number' => $account->account_number,
                 'currency' => $account->currency,
-                'bank_name' => $account->bank?->name,
+                'bank_name' => $account->account_type === 'bank' ? ($account->bank?->name ?? 'Bank') : 'Cash',
             ];
-        })->concat($cashAccounts->map(function ($account) {
-            return [
-                'id' => $account->id,
-                'type' => 'cash',
-                'account_name' => $account->name,
-                'account_number' => $account->account_code,
-                'currency' => $account->currency,
-                'bank_name' => 'Cash',
-            ];
-        }))->sortBy('account_name')->values()->all();
+        })->sortBy('account_name')->values()->all();
 
         $accounts = Account::select('AccID', 'AccCode', 'AccName', 'AccType')->get();
 
@@ -154,18 +140,23 @@ class BankTransactionController extends Controller
         ];
 
         if ($validated['type'] === 'transfer') {
-            $data['source_account_type'] = 'bank'; // Frontend currently only supports bank-to-bank in this screen
-            $data['source_account_id'] = $validated['from_account_id'];
-            $data['destination_account_type'] = 'bank';
-            $data['destination_account_id'] = $validated['to_account_id'];
+            $source = BankAccount::findOrFail($validated['from_account_id']);
+            $dest = BankAccount::findOrFail($validated['to_account_id']);
+            
+            $data['source_account_type'] = $source->account_type;
+            $data['source_account_id'] = $source->id;
+            $data['destination_account_type'] = $dest->account_type;
+            $data['destination_account_id'] = $dest->id;
         } elseif ($validated['type'] === 'payment') {
-            $data['source_account_type'] = 'bank';
-            $data['source_account_id'] = $validated['bank_account_id'];
+            $source = BankAccount::findOrFail($validated['bank_account_id']);
+            $data['source_account_type'] = $source->account_type;
+            $data['source_account_id'] = $source->id;
             $data['counterparty_id'] = $validated['counterparty_account_id'];
             $data['counterparty_type'] = 'other';
         } else {
-            $data['destination_account_type'] = 'bank';
-            $data['destination_account_id'] = $validated['bank_account_id'];
+            $dest = BankAccount::findOrFail($validated['bank_account_id']);
+            $data['destination_account_type'] = $dest->account_type;
+            $data['destination_account_id'] = $dest->id;
             $data['counterparty_id'] = $validated['counterparty_account_id'];
             $data['counterparty_type'] = 'other';
         }
@@ -197,20 +188,25 @@ class BankTransactionController extends Controller
         ];
 
         if ($validated['type'] === 'transfer') {
-            $data['source_account_type'] = 'bank';
-            $data['source_account_id'] = $validated['from_account_id'];
-            $data['destination_account_type'] = 'bank';
-            $data['destination_account_id'] = $validated['to_account_id'];
+            $source = BankAccount::findOrFail($validated['from_account_id']);
+            $dest = BankAccount::findOrFail($validated['to_account_id']);
+            
+            $data['source_account_type'] = $source->account_type;
+            $data['source_account_id'] = $source->id;
+            $data['destination_account_type'] = $dest->account_type;
+            $data['destination_account_id'] = $dest->id;
             $data['counterparty_id'] = null;
         } elseif ($validated['type'] === 'payment') {
-            $data['source_account_type'] = 'bank';
-            $data['source_account_id'] = $validated['bank_account_id'];
+            $source = BankAccount::findOrFail($validated['bank_account_id']);
+            $data['source_account_type'] = $source->account_type;
+            $data['source_account_id'] = $source->id;
             $data['destination_account_type'] = null;
             $data['destination_account_id'] = null;
             $data['counterparty_id'] = $validated['counterparty_account_id'];
         } else {
-            $data['destination_account_type'] = 'bank';
-            $data['destination_account_id'] = $validated['bank_account_id'];
+            $dest = BankAccount::findOrFail($validated['bank_account_id']);
+            $data['destination_account_type'] = $dest->account_type;
+            $data['destination_account_id'] = $dest->id;
             $data['source_account_type'] = null;
             $data['source_account_id'] = null;
             $data['counterparty_id'] = $validated['counterparty_account_id'];

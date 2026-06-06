@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Backend\Cash;
 
 use App\Http\Controllers\Controller;
-use App\Models\CashAccount;
+use App\Models\BankAccount;
 use App\Models\Cheque;
 use App\Models\ChequeTransaction;
 use Illuminate\Http\Request;
@@ -53,7 +53,14 @@ class ChequeController extends Controller
             'total_amount' => Cheque::sum('amount'),
         ];
 
-        $accounts = CashAccount::select('id', 'name', 'account_code')->get();
+        // Fetch all treasury accounts (Unified Bank & Cash)
+        $accounts = BankAccount::all()->map(function ($acc) {
+            return [
+                'id' => $acc->id,
+                'name' => $acc->account_name,
+                'account_code' => $acc->account_number,
+            ];
+        });
 
         return Inertia::render('Backend/06-Cash/Cheque', [
             'cheques' => $cheques,
@@ -68,7 +75,7 @@ class ChequeController extends Controller
         $validated = $request->validate([
             'cheque_no' => 'required|string|max:50|unique:cheques,cheque_no',
             'bank_name' => 'required|string|max:100',
-            'account_id' => 'nullable|exists:cash_accounts,id',
+            'account_id' => 'nullable|exists:bank_accounts,id',
             'owner_name' => 'required|string|max:100',
             'cheque_type' => 'required|in:received,issued',
             'amount' => 'required|numeric|min:0',
@@ -103,7 +110,7 @@ class ChequeController extends Controller
         $validated = $request->validate([
             'cheque_no' => 'required|string|max:50|unique:cheques,cheque_no,'.$cheque->id,
             'bank_name' => 'required|string|max:100',
-            'account_id' => 'nullable|exists:cash_accounts,id',
+            'account_id' => 'nullable|exists:bank_accounts,id',
             'owner_name' => 'required|string|max:100',
             'cheque_type' => 'required|in:received,issued',
             'amount' => 'required|numeric|min:0',

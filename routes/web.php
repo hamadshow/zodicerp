@@ -561,44 +561,19 @@ Route::group([
                 ->orderBy('code')
                 ->get();
 
-            $bankAccounts = \App\Models\BankAccount::query()
+            $allTreasuryAccounts = \App\Models\BankAccount::query()
                 ->with('glAccount')
-                ->whereHas('glAccount', function ($query) {
-                    $query->where(function ($q) {
-                        $q->where('Nature', 'bank')
-                          ->orWhere('Nature', 'cash');
-                    })
-                    ->where('AccType', 1);
-                })
                 ->where('status', 'active')
                 ->get();
 
-            $cashAccounts = \App\Models\CashAccount::query()
-                ->with('glAccount')
-                ->whereHas('glAccount', function ($query) {
-                    $query->where(function ($q) {
-                        $q->where('Nature', 'cash');
-                    })
-                    ->where('AccType', 1);
-                })
-                ->where('status', 'active')
-                ->get();
-
-            $combinedAccounts = $bankAccounts->map(function ($account) {
+            $combinedAccounts = $allTreasuryAccounts->map(function ($account) {
                 return [
-                    'id' => $account->id,
+                    'id' => ($account->account_type === 'cash' ? 'cash_' : '') . $account->id,
                     'account_name' => $account->account_name,
                     'account_number' => $account->account_number,
                     'currency' => $account->currency,
                 ];
-            })->concat($cashAccounts->map(function ($account) {
-                return [
-                    'id' => 'cash_' . $account->id, // Prefix to differentiate from bank accounts
-                    'account_name' => $account->name,
-                    'account_number' => $account->account_code,
-                    'currency' => $account->currency,
-                ];
-            }))->sortBy('account_name')->values()->all();
+            })->sortBy('account_name')->values()->all();
 
             $openInvoices = \App\Models\Vendor_Purchases\PurchaseInvoice::query()
                 ->with('currency:id,code,name')
@@ -613,7 +588,7 @@ Route::group([
                 'vouchers' => $vouchers,
                 'suppliers' => $suppliers,
                 'currencies' => $currencies,
-                'bankAccounts' => $bankAccounts,
+                'bankAccounts' => $combinedAccounts,
                 'openInvoices' => $openInvoices,
                 'filters' => [
                     'search' => $search,

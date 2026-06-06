@@ -2,63 +2,52 @@
 
 namespace App\Models;
 
+use App\Models\Accounting\Account;
+use App\Models\Accounting\AccountPosting;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\DB;
 
+/**
+ * @deprecated Use BankAccount model with account_type='cash' instead.
+ * This model is kept for historical reference only and should not be used in new code.
+ */
 class CashAccount extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected $table = 'cash_accounts';
+
     protected $fillable = [
-        'account_code',
         'name',
-        'type',
-        'bank_id',
-        'currency',
-        'gl_account_id',
+        'code',
+        'currency_id',
         'opening_balance',
         'current_balance',
-        'status',
-        'is_default',
-        'created_by',
-        'updated_by',
+        'gl_account_id',
+        'is_active',
     ];
-
-    protected $casts = [
-        'opening_balance' => 'decimal:2',
-        'current_balance' => 'decimal:2',
-        'is_default' => 'boolean',
-    ];
-
-    public function bank()
-    {
-        return $this->belongsTo(Bank::class);
-    }
-
-    public function currencyInfo()
-    {
-        return $this->belongsTo(Currency::class, 'currency', 'id');
-    }
 
     public function glAccount()
     {
         return $this->belongsTo(Account::class, 'gl_account_id', 'AccID');
     }
 
+    public function currencyInfo()
+    {
+        return $this->belongsTo(Currency::class, 'currency_id');
+    }
+
     public function receipts()
     {
         return $this->hasMany(TreasuryTransaction::class, 'destination_account_id')
-            ->where('destination_account_type', 'cash')
-            ->where('transaction_type', 'deposit');
+            ->where('destination_account_type', 'cash');
     }
 
     public function payments()
     {
         return $this->hasMany(TreasuryTransaction::class, 'source_account_id')
-            ->where('source_account_type', 'cash')
-            ->where('transaction_type', 'withdrawal');
+            ->where('source_account_type', 'cash');
     }
 
     public function transfersTo()
@@ -75,16 +64,6 @@ class CashAccount extends Model
             ->where('transaction_type', 'transfer');
     }
 
-    public function creator()
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    public function editor()
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
-
     public function transactions()
     {
         return TreasuryTransaction::where(function ($q) {
@@ -96,5 +75,13 @@ class CashAccount extends Model
                     ->where('destination_account_id', $this->id);
             });
         });
+    }
+
+    /**
+     * Accessor for account_code to handle cases where the DB column might be named 'code'.
+     */
+    public function getAccountCodeAttribute($value)
+    {
+        return $value ?? $this->code ?? null;
     }
 }

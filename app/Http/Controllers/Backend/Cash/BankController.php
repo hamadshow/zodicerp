@@ -116,7 +116,8 @@ class BankController extends Controller
     public function storeAccount(Request $request)
     {
         $validated = $request->validate([
-            'bank_id' => 'required|exists:banks,id',
+            'account_type' => 'required|in:bank,cash',
+            'bank_id' => 'required_if:account_type,bank|nullable|exists:banks,id',
             'account_name' => 'required|string|max:255',
             'account_number' => 'required|string|max:100|unique:bank_accounts,account_number',
             'iban' => 'nullable|string|max:50',
@@ -128,7 +129,7 @@ class BankController extends Controller
             'status' => 'required|in:active,inactive',
         ]);
 
-        if ($validated['is_default']) {
+        if ($validated['is_default'] && !empty($validated['bank_id'])) {
             BankAccount::where('bank_id', $validated['bank_id'])
                 ->where('is_default', true)
                 ->update(['is_default' => false]);
@@ -136,12 +137,14 @@ class BankController extends Controller
 
         BankAccount::create($validated);
 
-        return redirect()->back()->with('success', 'Bank account created successfully.');
+        return redirect()->back()->with('success', 'Account created successfully.');
     }
 
     public function updateAccount(Request $request, BankAccount $bankAccount)
     {
         $validated = $request->validate([
+            'account_type' => 'required|in:bank,cash',
+            'bank_id' => 'required_if:account_type,bank|nullable|exists:banks,id',
             'account_name' => 'required|string|max:255',
             'account_number' => 'required|string|max:100|unique:bank_accounts,account_number,'.$bankAccount->id,
             'iban' => 'nullable|string|max:50',
@@ -153,7 +156,7 @@ class BankController extends Controller
             'status' => 'required|in:active,inactive',
         ]);
 
-        if ($validated['is_default'] && !$bankAccount->is_default) {
+        if ($validated['is_default'] && !$bankAccount->is_default && !empty($validated['bank_id'])) {
             BankAccount::where('bank_id', $bankAccount->bank_id)
                 ->where('is_default', true)
                 ->update(['is_default' => false]);
@@ -161,7 +164,7 @@ class BankController extends Controller
 
         $bankAccount->update($validated);
 
-        return redirect()->back()->with('success', 'Bank account updated successfully.');
+        return redirect()->back()->with('success', 'Account updated successfully.');
     }
 
     public function destroyAccount(BankAccount $bankAccount)

@@ -42,7 +42,7 @@ class AppServiceProvider extends ServiceProvider
 
         Relation::morphMap([
             'bank' => BankAccount::class,
-            'cash' => CashAccount::class,
+            'cash' => BankAccount::class, // Unified to BankAccount
         ]);
 
         \Illuminate\Support\Facades\DB::listen(function ($query) {

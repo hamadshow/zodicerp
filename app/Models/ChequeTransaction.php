@@ -35,7 +35,7 @@ class ChequeTransaction extends Model
 
     public function account()
     {
-        return $this->belongsTo(CashAccount::class, 'account_id');
+        return $this->belongsTo(BankAccount::class, 'account_id');
     }
 
     public function creator()

@@ -154,8 +154,17 @@ const TreasuryDashboard = ({
     }, [localization]);
 
     const [searchQuery, setSearchQuery] = useState('');
-    const [chartPeriod, setChartPeriod] = useState('weekly');
+    const [chartPeriod, setChartPeriod] = useState(props.filters?.chart || 'weekly');
     const [filterOpen, setFilterOpen] = useState(false);
+
+    const handleChartPeriodChange = (period) => {
+        setChartPeriod(period);
+        router.get(route(route().current()), { filter: period }, { 
+            preserveState: true,
+            preserveScroll: true,
+            only: ['chartData', 'filters']
+        });
+    };
 
     const primaryCurrency = stats.primary_currency || performance.primary_currency || { code: 'SAR', symbol: 'SAR' };
     const balancesByCurrency = stats.balances_by_currency || [];
@@ -365,9 +374,10 @@ const TreasuryDashboard = ({
                                 <select
                                     className="treasury-card__select"
                                     value={chartPeriod}
-                                    onChange={(e) => setChartPeriod(e.target.value)}
+                                    onChange={(e) => handleChartPeriodChange(e.target.value)}
                                     aria-label={t('DashboardTreasury.period')}
                                 >
+                                    <option value="daily">{t('DashboardTreasury.daily') || 'Daily'}</option>
                                     <option value="weekly">{t('DashboardTreasury.weekly')}</option>
                                     <option value="monthly">{t('DashboardTreasury.monthly')}</option>
                                 </select>

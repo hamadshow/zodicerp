@@ -74,6 +74,7 @@ Route::middleware(['web', 'auth:web,employee'])->group(function () {
     // Accounting API Routes
     Route::get('/accounts/tree', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'tree']);
     Route::get('/accounts/valid-parents', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'validParents']);
+    Route::get('/accounts/next-code', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'getNextCode']);
     Route::post('/accounts/bulk-import', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'bulkImport'])->name('admin.accounts.bulkImport');
     Route::patch('/accounts/{account}/stop', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'stop']);
     Route::apiResource('accounts', App\Http\Controllers\Backend\Accounting\AccountsController::class)->except(['index']);

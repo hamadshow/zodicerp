@@ -7,6 +7,7 @@ use App\Http\Requests\Accounting\StopAccountRequest;
 use App\Http\Requests\Accounting\StoreAccountRequest;
 use App\Http\Requests\Accounting\UpdateAccountRequest;
 use App\Models\Account;
+use App\Services\Accounting\AccountHierarchyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,13 @@ use Illuminate\Support\Facades\Schema;
 
 class AccountsController extends Controller
 {
+    protected $hierarchyService;
+
+    public function __construct(AccountHierarchyService $hierarchyService)
+    {
+        $this->hierarchyService = $hierarchyService;
+    }
+
     public function index(Request $request)
     {
         $query = Account::query();
@@ -120,7 +128,7 @@ class AccountsController extends Controller
         }
 
         $accounts = $query->orderBy('AccCode')->get([
-            'AccID', 'AccCode', 'AccName', 'AccParent', 'AccStopped', 'AccFinal',
+            'AccID', 'AccCode', 'AccName', 'AccParent', 'AccStopped', 'AccFinal', 'AccDmType', 'Nature',
         ]);
 
         // Index by parent code (NULL/0 treated as NULL root)
@@ -166,6 +174,9 @@ class AccountsController extends Controller
                 'AccCode' => $a->AccCode,
                 'AccName' => $a->AccName,
                 'AccParent' => $a->AccParent,
+                'AccDmType' => $a->AccDmType,
+                'Nature' => $a->Nature,
+                'AccFinal' => $a->AccFinal,
             ];
         }
 
@@ -183,12 +194,39 @@ class AccountsController extends Controller
 
         $account = DB::transaction(function () use ($payload) {
             $data = $payload;
+
+            // Auto-generate code if parent is provided or root
+            $parentCode = $data['AccParent'] ?? null;
+            $data['AccCode'] = $this->hierarchyService->generateChildCode($parentCode);
+
+            // Inherit parent properties
+            if ($parentCode) {
+                $parent = Account::where('AccCode', $parentCode)->first();
+                if ($parent) {
+                    $accountInstance = new Account();
+                    $this->hierarchyService->inheritParentProperties($accountInstance, $parent);
+                    $data['AccDmType'] = $accountInstance->AccDmType;
+                    $data['AccFinal'] = $accountInstance->AccFinal;
+                }
+            } else {
+                // Root accounts default to non-leaf (group) or as per user rules
+                // But usually, root accounts like 1, 2, 3 are main accounts (AccFinal=0)
+                $data['AccFinal'] = 0; 
+            }
+
             $data['AccStopped'] = (bool) ($data['AccStopped'] ?? false);
             $data['AddUser'] = Auth::id();
             $data['AddDate'] = now()->toDateString();
             $data['NumOfEdit'] = 0;
 
-            return Account::create($data);
+            $newAccount = Account::create($data);
+
+            // Update parent status
+            if ($parentCode) {
+                $this->hierarchyService->updateParentFinalStatus($parentCode);
+            }
+
+            return $newAccount;
         });
 
         return response()->json([
@@ -204,12 +242,47 @@ class AccountsController extends Controller
 
         $account = DB::transaction(function () use ($payload, $account) {
             $data = $payload;
+            $oldCode = (string)$account->AccCode;
+            $oldParent = (string)$account->AccParent;
+            $newParent = (string)($data['AccParent'] ?? '');
+
+            // Validate hierarchy
+            $this->hierarchyService->validateHierarchy($account, $newParent);
+
+            // If parent changed, regenerate code and handle hierarchy move
+            $parentChanged = $newParent !== $oldParent;
+            if ($parentChanged) {
+                $data['AccCode'] = $this->hierarchyService->generateChildCode($newParent);
+            } else {
+                // Parent did not change, strictly keep original code to prevent manual override
+                $data['AccCode'] = $account->AccCode;
+            }
+
+            // Always enforce inheritance if parent exists
+            if ($newParent) {
+                $parent = Account::where('AccCode', $newParent)->first();
+                if ($parent) {
+                    $this->hierarchyService->inheritParentProperties($account, $parent);
+                    $data['AccDmType'] = $account->AccDmType;
+                    $data['AccFinal'] = $account->AccFinal;
+                }
+            }
+
             $data['AccStopped'] = (bool) ($data['AccStopped'] ?? false);
             $data['EditUser'] = Auth::id();
             $data['EditDate'] = now()->toDateString();
             $data['NumOfEdit'] = (int) ($account->NumOfEdit ?? 0) + 1;
 
             $account->update($data);
+
+            // Sync descendants (always sync properties, and codes if parent changed)
+            $this->hierarchyService->syncDescendants($account, $parentChanged, $oldCode);
+
+            // Update parent statuses
+            if ($parentChanged) {
+                if ($oldParent) $this->hierarchyService->updateParentFinalStatus($oldParent);
+                if ($newParent) $this->hierarchyService->updateParentFinalStatus($newParent);
+            }
 
             return $account->fresh();
         });
@@ -244,14 +317,31 @@ class AccountsController extends Controller
             }
         }
 
-        DB::transaction(function () use ($account) {
+        $parentCode = $account->AccParent;
+
+        DB::transaction(function () use ($account, $parentCode) {
             $account->delete();
+
+            if ($parentCode) {
+                $this->hierarchyService->updateParentFinalStatus($parentCode);
+            }
         });
 
         return response()->json([
             'success' => true,
             'message' => 'Account deleted successfully.',
         ]);
+    }
+
+    public function getNextCode(Request $request)
+    {
+        $parentCode = $request->input('parent_code');
+        try {
+            $nextCode = $this->hierarchyService->generateChildCode($parentCode);
+            return response()->json(['success' => true, 'next_code' => $nextCode]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
     }
 
     public function stop(StopAccountRequest $request, Account $account)
@@ -276,7 +366,7 @@ class AccountsController extends Controller
     public function bulkImport(Request $request)
     {
         // Increase execution time for large imports
-        set_time_limit(300); 
+        set_time_limit(600); 
 
         $rows = $request->input('rows', []);
         
@@ -286,16 +376,23 @@ class AccountsController extends Controller
 
         try {
             DB::transaction(function () use ($rows) {
+                $parentsToUpdate = [];
+
                 foreach ($rows as $row) {
-                    Account::updateOrCreate(
+                    $parentCode = ! empty($row['AccParent']) ? (string) $row['AccParent'] : null;
+                    if ($parentCode) {
+                        $parentsToUpdate[$parentCode] = true;
+                    }
+
+                    $account = Account::updateOrCreate(
                         ['AccCode' => $row['AccCode']],
                         [
                             'AccName' => $row['AccName'],
                             'AccType' => (int) ($row['AccType'] ?? 0),
-                            'AccParent' => ! empty($row['AccParent']) ? (int) $row['AccParent'] : null,
+                            'AccParent' => $parentCode,
                             'AccDmType' => (int) ($row['AccDmType'] ?? 1),
                             'Nature' => $row['Nature'] ?? null,
-                            'AccFinal' => (bool) ($row['AccFinal'] ?? false),
+                            'AccFinal' => (int) ($row['AccFinal'] ?? 1),
                             'AccMaxLimt' => ! empty($row['AccMaxLimt']) ? (float) $row['AccMaxLimt'] : null,
                             'AccMaxDuration' => ! empty($row['AccMaxDuration']) ? (int) $row['AccMaxDuration'] : null,
                             'AccBranch' => ! empty($row['AccBranch']) ? (int) $row['AccBranch'] : null,
@@ -305,6 +402,20 @@ class AccountsController extends Controller
                             'AddDate' => now()->toDateString(),
                         ]
                     );
+
+                    // If parent exists, ensure inheritance (optional for bulk import, but follows rules)
+                    if ($parentCode) {
+                        $parent = Account::where('AccCode', $parentCode)->first();
+                        if ($parent) {
+                            $this->hierarchyService->inheritParentProperties($account, $parent);
+                            $account->save();
+                        }
+                    }
+                }
+
+                // Update final status for all involved parents
+                foreach (array_keys($parentsToUpdate) as $pCode) {
+                    $this->hierarchyService->updateParentFinalStatus($pCode);
                 }
             });
 

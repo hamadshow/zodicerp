@@ -17,10 +17,9 @@ class StoreAccountRequest extends FormRequest
     {
         return [
             'AccCode' => [
-                'required',
+                'nullable', // Generated on backend
                 'integer',
                 'min:1',
-                Rule::unique('accounts', 'AccCode'),
             ],
             'AccName' => [
                 'required',
@@ -36,17 +35,20 @@ class StoreAccountRequest extends FormRequest
                 'integer',
             ],
             'Nature' => [
+                'required_without:AccParent',
                 'nullable',
                 'string',
                 Rule::in(['asset', 'Inventory', 'Accounts Receivable', 'cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income']),
             ],
             'AccDmType' => [
-                'required',
+                'required_without:AccParent',
+                'nullable',
                 'integer',
                 Rule::in([1, 2]),
             ],
             'AccFinal' => [
-                'required',
+                'required_without:AccParent',
+                'nullable',
                 'boolean',
             ],
             'AccMaxLimt' => [

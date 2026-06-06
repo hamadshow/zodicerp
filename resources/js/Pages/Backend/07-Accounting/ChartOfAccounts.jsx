@@ -579,25 +579,6 @@ export default function ChartOfAccounts() {
     [tree, searchTerm],
   );
 
-  const accountCodesSet = useMemo(() => {
-    return new Set(allAccounts.map((a) => String(a.AccCode ?? '')));
-  }, [allAccounts]);
-
-  const deriveParentCode = React.useCallback(
-    (codeInput) => {
-      const s = String(codeInput ?? '').trim();
-      if (!s) return '';
-      for (let i = s.length - 1; i >= 1; i--) {
-        const candidate = s.slice(0, i);
-        if (accountCodesSet.has(candidate)) {
-          return candidate;
-        }
-      }
-      return '';
-    },
-    [accountCodesSet],
-  );
-
   const findNodeByCode = React.useCallback((nodes, code) => {
     if (!Array.isArray(nodes) || !code) return null;
     for (let i = 0; i < nodes.length; i++) {
@@ -670,14 +651,51 @@ export default function ChartOfAccounts() {
     }));
   };
 
-  const openModal = (account = null) => {
+  const handleFieldChange = async (field, value) => {
+    let updatedForm = { ...form, [field]: value };
+
+    // Handle inheritance when parent changes
+     if (field === 'AccParent' && value) {
+       const parent = (parentOptionsRemote ?? parentOptions).find(a => String(a.AccCode) === String(value));
+       if (parent) {
+         updatedForm = {
+           ...updatedForm,
+           AccDmType: parent.AccDmType === 1 ? 0 : 1, // Convert 1/2 to 0/1 index
+           AccFinal: Number(parent.AccFinal) === 1,
+         };
+       }
+     }
+
+     setForm(updatedForm);
+
+     // Auto-generate code when parent changes for new accounts
+     if (field === 'AccParent' && !currentAccount) {
+       try {
+         const response = await apiService.get(`/accounts/next-code?parent_code=${value || ''}`);
+         if (response.data && response.data.success) {
+           setForm((prev) => ({
+             ...prev,
+             AccCode: response.data.next_code,
+             // Re-apply inherited values to ensure they are not lost during async update
+             ...(value ? {
+               AccDmType: updatedForm.AccDmType,
+               AccFinal: updatedForm.AccFinal,
+             } : {})
+           }));
+         }
+      } catch (err) {
+        console.error('Failed to fetch next account code', err);
+      }
+    }
+  };
+
+  const openModal = async (account = null) => {
     if (account) {
       setCurrentAccount(account);
-      const hasExplicitParent =
-        account.AccParent != null && Number(account.AccParent) > 0;
-      const suggestedParent = hasExplicitParent
-        ? String(account.AccParent)
-        : deriveParentCode(account.AccCode);
+      const suggestedParent =
+        account.AccParent != null && Number(account.AccParent) > 0
+          ? String(account.AccParent)
+          : '';
       setForm({
         AccCode: account.AccCode ?? '',
         AccName: account.AccName ?? '',
@@ -694,8 +712,19 @@ export default function ChartOfAccounts() {
       });
     } else {
       setCurrentAccount(null);
+      // Fetch next root code for new account
+      let nextCode = '';
+      try {
+        const response = await apiService.get('/accounts/next-code');
+        if (response.data && response.data.success) {
+          nextCode = response.data.next_code;
+        }
+      } catch (err) {
+        console.error('Failed to fetch next root account code', err);
+      }
+
       setForm({
-        AccCode: '',
+        AccCode: nextCode,
         AccName: '',
         AccType: 0,
         AccParent: '',
@@ -719,24 +748,6 @@ export default function ChartOfAccounts() {
     setCurrentAccount(null);
     setError('');
   };
-
-  const handleFieldChange = (field, value) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  useEffect(() => {
-    if (!isModalOpen) return;
-    const codeStr = form.AccCode != null ? String(form.AccCode) : '';
-    if (!form.AccParent && codeStr) {
-      const derived = deriveParentCode(codeStr);
-      if (derived) {
-        setForm((prev) => ({ ...prev, AccParent: derived }));
-      }
-    }
-  }, [isModalOpen, form.AccCode, form.AccParent, deriveParentCode]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1170,6 +1181,7 @@ export default function ChartOfAccounts() {
                     onChange={(e) => handleFieldChange('AccCode', e.target.value)}
                     required
                     aria-required="true"
+                    readOnly
                   />
                 </div>
                 <div className="form-group">
@@ -1240,6 +1252,7 @@ export default function ChartOfAccounts() {
                     onChange={(e) =>
                       handleFieldChange('AccDmType', Number(e.target.value))
                     }
+                    disabled={Boolean(form.AccParent)}
                   >
                     {DM_TYPES.map((t) => (
                       <option key={t.value} value={t.value}>
@@ -1281,6 +1294,7 @@ export default function ChartOfAccounts() {
                     onChange={(e) =>
                       handleFieldChange('AccFinal', Number(e.target.value) === 1)
                     }
+                    disabled={Boolean(form.AccParent)}
                   >
                     <option value={0}>{t('balance_sheet', 'Balance Sheet')}</option>
                     <option value={1}>{t('pl', 'P&L')}</option>

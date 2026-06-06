@@ -63,36 +63,6 @@ $breakpoint-md: 768px;
 $breakpoint-lg: 992px;
 $breakpoint-xl: 1200px;
 
-// -----------------------------------------------------------------------------
-// Base Styles
-// -----------------------------------------------------------------------------
-.bank-page {
-    padding: $spacing-lg;
-    background-color: $bg-light;
-    min-height: 100vh;
-    font-family: 'Inter', sans-serif; // Modern sans-serif font
-    color: $text-dark;
-
-    // Professional scrollbar styling
-    &::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-
-    &::-webkit-scrollbar-track {
-        background: lighten($bg-light, 2%);
-        border-radius: $border-radius-sm;
-    }
-
-    &::-webkit-scrollbar-thumb {
-        background: darken($bg-light, 15%);
-        border-radius: $border-radius-sm;
-        &:hover {
-            background: darken($bg-light, 25%);
-        }
-    }
-}
-
 // Typography improvements
 h1, h2, h3, h4, h5, h6 {
     color: $text-dark;
@@ -634,7 +604,7 @@ table {
 // -----------------------------------------------------------------------------
 // Modals
 // -----------------------------------------------------------------------------
-.modal-overlay {
+.modal-overlay.bank-modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
@@ -654,30 +624,30 @@ table {
         opacity: 1;
         visibility: visible;
     }
-}
 
-.modal-content {
-    background: #ffffff;
-    border-radius: $border-radius-lg;
-    width: 90%;
-    max-width: 680px; // Slightly wider default
-    max-height: 90vh;
-    overflow-y: auto;
-    box-shadow: $shadow-glass; // Use glassmorphism shadow
-    transform: scale(0.9); // Start smaller for animation
-    transition: transform $transition-speed $transition-ease, opacity $transition-speed $transition-ease;
-    position: relative; // For absolute positioning of close button if needed
+    .modal-content {
+        background: #ffffff;
+        border-radius: $border-radius-lg;
+        width: 90%;
+        max-width: 880px; // Increased by exactly 100px from the intended 780px
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: $shadow-glass; // Use glassmorphism shadow
+        transform: scale(0.9); // Start smaller for animation
+        transition: transform $transition-speed $transition-ease, opacity $transition-speed $transition-ease;
+        position: relative; // For absolute positioning of close button if needed
 
-    .modal-overlay.active & {
-        transform: scale(1);
-        opacity: 1;
+        &.large {
+            max-width: 95vw; // Even wider for large modals
+            @media (min-width: $breakpoint-md) {
+                max-width: 960px;
+            }
+        }
     }
 
-    &.large {
-        max-width: 95vw; // Even wider for large modals
-        @media (min-width: $breakpoint-md) {
-            max-width: 960px;
-        }
+    &.active .modal-content {
+        transform: scale(1);
+        opacity: 1;
     }
 }
 
@@ -885,176 +855,6 @@ table {
 
 @keyframes spin {
     to { transform: rotate(360deg); }
-}
-
-// -----------------------------------------------------------------------------
-// Bank Details View (inside Modal)
-// -----------------------------------------------------------------------------
-.bank-details-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: $spacing-xl;
-
-    @media (min-width: $breakpoint-md) {
-        grid-template-columns: 280px 1fr; // Sidebar on left
-    }
-}
-
-.bank-info-sidebar {
-    background: #fcfdff;
-    padding: $spacing-lg;
-    border-radius: $border-radius-md;
-    height: fit-content;
-    box-shadow: $shadow-sm;
-}
-
-.bank-logo-preview {
-    width: 120px; // Larger logo preview
-    height: 120px;
-    background: white;
-    border-radius: $border-radius-md;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: $spacing-lg;
-    border: 1px solid $border-color;
-    overflow: hidden;
-    box-shadow: $shadow-sm;
-
-    img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-    }
-    .material-icons-outlined {
-        font-size: 60px; // Larger icon fallback
-        color: $border-color;
-    }
-}
-
-.info-item {
-    margin-bottom: $spacing-md;
-    &:last-child {
-        margin-bottom: 0;
-    }
-}
-
-.info-label {
-    font-size: 12px;
-    color: $text-light;
-    margin-bottom: $spacing-xs / 2;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-.info-value {
-    font-size: 15px;
-    color: $text-dark;
-    font-weight: 600;
-}
-
-.accounts-section {
-    margin-top: 0; // Override default margin if any
-    display: flex;
-    flex-direction: column; // Ensure content flows correctly
-}
-
-.section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: $spacing-md;
-
-    .section-title {
-        font-size: 18px;
-        font-weight: 700;
-        color: $text-dark;
-    }
-}
-
-.accounts-table {
-    width: 100%;
-    border: 1px solid $border-color;
-    border-radius: $border-radius-md;
-    overflow: hidden; // Ensures rounded corners are visible
-    background-color: #ffffff;
-
-    th {
-        background: $bg-light;
-        padding: $spacing-sm $spacing-md;
-        font-size: 12px;
-        font-weight: 700;
-        color: $text-medium;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-    }
-
-    td {
-        padding: $spacing-sm $spacing-md;
-        font-size: 13px;
-    }
-
-    .currency-badge {
-        padding: 4px $spacing-sm;
-        border-radius: $border-radius-sm / 2;
-        background: rgba($primary-color, 0.1);
-        color: $primary-color;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-    }
-
-    .balance-value {
-        font-family: 'Inter', sans-serif;
-        font-weight: 600;
-        color: $text-dark;
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Pagination (if applicable, based on existing styles)
-// -----------------------------------------------------------------------------
-.pagination {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: $spacing-md $spacing-lg;
-    border-top: 1px solid $border-color;
-    margin-top: auto; // Push pagination to the bottom if table is short
-    background-color: #ffffff;
-    border-bottom-left-radius: $border-radius-lg;
-    border-bottom-right-radius: $border-radius-lg;
-}
-
-.page-btn {
-    padding: $spacing-sm $spacing-md;
-    border: 1px solid $border-color;
-    background: white;
-    border-radius: $border-radius-sm;
-    font-size: 14px;
-    color: $text-medium;
-    cursor: pointer;
-    margin: 0 $spacing-xs / 2;
-    transition: all $transition-speed $transition-ease;
-
-    &:hover:not(:disabled) {
-        background: $bg-light;
-        border-color: darken($border-color, 5%);
-        color: $primary-color;
-    }
-
-    &.active {
-        background: $primary-color;
-        color: white;
-        border-color: $primary-color;
-        font-weight: 600;
-        box-shadow: $shadow-sm;
-    }
-
-    &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
 }
 
 // -----------------------------------------------------------------------------
