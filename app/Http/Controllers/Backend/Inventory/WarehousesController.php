@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Backend\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\StoreWarehouseRequest;
 use App\Http\Requests\Inventory\UpdateWarehouseRequest;
+use App\Models\Account;
 use App\Models\Branch;
 use App\Models\Warehouses;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class WarehousesController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Warehouses::with('branch');
+        $query = Warehouses::with(['branch', 'linkedAccount']);
 
         if ($request->has('search')) {
             $search = $request->input('search');
@@ -35,16 +36,25 @@ class WarehousesController extends Controller
         // Fetch branches for the dropdown in create/edit modal
         $branches = Branch::select('id', 'branch_name')->get();
 
+        // Fetch Inventory GL accounts for the dropdown
+        $glAccounts = Account::where('Nature', 'Inventory')
+            ->where('AccType', 1)
+            ->select('AccID', 'AccCode', 'AccName')
+            ->orderBy('AccCode', 'asc')
+            ->get();
+
         if ($request->wantsJson()) {
             return response()->json([
                 'warehouses' => $warehouses,
                 'branches' => $branches,
+                'glAccounts' => $glAccounts,
             ]);
         }
 
         return Inertia::render('Backend/03-Inventory/Warehouses', [
             'warehouses' => $warehouses,
             'branches' => $branches,
+            'glAccounts' => $glAccounts,
         ]);
     }
 
@@ -66,6 +76,7 @@ class WarehousesController extends Controller
                 'warehouse_code' => $newCode,
                 'name' => $request->name,
                 'branch_id' => $request->branch_id,
+                'linked_gl_account_id' => $request->linked_gl_account_id,
                 'manager' => $request->manager,
                 'location' => $request->location,
                 'capacity' => $request->capacity ?? 0,
@@ -119,6 +130,7 @@ class WarehousesController extends Controller
             $warehouse->update([
                 'name' => $request->name,
                 'branch_id' => $request->branch_id,
+                'linked_gl_account_id' => $request->linked_gl_account_id,
                 'manager' => $request->manager,
                 'location' => $request->location,
                 'capacity' => $request->capacity ?? 0,

@@ -24,6 +24,7 @@ class Warehouses extends Model
         'icon',
         'color',
         'description',
+        'linked_gl_account_id',
         'company_id',
     ];
 
@@ -33,5 +34,13 @@ class Warehouses extends Model
     public function branch()
     {
         return $this->belongsTo(Branch::class, 'branch_id');
+    }
+
+    /**
+     * Get the GL account linked to the warehouse.
+     */
+    public function linkedAccount()
+    {
+        return $this->belongsTo(Account::class, 'linked_gl_account_id', 'AccID');
     }
 }

@@ -8,14 +8,14 @@ import Header from './Header';
 import Sidebar from './Sidebar';
 import Footer from './Footer';
 import { MobileBackendNav } from './MobileBackendNav';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { useNotification } from '@/Components/Notifications/useNotification';
 
 const AdminLayout = ({
   children,
   activeMenu: initialActiveMenu = '',
 }) => {
   const page = usePage();
+  const { showSuccess, showError } = useNotification();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -55,30 +55,12 @@ const AdminLayout = ({
 
   useEffect(() => {
     if (flashSuccess) {
-      toast.success(flashSuccess, {
-        position: "top-right",
-        autoClose: 3000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "light",
-      });
+      showSuccess(flashSuccess);
     }
     if (flashError) {
-      toast.error(flashError, {
-        position: "top-right",
-        autoClose: 4000,
-        hideProgressBar: false,
-        closeOnClick: true,
-        pauseOnHover: true,
-        draggable: true,
-        progress: undefined,
-        theme: "light",
-      });
+      showError(flashError);
     }
-  }, [flashSuccess, flashError]);
+  }, [flashSuccess, flashError, showSuccess, showError]);
 
   useEffect(() => {
     document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
@@ -459,8 +441,6 @@ const AdminLayout = ({
           {/* Header is only for Desktop */}
           {!isMobile && <Header toggleSidebar={toggleSidebar} isRtl={isRtl} />}
           
-          <ToastContainer rtl={isRtl} />
-
           <main className="content">{children}</main>
         </div>
 

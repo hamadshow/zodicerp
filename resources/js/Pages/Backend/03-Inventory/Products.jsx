@@ -2,8 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { Head, Link, usePage, useForm, router } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import axios from 'axios';
-import { toast, ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { useNotification } from '@/Components/Notifications/useNotification';
 import AdminLayout from '../components/AdminLayout';
 import Table from '../components/Table';
 import NavigationLink from '@/Components/NavigationLink';
@@ -38,10 +37,10 @@ const CategoryTreeItem = ({ category, selectedIds, onToggle, level = 0, search =
         setIsOpen(!isOpen);
     };
 
-    const isSelected = selectedIds.includes(String(category.id));
+    const isSelected = Array.isArray(selectedIds) && selectedIds.some(id => String(id) === String(category.id));
 
     return (
-        <div className="category-tree-item" style={{ '--level': level }}>
+        <div className={`category-tree-item ${level > 0 ? 'nested' : ''}`} style={{ '--level': level }}>
             <div className={`category-row ${isSelected ? 'selected' : ''}`}>
                 <div className="category-row-inner" onClick={() => onToggle(String(category.id))}>
                     {hasChildren ? (
@@ -57,15 +56,15 @@ const CategoryTreeItem = ({ category, selectedIds, onToggle, level = 0, search =
                         <span className="toggle-placeholder"></span>
                     )}
                     
-                    <div className="checkbox-custom">
+                    <label className="checkbox-custom" onClick={(e) => e.stopPropagation()}>
                         <input
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => onToggle(String(category.id))}
                         />
                         <span className="checkmark"></span>
-                    </div>
-                    <span className="category-name">{category.name}</span>
+                    </label>
+                    <span className="category-name" title={category.name}>{category.name}</span>
                 </div>
             </div>
 
@@ -92,6 +91,11 @@ const CategoryTreeItem = ({ category, selectedIds, onToggle, level = 0, search =
 // ==========================================
 
 const ProductsList = ({ products, brands, categories, units, filters = {} }) => {
+    const {
+        showSuccess,
+        showError,
+        showInfo
+    } = useNotification();
     const { props } = usePage();
     const { flash, localization } = props;
     const translations = localization?.translations || {};
@@ -215,7 +219,6 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
     const [importSummary, setImportSummary] = useState({});
     const [importLoading, setImportLoading] = useState(false);
     const [importProgress, setImportProgress] = useState(0);
-    const [importError, setImportError] = useState(null);
     const [showExcelMenu, setShowExcelMenu] = useState(false);
     const excelMenuRef = useRef(null);
 
@@ -231,15 +234,11 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
 
     useEffect(() => {
         if (flash?.success) {
-            toast.success(flash.success);
             setShowImport(false);
             setExcelRows([]);
             setInvalidRows([]);
             setImportSummary({});
             setImportProgress(0);
-        }
-        if (flash?.error) {
-            toast.error(flash.error);
         }
     }, [flash]);
 
@@ -270,7 +269,6 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
     const handleFileUpload = (file) => {
         if (!file) return;
         setImportLoading(true);
-        setImportError(null);
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
@@ -280,7 +278,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                 const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
                 processExcelData(jsonData);
             } catch (err) {
-                setImportError(err?.message || 'Error reading file');
+                showError(err?.message || 'Error reading file');
                 setImportLoading(false);
             }
         };
@@ -289,18 +287,17 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
 
     const handleFileDrop = (e) => {
         e.preventDefault();
-        setImportError(null);
         const file = e.dataTransfer.files[0];
         if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
             handleFileUpload(file);
         } else {
-            setImportError('Please upload a valid Excel file (.xlsx, .xls)');
+            showError('Please upload a valid Excel file (.xlsx, .xls)');
         }
     };
 
     const processExcelData = (rows) => {
         if (rows.length < 2) {
-            setImportError('File is empty or missing headers');
+            showError('File is empty or missing headers');
             setImportLoading(false);
             return;
         }
@@ -391,7 +388,6 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
 
     const submitImport = async () => {
         if (excelRows.length === 0) return;
-        setImportError(null);
         setImportLoading(true);
         setImportProgress(0);
 
@@ -414,7 +410,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                 setImportProgress(progress);
             }
             
-            toast.success('تم استيراد جميع المنتجات بنجاح');
+            showSuccess('تم استيراد جميع المنتجات بنجاح');
             setShowImport(false);
             setExcelRows([]);
             setInvalidRows([]);
@@ -422,7 +418,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
             setImportProgress(0);
             router.reload({ only: ['products'] });
         } catch (err) {
-            setImportError('فشل الاستيراد. قد لا تكون بعض الصفوف قد تمت معالجتها: ' + (err.response?.data?.message || err.message));
+            showError('فشل الاستيراد. قد لا تكون بعض الصفوف قد تمت معالجتها: ' + (err.response?.data?.message || err.message));
             console.error(err);
         } finally {
             setImportLoading(false);
@@ -434,14 +430,14 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
             // التحقق من وجود مسار التصدير
             if (typeof route === 'function') {
                 window.location.href = getLocalizedRoute('admin.inventory.products.export');
-                toast.info('جاري بدء عملية تصدير جميع المنتجات...');
+                showInfo('جاري بدء عملية تصدير جميع المنتجات...');
                 setShowExcelMenu(false);
             } else {
-                toast.error('لا يمكن العثور على مسار التصدير');
+                showError('لا يمكن العثور على مسار التصدير');
             }
         } catch (err) {
             console.error('Export failed:', err);
-            toast.error('فشل عملية التصدير');
+            showError('فشل عملية التصدير');
         }
     };
 
@@ -586,8 +582,6 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                                 )}
                             </div>
                         )}
-                        {importError && <div className="alert alert-danger mt-3">{importError}</div>}
-
                         <div className="import-instructions mt-4">
                             <h4>Instructions:</h4>
                             <ul>
@@ -675,17 +669,6 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                 <NavigationLink links={breadcrumbs} />
                 
                 {statsContent}
-
-                {flash.success && (
-                    <div className="alert alert-success">
-                        {flash.success}
-                    </div>
-                )}
-                {flash.error && (
-                    <div className="alert alert-danger">
-                        {flash.error}
-                    </div>
-                )}
 
                 <div className="products-section-card">
                     <div className="products-section-header">
@@ -788,6 +771,9 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
 // ==========================================
 
 const ProductsForm = ({ product, categories, brands, units = [], itemAttributes = [], suppliers = [] }) => {
+    const {
+        showInfo
+    } = useNotification();
     const { props } = usePage();
     const { localization } = props;
     const translations = localization?.translations || {};
@@ -897,6 +883,26 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
     const [categorySearch, setCategorySearch] = useState('');
     const [taxOption, setTaxOption] = useState('none');
     const [isAttributesExpanded, setIsAttributesExpanded] = useState(false);
+    const [localCategories, setLocalCategories] = useState(categories || []);
+
+    // Fallback: Load categories from API if props are empty
+    useEffect(() => {
+        if (categories && categories.length > 0) {
+            setLocalCategories(categories);
+            return;
+        }
+
+        if (!categories || categories.length === 0) {
+            axios.get(getLocalizedRoute('admin.inventory.categories.index', { wantsJson: true }))
+                .then(response => {
+                    if (response.data && response.data.categories) {
+                        setLocalCategories(response.data.categories);
+                    }
+                })
+                .catch(err => console.error('Error fetching categories fallback:', err));
+        }
+    }, [categories]);
+
     void showSeoMeta;
     void setShowSeoMeta;
     void specTable;
@@ -926,7 +932,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
 
     const openGenerateModal = () => {
         if (!selectedAttributeIds.length) {
-            window.alert('Please select attributes first.');
+            showInfo('Please select attributes first.');
             return;
         }
 
@@ -1062,7 +1068,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
     const addVariationFromModal = () => {
         const missing = selectedAttributeIds.some(id => !variationAttributeValues[id]);
         if (missing) {
-            window.alert('Please select all attribute values.');
+            showInfo('Please select all attribute values.');
             return;
         }
         const attribute_values = {};
@@ -1201,7 +1207,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         const editIds = Object.keys(editVariationForm.attribute_values || {});
         const missing = editIds.some(id => !editVariationForm.attribute_values?.[id]);
         if (missing) {
-            window.alert('Please select all attribute values.');
+            showInfo('Please select all attribute values.');
             return;
         }
         const newKey = makeAttributesKey(editVariationForm.attribute_values || {});
@@ -1209,7 +1215,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
             const list = Array.isArray(curr.variations) ? curr.variations.slice() : [];
             const dup = list.find(v => (v.attributes_key || makeAttributesKey(v.attribute_values || {})) === newKey && v.tempId !== editingVariationId);
             if (dup) {
-                window.alert('A variation with the same properties already exists.');
+                showInfo('A variation with the same properties already exists.');
                 return curr;
             }
             const updated = list.map(v => v.tempId === editingVariationId ? {
@@ -1245,12 +1251,14 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
     }, [data.variations, variationsSearch, formatAttributes]);
 
     const categoryTree = useMemo(() => {
-        if (!categories) return [];
+        const safeCategories = Array.isArray(localCategories) ? localCategories : [];
+        if (safeCategories.length === 0) return [];
+
         const map = {};
         const roots = [];
-        // Create a deep copy to avoid mutating props directly if needed, 
-        // though mapping usually creates new objects.
-        const cats = categories.map(c => ({ ...c, children: [] }));
+        
+        // Use a flat copy to avoid mutation issues
+        const cats = safeCategories.map(c => ({ ...c, children: [] }));
         
         cats.forEach(c => map[c.id] = c);
         
@@ -1263,7 +1271,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         });
         
         return roots;
-    }, [categories]);
+    }, [localCategories]);
 
     const handleCategoryToggle = (id) => {
         const currentIds = Array.isArray(data.category_ids) ? data.category_ids : [];
@@ -2204,7 +2212,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                             {Array.isArray(data.category_ids) && data.category_ids.length > 0 && (
                                                 <div className="selected-categories-chips">
                                                     {data.category_ids.map(id => {
-                                                        const cat = categories.find(c => String(c.id) === String(id));
+                                                        const cat = localCategories.find(c => String(c.id) === String(id));
                                                         if (!cat) return null;
                                                         return (
                                                             <div key={id} className="category-chip">
@@ -2232,8 +2240,12 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                         search={categorySearch}
                                                     />
                                                 ))}
-                                                {categoryTree.length === 0 && (
-                                                    <div className="empty-tree">No categories found</div>
+                                                {(Array.isArray(localCategories) ? localCategories : []).length === 0 && (
+                                                    <div className="empty-tree">
+                                                        <span className="material-icons-outlined empty-icon">search_off</span>
+                                                        <h4 className="empty-title">No categories found</h4>
+                                                        <p className="empty-subtitle">Try changing your search keywords or add a new category.</p>
+                                                    </div>
                                                 )}
                                             </div>
                                             <div className="category-actions mt-2">

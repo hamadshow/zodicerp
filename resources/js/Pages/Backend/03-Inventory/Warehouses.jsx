@@ -84,6 +84,17 @@ const ViewSection = ({ warehouses, onEdit, onCreate, onDelete }) => {
         },
         { header: __('location'), key: 'location', sortable: true },
         { 
+            header: __('linked_gl_account'), 
+            key: 'linked_gl_account_id', 
+            sortable: true,
+            render: (wh) => wh.linked_account ? (
+                <div className="flex flex-col">
+                    <span className="text-sm font-medium">{wh.linked_account.AccName}</span>
+                    <span className="text-xs text-gray-500">{wh.linked_account.AccCode}</span>
+                </div>
+            ) : '-'
+        },
+        { 
             header: __('status'), 
             key: 'status', 
             sortable: true,
@@ -216,7 +227,7 @@ const ViewSection = ({ warehouses, onEdit, onCreate, onDelete }) => {
 };
 
 // --- Form Section Component ---
-const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
+const FormSection = ({ mode, initialData, branches, glAccounts, onBack, onSubmit }) => {
     const { props } = usePage();
     const { localization } = props;
     const translations = localization?.translations || {};
@@ -254,6 +265,7 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
         const data = {
             name: formData.get('name'),
             branch_id: formData.get('branch_id'),
+            linked_gl_account_id: formData.get('linked_gl_account_id'),
             manager: formData.get('manager'),
             location: formData.get('location'),
             capacity: formData.get('capacity'),
@@ -301,6 +313,22 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
                                     ))}
                                 </select>
                                 {errors.branch_id && <div className="error-message">{errors.branch_id}</div>}
+                            </div>
+                            <div className="form-group">
+                                <label>{__('linked_gl_account')}</label>
+                                <select
+                                    name="linked_gl_account_id"
+                                    className="form-control"
+                                    defaultValue={initialData?.linked_gl_account_id || ''}
+                                >
+                                    <option value="">{__('select_gl_account')}</option>
+                                    {glAccounts?.map(account => (
+                                        <option key={account.AccID} value={account.AccID}>
+                                            {account.AccCode} - {account.AccName}
+                                        </option>
+                                    ))}
+                                </select>
+                                {errors.linked_gl_account_id && <div className="error-message">{errors.linked_gl_account_id}</div>}
                             </div>
                         </div>
 
@@ -428,7 +456,7 @@ const FormSection = ({ mode, initialData, branches, onBack, onSubmit }) => {
 };
 
 // --- Main Container Component ---
-const Warehouses = ({ warehouses = [], branches = [] }) => {
+const Warehouses = ({ warehouses = [], branches = [], glAccounts = [] }) => {
     const { props } = usePage();
     const { localization } = props;
     const translations = localization?.translations || {};
@@ -519,13 +547,14 @@ const Warehouses = ({ warehouses = [], branches = [] }) => {
                                 {mode === 'edit' && __('edit_warehouse')}
                             </h1>
                         </div>
-                        <FormSection 
-                            mode={mode} 
-                            initialData={selectedWarehouse} 
-                            branches={branches}
-                            onBack={handleBackClick}
-                            onSubmit={handleFormSubmit}
-                        />
+                        <FormSection
+                    mode={mode}
+                    initialData={selectedWarehouse}
+                    branches={branches}
+                    glAccounts={glAccounts}
+                    onBack={handleBackClick}
+                    onSubmit={handleFormSubmit}
+                />
                     </>
                 )}
             </div>

@@ -5,9 +5,11 @@ import Table from '../components/Table';
 import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import { apiService } from '../../../services/api';
+import { useNotification } from '@/Components/Notifications/useNotification';
 
 const Profession = ({ professions: initialProfessions = [], departments = [] }) => {
   const { props } = usePage();
+  const { showSuccess, showError } = useNotification();
   const localization = props?.localization;
   const isArabic = localization?.current_locale === 'ar';
   const translations = localization?.translations || {};
@@ -40,7 +42,6 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
   const [selectedIds, setSelectedIds] = useState([]);
   const [currentFilterStatus, setCurrentFilterStatus] = useState('all');
   const [currentFilterCategory, setCurrentFilterCategory] = useState('all');
-  const [toast, setToast] = useState(null);
   const [formData, setFormData] = useState({
     company_id: 1,
     profession_name: '',
@@ -56,12 +57,6 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
     sort_order: 0,
   });
 
-  // Toast notification
-  const showToast = (message, type = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
   // Fetch professions
   const fetchProfessions = async (params = {}) => {
     try {
@@ -70,7 +65,7 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
       setProfessions(Array.isArray(data) ? data : data.data || []);
     } catch (error) {
       console.error('Error fetching professions:', error);
-      showToast(t('error_loading', 'Error loading professions'), 'error');
+      showError(t('error_loading', 'Error loading professions'));
     }
   };
 
@@ -188,24 +183,24 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.profession_name || !formData.profession_code) {
-      showToast(t('required_fields', 'Please fill in all required fields'), 'error');
+      showError(t('required_fields', 'Please fill in all required fields'));
       return;
     }
 
     try {
       if (editingProfession) {
         await apiService.put(`/professions/${editingProfession.id}`, formData);
+        showSuccess(t('updated_success', 'Profession updated successfully'));
       } else {
         await apiService.post('/professions', formData);
+        showSuccess(t('saved_success', 'Profession saved successfully'));
       }
-
-      showToast(editingProfession ? t('updated_success', 'Profession updated successfully') : t('created_success', 'Profession created successfully'), 'success');
-      handleCancel();
       fetchProfessions();
+      handleCancel();
     } catch (error) {
       console.error('Error saving profession:', error);
       const msg = error.response?.data?.message || t('error_saving', 'Error saving profession');
-      showToast(msg, 'error');
+      showError(msg);
     }
   };
 
@@ -214,11 +209,11 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
 
     try {
       await apiService.delete(`/professions/${id}`);
-      showToast(t('deleted_success', 'Profession deleted successfully'), 'success');
+      showSuccess(t('deleted_success', 'Profession deleted successfully'));
       fetchProfessions();
     } catch (error) {
       console.error('Error deleting profession:', error);
-      showToast(t('error_deleting', 'Error deleting profession'), 'error');
+      showError(t('error_deleting', 'Error deleting profession'));
     }
   };
 
@@ -347,10 +342,6 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
   return (
     <AdminLayout activeMenu="Profession">
       <Head title={t('professions', 'Professions Management')} />
-
-      {toast && (
-        <div className={`toast toast-${toast.type}`}>{toast.message}</div>
-      )}
 
       <BlankPage 
         breadcrumbs={breadcrumbs} 
@@ -555,7 +546,7 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
               showRefreshButton={true}
               onRefresh={() => {
                 fetchProfessions();
-                showToast(t('refreshed', 'Professions list refreshed!'), 'success');
+                showSuccess(t('refreshed', 'Professions list refreshed!'));
               }}
               tableData={filteredProfessions.map(p => ({ ...p, selected: selectedIds.includes(p.id) }))}
               columns={columns}

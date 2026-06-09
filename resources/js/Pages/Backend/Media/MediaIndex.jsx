@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useNotification } from '@/Components/Notifications/useNotification';
 import AdminLayout from '../components/AdminLayout';
 import Pagination from '../components/Pagination';
 import MediaToolbar from "./MediaToolbar";
@@ -9,6 +10,11 @@ import MediaSidebar from "./MediaSidebar";
 import FilePreviewModal from "./FilePreviewModal";
 
 export default function MediaIndex({ folders, files, currentFolder, breadcrumbs = [], filters = {}, storageUsage }) {
+    const { 
+        showSuccess, 
+        showError
+    } = useNotification();
+
     const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
     const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -28,8 +34,7 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
     
     const fileInputRef = useRef(null);
     const importInputRef = useRef(null);
-    const { flash } = usePage().props;
-
+    
     // Use local file list to handle pagination data structure
     const fileList = files.data || files;
     const pagination = files.data ? files : null;
@@ -283,11 +288,13 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
             });
             setImportProgress(null);
             setImportSummary(response.data);
+            showSuccess('Import completed successfully');
         } catch (error) {
             setImportProgress(null);
             const message = error?.response?.data?.message || 'Import failed';
             const details = error?.response?.data?.errors || [];
             setImportErrors(Array.isArray(details) ? details : [message]);
+            showError(message);
         }
     };
 
@@ -377,12 +384,6 @@ export default function MediaIndex({ folders, files, currentFolder, breadcrumbs 
                         )}
 
                         <div className="media-content-wrapper">
-                            {flash?.success && (
-                                <div className="alert alert-success">
-                                    {flash.success}
-                                </div>
-                            )}
-                            
                             {selectedItems.length > 0 ? (
                                 <div className="bulk-actions-toolbar">
                                     <div className="selected-count">

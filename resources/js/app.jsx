@@ -35,6 +35,7 @@ import '@fontsource/figtree/600.css';
 import { createInertiaApp } from '@inertiajs/react';
 import { createRoot } from 'react-dom/client';
 import { QueryProvider } from './hooks/QueryProvider';
+import { NotificationProvider } from './Components/Notifications/NotificationProvider';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -67,7 +68,9 @@ createInertiaApp({
     const root = createRoot(el);
     root.render(
       <QueryProvider>
-        <App {...props} />
+        <NotificationProvider>
+          <App {...props} />
+        </NotificationProvider>
       </QueryProvider>
     );
   },

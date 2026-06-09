@@ -179,8 +179,8 @@ class ProductsController extends Controller
                 ->whereNull('parent_id')
                 ->orderBy('name')
                 ->get();
-            $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
-            $categories = Categories::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
+            $brands = Brands::select('id', 'name')->whereIn('status', ['active', '1'])->orderBy('name')->get();
+            $categories = Categories::select('id', 'name')->whereIn('status', ['active', '1'])->orderBy('name')->get();
             $units = ItemUnit::select('id', 'name')->where('active', true)->where('unit_type', 1)->orderBy('name')->get();
 
             if ($request->wantsJson()) {
@@ -226,8 +226,12 @@ class ProductsController extends Controller
 
     public function create()
     {
-        $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
-        $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
+        $brands = Brands::select('id', 'name')->whereIn('status', ['active', '1'])->orderBy('name')->get();
+        $categories = Categories::select('id', 'name', 'parent_id')
+            ->whereIn('status', ['active', '1'])
+            ->orderBy('order')
+            ->orderBy('name')
+            ->get();
         $units = ItemUnit::select('id', 'name')->where('active', true)->where('unit_type', 1)->orderBy('name')->get();
         $itemAttributes = ItemAttribute::with(['details' => function ($query) {
             $query->select('id', 'attribute_set_id', 'title')->orderBy('order')->orderBy('title');
@@ -261,8 +265,8 @@ class ProductsController extends Controller
 
         return Inertia::render('Backend/03-Inventory/Products', [
             'product' => $product,
-            'brands' => Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get(),
-            'categories' => Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get(),
+            'brands' => Brands::select('id', 'name')->whereIn('status', ['active', '1'])->orderBy('name')->get(),
+            'categories' => Categories::select('id', 'name', 'parent_id')->whereIn('status', ['active', '1'])->orderBy('order')->orderBy('name')->get(),
             'units' => ItemUnit::select('id', 'name')->where('active', true)->where('unit_type', 1)->orderBy('name')->get(),
         ]);
     }
@@ -271,8 +275,12 @@ class ProductsController extends Controller
     {
         $product->load(['categories', 'unit', 'variations.items', 'variations.product']);
 
-        $brands = Brands::select('id', 'name')->where('status', 'active')->orderBy('name')->get();
-        $categories = Categories::select('id', 'name', 'parent_id')->where('status', 'active')->orderBy('order')->orderBy('name')->get();
+        $brands = Brands::select('id', 'name')->whereIn('status', ['active', '1'])->orderBy('name')->get();
+        $categories = Categories::select('id', 'name', 'parent_id')
+            ->whereIn('status', ['active', '1'])
+            ->orderBy('order')
+            ->orderBy('name')
+            ->get();
         $units = ItemUnit::select('id', 'name')->where('active', true)->where('unit_type', 1)->orderBy('name')->get();
         $itemAttributes = ItemAttribute::with(['details' => function ($query) {
             $query->select('id', 'attribute_set_id', 'title')->orderBy('order')->orderBy('title');

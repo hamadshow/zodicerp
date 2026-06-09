@@ -5,10 +5,12 @@ import Table from '@/Pages/Backend/components/Table';
 import BlankPage from '@/Components/BlankPage';
 import '@/../css/backend/main.scss';
 import { apiService } from '@/services/api';
+import { useNotification } from '@/Components/Notifications/useNotification';
 
 
 export default function Attendance({ employees: propEmployees }) {
   const { props } = usePage();
+  const { showSuccess, showError, showInfo } = useNotification();
   const localization = props?.localization;
   const [dbEmployees, setDbEmployees] = useState([]);
 
@@ -74,7 +76,6 @@ export default function Attendance({ employees: propEmployees }) {
   const [isPunchedIn, setIsPunchedIn] = useState(false);
   const [selectedRecords, setSelectedRecords] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [toast, setToast] = useState(null);
   const [formData, setFormData] = useState({
     employee: '',
     attendanceDate: '',
@@ -102,11 +103,6 @@ export default function Attendance({ employees: propEmployees }) {
       record.department.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesDate && matchesStatus && matchesSearch;
   });
-
-  const showToast = (message, type = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const handleAdd = () => {
     setShowForm(true);
@@ -147,7 +143,7 @@ export default function Attendance({ employees: propEmployees }) {
     } = formData;
 
     if (!employee || !attendanceDate || !attendanceStatus) {
-      showToast('Please fill in all required fields.', 'error');
+      showError('Please fill in all required fields.');
       return;
     }
 
@@ -174,24 +170,24 @@ export default function Attendance({ employees: propEmployees }) {
     if (editingId) {
       apiService.put(`/attendances/${editingId}`, attendanceData)
         .then(() => {
-          showToast('Attendance updated successfully!', 'success');
+          showSuccess('Attendance updated successfully!');
           fetchAttendance();
           handleCancel();
         })
         .catch(err => {
           console.error(err);
-          showToast('Failed to update attendance.', 'error');
+          showError('Failed to update attendance.');
         });
     } else {
       apiService.post('/attendances', attendanceData)
         .then(() => {
-          showToast('Attendance marked successfully!', 'success');
+          showSuccess('Attendance marked successfully!');
           fetchAttendance();
           handleCancel();
         })
         .catch(err => {
           console.error(err);
-          showToast('Failed to mark attendance.', 'error');
+          showError('Failed to mark attendance.');
         });
     }
   };
@@ -219,12 +215,12 @@ export default function Attendance({ employees: propEmployees }) {
     ) {
       apiService.delete(`/attendances/${id}`)
         .then(() => {
-          showToast('Attendance record deleted successfully!', 'success');
+          showSuccess('Attendance record deleted successfully!');
           fetchAttendance();
         })
         .catch(err => {
           console.error(err);
-          showToast('Failed to delete attendance record.', 'error');
+          showError('Failed to delete attendance record.');
         });
     }
   };
@@ -249,7 +245,7 @@ export default function Attendance({ employees: propEmployees }) {
   const resetDateFilter = () => {
     const today = new Date().toISOString().split('T')[0];
     setCurrentFilterDate(today);
-    showToast('Date filter reset to today', 'info');
+    showInfo('Date filter reset to today');
   };
 
   const togglePunch = () => {
@@ -257,10 +253,10 @@ export default function Attendance({ employees: propEmployees }) {
     const timeString = now.toTimeString().split(' ')[0].substring(0, 5);
 
     if (!isPunchedIn) {
-      showToast(`Punched in at ${timeString}`, 'success');
+      showSuccess(`Punched in at ${timeString}`);
       setIsPunchedIn(true);
     } else {
-      showToast(`Punched out at ${timeString}`, 'success');
+      showSuccess(`Punched out at ${timeString}`);
       setIsPunchedIn(false);
     }
   };
@@ -305,14 +301,14 @@ export default function Attendance({ employees: propEmployees }) {
 
       Promise.all(updates)
         .then(() => {
-          showToast(`${selectedRecords.length} record(s) marked as ${status}!`, 'success');
+          showSuccess(`${selectedRecords.length} record(s) marked as ${status}!`);
           fetchAttendance();
           setSelectedRecords([]);
           document.getElementById('bulkActions').value = 'Bulk Actions';
         })
         .catch(err => {
           console.error(err);
-          showToast('Failed to update some records.', 'error');
+          showError('Failed to update some records.');
         });
 
     } else if (action === 'delete') {
@@ -325,14 +321,14 @@ export default function Attendance({ employees: propEmployees }) {
         
         Promise.all(deletions)
           .then(() => {
-            showToast(`${selectedRecords.length} record(s) deleted!`, 'success');
+            showSuccess(`${selectedRecords.length} record(s) deleted!`);
             fetchAttendance();
             setSelectedRecords([]);
             document.getElementById('bulkActions').value = 'Bulk Actions';
           })
           .catch(err => {
             console.error(err);
-            showToast('Failed to delete some records.', 'error');
+            showError('Failed to delete some records.');
           });
       }
     }
@@ -360,7 +356,7 @@ export default function Attendance({ employees: propEmployees }) {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
 
-    showToast('Attendance data exported successfully!', 'success');
+    showSuccess('Attendance data exported successfully!');
   };
 
   const todayRecords = attendanceRecords.filter(
@@ -711,7 +707,7 @@ export default function Attendance({ employees: propEmployees }) {
               showRefreshButton={true}
               onRefresh={() => {
                 fetchAttendance();
-                showToast('Attendance list refreshed!', 'success');
+                showSuccess('Attendance list refreshed!');
               }}
               showExportButton={true}
               onExport={exportAttendance}
@@ -741,7 +737,7 @@ export default function Attendance({ employees: propEmployees }) {
                 if (record.notes) {
                   viewNotes(record.id);
                 } else {
-                  showToast('No notes for this record', 'info');
+                  showInfo('No notes for this record');
                 }
               }}
             />
@@ -749,8 +745,6 @@ export default function Attendance({ employees: propEmployees }) {
         )}
       </BlankPage>
 
-      {/* Toast */}
-      {toast && <div className={`toast ${toast.type}`}>{toast.message}</div>}
     </AdminLayout>
   );
 }

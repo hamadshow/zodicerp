@@ -40,4 +40,6 @@ return [
     'returns' => 'Returns',
     'shelves' => 'Shelves',
     'garage' => 'Garage',
+    'linked_gl_account' => 'Linked GL Account',
+    'select_gl_account' => 'Select GL Account',
 ];

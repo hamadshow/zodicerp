@@ -1,0 +1,193 @@
+@use '../../../css/backend/base/variables' as *;
+@use '../../../css/backend/base/mixins' as *;
+
+.notification-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 400px;
+    width: calc(100% - 40px);
+    pointer-events: none;
+
+    @include rtl {
+        right: auto;
+        left: 20px;
+    }
+}
+
+.notification-item {
+    pointer-events: auto;
+    display: flex;
+    align-items: flex-start;
+    padding: $spacing-md;
+    border-radius: $radius-md;
+    box-shadow: $shadow-lg;
+    background: $white;
+    border-left: 4px solid $primary-color;
+    animation: slideInRight 0.3s ease forwards;
+    position: relative;
+    overflow: hidden;
+
+    @include rtl {
+        border-left: none;
+        border-right: 4px solid $primary-color;
+        animation: slideInLeft 0.3s ease forwards;
+    }
+
+    &.exit {
+        animation: fadeOut 0.3s ease forwards;
+    }
+
+    .notification-icon {
+        margin-right: $spacing-sm;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        @include rtl {
+            margin-right: 0;
+            margin-left: $spacing-sm;
+        }
+
+        span {
+            font-size: 24px;
+        }
+    }
+
+    .notification-content {
+        flex: 1;
+        margin-right: $spacing-lg;
+
+        @include rtl {
+            margin-right: 0;
+            margin-left: $spacing-lg;
+        }
+
+        p {
+            margin: 0;
+            font-size: $font-size-sm;
+            font-weight: $font-weight-medium;
+            color: $text-primary;
+            line-height: 1.5;
+        }
+    }
+
+    .notification-close {
+        background: transparent;
+        border: none;
+        color: $text-light;
+        cursor: pointer;
+        padding: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: $transition-fast;
+        position: absolute;
+        top: 8px;
+        right: 8px;
+
+        @include rtl {
+            right: auto;
+            left: 8px;
+        }
+
+        &:hover {
+            color: $text-secondary;
+            background: $light-color;
+            border-radius: 50%;
+        }
+
+        span {
+            font-size: 18px;
+        }
+    }
+
+    /* Variants */
+    &.success {
+        border-left-color: $success-color;
+        @include rtl { border-right-color: $success-color; }
+        .notification-icon span { color: $success-color; }
+    }
+
+    &.error {
+        border-left-color: $danger-color;
+        @include rtl { border-right-color: $danger-color; }
+        .notification-icon span { color: $danger-color; }
+    }
+
+    &.warning {
+        border-left-color: $warning-color;
+        @include rtl { border-right-color: $warning-color; }
+        .notification-icon span { color: $warning-color; }
+    }
+
+    &.info {
+        border-left-color: $info-color;
+        @include rtl { border-right-color: $info-color; }
+        .notification-icon span { color: $info-color; }
+    }
+}
+
+/* Dark Mode Support */
+[data-theme='dark'], .dark-mode {
+    .notification-item {
+        background: $dark-color;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        
+        .notification-content p {
+            color: $white;
+        }
+        
+        .notification-close {
+            color: rgba(255, 255, 255, 0.5);
+            &:hover {
+                color: $white;
+                background: rgba(255, 255, 255, 0.1);
+            }
+        }
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+@media (max-width: 576px) {
+    .notification-container {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        width: auto;
+    }
+}

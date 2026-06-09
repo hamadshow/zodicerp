@@ -40,4 +40,6 @@ return [
     'returns' => 'مرتجعات',
     'shelves' => 'أرفف',
     'garage' => 'جراج',
+    'linked_gl_account' => 'الحساب المحاسبي المرتبط',
+    'select_gl_account' => 'اختر الحساب المحاسبي',
 ];

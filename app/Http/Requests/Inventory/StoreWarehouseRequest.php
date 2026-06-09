@@ -32,6 +32,7 @@ class StoreWarehouseRequest extends FormRequest
                 }),
             ],
             'branch_id' => 'required|exists:branches,id',
+            'linked_gl_account_id' => 'nullable|exists:accounts,AccID',
             'manager' => 'nullable|string|max:255',
             'location' => 'nullable|string|max:255',
             'capacity' => 'nullable|integer|min:0',

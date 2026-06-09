@@ -6,6 +6,7 @@ import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import { apiService } from '../../../services/api';
 import { formatDate } from '@/utils/date';
+import { useNotification } from '@/Components/Notifications/useNotification';
 
 const resolveMediaUrl = (value) => {
   if (!value) {
@@ -30,6 +31,7 @@ const resolveMediaUrl = (value) => {
 const EmployeesManagement = () => {
   // Admin layout state - Removed redundant state
   const page = usePage();
+  const { showSuccess, showError, showWarning } = useNotification();
   const { nationalities = [], professions: initialProfessions = [], roles = [] } = page.props;
   const localization = page?.props?.localization;
   const isArabic = localization?.current_locale === 'ar';
@@ -65,7 +67,6 @@ const EmployeesManagement = () => {
   const [selectedIds, setSelectedIds] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage] = useState(10);
-  const [toast, setToast] = useState(null);
   const [departments, setDepartments] = useState([]);
   const [professions, setProfessions] = useState(initialProfessions);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
@@ -124,7 +125,7 @@ const EmployeesManagement = () => {
       setCurrentPage(data.current_page || 1);
     } catch (error) {
       console.error('Error fetching employees:', error);
-      showToast('Error loading employees', 'error');
+      showError('Failed to load employees.');
       setEmployees(Array.isArray(sampleEmployees) ? sampleEmployees : []);
       // totalEmployees state removed
     } finally {
@@ -213,13 +214,6 @@ const EmployeesManagement = () => {
     totalDepartments: [...new Set((employees || []).map((e) => e.department))].length,
   };
 
-  // Toast notification
-  const showToast = (message, type = 'info') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  // Form toggle handlers
   const handleAddEdit = (employee = null) => {
     setEditingEmployee(employee);
     if (employee) {
@@ -327,13 +321,13 @@ const EmployeesManagement = () => {
     if (file) {
       // Validate file type
       if (!file.type.match('image.*')) {
-        showToast('Please select an image file (JPG, PNG, GIF, etc.)', 'error');
+        showError('Please select an image file (JPG, PNG, GIF, etc.)');
         return;
       }
 
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        showToast('Profile photo should be less than 5MB', 'error');
+        showError('Profile photo should be less than 5MB');
         return;
       }
 
@@ -358,26 +352,26 @@ const EmployeesManagement = () => {
       !formData.position ||
       !formData.hire_date
     ) {
-      showToast('Please fill in all required fields', 'error');
+      showError('Please fill in all required fields');
       return;
     }
 
     if (!validateSalary(formData.salary, formData.position)) {
-      showToast('Salary is out of range for the selected profession', 'error');
+      showError('Salary is out of range for the selected profession');
       return;
     }
 
     if (!editingEmployee) {
       if (!formData.password) {
-        showToast('Password is required for new employees', 'error');
+        showError('Password is required for new employees');
         return;
       }
       if (formData.password.length < 8) {
-        showToast('Password must be at least 8 characters', 'error');
+        showError('Password must be at least 8 characters');
         return;
       }
     } else if (formData.password && formData.password.length < 8) {
-      showToast('Password must be at least 8 characters', 'error');
+      showError('Password must be at least 8 characters');
       return;
     }
 
@@ -419,11 +413,11 @@ const EmployeesManagement = () => {
       const result = response.data;
 
       if (result.success) {
-        showToast(result.message, 'success');
+        showSuccess(result.message);
         handleCancel();
         fetchEmployees(currentPage, searchTerm);
       } else {
-        showToast('Error saving employee', 'error');
+        showError('Error saving employee');
       }
     } catch (error) {
       const status = error?.response?.status;
@@ -446,9 +440,9 @@ const EmployeesManagement = () => {
           (Array.isArray(errs.phone) && errs.phone[0]) ||
           (Array.isArray(errs.salary) && errs.salary[0]) ||
           'Validation error';
-        showToast(msg, 'error');
+        showError(msg);
       } else {
-        showToast('Error saving employee', 'error');
+        showError('Error saving employee');
       }
       console.error('Error saving employee:', error);
     }
@@ -468,15 +462,15 @@ const EmployeesManagement = () => {
       const result = response.data;
 
       if (result.success) {
-        showToast(result.message, 'success');
+        showSuccess(result.message);
         setShowDeleteModal(false);
         setDeleteItem(null);
         fetchEmployees(currentPage, searchTerm);
       } else {
-        showToast('Error deleting employee', 'error');
+        showError('Error deleting employee');
       }
     } catch (error) {
-      showToast('Error deleting employee', 'error');
+      showError('Error deleting employee');
       console.error('Error deleting employee:', error);
     }
   };
@@ -610,7 +604,7 @@ const EmployeesManagement = () => {
     if (!action) return;
 
     if (selectedIds.length === 0) {
-      showToast('Please select at least one employee.', 'warning');
+      showWarning('Please select at least one employee.');
       document.getElementById('bulkActions').value = '';
       return;
     }
@@ -628,14 +622,14 @@ const EmployeesManagement = () => {
           const result = response.data;
 
           if (result.success) {
-            showToast(result.message, 'success');
+            showSuccess(result.message);
             setSelectedIds([]);
             fetchEmployees(currentPage, searchTerm);
           } else {
-            showToast('Error deleting employees', 'error');
+            showError('Error deleting employees');
           }
         } catch (error) {
-          showToast('Error deleting employees', 'error');
+          showError('Error deleting employees');
           console.error('Error deleting employees:', error);
         }
       }
@@ -651,14 +645,14 @@ const EmployeesManagement = () => {
       const result = response.data;
 
       if (result.success) {
-        showToast(result.message, 'success');
+        showSuccess(result.message);
         setSelectedIds([]);
         fetchEmployees(currentPage, searchTerm);
       } else {
-        showToast('Error updating employee status', 'error');
+        showError('Error updating employee status');
       }
     } catch (error) {
-      showToast('Error updating employee status', 'error');
+      showError('Error updating employee status');
       console.error('Error updating employee status:', error);
     } finally {
       document.getElementById('bulkActions').value = '';
@@ -729,11 +723,6 @@ const EmployeesManagement = () => {
   return (
     <AdminLayout activeMenu="Employees">
       <Head title={isArabic ? 'إدارة الموظفين' : 'Employees Management'} />
-
-      {/* Toast Notification */}
-      {toast && (
-        <div className={`toast toast-${toast.type}`}>{toast.message}</div>
-      )}
 
       {/* Add/Edit Form */}
       {showForm && (
@@ -1216,7 +1205,7 @@ const EmployeesManagement = () => {
           addButtonText={isArabic ? 'إضافة موظف' : 'Add Employee'}
           onAdd={() => handleAddEdit()}
           showRefreshButton={true}
-          onRefresh={() => showToast('Employees list refreshed!', 'success')}
+          onRefresh={() => showSuccess('Employees list refreshed!')}
           toolbarActions={
             <select
               className="btn-toolbar btn-refresh"

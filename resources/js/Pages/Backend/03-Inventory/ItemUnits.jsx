@@ -8,7 +8,7 @@ import IconPicker from '../../../Components/IconPicker';
 import MediaPickerModal from '../Media/MediaPickerModal';
 
 // --- Recursive Item Unit Tree Item ---
-const ItemUnitItem = ({ unit, treeVersion, level = 0, selectedId, onSelect, onDelete, onDrop, onDragStart }) => {
+const ItemUnitItem = ({ unit, treeVersion, level = 0, selectedId, onSelect, onDelete, onDrop, onDragStart, expandedIds, onToggleExpand }) => {
     const [isDragOver, setIsDragOver] = useState(false);
 
     const handleDragOver = (e) => {
@@ -35,6 +35,7 @@ const ItemUnitItem = ({ unit, treeVersion, level = 0, selectedId, onSelect, onDe
 
     const hasChildren = unit.children && unit.children.length > 0;
     const isSelected = selectedId === unit.id;
+    const isExpanded = expandedIds.has(unit.id);
 
     return (
         <div className="category-node">
@@ -57,11 +58,12 @@ const ItemUnitItem = ({ unit, treeVersion, level = 0, selectedId, onSelect, onDe
                     className="category-toggle" 
                     onClick={(e) => {
                         e.stopPropagation();
+                        onToggleExpand(unit.id);
                     }}
                     style={{ visibility: hasChildren ? 'visible' : 'hidden' }}
                 >
                     <span className="material-icons-outlined">
-                        {hasChildren ? 'expand_more' : 'chevron_right'}
+                        {isExpanded ? 'expand_more' : 'chevron_right'}
                     </span>
                 </div>
 
@@ -88,8 +90,9 @@ const ItemUnitItem = ({ unit, treeVersion, level = 0, selectedId, onSelect, onDe
                 )}
             </div>
 
-            {hasChildren && (
-                <div className="category-children">
+            {hasChildren && isExpanded && (
+                <div className="unit-tree-children">
+                    {console.log(`ItemUnitItem: Rendering ${unit.children.length} children for ${unit.name}`)}
                     {unit.children.map(child => (
                         <ItemUnitItem 
                             key={`${treeVersion}-${child.id}`} 
@@ -101,6 +104,8 @@ const ItemUnitItem = ({ unit, treeVersion, level = 0, selectedId, onSelect, onDe
                             onDelete={onDelete}
                             onDrop={onDrop}
                             onDragStart={onDragStart}
+                            expandedIds={expandedIds}
+                            onToggleExpand={onToggleExpand}
                         />
                     ))}
                 </div>
@@ -133,6 +138,7 @@ const ItemUnits = ({ units = [], parents = [] }) => {
 
     const [unitTree, setUnitTree] = useState([]);
     const [treeVersion, setTreeVersion] = useState(0);
+    const [expandedIds, setExpandedIds] = useState(new Set());
     const [selectedUnit, setSelectedUnit] = useState(null); // null means "Create New" mode or nothing selected
     const [isCreating, setIsCreating] = useState(true); // explicit flag for Create Mode
     const fileInputRef = useRef(null);
@@ -198,9 +204,26 @@ const ItemUnits = ({ units = [], parents = [] }) => {
     }, []);
 
     useEffect(() => {
-        setUnitTree(buildTree(units));
+        console.log('ItemUnits: units prop updated', units);
+        const tree = buildTree(units);
+        console.log('ItemUnits: buildTree output', tree);
+        setUnitTree(tree);
         setTreeVersion((v) => v + 1);
-    }, [units]);
+    }, [units, buildTree]);
+
+    // Handle Toggle Expand
+    const handleToggleExpand = (id) => {
+        console.log('ItemUnits: toggling expand for ID', id);
+        setExpandedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    };
 
     // Handle Selection
     const handleSelectUnit = (unit) => {
@@ -702,6 +725,8 @@ const ItemUnits = ({ units = [], parents = [] }) => {
                                 onDelete={handleDelete}
                                 onDrop={handleMoveUnit}
                                 onDragStart={handleDragStart}
+                                expandedIds={expandedIds}
+                                onToggleExpand={handleToggleExpand}
                             />
                         ))}
                         {unitTree.length === 0 && (

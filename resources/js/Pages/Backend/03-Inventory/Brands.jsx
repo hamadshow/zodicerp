@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import BlankPage from '@/Components/BlankPage';
 
 // Recursive Brand Item Component
 const BrandItem = ({ brand, level = 0, onEdit, onDelete, onDrop, onDragStart }) => {
@@ -32,7 +33,7 @@ const BrandItem = ({ brand, level = 0, onEdit, onDelete, onDrop, onDragStart }) 
     const hasChildren = brand.children && brand.children.length > 0;
 
     return (
-        <div className="brand-node">
+        <div className="brand-node" style={{ borderBottom: '1px solid #f1f5f9' }}>
             <div 
                 className={`brand-content ${isDragOver ? 'drag-over' : ''}`}
                 draggable
@@ -40,38 +41,73 @@ const BrandItem = ({ brand, level = 0, onEdit, onDelete, onDrop, onDragStart }) 
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
-                style={{ marginLeft: `${level * 0}px` }}
+                style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    padding: '12px 16px',
+                    backgroundColor: isDragOver ? '#f8fafc' : 'transparent',
+                    transition: 'all 0.2s'
+                }}
             >
-                <div className="brand-handle">
-                    <span className="material-icons-outlined">drag_indicator</span>
+                <div className="brand-handle" style={{ color: '#94a3b8', cursor: 'grab', marginRight: '12px', display: 'flex' }}>
+                    <span className="material-icons-outlined" style={{ fontSize: '20px' }}>drag_indicator</span>
                 </div>
                 
                 <div 
                     className="brand-toggle" 
                     onClick={() => setIsExpanded(!isExpanded)}
-                    style={{ visibility: hasChildren ? 'visible' : 'hidden' }}
+                    style={{ 
+                        visibility: hasChildren ? 'visible' : 'hidden',
+                        cursor: 'pointer',
+                        color: '#64748b',
+                        marginRight: '8px',
+                        display: 'flex',
+                        marginLeft: `${level * 24}px`
+                    }}
                 >
-                    <span className="material-icons-outlined">
+                    <span className="material-icons-outlined" style={{ fontSize: '20px' }}>
                         {isExpanded ? 'expand_more' : 'chevron_right'}
                     </span>
                 </div>
 
-                <div className="brand-info">
-                    <div className="brand-name">{brand.name}</div>
+                <div className="brand-info" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div className="brand-name" style={{ fontWeight: '500', color: '#1e293b' }}>{brand.name}</div>
                     {brand.brand_code && (
-                        <span className="brand-code">{brand.brand_code}</span>
+                        <span className="brand-code" style={{ 
+                            fontSize: '12px', 
+                            color: '#64748b', 
+                            backgroundColor: '#f1f5f9', 
+                            padding: '2px 8px', 
+                            borderRadius: '4px' 
+                        }}>{brand.brand_code}</span>
                     )}
-                    <span className={`brand-status ${brand.status === 'active' ? 'status-active' : 'status-inactive'}`}>
+                    <span className={`employee-status status-${brand.status}`} style={{ 
+                        fontSize: '11px',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        textTransform: 'capitalize',
+                        fontWeight: '600',
+                        backgroundColor: brand.status === 'active' ? '#ecfdf5' : '#fef2f2',
+                        color: brand.status === 'active' ? '#059669' : '#dc2626'
+                    }}>
                         {brand.status}
                     </span>
                 </div>
 
-                <div className="item-actions">
-                    <button className="icon-btn" onClick={() => onEdit(brand)} title="Edit">
-                        <span className="material-icons-outlined">edit</span>
+                <div className="item-actions" style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                        className="btn-icon" 
+                        onClick={() => onEdit(brand)} 
+                        style={{ color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: '4px' }}
+                    >
+                        <span className="material-icons-outlined" style={{ fontSize: '20px' }}>edit</span>
                     </button>
-                    <button className="icon-btn delete" onClick={() => onDelete(brand.id)} title="Delete">
-                        <span className="material-icons-outlined">delete</span>
+                    <button 
+                        className="btn-icon" 
+                        onClick={() => onDelete(brand.id)}
+                        style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', padding: '4px' }}
+                    >
+                        <span className="material-icons-outlined" style={{ fontSize: '20px' }}>delete</span>
                     </button>
                 </div>
             </div>
@@ -98,6 +134,7 @@ const BrandItem = ({ brand, level = 0, onEdit, onDelete, onDrop, onDragStart }) 
 const Brands = ({ brands = [], parents = [] }) => {
     const { props } = usePage();
     const { localization } = props;
+    const isArabic = localization?.current_locale === 'ar';
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -109,7 +146,7 @@ const Brands = ({ brands = [], parents = [] }) => {
 
     const [brandTree, setBrandTree] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [showForm, setShowForm] = useState(false);
     const [currentBrand, setCurrentBrand] = useState(null);
     const [stats, setStats] = useState({
         total: 0,
@@ -122,12 +159,10 @@ const Brands = ({ brands = [], parents = [] }) => {
         const map = {};
         const roots = [];
         
-        // First pass: create map and initialize children array
         items.forEach(item => {
             map[item.id] = { ...item, children: [] };
         });
 
-        // Second pass: link children to parents
         items.forEach(item => {
             if (item.parent_id && map[item.parent_id]) {
                 map[item.parent_id].children.push(map[item.id]);
@@ -136,7 +171,6 @@ const Brands = ({ brands = [], parents = [] }) => {
             }
         });
 
-        // Sort by order
         const sortRecursive = (nodes) => {
             nodes.sort((a, b) => a.order - b.order);
             nodes.forEach(node => {
@@ -151,7 +185,6 @@ const Brands = ({ brands = [], parents = [] }) => {
     };
 
     useEffect(() => {
-        // Filter first if search term exists
         let filtered = brands;
         if (searchTerm) {
             const lowerTerm = searchTerm.toLowerCase();
@@ -179,13 +212,13 @@ const Brands = ({ brands = [], parents = [] }) => {
         setSearchTerm(e.target.value);
     };
 
-    const openModal = (brand = null) => {
+    const handleAddEdit = (brand = null) => {
         setCurrentBrand(brand);
-        setIsModalOpen(true);
+        setShowForm(true);
     };
 
-    const closeModal = () => {
-        setIsModalOpen(false);
+    const handleCancel = () => {
+        setShowForm(false);
         setCurrentBrand(null);
     };
 
@@ -202,22 +235,21 @@ const Brands = ({ brands = [], parents = [] }) => {
 
         if (currentBrand) {
             router.put(getLocalizedRoute('admin.inventory.brands.update', { brand: currentBrand.id }), data, {
-                onSuccess: () => closeModal(),
+                onSuccess: () => handleCancel(),
             });
         } else {
             router.post(getLocalizedRoute('admin.inventory.brands.store'), data, {
-                onSuccess: () => closeModal(),
+                onSuccess: () => handleCancel(),
             });
         }
     };
 
     const handleDelete = (id) => {
-        if (window.confirm('Are you sure you want to delete this brand?')) {
+        if (window.confirm(isArabic ? 'هل أنت متأكد من حذف هذه الماركة؟' : 'Are you sure you want to delete this brand?')) {
             router.delete(getLocalizedRoute('admin.inventory.brands.destroy', { brand: id }));
         }
     };
 
-    // Drag and Drop Handlers
     const handleDragStart = (e, id) => {
         e.dataTransfer.setData('text/plain', id);
         e.dataTransfer.effectAllowed = 'move';
@@ -227,32 +259,24 @@ const Brands = ({ brands = [], parents = [] }) => {
         e.preventDefault();
         const draggedId = e.dataTransfer.getData('text/plain');
         if (draggedId) {
-            // Move to root (parent_id = null)
             handleMoveBrand(draggedId, null);
         }
     };
 
     const handleMoveBrand = (draggedId, newParentId) => {
-        // Find the dragged brand to get its current data
         const brand = brands.find(b => String(b.id) === String(draggedId));
         if (!brand) return;
-        
-        // Prevent moving to self or own child (circular reference check needed ideally)
-        if (String(brand.parent_id) === String(newParentId)) return; // No change
+        if (String(brand.parent_id) === String(newParentId)) return;
 
         router.put(getLocalizedRoute('admin.inventory.brands.update', { brand: draggedId }), {
             ...brand,
             parent_id: newParentId
         }, {
-            preserveScroll: true,
-            onSuccess: () => {
-                // Optional: Show notification
-            }
+            preserveScroll: true
         });
     };
     
     const handleExport = () => {
-        // Simple CSV export
         const headers = ['ID', 'Name', 'Code', 'Parent ID', 'Status', 'Order'];
         const csvContent = "data:text/csv;charset=utf-8," 
             + headers.join(",") + "\n"
@@ -274,139 +298,141 @@ const Brands = ({ brands = [], parents = [] }) => {
         document.body.removeChild(link);
     };
 
+    const breadcrumbs = [
+        { label: isArabic ? 'لوحة التحكم' : 'Dashboard', href: '#' },
+        { label: isArabic ? 'المخزون' : 'Inventory', href: '#' },
+        { label: isArabic ? 'الماركات' : 'Brands', active: true }
+    ];
+
+    const statsSection = (
+        <div className="stats-cards">
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
+                    <span className="material-icons-outlined">branding_watermark</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.total}</div>
+                    <div className="stat-label">Total Brands</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
+                    <span className="material-icons-outlined">check_circle</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.active}</div>
+                    <div className="stat-label">Active Brands</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
+                    <span className="material-icons-outlined">account_tree</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{stats.topLevel}</div>
+                    <div className="stat-label">Top Level</div>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <AdminLayout activeMenu="Inventory">
-            <Head title="Brands - ZodicERP" />
-            <div className="breadcrumb">
-                <a href="#">Dashboard</a>
-                <span>/</span>
-                <a href="#">Inventory</a>
-                <span>/</span>
-                <span>Brands</span>
-            </div>
+            <Head title={isArabic ? 'الماركات - ZodicERP' : 'Brands - ZodicERP'} />
+            
+            {!showForm && (
+                <BlankPage breadcrumbs={breadcrumbs} stats={statsSection}>
+                    <div className="employees-card fade-in" style={{ backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+                        <div className="card-header" style={{ padding: '20px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                            <div className="header-left" style={{ display: 'flex', gap: '12px', flex: 1, minWidth: '300px' }}>
+                                <div className="search-bar light" style={{ position: 'relative', flex: 1 }}>
+                                    <input 
+                                        type="text" 
+                                        className="form-control"
+                                        style={{ paddingLeft: '40px', borderRadius: '8px', border: '1px solid #e2e8f0', height: '42px' }}
+                                        placeholder={isArabic ? 'بحث الماركات...' : 'Search brands...'} 
+                                        value={searchTerm}
+                                        onChange={handleSearch}
+                                    />
+                                    <span className="material-icons-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>search</span>
+                                </div>
+                            </div>
+                            <div className="header-right" style={{ display: 'flex', gap: '12px' }}>
+                                <button className="btn btn-outline" onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '42px' }}>
+                                    <span className="material-icons-outlined">download</span>
+                                    <span>{isArabic ? 'تقرير' : 'Report'}</span>
+                                </button>
+                                <button className="btn btn-primary" onClick={() => handleAddEdit()} style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '42px' }}>
+                                    <span className="material-icons-outlined">add</span>
+                                    <span>{isArabic ? 'إضافة ماركة' : 'Add Brand'}</span>
+                                </button>
+                            </div>
+                        </div>
 
-            {/* Quick Stats */}
-            <div className="stats-cards">
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
-                        <span className="material-icons-outlined">branding_watermark</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.total}</div>
-                        <div className="stat-label">Total Brands</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
-                        <span className="material-icons-outlined">check_circle</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.active}</div>
-                        <div className="stat-label">Active Brands</div>
-                    </div>
-                </div>
-                <div className="stat-card">
-                    <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
-                        <span className="material-icons-outlined">account_tree</span>
-                    </div>
-                    <div className="stat-content">
-                        <div className="stat-value">{stats.topLevel}</div>
-                        <div className="stat-label">Top Level Brands</div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Main Card */}
-            <div className="brands-card fade-in">
-                <div className="card-header">
-                    <div className="brands-actions">
-                        <div className="search-bar light">
-                            <input 
-                                type="text" 
-                                placeholder="Search brands..." 
-                                value={searchTerm}
-                                onChange={handleSearch}
-                            />
-                            <button>
-                                <span className="material-icons-outlined">search</span>
-                            </button>
+                        <div 
+                            className="card-body" 
+                            onDragOver={(e) => e.preventDefault()} 
+                            onDrop={handleDropOnRoot}
+                            style={{ minHeight: '300px', padding: '0' }}
+                        >
+                            {brandTree.length > 0 ? (
+                                <div className="brand-tree">
+                                    {brandTree.map(brand => (
+                                        <BrandItem 
+                                            key={brand.id} 
+                                            brand={brand} 
+                                            onEdit={handleAddEdit}
+                                            onDelete={handleDelete}
+                                            onDrop={handleMoveBrand}
+                                            onDragStart={handleDragStart}
+                                        />
+                                    ))}
+                                </div>
+                            ) : (
+                                <div style={{ padding: '40px', textAlign: 'center', color: '#64748b' }}>
+                                    <span className="material-icons-outlined" style={{ fontSize: '48px', marginBottom: '12px', opacity: 0.5 }}>inventory_2</span>
+                                    <p>{searchTerm ? (isArabic ? 'لا توجد ماركات تطابق بحثك.' : 'No brands found matching your search.') : (isArabic ? 'لا توجد ماركات. أضف واحدة للبدء.' : 'No brands found. Add one to get started.')}</p>
+                                </div>
+                            )}
                         </div>
                     </div>
-                    <div className="actions">
-                        <button className="btn btn-primary" onClick={() => openModal()}>
-                            <span className="material-icons-outlined">add</span>
-                            <span>Add Brand</span>
-                        </button>
-                        <button className="btn btn-outline" onClick={handleExport}>
-                            <span className="material-icons-outlined">download</span>
-                            <span>Report</span>
-                        </button>
-                    </div>
-                </div>
+                </BlankPage>
+            )}
 
-                <div 
-                    className="tree-container" 
-                    onDragOver={(e) => e.preventDefault()} 
-                    onDrop={handleDropOnRoot}
-                    style={{ minHeight: '200px', paddingBottom: '50px' }}
-                >
-                    {brandTree.length > 0 ? (
-                        <div className="brand-tree">
-                            {brandTree.map(brand => (
-                                <BrandItem 
-                                    key={brand.id} 
-                                    brand={brand} 
-                                    onEdit={openModal}
-                                    onDelete={handleDelete}
-                                    onDrop={handleMoveBrand}
-                                    onDragStart={handleDragStart}
-                                />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-4 text-gray-500">
-                            {searchTerm ? 'No brands found matching your search.' : 'No brands found. Add one to get started.'}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-
-            {/* Modal */}
-            <div className={`modal-overlay ${isModalOpen ? 'active' : ''}`} onClick={(e) => {
-                if(e.target.className.includes('modal-overlay')) closeModal();
-            }}>
-                <div className="modal">
-                    <div className="modal-header">
-                        <div className="modal-title">{currentBrand ? 'Edit Brand' : 'Add New Brand'}</div>
-                        <button className="modal-close" onClick={closeModal}>
-                            <span className="material-icons-outlined">close</span>
+            {showForm && (
+                <div className="employees-card fade-in" style={{ backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden', maxWidth: '800px', margin: '24px auto' }}>
+                    <div className="card-header" style={{ padding: '20px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600' }}>{currentBrand ? (isArabic ? 'تعديل الماركة' : 'Edit Brand') : (isArabic ? 'إضافة ماركة جديدة' : 'Add New Brand')}</h3>
+                        <button className="btn btn-outline" onClick={handleCancel} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span className="material-icons-outlined">arrow_back</span>
+                            <span>{isArabic ? 'العودة للقائمة' : 'Back to List'}</span>
                         </button>
                     </div>
-                    <form onSubmit={handleSubmit}>
-                        <div className="modal-body">
-                            <div className="form-group">
-                                <label className="form-label">Brand Name</label>
+                    <div className="card-body" style={{ padding: '24px' }}>
+                        <form onSubmit={handleSubmit}>
+                            <div className="form-group" style={{ marginBottom: '20px' }}>
+                                <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{isArabic ? 'اسم الماركة' : 'Brand Name'} *</label>
                                 <input 
                                     type="text" 
                                     name="name" 
                                     className="form-control" 
+                                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                     defaultValue={currentBrand?.name}
                                     placeholder="e.g. Nike"
                                     required 
                                 />
                             </div>
 
-                            <div className="form-group">
-                                <label className="form-label">Parent Brand</label>
+                            <div className="form-group" style={{ marginBottom: '20px' }}>
+                                <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{isArabic ? 'الماركة الأب' : 'Parent Brand'}</label>
                                 <select 
                                     name="parent_id" 
                                     className="form-control" 
+                                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                     defaultValue={currentBrand?.parent_id || ''}
                                 >
-                                    <option value="">None (Top Level)</option>
+                                    <option value="">{isArabic ? 'بدون (مستوى أعلى)' : 'None (Top Level)'}</option>
                                     {parents.map(parent => (
-                                        // Prevent selecting self as parent
                                         (!currentBrand || parent.id !== currentBrand.id) && (
                                             <option key={parent.id} value={parent.id}>
                                                 {parent.name}
@@ -416,39 +442,42 @@ const Brands = ({ brands = [], parents = [] }) => {
                                 </select>
                             </div>
 
-                            <div className="form-row">
+                            <div className="form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '24px' }}>
                                 <div className="form-group">
-                                    <label className="form-label">Order</label>
+                                    <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{isArabic ? 'الترتيب' : 'Order'}</label>
                                     <input 
                                         type="number" 
                                         name="order" 
                                         className="form-control" 
+                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                         defaultValue={currentBrand?.order || 0}
                                         min="0"
                                     />
                                 </div>
                                 <div className="form-group">
-                                    <label className="form-label">Status</label>
+                                    <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>{isArabic ? 'الحالة' : 'Status'}</label>
                                     <select 
                                         name="status" 
                                         className="form-control" 
+                                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}
                                         defaultValue={currentBrand?.status || 'active'}
                                     >
-                                        <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
+                                        <option value="active">{isArabic ? 'نشط' : 'Active'}</option>
+                                        <option value="inactive">{isArabic ? 'غير نشط' : 'Inactive'}</option>
                                     </select>
                                 </div>
                             </div>
-                        </div>
-                        <div className="modal-actions">
-                            <button type="button" className="btn btn-outline" onClick={closeModal}>Cancel</button>
-                            <button type="submit" className="btn btn-primary">
-                                {currentBrand ? 'Update Brand' : 'Save Brand'}
-                            </button>
-                        </div>
-                    </form>
+
+                            <div className="form-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '24px', borderTop: '1px solid #f1f5f9' }}>
+                                <button type="button" className="btn btn-secondary" onClick={handleCancel}>{isArabic ? 'إلغاء' : 'Cancel'}</button>
+                                <button type="submit" className="btn btn-primary" style={{ padding: '10px 24px' }}>
+                                    {currentBrand ? (isArabic ? 'تحديث الماركة' : 'Update Brand') : (isArabic ? 'حفظ الماركة' : 'Save Brand')}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-            </div>
+            )}
         </AdminLayout>
     );
 };
