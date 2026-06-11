@@ -22,15 +22,6 @@
   --radius-lg: 0.5rem;
 }
 
-[data-theme='dark'] {
-  --background-light: #0f172a;
-  --surface-light: #1e293b;
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --border-color: #334155;
-  --input-bg: #1e293b;
-}
-
 .opening-stock-module {
   padding: 1.5rem;
   background-color: var(--background-light);
@@ -219,14 +210,26 @@
           .required { color: var(--danger-color); }
         }
 
-        input, select, textarea {
+        input, select, textarea, .form-control {
           padding: 0.625rem;
-          border: 1px solid var(--border-color);
+          border: 1px solid #cbd5e1;
           border-radius: var(--radius-md);
-          background-color: var(--input-bg);
-          color: var(--text-primary);
+          background-color: #ffffff;
+          color: #1e293b;
           font-size: 0.875rem;
           width: 100%;
+          appearance: auto !important;
+          -webkit-appearance: auto !important;
+          -moz-appearance: auto !important;
+
+          &::placeholder {
+            color: #94a3b8;
+          }
+
+          option {
+            background-color: #ffffff;
+            color: #1e293b;
+          }
 
           &:focus {
             outline: none;
@@ -279,22 +282,26 @@
             &:last-child { border-bottom: none; }
           }
 
-          td {
-            padding: 8px 10px;
-            vertical-align: middle;
-
-            input, select {
+          input, select {
               width: 100%;
               padding: 0.375rem;
-              border: 1px solid transparent;
+              border: 1px solid #e2e8f0; // Visible border
               border-radius: var(--radius-md);
-              background: transparent;
+              background: #ffffff; // White background
               font-size: 0.875rem;
-              color: var(--text-primary);
+              color: #1e293b; // Dark text
+              appearance: auto !important;
+              -webkit-appearance: auto !important;
+              -moz-appearance: auto !important;
+
+              option {
+                background-color: #ffffff;
+                color: #1e293b;
+              }
 
               &:hover, &:focus {
-                background-color: var(--surface-light);
-                border-color: var(--border-color);
+                background-color: #f8fafc;
+                border-color: #3b82f6;
               }
               
               &:focus {
@@ -430,7 +437,7 @@
       }
     }
   }
-}
+
 
 .sticky-actions-footer {
   position: fixed;

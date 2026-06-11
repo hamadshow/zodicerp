@@ -42,7 +42,7 @@
   max-height: 220px;
   overflow-y: auto;
   background: #ffffff;
-  border: 1px solid $border-color;
+  border: 1px solid #e2e8f0;
   border-radius: 4px;
   box-shadow: 0 4px 8px rgba(15, 23, 42, 0.08);
   z-index: $z-index-dropdown;
@@ -52,6 +52,7 @@
   padding: 6px 10px;
   font-size: 14px;
   cursor: pointer;
+  color: #1e293b;
 
   @include rtl {
     text-align: right;
@@ -60,11 +61,13 @@
   &:hover,
   &.active {
     background: #f1f5f9;
+    color: #1e293b;
   }
 }
 
 .searchable-combobox-highlight {
   background: #fef3c7;
+  color: #1e293b;
 }
 
 .searchable-combobox-hidden-select {
