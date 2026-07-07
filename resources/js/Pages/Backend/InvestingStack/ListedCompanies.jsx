@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, Link, useForm, usePage } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../components/AdminLayout';
+import Table from '../components/Table';
 
 const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, countries: countriesData, filters, onEdit, onCreate, onDelete, onView, setShowImport }) => {
     const { props } = usePage();
@@ -12,6 +13,60 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
         console.warn(`Missing translation: ${fullKey}`);
         return fallback;
     };
+
+    // Column configuration
+    const columns = [
+        { key: 'company_code', header: t('code', 'Code'), sortable: true },
+        { key: 'legal_name_ar', header: t('name_ar', 'Name (AR)'), sortable: true },
+        { key: 'legal_name_en', header: t('name_en', 'Name (EN)'), sortable: true, render: (row) => row.legal_name_en || '-' },
+        { key: 'ticker_symbol', header: t('ticker', 'Ticker'), sortable: true, render: (row) => row.ticker_symbol || '-' },
+        { 
+            key: 'country', 
+            header: t('country', 'Country'),
+            sortable: false, // country is a relation, not a direct column we're sorting by right now
+            render: (row) => row.country?.name || row.country?.name_en || row.country?.name_ar || '-' 
+        },
+        { 
+            key: 'reporting_currency', 
+            header: t('currency', 'Currency'),
+            sortable: false,
+            render: (row) => row.reporting_currency?.code || '-' 
+        },
+        { 
+            key: 'roi', 
+            header: t('roi', 'ROI (%)'),
+            sortable: true,
+            render: (row) => row.roi ? `${row.roi}%` : '-' 
+        },
+        { 
+            key: 'market_indices', 
+            header: t('indices', 'Indices'),
+            sortable: false,
+            render: (row) => (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                    {row.market_indices?.length > 0 ? (
+                        row.market_indices.map((mi) => (
+                            <span key={mi.id} style={{ fontSize: '0.7rem', background: '#e9ecef', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                                {mi.name}
+                            </span>
+                        ))
+                    ) : (
+                        '-'
+                    )}
+                </div>
+            ) 
+        },
+        { 
+            key: 'status', 
+            header: t('status', 'Status'),
+            sortable: true,
+            render: (row) => (
+                <span className={`status-badge ${row.status}`}>
+                    {row.status ? t(row.status, row.status.charAt(0).toUpperCase() + row.status.slice(1)) : '-'}
+                </span>
+            ) 
+        }
+    ];
 
     const [searchQuery, setSearchQuery] = useState(filters?.search || '');
     const [internalRatingFilter, setInternalRatingFilter] = useState(filters?.internal_rating || '');
@@ -70,14 +125,7 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
         )
     ].sort(), [countriesData]);
 
-    // Optional: Add fade effect on data change
-    useEffect(() => {
-        const rows = document.querySelectorAll('.professional-table tbody tr');
-        rows.forEach(row => row.classList.add('fade-out'));
-        setTimeout(() => {
-            rows.forEach(row => row.classList.remove('fade-out'));
-        }, 300);
-    }, [companies.data]);
+
 
     return (
         <div className="animate-fade-slide">
@@ -171,117 +219,44 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
                     </div>
                 </div>
 
-                <div className="table-responsive">
-                    <table className="professional-table">
-                        <thead>
-                            <tr>
-                                <th>{t('code', 'Code')}</th>
-                                <th>{t('name_ar', 'Name (AR)')}</th>
-                                <th>{t('name_en', 'Name (EN)')}</th>
-                                <th>{t('ticker', 'Ticker')}</th>
-                                <th>{t('country', 'Country')}</th>
-                                <th>{t('currency', 'Currency')}</th>
-                                <th>{t('indices', 'Indices')}</th>
-                                <th>{t('status', 'Status')}</th>
-                                <th>{t('actions', 'Actions')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {companies.data && companies.data.length > 0 ? (
-                                companies.data.map(company => (
-                                    <tr key={company.id}>
-                                        <td>{company.company_code}</td>
-                                        <td>{company.legal_name_ar}</td>
-                                        <td>{company.legal_name_en || '-'}</td>
-                                        <td>{company.ticker_symbol || '-'}</td>
-                                        <td>{company.country?.name || company.country?.name_en || company.country?.name_ar || '-'}</td>
-                                        <td>{company.reporting_currency?.code || '-'}</td>
-                                        <td>
-                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                                                {company.market_indices?.length > 0 ? (
-                                                    company.market_indices.map(mi => (
-                                                        <span key={mi.id} style={{ fontSize: '0.7rem', background: '#e9ecef', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
-                                                            {mi.name}
-                                                        </span>
-                                                    ))
-                                                ) : '-'}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span className={`status-badge ${company.status}`}>
-                                                {company.status ? t(company.status, company.status.charAt(0).toUpperCase() + company.status.slice(1)) : '-'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div className="action-buttons">
-                                                <button 
-                                                    type="button" 
-                                                    className="icon-btn view" 
-                                                    onClick={() => onView(company)} 
-                                                    title={t('view', 'View')}
-                                                >
-                                                    <span className="material-icons-outlined">visibility</span>
-                                                </button>
-                                                <button 
-                                                    type="button" 
-                                                    className="icon-btn edit" 
-                                                    onClick={() => onEdit(company)} 
-                                                    title={t('edit', 'Edit')}
-                                                >
-                                                    <span className="material-icons-outlined">edit</span>
-                                                </button>
-                                                <button 
-                                                    type="button" 
-                                                    className="icon-btn delete" 
-                                                    onClick={() => onDelete(company.id)} 
-                                                    title={t('delete', 'Delete')}
-                                                >
-                                                    <span className="material-icons-outlined">delete</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>
-                                        {t('no_companies_found', 'No companies match your search.')} <button onClick={() => { setSearchQuery(''); setInternalRatingFilter(''); setCountryFilter(''); setMarketIndexFilter(''); }}>{t('clear_filters', 'Clear filters')}</button>
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                {companies.links && companies.links.length > 3 && (
-                    <div className="pagination-container" style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
-                        {companies.links.map((link, key) => (
-                            link.url === null ? (
-                                <div 
-                                    key={key} 
-                                    className="pagination-link disabled"
-                                    style={{ padding: '0.5rem 1rem', border: '1px solid #ddd', borderRadius: '4px', color: '#999' }}
-                                    dangerouslySetInnerHTML={{ __html: link.label }} 
-                                />
-                            ) : (
-                                <Link
-                                    key={key}
-                                    href={link.url}
-                                    className={`pagination-link ${link.active ? 'active' : ''}`}
-                                    style={{ 
-                                        padding: '0.5rem 1rem', 
-                                        border: '1px solid #ddd', 
-                                        borderRadius: '4px', 
-                                        color: link.active ? '#fff' : '#333',
-                                        backgroundColor: link.active ? '#007bff' : '#fff',
-                                        textDecoration: 'none'
-                                    }}
-                                    dangerouslySetInnerHTML={{ __html: link.label }}
-                                />
-                            )
-                        ))}
-                    </div>
-                )}
+                <Table
+                    tableData={companies.data}
+                    columns={columns}
+                    currentPage={companies.current_page}
+                    totalPages={companies.last_page}
+                    totalRecords={companies.total}
+                    recordsPerPage={companies.per_page}
+                    serverSide={true}
+                    sortKey={filters?.sort}
+                    sortDirection={filters?.direction}
+                    onSort={(sort, direction) => {
+                        const params = { ...filters };
+                        if (sort && direction) {
+                            params.sort = sort;
+                            params.direction = direction;
+                        } else {
+                            delete params.sort;
+                            delete params.direction;
+                        }
+                        router.get(route('admin.investing.companies.index'), params, {
+                            preserveState: true,
+                            preserveScroll: true,
+                            replace: true
+                        });
+                    }}
+                    onPageChange={(page) => {
+                        router.get(route('admin.investing.companies.index'), { ...filters, page }, {
+                            preserveState: true,
+                            preserveScroll: true
+                        });
+                    }}
+                    onView={onView}
+                    onEdit={onEdit}
+                    onDelete={(row) => onDelete(row.id)}
+                    viewTitle={t('view', 'View')}
+                    editTitle={t('edit', 'Edit')}
+                    deleteTitle={t('delete', 'Delete')}
+                />
             </div>
         </div>
     );
@@ -290,6 +265,7 @@ const ViewSection = ({ companies, stats, marketIndices: marketIndicesData, count
 const FormSection = ({ mode, initialData, countries, currencies, industries, subIndustries, exchanges, marketIndices, states, cities, onBack, onSuccess }) => {
     const { props } = usePage();
     const translations = props.localization?.translations || {};
+    const isRtl = props.localization?.is_rtl;
     const t = (key, fallback) => {
         const fullKey = `ListedCompanies.${key}`;
         if (translations[fullKey]) return translations[fullKey];
@@ -300,6 +276,44 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
     const isEdit = mode === 'edit';
     const isView = mode === 'view';
     const [activeTab, setActiveTab] = useState('general');
+    
+    // Helper to get localized company name with fallbacks
+    const getLocalizedCompanyName = (company) => {
+        if (!company) return '';
+        if (isRtl) {
+            return (
+                company.legal_name_ar ||
+                company.legal_name_en ||
+                company.trade_name_ar ||
+                company.trade_name_en ||
+                'شركة بدون اسم'
+            );
+        } else {
+            return (
+                company.legal_name_en ||
+                company.legal_name_ar ||
+                company.trade_name_en ||
+                company.trade_name_ar ||
+                'Unnamed Company'
+            );
+        }
+    };
+    
+    // Helper to get ticker symbol with fallbacks
+    const getTickerSymbol = (company) => {
+        if (!company) return '';
+        return company.ticker_symbol || company.company_code || 'No Ticker';
+    };
+    
+    // Reusable computed display title
+    const companyDisplayTitle = () => {
+        if (mode === 'create') {
+            return t('create_title', 'Create New Listed Company');
+        }
+        const ticker = getTickerSymbol(initialData);
+        const name = getLocalizedCompanyName(initialData);
+        return `${ticker} - ${name}`;
+    };
     
     const { data, setData, post, put, processing, errors, reset } = useForm({
         company_code: initialData?.company_code || '',
@@ -329,6 +343,7 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
         paid_up_capital: initialData?.paid_up_capital || '',
         authorized_capital: initialData?.authorized_capital || '',
         annual_revenue: initialData?.annual_revenue || '',
+        roi: initialData?.roi || '',
         exchange_id: initialData?.exchange_id || '',
         ticker_symbol: initialData?.ticker_symbol || '',
         isin_code: initialData?.isin_code || '',
@@ -390,7 +405,7 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
             <div className="page-header" style={{ marginBottom: '1.5rem' }}>
                 <div className="page-header-title" style={{ margin: 0 }}>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: '#1f2937' }}>
-                        {isView ? t('view_title', 'View Listed Company') : (isEdit ? t('edit_title', 'Edit Listed Company') : t('create_title', 'Create New Listed Company'))}
+                        {companyDisplayTitle()}
                     </h2>
                 </div>
                 <button className="btn btn-secondary" onClick={onBack}>
@@ -598,6 +613,10 @@ const FormSection = ({ mode, initialData, countries, currencies, industries, sub
                                     <div className="form-group">
                                         <label>{t('annual_revenue', 'Annual Revenue')}</label>
                                         <input type="number" step="0.01" value={data.annual_revenue} onChange={e => setData('annual_revenue', e.target.value)} />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>{t('roi', 'ROI (%)')}</label>
+                                        <input type="number" step="0.01" min="0" value={data.roi} onChange={e => setData('roi', e.target.value)} />
                                     </div>
                                 </div>
                             )}

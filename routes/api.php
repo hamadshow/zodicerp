@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\AuthApiController;
 use App\Http\Controllers\Backend\Tasks\TaskController;
 use App\Http\Controllers\Backend\Tasks\TaskCategoryController;
 use App\Http\Controllers\Backend\Tasks\TaskPriorityController;
@@ -10,8 +11,19 @@ use App\Http\Controllers\Backend\Tasks\TaskAssignmentController;
 use App\Http\Controllers\Backend\Tasks\TaskAttachmentController;
 use App\Http\Controllers\Backend\Tasks\TaskCommentController;
 
+// Public API Routes
+Route::post('/login', [AuthApiController::class, 'login']);
+Route::post('/register', [AuthApiController::class, 'register']);
+
+// Public sync endpoint (needs auth)
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/mobile/sync', [App\Http\Controllers\Api\MobileSyncController::class, 'sync']);
+});
+
 // Authenticated API Routes
-Route::middleware(['web', 'auth:web,employee'])->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/logout', [AuthApiController::class, 'logout']);
+    Route::get('/user', [AuthApiController::class, 'user']);
     // Dashboard API Routes
     Route::prefix('dashboard')->group(function () {
         Route::get('/stats', [App\Http\Controllers\Api\DashboardController::class, 'stats']);

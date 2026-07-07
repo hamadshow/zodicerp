@@ -22,14 +22,15 @@ export default function SearchableComboBox({
   const [dropdownRect, setDropdownRect] = useState(null);
 
   const highlightText = (label, term) => {
-    if (!term) return label;
-    const lowerLabel = String(label || '').toLowerCase();
+    const safeLabel = String(label || '');
+    if (!term) return safeLabel;
+    const lowerLabel = safeLabel.toLowerCase();
     const lowerTerm = String(term || '').toLowerCase();
     const index = lowerLabel.indexOf(lowerTerm);
-    if (index === -1) return label;
-    const before = label.slice(0, index);
-    const match = label.slice(index, index + term.length);
-    const after = label.slice(index + term.length);
+    if (index === -1) return safeLabel;
+    const before = safeLabel.slice(0, index);
+    const match = safeLabel.slice(index, index + term.length);
+    const after = safeLabel.slice(index + term.length);
     return (
       <>
         {before}
@@ -254,7 +255,7 @@ export default function SearchableComboBox({
             ))
           )}
         </div>
-        )
+      )
       : null;
 
   return (
@@ -300,7 +301,7 @@ export default function SearchableComboBox({
         <option value="">Select</option>
         {options.map((opt) => (
           <option key={opt.value} value={opt.value}>
-            {opt.label}
+            {opt.label || ''}
           </option>
         ))}
       </select>

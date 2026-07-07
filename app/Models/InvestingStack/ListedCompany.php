@@ -18,6 +18,7 @@ class ListedCompany extends Model
         'verified_at' => 'date',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'roi' => 'decimal:2',
     ];
 
     // Relationships

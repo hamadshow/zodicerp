@@ -2140,7 +2140,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                 <option value="">Select a supplier...</option>
                                                 {Array.isArray(suppliers) && suppliers.map(s => (
                                                     <option key={s.supplier_code} value={s.supplier_code}>
-                                                        {s.name_en}
+                                                        {s.store_name_json?.en || s.store_name_json?.ar || s.name_ar || s.supplier_code}
                                                     </option>
                                                 ))}
                                             </select>

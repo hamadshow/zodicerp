@@ -363,11 +363,27 @@
     display: flex;
     align-items: center;
     gap: 4px;
+
+    &.sortable {
+        cursor: pointer;
+        user-select: none;
+        transition: all 0.2s ease;
+
+        &:hover {
+            color: $info-color;
+        }
+    }
 }
 
 .table-header-icon {
     font-size: 18px;
     opacity: 0.7;
+    transition: all 0.2s ease;
+
+    &.active {
+        opacity: 1;
+        color: $info-color;
+    }
 }
 
 /* =========================================================

@@ -13,13 +13,36 @@ use App\Models\InvestingStack\CreditRating;
 use App\Models\InvestingStack\MarketIndex;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ListedCompanyController extends Controller
 {
     public function index(Request $request)
     {
-        $query = ListedCompany::with(['country', 'reportingCurrency', 'industry', 'subIndustry', 'exchange', 'marketIndices'])
-            ->orderBy('id', 'desc');
+        // Debug: log request params
+        Log::info('ListedCompanyController@index', [
+            'sort' => $request->input('sort'),
+            'direction' => $request->input('direction'),
+            'all' => $request->all()
+        ]);
+
+        $query = ListedCompany::with(['country', 'reportingCurrency', 'industry', 'subIndustry', 'exchange', 'marketIndices']);
+
+        // Allowed sorting columns
+        $allowedSorts = ['id', 'company_code', 'trade_name_en', 'legal_name_en', 'legal_name_ar', 'ticker_symbol', 'status', 'internal_rating', 'created_at', 'roi'];
+        $sort = $request->input('sort', 'id');
+        $direction = $request->input('direction', 'desc');
+
+        // Validate sort parameters
+        if (!in_array($sort, $allowedSorts)) {
+            $sort = 'id';
+        }
+        if (!in_array(strtolower($direction), ['asc', 'desc'])) {
+            $direction = 'desc';
+        }
+
+        $query->orderBy($sort, $direction);
 
         if ($request->has('search')) {
             $search = $request->input('search');
@@ -57,7 +80,7 @@ class ListedCompanyController extends Controller
 
         return Inertia::render('Backend/InvestingStack/ListedCompanies', [
             'companies' => $companies,
-            'filters' => $request->only(['search', 'internal_rating', 'country', 'market_index']),
+            'filters' => $request->only(['search', 'internal_rating', 'country', 'market_index', 'sort', 'direction']),
             'countries' => Location::where('location_type', 'country')->select('id', 'name_json', 'code')->get(),
             'currencies' => Currency::select('id', 'name', 'code')->get(),
             'industries' => Industry::select('id', 'industry_name_en as name', 'parent_industry_id as sector_id')->get(),
@@ -105,6 +128,7 @@ class ListedCompanyController extends Controller
             'paid_up_capital' => 'nullable|numeric',
             'authorized_capital' => 'nullable|numeric',
             'annual_revenue' => 'nullable|numeric',
+            'roi' => 'nullable|numeric|min:0|max:999.99',
             'exchange_id' => 'nullable|exists:exchanges,id',
             'ticker_symbol' => 'nullable|string|max:20',
             'isin_code' => 'nullable|string|max:20',
@@ -121,7 +145,7 @@ class ListedCompanyController extends Controller
             'internal_rating' => 'required|in:A,B,C,D',
         ]);
 
-        \DB::transaction(function () use ($validated) {
+        DB::transaction(function () use ($validated) {
             $company = ListedCompany::create($validated);
             if (isset($validated['market_index_ids'])) {
                 $company->marketIndices()->sync($validated['market_index_ids']);
@@ -163,6 +187,7 @@ class ListedCompanyController extends Controller
             'paid_up_capital' => 'nullable|numeric',
             'authorized_capital' => 'nullable|numeric',
             'annual_revenue' => 'nullable|numeric',
+            'roi' => 'nullable|numeric|min:0|max:999.99',
             'exchange_id' => 'nullable|exists:exchanges,id',
             'ticker_symbol' => 'nullable|string|max:20',
             'isin_code' => 'nullable|string|max:20',
@@ -179,7 +204,7 @@ class ListedCompanyController extends Controller
             'internal_rating' => 'required|in:A,B,C,D',
         ]);
 
-        \DB::transaction(function () use ($company, $validated) {
+        DB::transaction(function () use ($company, $validated) {
             $company->update($validated);
             if (isset($validated['market_index_ids'])) {
                 $company->marketIndices()->sync($validated['market_index_ids']);

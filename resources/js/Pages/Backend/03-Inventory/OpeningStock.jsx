@@ -38,21 +38,21 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
     const warehouseOptions = useMemo(() => {
         return (warehouses || []).map(w => ({
             value: String(w.id),
-            label: w.name_en || w.name_ar || ''
+            label: w.name_en || w.name_ar || w.name || ''
         }));
     }, [warehouses]);
 
     const productOptions = useMemo(() => {
         return (products || []).map(p => ({
             value: String(p.id),
-            label: p.name_en || p.name_ar || ''
+            label: p.name_en || p.name_ar || p.name || ''
         }));
     }, [products]);
 
     const unitOptions = useMemo(() => {
         return (units || []).map(u => ({
             value: String(u.id),
-            label: u.name_en || u.name_ar || ''
+            label: u.name_en || u.name_ar || u.name || ''
         }));
     }, [units]);
 
@@ -219,7 +219,7 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
             if (product) {
                 newItems[index].item_name_ar = product.name_ar || product.name || '';
                 newItems[index].item_name_en = product.name_en || product.name || '';
-                newItems[index].cost_price = product.purchase_price || 0;
+                newItems[index].cost_price = product.cost_per_item || product.purchase_price || 0;
                 newItems[index].unit_id = product.unit_id || '';
                 newItems[index].warehouse_id = newItems[index].warehouse_id || (warehouses?.[0]?.id || '');
             }
@@ -383,7 +383,7 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
                                     >
                                         <option value="">Select Warehouse</option>
                                         {warehouses?.map(w => (
-                                            <option key={w.id} value={w.id}>{w.name_en || w.name_ar}</option>
+                                            <option key={w.id} value={w.id}>{w.name_en || w.name_ar || w.name}</option>
                                         ))}
                                     </select>
                                     {errors.warehouse_id && <span className="error-msg">{errors.warehouse_id}</span>}

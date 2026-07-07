@@ -124,7 +124,25 @@
 
 @use 'pages/Register';
 
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900;1000&display=swap');
+// Global Select Styles with RTL/LTR Support
+select,
+.form-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23374151' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right $spacing-md center;
+    background-size: 12px;
+    padding-right: 40px;
+    cursor: pointer;
+    
+    [dir="rtl"] & {
+        background-position: left $spacing-md center;
+        padding-right: $spacing-md;
+        padding-left: 40px;
+    }
+}
 
 // Global RTL Support
 [dir="rtl"] {
@@ -220,6 +238,9 @@
     margin-bottom: 2rem;
     animation: fadeIn 0.3s ease-in-out;
 }
+
+// Import Google Fonts
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;500;600;700;800;900;1000&display=swap');
 
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }

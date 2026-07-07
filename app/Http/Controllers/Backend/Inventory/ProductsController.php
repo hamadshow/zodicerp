@@ -48,7 +48,7 @@ class ProductsController extends Controller
                 $nextProductCode = $lastProduct ? (intval($lastProduct->product_code) + 1) : 10001;
 
                 foreach ($rows as $row) {
-                    $slug = ! empty($row['slug']) ? $row['slug'] : \Illuminate\Support\Str::slug($row['name']);
+                    $slug = ! empty($row['slug']) ? $row['slug'] : Str::slug($row['name']);
                     
                     // Generate product_code if not provided
                     $productCode = ! empty($row['product_code']) ? $row['product_code'] : null;
@@ -241,7 +241,7 @@ class ProductsController extends Controller
             ->orderBy('order')
             ->orderBy('title')
             ->get();
-        $suppliers = Supplier::select('supplier_code', 'name_ar')->where('is_active', true)->orderBy('name_ar')->get();
+        $suppliers = Supplier::select('supplier_code', 'name_ar', 'store_name_json')->where('is_active', true)->orderBy('name_ar')->get();
 
         return Inertia::render('Backend/03-Inventory/Products', [
             'product' => null,
@@ -263,11 +263,30 @@ class ProductsController extends Controller
             ]);
         }
 
+        $brands = Brands::select('id', 'name')->whereIn('status', ['active', '1'])->orderBy('name')->get();
+        $categories = Categories::select('id', 'name', 'parent_id')
+            ->whereIn('status', ['active', '1'])
+            ->orderBy('order')
+            ->orderBy('name')
+            ->get();
+        $units = ItemUnit::select('id', 'name')->where('active', true)->where('unit_type', 1)->orderBy('name')->get();
+        $itemAttributes = ItemAttribute::with(['details' => function ($query) {
+            $query->select('id', 'attribute_set_id', 'title')->orderBy('order')->orderBy('title');
+        }])
+            ->select('id', 'title')
+            ->where('status', 'published')
+            ->orderBy('order')
+            ->orderBy('title')
+            ->get();
+        $suppliers = Supplier::select('supplier_code', 'name_ar', 'store_name_json')->where('is_active', true)->orderBy('name_ar')->get();
+
         return Inertia::render('Backend/03-Inventory/Products', [
             'product' => $product,
-            'brands' => Brands::select('id', 'name')->whereIn('status', ['active', '1'])->orderBy('name')->get(),
-            'categories' => Categories::select('id', 'name', 'parent_id')->whereIn('status', ['active', '1'])->orderBy('order')->orderBy('name')->get(),
-            'units' => ItemUnit::select('id', 'name')->where('active', true)->where('unit_type', 1)->orderBy('name')->get(),
+            'brands' => $brands,
+            'categories' => $categories,
+            'units' => $units,
+            'itemAttributes' => $itemAttributes,
+            'suppliers' => $suppliers,
         ]);
     }
 
@@ -290,7 +309,7 @@ class ProductsController extends Controller
             ->orderBy('order')
             ->orderBy('title')
             ->get();
-        $suppliers = Supplier::select('supplier_code', 'name_ar')->where('is_active', true)->orderBy('name_ar')->get();
+        $suppliers = Supplier::select('supplier_code', 'name_ar', 'store_name_json')->where('is_active', true)->orderBy('name_ar')->get();
 
         return Inertia::render('Backend/03-Inventory/Products', [
             'product' => $product,
@@ -414,7 +433,7 @@ class ProductsController extends Controller
                     $variationImages = [];
 
                     // 1. Handle uploaded files in 'images' array
-                    if (isset($variationFiles[$index]['images']) && is_array($variationFiles[$index]['images'])) {
+                    if (isset($variationFiles[$index]['images'])) {
                         foreach ($variationFiles[$index]['images'] as $file) {
                             if ($file instanceof \Illuminate\Http\UploadedFile && $this->validateImageFile($file)) {
                                 $variationImages[] = $file->store('products/variations', 'public');
@@ -722,10 +741,6 @@ class ProductsController extends Controller
 
             $product->update($data);
             $product->categories()->sync(is_array($categoryIds) ? $categoryIds : []);
-
-            if (is_array($categoryIds)) {
-                $product->categories()->sync($categoryIds);
-            }
 
             // Variable product handling
             if (($data['product_type'] ?? $product->product_type) === 'variable') {

@@ -41,10 +41,39 @@ const Table = ({
     onExport,
     toolbarActions = null,
     toolbarClassName = '',
+
+    // Server-side sorting props
+    serverSide = false,
+    onSort,
+    sortKey,
+    sortDirection,
 }) => {
     const { props } = usePage();
     const [showExportDropdown, setShowExportDropdown] = React.useState(false);
     const exportDropdownRef = React.useRef(null);
+
+    // Debug log
+    console.log('Table.jsx props:', { serverSide, sortKey, sortDirection });
+
+    // Sorting state - internal for client-side, or use props for server-side
+    const [internalSortConfig, setInternalSortConfig] = React.useState({
+        key: null,
+        direction: null,
+    });
+
+    // Convert server direction to UI direction for server-side mode
+    const getUiDirection = (serverDir) => {
+        if (serverDir === 'asc') return 'ascending';
+        if (serverDir === 'desc') return 'descending';
+        return serverDir;
+    };
+
+    const sortConfig = serverSide
+        ? { 
+            key: sortKey || null, 
+            direction: getUiDirection(sortDirection) || null 
+          }
+        : internalSortConfig;
 
     // Internal state for pagination if not handled by parent
     const [internalCurrentPage, setInternalCurrentPage] = React.useState(currentPage);
@@ -58,6 +87,103 @@ const Table = ({
     React.useEffect(() => {
         setInternalRecordsPerPage(recordsPerPage);
     }, [recordsPerPage]);
+
+    // Handle sort click
+    const handleSort = (key) => {
+        let direction = 'ascending';
+        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
+            direction = 'descending';
+        } else if (sortConfig.key === key && sortConfig.direction === 'descending') {
+            direction = null;
+        }
+
+        if (serverSide && onSort) {
+            // For server-side, use 'asc'/'desc' instead of 'ascending'/'descending'
+            const serverDirection = direction
+                ? (direction === 'ascending' ? 'asc' : 'desc')
+                : null;
+            onSort(key, serverDirection);
+        } else {
+            setInternalSortConfig({ key, direction });
+        }
+    };
+
+    // Get sortable value from a row for a column key
+    const getSortableValue = (row, key) => {
+        let value = row[key];
+        
+        // If value is null/undefined, return null
+        if (value == null) {
+            return null;
+        }
+
+        // If it's a string, trim whitespace
+        if (typeof value === 'string') {
+            value = value.trim();
+            // Check if it's a percentage
+            if (value.endsWith('%')) {
+                const num = parseFloat(value.replace('%', ''));
+                return isNaN(num) ? value : num;
+            }
+            return value;
+        }
+
+        // If it's a number, return as is
+        if (typeof value === 'number') {
+            return value;
+        }
+
+        // If it's a date
+        if (value instanceof Date) {
+            return value.getTime();
+        }
+
+        // For everything else, stringify it for safe comparison
+        return String(value);
+    };
+
+    // Sort data using useMemo for performance
+    const sortedData = React.useMemo(() => {
+        if (serverSide) {
+            return tableData; // Don't sort locally for server-side
+        }
+
+        const sortableItems = [...tableData];
+        
+        if (sortConfig.direction && sortConfig.key) {
+            sortableItems.sort((a, b) => {
+                const aValue = getSortableValue(a, sortConfig.key);
+                const bValue = getSortableValue(b, sortConfig.key);
+
+                // Handle null/undefined values - they always go to the bottom
+                if (aValue == null && bValue == null) return 0;
+                if (aValue == null) return 1;
+                if (bValue == null) return -1;
+
+                // Compare numbers
+                if (typeof aValue === 'number' && typeof bValue === 'number') {
+                    return sortConfig.direction === 'ascending' 
+                        ? aValue - bValue 
+                        : bValue - aValue;
+                }
+
+                // Compare strings (case-insensitive)
+                const aStr = String(aValue).toLowerCase();
+                const bStr = String(bValue).toLowerCase();
+
+                if (aStr < bStr) {
+                    return sortConfig.direction === 'ascending' ? -1 : 1;
+                }
+                if (aStr > bStr) {
+                    return sortConfig.direction === 'ascending' ? 1 : -1;
+                }
+                
+                return 0;
+            });
+        }
+        
+        return sortableItems;
+    }, [tableData, sortConfig, serverSide]);
 
     const localization = props?.localization;
     const isArabic = localization?.current_locale === 'ar';
@@ -96,11 +222,11 @@ const Table = ({
         : totalPages;
 
     const displayData = isInternallyPaginated
-        ? tableData.slice(
+        ? sortedData.slice(
               (effectiveCurrentPage - 1) * effectiveRecordsPerPage,
               effectiveCurrentPage * effectiveRecordsPerPage
           )
-        : tableData;
+        : sortedData;
 
     const handlePageChange = (page) => {
         if (isInternallyPaginated) {
@@ -263,13 +389,32 @@ const Table = ({
                                     style={{
                                         width: column.width || 'auto',
                                     }}
+                                    aria-sort={sortConfig.key === column.key ? sortConfig.direction || 'none' : 'none'}
+                                    role={column.sortable ? 'columnheader' : undefined}
                                 >
-                                    <div className="table-header-content">
+                                    <div 
+                                        className={`table-header-content ${column.sortable ? 'sortable' : ''}`}
+                                        onClick={() => column.sortable && handleSort(column.key)}
+                                        onKeyDown={(e) => {
+                                            if (column.sortable && (e.key === 'Enter' || e.key === ' ')) {
+                                                e.preventDefault();
+                                                handleSort(column.key);
+                                            }
+                                        }}
+                                        tabIndex={column.sortable ? 0 : -1}
+                                    >
                                         <span>{column.header}</span>
 
                                         {column.sortable && (
-                                            <span className="material-icons-outlined table-header-icon">
-                                                unfold_more
+                                            <span className={`material-icons-outlined table-header-icon ${sortConfig.key === column.key ? 'active' : ''}`}>
+                                                {sortConfig.key === column.key 
+                                                    ? sortConfig.direction === 'ascending' 
+                                                        ? 'arrow_upward' 
+                                                        : sortConfig.direction === 'descending' 
+                                                            ? 'arrow_downward' 
+                                                            : 'unfold_more'
+                                                    : 'unfold_more'
+                                                }
                                             </span>
                                         )}
                                     </div>
