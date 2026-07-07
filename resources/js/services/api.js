@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { router } from '@inertiajs/react';
 
 // Create axios instance
 const api = axios.create({
