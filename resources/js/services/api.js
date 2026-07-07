@@ -29,51 +29,51 @@ api.interceptors.request.use(
 
 // Response interceptor
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  (error) => {
-    // Handle common errors
-    if (error.response) {
-      const { status, data } = error.response;
+    (response) => {
+        return response;
+    },
+    (error) => {
+        // Handle common errors
+        if (error.response) {
+            const { status, data } = error.response;
 
-      switch (status) {
-        case 401:
-          // For session-based auth, redirect to login on unauthorized
-          router.visit('/login');
-          break;
-        case 403:
-          // Forbidden
-          console.error('Access forbidden:', data.message);
-          break;
-        case 404:
-          // Not found
-          console.error('Resource not found:', data.message);
-          break;
-        case 422:
-          // Validation errors
-          console.error(
-            'Validation errors:',
-            data?.errors ?? data?.message ?? data,
-          );
-          break;
-        case 500:
-          // Server error
-          console.error('Server error:', data.message);
-          break;
-        default:
-          console.error('API Error:', data.message);
-      }
-    } else if (error.request) {
-      // Network error
-      console.error('Network error:', error.message);
-    } else {
-      // Other error
-      console.error('Request error:', error.message);
+            switch (status) {
+                case 401:
+                    // Don't redirect automatically—let the page handle it
+                    console.error('Unauthorized');
+                    break;
+                case 403:
+                    // Forbidden
+                    console.error('Access forbidden:', data.message);
+                    break;
+                case 404:
+                    // Not found
+                    console.error('Resource not found:', data.message);
+                    break;
+                case 422:
+                    // Validation errors
+                    console.error(
+                        'Validation errors:',
+                        data?.errors ?? data?.message ?? data,
+                    );
+                    break;
+                case 500:
+                    // Server error
+                    console.error('Server error:', data.message);
+                    break;
+                default:
+                    console.error('API Error:', data.message);
+            }
+        } else if (error.request) {
+            // Network error
+            console.error('Network error:', error.message);
+        } else {
+            // Other error
+            console.error('Request error:', error.message);
+        }
+
+        return Promise.reject(error);
     }
-
-    return Promise.reject(error);
-  }
 );
 
 // API methods

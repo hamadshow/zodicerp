@@ -17,10 +17,14 @@ class ApiAuth
     public function handle(Request $request, Closure $next): Response
     {
         if (Auth::guard('web')->check()) {
+            Auth::shouldUse('web');
+            $request->setUserResolver(fn() => Auth::guard('web')->user());
             return $next($request);
         }
 
         if (Auth::guard('sanctum')->check()) {
+            Auth::shouldUse('sanctum');
+            $request->setUserResolver(fn() => Auth::guard('sanctum')->user());
             return $next($request);
         }
 
