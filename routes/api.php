@@ -16,12 +16,12 @@ Route::post('/login', [AuthApiController::class, 'login']);
 Route::post('/register', [AuthApiController::class, 'register']);
 
 // Public sync endpoint (needs auth)
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware([\App\Http\Middleware\ApiAuth::class])->group(function () {
     Route::post('/mobile/sync', [App\Http\Controllers\Api\MobileSyncController::class, 'sync']);
 });
 
 // Authenticated API Routes
-Route::middleware(['auth:sanctum'])->group(function () {
+Route::middleware([\App\Http\Middleware\ApiAuth::class])->group(function () {
     Route::post('/logout', [AuthApiController::class, 'logout']);
     Route::get('/user', [AuthApiController::class, 'user']);
     // Dashboard API Routes
