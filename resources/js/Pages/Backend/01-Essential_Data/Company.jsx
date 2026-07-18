@@ -4,6 +4,7 @@ import axios from 'axios';
 import AdminLayout from '../components/AdminLayout';
 import BlankPage from '@/Components/BlankPage';
 import MediaPickerModal from '../Media/MediaPickerModal';
+import Table from '../components/Table';
 import '../../../../css/backend/main.scss';
 import { toast } from 'react-toastify';
 
@@ -668,9 +669,9 @@ const Company = ({ companies, company, canCreateCompany }) => {
     }
     const [searchTerm, setSearchTerm] = useState('');
 
-    const handleDelete = (id) => {
+    const handleDelete = (row) => {
         if (confirm('Are you sure you want to delete this company?')) {
-            router.delete(getLocalizedRoute('admin.companies.destroy', { company: id }), {
+            router.delete(getLocalizedRoute('admin.companies.destroy', { company: row.id }), {
                 onStart: () => toast.info('Deleting company...', { autoClose: 2000 }),
                 onError: () => toast.error('Failed to delete company'),
             });
@@ -792,104 +793,52 @@ const Company = ({ companies, company, canCreateCompany }) => {
             <BlankPage breadcrumbs={breadcrumbs} stats={statsContent}>
                 <div className="tasks-card">
                     <div className="card-header">
-                        <div className="tasks-actions">
-                            <div className="search-bar light">
-                                <input
-                                    type="text"
-                                    placeholder="Search companies..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                                <button type="button">
-                                    <span className="material-icons-outlined">search</span>
-                                </button>
-                            </div>
-                        </div>
-                        <div className="tasks-actions">
-                            {canCreateCompany ? (
-                                <Link
-                                    href={getLocalizedRoute('admin.companies.create')}
-                                    className="btn btn-primary no-underline"
-                                >
-                                    <span className="material-icons-outlined">add_business</span>
-                                    <span>Add Company</span>
-                                </Link>
-                            ) : null}
-                        </div>
                     </div>
 
-                    <div className="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>#</th>
-                                    <th>COMPANY NAME</th>
-                                    <th>CODE</th>
-                                    <th>TYPE</th>
-                                    <th>COUNTRY</th>
-                                    <th>ACTIONS</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filteredCompanies.length > 0 ? (
-                                    filteredCompanies.map((company, index) => (
-                                        <tr key={company.id}>
-                                            <td>{index + 1}</td>
-                                            <td>{company.company_name}</td>
-                                            <td>{company.company_code || '-'}</td>
-                                            <td className="capitalize">{company.company_type || '-'}</td>
-                                            <td className="uppercase">
-                                                {company.country_data?.name || company.country || '-'}
-                                            </td>
-                                            <td>
-                                                <button
-                                                    type="button"
-                                                    className="icon-btn edit"
-                                                    title="Edit"
-                                                    onClick={() =>
-                                                        router.get(
-                                                            getLocalizedRoute('admin.companies.edit', { company: company.id })
-                                                        )
-                                                    }
-                                                >
-                                                    <span className="material-icons-outlined">edit</span>
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className="icon-btn delete"
-                                                    title="Delete"
-                                                    onClick={() => handleDelete(company.id)}
-                                                >
-                                                    <span className="material-icons-outlined">delete</span>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={6} className="text-center text-gray-500 py-6">
-                                            No company information found.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <div className="pagination">
-                        <div className="pagination-info">
-                            <span>
-                                Showing{' '}
-                                <strong>{filteredCompanies.length}</strong> of{' '}
-                                <strong>{companies.length}</strong> companies
-                            </span>
-                        </div>
-                        <div className="pagination-controls">
-                            <button className="page-btn active" disabled>
-                                1
-                            </button>
-                        </div>
-                    </div>
+                    <Table
+                        tableData={filteredCompanies}
+                        columns={[
+                            {
+                                key: 'index',
+                                header: '#',
+                                width: '60px',
+                                render: (row, index) => index + 1,
+                            },
+                            {
+                                key: 'company_name',
+                                header: 'COMPANY NAME',
+                                sortable: true,
+                            },
+                            {
+                                key: 'company_code',
+                                header: 'CODE',
+                                sortable: true,
+                                render: (row) => row.company_code || '-',
+                            },
+                            {
+                                key: 'company_type',
+                                header: 'TYPE',
+                                sortable: true,
+                                render: (row) => row.company_type ? row.company_type.charAt(0).toUpperCase() + row.company_type.slice(1) : '-',
+                            },
+                            {
+                                key: 'country',
+                                header: 'COUNTRY',
+                                sortable: true,
+                                render: (row) => row.country_data?.name || row.country || '-',
+                            },
+                        ]}
+                        showToolbar={true}
+                        toolbarSearch={true}
+                        toolbarSearchPlaceholder="Search companies..."
+                        toolbarSearchValue={searchTerm}
+                        onToolbarSearch={setSearchTerm}
+                        showAddButton={canCreateCompany}
+                        addButtonText="Add Company"
+                        onAdd={() => router.get(getLocalizedRoute('admin.companies.create'))}
+                        onEdit={(row) => router.get(getLocalizedRoute('admin.companies.edit', { company: row.id }))}
+                        onDelete={handleDelete}
+                    />
                 </div>
             </BlankPage>
         </AdminLayout>

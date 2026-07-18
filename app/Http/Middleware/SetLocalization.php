@@ -20,6 +20,7 @@ class SetLocalization
      */
     public function handle(Request $request, Closure $next): Response
     {
+        $hasSession = $request->hasSession();
         $countryCode = $request->segment(1);
         $langCode = $request->segment(2);
 
@@ -70,7 +71,7 @@ class SetLocalization
             });
         }
 
-        if (! $country && ! Session::has('country_code')) {
+        if (! $country && $hasSession && ! Session::has('country_code')) {
             // Auto-detect country based on IP if not specified in URL and not in session
             $detectedCountryCode = $this->detectCountryCode($request->ip());
             if ($detectedCountryCode) {
@@ -84,7 +85,9 @@ class SetLocalization
         if ($country) {
             Config::set('app.country', $country);
             $defaultCountryCode = strtolower($country->code);
-            Session::put('country_code', $defaultCountryCode);
+            if ($hasSession) {
+                Session::put('country_code', $defaultCountryCode);
+            }
         } else {
             // Default country if not specified or invalid
             $defaultCountry = \Illuminate\Support\Facades\Cache::remember('country.default', 86400, function () {
@@ -93,33 +96,43 @@ class SetLocalization
             if ($defaultCountry) {
                 Config::set('app.country', $defaultCountry);
                 $defaultCountryCode = strtolower($defaultCountry->code);
-                Session::put('country_code', $defaultCountryCode);
+                if ($hasSession) {
+                    Session::put('country_code', $defaultCountryCode);
+                }
             }
         }
 
         // Validate and sanitize existing country code in session
-        $sessionCountryCode = Session::get('country_code');
-        if ($sessionCountryCode && !preg_match('/^[a-zA-Z]{2,3}$/', $sessionCountryCode)) {
-            Session::put('country_code', $defaultCountryCode);
+        if ($hasSession) {
+            $sessionCountryCode = Session::get('country_code');
+            if ($sessionCountryCode && !preg_match('/^[a-zA-Z]{2,3}$/', $sessionCountryCode)) {
+                Session::put('country_code', $defaultCountryCode);
+            }
         }
 
-        $currencyCode = session('currency_code', 'SAR');
-        Session::put('currency_code', strtoupper($currencyCode));
+        $currencyCode = $hasSession ? session('currency_code', 'SAR') : 'SAR';
+        if ($hasSession) {
+            Session::put('currency_code', strtoupper($currencyCode));
+        }
 
         // Handle Language
         if (in_array($langCode, $supportedLocales)) {
             App::setLocale($langCode);
-            Session::put('locale', $langCode);
-        } elseif (Session::has('locale') && in_array(Session::get('locale'), $supportedLocales)) {
+            if ($hasSession) {
+                Session::put('locale', $langCode);
+            }
+        } elseif ($hasSession && Session::has('locale') && in_array(Session::get('locale'), $supportedLocales)) {
             App::setLocale(Session::get('locale'));
         } else {
             App::setLocale($appDefaultLocale);
-            Session::put('locale', $appDefaultLocale);
+            if ($hasSession) {
+                Session::put('locale', $appDefaultLocale);
+            }
         }
 
         // Set URL defaults for country and lang
-        $currentCountry = strtolower($countryCode ?: session('country_code', $defaultCountryCode));
-        $currentLocale = strtolower($langCode ?: session('locale', $appDefaultLocale));
+        $currentCountry = strtolower($countryCode ?: ($hasSession ? session('country_code', $defaultCountryCode) : $defaultCountryCode));
+        $currentLocale = strtolower($langCode ?: ($hasSession ? session('locale', $appDefaultLocale) : $appDefaultLocale));
 
         URL::defaults([
             'country' => $currentCountry,

@@ -370,18 +370,20 @@ const Table = ({
                 <table className="table-custom">
                     <thead>
                         <tr>
-                            <th
-                                style={{
-                                    width: '50px',
-                                    textAlign: 'center',
-                                }}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={selectAll}
-                                    onChange={handleSelectAll}
-                                />
-                            </th>
+                            {(handleRowSelect || selectAll || handleSelectAll) && (
+                                <th
+                                    style={{
+                                        width: '50px',
+                                        textAlign: 'center',
+                                    }}
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={selectAll}
+                                        onChange={handleSelectAll}
+                                    />
+                                </th>
+                            )}
 
                             {columns.map((column, index) => (
                                 <th
@@ -438,30 +440,33 @@ const Table = ({
                         {displayData.length > 0 ? (
                             displayData.map((row, rowIndex) => (
                                 <tr key={row.id || rowIndex}>
-                                    <td
-                                        style={{
-                                            textAlign: 'center',
-                                        }}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={
-                                                row.selected || false
-                                            }
-                                            onChange={() =>
-                                                handleRowSelect?.(
-                                                    row.id || rowIndex
-                                                )
-                                            }
-                                        />
-                                    </td>
+                                    {(handleRowSelect || selectAll || handleSelectAll) && (
+                                        <td
+                                            style={{
+                                                textAlign: 'center',
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={
+                                                    row.selected || false
+                                                }
+                                                onChange={() =>
+                                                    handleRowSelect?.(
+                                                        row.id || rowIndex
+                                                    )
+                                                }
+                                            />
+                                        </td>
+                                    )}
 
                                     {columns.map(
                                         (column, colIndex) => (
                                             <td key={colIndex}>
                                                 {column.render
                                                     ? column.render(
-                                                          row
+                                                          row,
+                                                          rowIndex
                                                       )
                                                     : row[
                                                           column.key
@@ -549,8 +554,9 @@ const Table = ({
                                         (onView ||
                                         onEdit ||
                                         onDelete
-                                            ? 2
-                                            : 1)
+                                            ? 1
+                                            : 0) +
+                                        ((handleRowSelect || selectAll || handleSelectAll) ? 1 : 0)
                                     }
                                     className="empty-state-row"
                                 >

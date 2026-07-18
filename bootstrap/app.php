@@ -21,8 +21,8 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectTo(
             function (Request $request) {
                 $params = [
-                    'country' => $request->segment(1) ?: session('country_code', 'sa'),
-                    'lang' => $request->segment(2) ?: session('locale', 'ar'),
+                    'country' => $request->segment(1) ?: ($request->hasSession() ? session('country_code', 'sa') : 'sa'),
+                    'lang' => $request->segment(2) ?: ($request->hasSession() ? session('locale', 'ar') : 'ar'),
                 ];
 
                 return route('login', $params);
@@ -34,6 +34,15 @@ $app = Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EnsureCompanyScope::class,
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+        ]);
+
+        $middleware->api(append: [
+            \Illuminate\Cookie\Middleware\EncryptCookies::class,
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
+            \App\Http\Middleware\SetLocalization::class,
+            \App\Http\Middleware\EnsureCompanyScope::class,
         ]);
 
         $middleware->alias([

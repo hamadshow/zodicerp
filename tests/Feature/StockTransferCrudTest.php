@@ -24,6 +24,11 @@ class StockTransferCrudTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        if (DB::connection()->getDriverName() === 'sqlite') {
+            $this->markTestSkipped('This test requires a MySQL database.');
+        }
+
         Config::set('database.default', 'mysql');
         $dbName = 'u244683233_Zodicerp';
         $dbUser = env('DB_USERNAME', 'root');

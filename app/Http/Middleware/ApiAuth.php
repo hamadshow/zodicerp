@@ -16,11 +16,24 @@ class ApiAuth
      */
     public function handle(Request $request, Closure $next): Response
     {
-        // Check all available guards in order
-        $guards = ['web', 'sanctum', 'employee', 'supplier', 'customer'];
+        // First try Sanctum's authentication (includes both token and SPA session auth)
+        if (Auth::guard('sanctum')->check()) {
+            Auth::shouldUse('sanctum');
+            $request->setUserResolver(fn() => Auth::guard('sanctum')->user());
+            return $next($request);
+        }
         
+        // Then try web guard (session-based)
+        if ($request->hasSession() && Auth::guard('web')->check()) {
+            Auth::shouldUse('web');
+            $request->setUserResolver(fn() => Auth::guard('web')->user());
+            return $next($request);
+        }
+        
+        // Try other guards if available
+        $guards = ['employee', 'supplier', 'customer'];
         foreach ($guards as $guard) {
-            if (Auth::guard($guard)->check()) {
+            if ($request->hasSession() && Auth::guard($guard)->check()) {
                 Auth::shouldUse($guard);
                 $request->setUserResolver(fn() => Auth::guard($guard)->user());
                 return $next($request);
