@@ -144,7 +144,7 @@ export default function SalesOrders({
             ?.filter(a => a.customer_id == data.customer_id)
             .map(a => ({
                 value: String(a.id),
-                label: `${a.address_line_1}, ${a.city?.name_en || ''}`
+                label: `${a.address_name || a.street || ''}${a.city?.name ? ', ' + a.city.name : ''}`
             })) || [], 
     [customerAddresses, data.customer_id]);
 
@@ -886,7 +886,7 @@ export default function SalesOrders({
                                 <div className="meta-box">
                                     <h3>Ship To:</h3>
                                     <p>{data.shipping_method}</p>
-                                    <p>{customerAddresses.find(a => a.id == data.shipping_address_id)?.address_line_1}</p>
+                                    <p>{customerAddresses.find(a => a.id == data.shipping_address_id)?.address_name || customerAddresses.find(a => a.id == data.shipping_address_id)?.street || ''}</p>
                                 </div>
                             </div>
 

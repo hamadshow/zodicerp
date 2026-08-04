@@ -27,7 +27,8 @@ class CustomerAddressController extends Controller
         $validated = $request->validate([
             'address_name' => 'required|string|max:255',
             'address_type' => 'required|in:billing,shipping,home,work,other',
-            'location_id' => 'nullable|exists:locations,id',
+            'country_id' => 'nullable|exists:locations,id',
+            'city_id' => 'nullable|exists:locations,id',
             'district' => 'nullable|string|max:255',
             'street' => 'nullable|string|max:255',
             'building_number' => 'nullable|string|max:255',
@@ -73,7 +74,8 @@ class CustomerAddressController extends Controller
         $validated = $request->validate([
             'address_name' => 'required|string|max:255',
             'address_type' => 'required|in:billing,shipping,home,work,other',
-            'location_id' => 'nullable|exists:locations,id',
+            'country_id' => 'nullable|exists:locations,id',
+            'city_id' => 'nullable|exists:locations,id',
             'district' => 'nullable|string|max:255',
             'street' => 'nullable|string|max:255',
             'building_number' => 'nullable|string|max:255',

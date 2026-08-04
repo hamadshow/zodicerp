@@ -16,8 +16,8 @@ return new class extends Migration
             $table->enum('transaction_type', ['export', 'import', 'intra_community', 'reverse_charge']);
 
             // Locations
-            $table->foreignId('source_location_id')->constrained('locations');
-            $table->foreignId('destination_location_id')->constrained('locations');
+            $table->foreignId('source_country_id')->constrained('locations');
+            $table->foreignId('destination_country_id')->constrained('locations');
 
             // Tax
             $table->unsignedBigInteger('applicable_tax_id')->nullable();
@@ -41,7 +41,7 @@ return new class extends Migration
             $table->foreign('applicable_tax_id')->references('id')->on('taxes');
 
             // Constraints & Indexes
-            $table->unique(['source_location_id', 'destination_location_id', 'transaction_type'], 'unique_border_tax');
+            $table->unique(['source_country_id', 'destination_country_id', 'transaction_type'], 'unique_border_tax');
             $table->index('transaction_type', 'idx_transaction_type');
         });
     }

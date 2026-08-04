@@ -3,7 +3,7 @@ import { Head, useForm, usePage, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import BlankPage from '@/Components/BlankPage';
 import SearchableComboBox from '../components/SearchableComboBox';
-import Pagination from '../components/Pagination';
+import Table from '../components/Table';
 import { formatDate } from '@/utils/date';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
@@ -13,7 +13,8 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
     const invoiceRef = useRef(null);
     const printRef = useRef(null);
     const { props } = usePage();
-    const { localization, flash, errors } = props;
+    const { localization, errors } = props;
+    const translations = localization?.translations || {};
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -23,17 +24,190 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
         });
     };
 
-    const handleSort = (column) => {
-        const currentSort = filters.sort_by || '';
-        const currentDir = filters.sort_dir || 'asc';
-        const newDir = currentSort === column && currentDir === 'asc' ? 'desc' : 'asc';
+    const t = (key, fallback) => {
+        return translations[key] || translations[`purchase_invoice.${key}`] || translations[`common.${key}`] || fallback;
+    };
 
+    const aggregateStats = useMemo(() => {
+        const rows = invoices?.data || [];
+        let totalAmount = 0;
+        let totalBalance = 0;
+        let unpaid = 0;
+        let partial = 0;
+        let paid = 0;
+        rows.forEach(inv => {
+            totalAmount += parseFloat(inv.total_amount || 0);
+            totalBalance += parseFloat(inv.balance_amount || 0);
+            if (inv.payment_status === 'unpaid') unpaid++;
+            else if (inv.payment_status === 'partial') partial++;
+            else if (inv.payment_status === 'paid') paid++;
+        });
+        return {
+            totalInvoices: rows.length,
+            totalAmount,
+            totalBalance,
+            unpaid, partial, paid,
+        };
+    }, [invoices]);
+
+    const breadcrumbs = [
+        { label: t('sidebar.Dashboard', 'Dashboard'), href: getLocalizedRoute('admin.dashboard') },
+        { label: t('sidebar.purchases', 'Purchases'), onClick: (e) => { e.preventDefault(); setMode('list'); } },
+        { label: t('sidebar.purchase_invoices', 'Purchase Invoices') }
+    ];
+    if (mode === 'create') breadcrumbs.push({ label: t('common.create', 'Create') });
+    if (mode === 'edit') breadcrumbs.push({ label: t('common.edit', 'Edit') });
+
+    const statsContent = mode === 'list' && (
+        <div className="stats-cards">
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
+                    <span className="material-icons-outlined">receipt</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{aggregateStats.totalInvoices.toLocaleString()}</div>
+                    <div className="stat-label">{t('total_invoices', 'Total Invoices')}</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--warning-color)' }}>
+                    <span className="material-icons-outlined">savings</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{Number(aggregateStats.totalBalance).toFixed(2)}</div>
+                    <div className="stat-label">{t('balance_due', 'Balance Due')}</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
+                    <span className="material-icons-outlined">paid</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{Number(aggregateStats.totalAmount).toFixed(2)}</div>
+                    <div className="stat-label">{t('total_amount', 'Total Amount')}</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
+                    <span className="material-icons-outlined">checklist</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">
+                        <span style={{ color: 'var(--error-color)' }}>{aggregateStats.unpaid}</span>
+                        {' / '}
+                        <span style={{ color: 'var(--warning-color)' }}>{aggregateStats.partial}</span>
+                        {' / '}
+                        <span style={{ color: 'var(--success-color)' }}>{aggregateStats.paid}</span>
+                    </div>
+                    <div className="stat-label">{t('unpaid_partial_paid', 'Unpaid / Partial / Paid')}</div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const tableColumns = useMemo(() => [
+        {
+            header: t('ref_no', 'Ref #'),
+            key: 'invoice_number',
+            sortable: true,
+            width: '140px',
+            render: (row) => <strong style={{ fontFamily: 'monospace' }}>{row.invoice_number || `#${row.id}`}</strong>,
+        },
+        {
+            header: t('date', 'Date'),
+            key: 'invoice_date',
+            sortable: true,
+            width: '130px',
+            render: (row) => formatDate(row.invoice_date),
+        },
+        {
+            header: t('supplier', 'Supplier'),
+            key: 'supplier_id',
+            sortable: true,
+            render: (row) => row?.supplier?.name_en || row?.supplier?.name_ar || row?.supplier?.name || '-',
+        },
+        {
+            header: t('type', 'Type'),
+            key: 'invoice_type',
+            sortable: false,
+            width: '130px',
+            render: (row) => (
+                <span className={`status-badge type-${row.invoice_type}`}>
+                    {(row.invoice_type || 'standard').replace('_', ' ')}
+                </span>
+            ),
+        },
+        {
+            header: t('status', 'Status'),
+            key: 'payment_status',
+            sortable: true,
+            width: '120px',
+            render: (row) => (
+                <span className={`status-badge status-${row.payment_status}`}>
+                    {row.payment_status || 'unpaid'}
+                </span>
+            ),
+        },
+        {
+            header: t('total', 'Total'),
+            key: 'total_amount',
+            sortable: true,
+            width: '150px',
+            render: (row) => (
+                <span style={{ fontFamily: 'monospace' }}>
+                    {Number(row.total_amount || 0).toFixed(2)} {row?.currency?.code || ''}
+                </span>
+            ),
+        },
+        {
+            header: t('balance', 'Balance'),
+            key: 'balance_amount',
+            sortable: true,
+            width: '150px',
+            render: (row) => {
+                const bal = Number(row.balance_amount || 0);
+                return (
+                    <span
+                        style={{
+                            fontFamily: 'monospace',
+                            fontWeight: bal > 0 ? 'bold' : 'normal',
+                            color: bal > 0 ? 'var(--error-color)' : 'inherit',
+                        }}
+                    >
+                        {bal.toFixed(2)} {row?.currency?.code || ''}
+                    </span>
+                );
+            },
+        },
+    ], []);
+
+    const handleToolbarSearch = (searchText) => {
         router.get(getLocalizedRoute('admin.purchases.invoices.index'), {
             ...filters,
-            sort_by: column,
-            sort_dir: newDir,
+            search: searchText,
             page: 1,
-        }, { preserveState: true });
+        }, { preserveState: true, preserveScroll: true, replace: true });
+    };
+
+    const handleRefresh = () => {
+        router.reload({ only: ['invoices', 'filters'], preserveState: true, preserveScroll: true });
+    };
+
+    const handleServerSort = (sortKey, sortDirection) => {
+        const params = { ...filters };
+        if (sortKey && sortDirection) {
+            params.sort_by = sortKey;
+            params.sort_dir = sortDirection;
+        } else {
+            delete params.sort_by;
+            delete params.sort_dir;
+        }
+        params.page = 1;
+        router.get(getLocalizedRoute('admin.purchases.invoices.index'), params, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
     };
 
     const orderOptions = useMemo(() => {
@@ -70,6 +244,19 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
             label: w.name_en || w.name_ar || ''
         }));
     }, [warehouses]);
+
+    // Create a fast lookup map to avoid repeated .find() calls and potential O(n^2) behavior
+    const productMap = useMemo(() => {
+        const map = {};
+        (products || []).forEach(p => {
+            map[String(p.id)] = p;
+            map[p.id] = p;
+        });
+        return map;
+    }, [products]);
+
+    // Local client-side validation errors (keeps UI responsive before server validation)
+    const [localErrors, setLocalErrors] = useState({});
 
     const { data, setData, post, put, delete: destroy, processing, reset } = useForm({
         id: '',
@@ -108,12 +295,18 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
         reset();
         const today = new Date();
         const due = new Date();
-        due.setDate(today.getDate() + 30); 
+        due.setDate(today.getDate() + 30);
+
+        const baseCurrency = (currencies || []).find(c => c.is_base == 1 || c.is_default == 1 || c.default == 1);
+        const defaultCurrencyId = baseCurrency ? String(baseCurrency.id) : (currencies?.[0] ? String(currencies[0].id) : '');
+        const defaultExchangeRate = baseCurrency ? Number(baseCurrency.rate || baseCurrency.exchange_rate || 1) : 1.000000;
         
         setData(prev => ({
             ...prev,
             invoice_date: today.toISOString().split('T')[0],
             due_date: due.toISOString().split('T')[0],
+            currency_id: defaultCurrencyId,
+            exchange_rate: defaultExchangeRate,
             items: [{
                 id: null,
                 line_number: 1,
@@ -167,6 +360,8 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
             balance_amount: toNum(invoice.balance_amount),
             exchange_rate: toNum(invoice.exchange_rate) || 1.000000,
             supplier_id: invoice.supplier_id || '',
+            supplier_notes: invoice.supplier_notes || '',
+            internal_notes: invoice.internal_notes || '',
             payment_terms: invoice.payment_terms || '',
         });
         setMode('edit');
@@ -178,8 +373,55 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
         }
     };
 
+    const validateBeforeSubmit = () => {
+        const errs = {};
+
+        if (!data.supplier_id || String(data.supplier_id).trim() === '') {
+            errs.supplier_id = 'Supplier is required.';
+        }
+
+        if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+            errs.items = 'At least one invoice line is required.';
+        } else {
+            const seen = new Set();
+            data.items.forEach((it, idx) => {
+                if (!it.product_id || String(it.product_id).trim() === '') {
+                    errs[`item_${idx}`] = `Product required on line ${idx + 1}`;
+                }
+                if (!it.quantity || Number(it.quantity) <= 0) {
+                    errs[`item_qty_${idx}`] = `Quantity must be greater than zero on line ${idx + 1}`;
+                }
+                if (!it.unit_id || String(it.unit_id).trim() === '') {
+                    errs[`item_unit_${idx}`] = `Unit is required on line ${idx + 1}`;
+                }
+                if (!it.warehouse_id || String(it.warehouse_id).trim() === '') {
+                    errs[`item_wh_${idx}`] = `Warehouse is required on line ${idx + 1}`;
+                }
+
+                const key = String(it.product_id);
+                if (key) {
+                    if (seen.has(key)) {
+                        errs.duplicate_item = 'Duplicate product in invoice lines is not allowed.';
+                    }
+                    seen.add(key);
+                }
+            });
+        }
+
+        setLocalErrors(errs);
+        return Object.keys(errs).length === 0;
+    };
+
     const handleSubmit = (e) => {
-        e.preventDefault();
+        if (e && e.preventDefault) e.preventDefault();
+
+        // Client-side validations before sending to server
+        if (!validateBeforeSubmit()) {
+            // Scroll to top so user can see validation summary
+        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { console.debug('scrollTo failed', e); }
+            return;
+        }
+
         if (mode === 'create') {
             post(getLocalizedRoute('admin.purchases.invoices.store'), {
                 preserveScroll: true,
@@ -219,7 +461,7 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
     const handleExportExcel = () => {
         const itemsData = data.items.map((item, index) => ({
             '#': index + 1,
-            'Product': products.find(p => p.id == item.product_id)?.name_en || '',
+            'Product': (productMap[String(item.product_id)] && (productMap[String(item.product_id)].name_en || productMap[String(item.product_id)].name)) || '',
             'Description': item.item_name_ar || '',
             'Quantity': Number(item.quantity),
             'Price': Number(item.unit_price),
@@ -264,20 +506,46 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
     const removeItem = (index) => {
         const newItems = [...data.items];
         newItems.splice(index, 1);
+        // reindex line numbers
+        newItems.forEach((it, i) => { it.line_number = i + 1; });
         setData('items', newItems);
         calculateTotals(newItems);
     };
 
     const handleItemChange = (index, field, value) => {
         const newItems = [...data.items];
-        newItems[index][field] = value;
 
+        // Normalize numeric fields immediately
+        if (['quantity','unit_price','discount_amount','tax_amount'].includes(field)) {
+            // allow empty string so user can clear field while typing
+            newItems[index][field] = value === '' ? '' : Number(value);
+        } else {
+            newItems[index][field] = value;
+        }
+
+        // When selecting a product, prefill names, price, unit, warehouse and prevent duplicates
         if (field === 'product_id') {
-            const product = products.find(p => p.id == value);
+            // prevent duplicate products in different lines
+            if (value && newItems.some((it, idx) => idx !== index && String(it.product_id) === String(value))) {
+                // set a local error and do not accept duplicate selection
+                setLocalErrors(prev => ({ ...prev, duplicate_item: 'Duplicate product in invoice lines is not allowed.' }));
+                newItems[index].product_id = '';
+                setData('items', newItems);
+                return;
+            } else {
+                // clear duplicate error if present
+                setLocalErrors(prev => {
+                    const copy = { ...prev };
+                    delete copy.duplicate_item;
+                    return copy;
+                });
+            }
+
+            const product = productMap[String(value)];
             if (product) {
                 newItems[index].item_name_ar = product.name_ar || product.name || '';
                 newItems[index].item_name_en = product.name_en || product.name || '';
-                newItems[index].unit_price = product.purchase_price || 0;
+                newItems[index].unit_price = Number(product.purchase_price || 0);
                 newItems[index].unit_id = product.unit_id || '';
                 newItems[index].warehouse_id = newItems[index].warehouse_id || (warehouses?.[0]?.id || '');
             }
@@ -290,8 +558,9 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
 
         const netPrice = (qty * price) - discAmount;
         const total = netPrice + taxVal;
-        
-        newItems[index].line_total = total.toFixed(2);
+
+        // store numeric value for reliability in calculations
+        newItems[index].line_total = Number(total.toFixed(2));
 
         setData('items', newItems);
     };
@@ -314,15 +583,19 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
              calculatedTax += iTax;
         });
 
-        const totalAmount = calculatedSubtotal + calculatedTax - globalDiscount + shipping + other;
+        // Round to 2 decimals for consistency
+        calculatedSubtotal = Number(calculatedSubtotal.toFixed(2));
+        calculatedTax = Number(calculatedTax.toFixed(2));
+
+        const totalAmount = Number((calculatedSubtotal + calculatedTax - globalDiscount + shipping + other).toFixed(2));
         const paid = parseFloat(data.paid_amount) || 0;
-        const balance = totalAmount - paid;
+        const balance = Number((totalAmount - paid).toFixed(2));
 
         if (
-            Math.abs(data.subtotal - calculatedSubtotal) > 0.01 ||
-            Math.abs(data.tax_amount - calculatedTax) > 0.01 ||
-            Math.abs(data.total_amount - totalAmount) > 0.01 ||
-            Math.abs(data.balance_amount - balance) > 0.01
+            Math.abs((parseFloat(data.subtotal) || 0) - calculatedSubtotal) > 0.01 ||
+            Math.abs((parseFloat(data.tax_amount) || 0) - calculatedTax) > 0.01 ||
+            Math.abs((parseFloat(data.total_amount) || 0) - totalAmount) > 0.01 ||
+            Math.abs((parseFloat(data.balance_amount) || 0) - balance) > 0.01
         ) {
              setData(prev => ({
                 ...prev,
@@ -334,119 +607,98 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
         }
     };
 
-    const breadcrumbs = [
-        { label: 'Dashboard', href: route('admin.dashboard') },
-        { label: 'Purchases', href: '#' },
-        { label: 'Purchase Invoices', onClick: () => setMode('list') }
-    ];
-
-    if (mode === 'create') breadcrumbs.push({ label: 'New Invoice' });
-    if (mode === 'edit') breadcrumbs.push({ label: `Edit Invoice ${data.invoice_number || ''}` });
-
-    const filtersContent = (
-        <div className="purchase-invoices-module__header">
-            <h1>
-                {mode === 'list' ? 'Purchase Invoices' : 
-                 mode === 'create' ? 'Create New Invoice' : 'Edit Invoice'}
-            </h1>
-            {mode === 'list' && (
-                <button className="btn-add" onClick={handleCreate}>
-                    + Create Invoice
-                </button>
-            )}
-            {mode !== 'list' && (
-                <div className="header-actions" style={{display: 'flex', gap: '10px'}}>
-                    <button type="button" className="btn-action btn-print" onClick={handlePrint} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                        <span>🖨</span> Print
-                    </button>
-                    <button type="button" className="btn-action btn-pdf" onClick={handleExportPDF} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                        <span>📄</span> PDF
-                    </button>
-                    <button type="button" className="btn-action btn-excel" onClick={handleExportExcel} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
-                        <span>📊</span> Excel
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-
     return (
-        <AdminLayout>
-            <Head title="Purchase Invoices" />
+        <AdminLayout activeMenu={t('sidebar.purchase_invoices', 'Purchase Invoices')}>
+            <Head title={t('title', 'Purchase Invoices Management')} />
             
-            <BlankPage breadcrumbs={breadcrumbs} filters={filtersContent}>
+            <BlankPage breadcrumbs={breadcrumbs} stats={mode === 'list' ? statsContent : undefined}>
                 <div className="purchase-invoices-module">
-                    {flash.success && (
-                        <div className="alert alert-success">{flash.success}</div>
-                    )}
-                    {flash.error && (
-                        <div className="alert alert-error">{flash.error}</div>
-                    )}
 
                     {mode === 'list' ? (
-                        <div className="purchase-invoices-module__table-container">
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Ref #</th>
-                                        <th
-                                            style={{ cursor: 'pointer' }}
-                                            onClick={() => handleSort('invoice_date')}
-                                        >
-                                            Date {filters.sort_by === 'invoice_date' && (filters.sort_dir === 'asc' ? '↑' : '↓')}
-                                        </th>
-                                        <th>Supplier</th>
-                                        <th>Type</th>
-                                        <th>Status</th>
-                                        <th>Total</th>
-                                        <th>Balance</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {invoices?.data?.map((invoice) => (
-                                        <tr key={invoice.id}>
-                                            <td>{invoice.invoice_number}</td>
-                                            <td>{formatDate(invoice.invoice_date)}</td>
-                                            <td>{invoice.supplier?.name_en || invoice.supplier?.name_ar || invoice.supplier?.name}</td>
-                                            <td>
-                                                <span className={`status-badge type-${invoice.invoice_type}`}>
-                                                    {invoice.invoice_type?.replace('_', ' ')}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span className={`status-badge status-${invoice.payment_status}`}>
-                                                    {invoice.payment_status}
-                                                </span>
-                                            </td>
-                                            <td>{Number(invoice.total_amount).toFixed(2)} {invoice.currency?.code}</td>
-                                            <td>{Number(invoice.balance_amount).toFixed(2)} {invoice.currency?.code}</td>
-                                            <td className="actions">
-                                                <button className="edit" onClick={() => handleEdit(invoice)}>Edit</button>
-                                                <button className="delete" onClick={() => handleDelete(invoice.id)}>Delete</button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {(!invoices?.data || invoices.data.length === 0) && (
-                                        <tr>
-                                            <td colSpan="8" style={{ textAlign: 'center' }}>No purchase invoices found.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                            <Pagination
-                                currentPage={invoices.current_page}
-                                totalPages={invoices.last_page}
-                                totalRecords={invoices.total}
-                                recordsPerPage={invoices.per_page}
-                                onPageChange={(page) => router.get(getLocalizedRoute('admin.purchases.invoices.index'), { ...filters, page }, { preserveState: true })}
-                                onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.purchases.invoices.index'), { ...filters, page: 1, per_page: perPage }, { preserveState: true })}
+                        <div className="fade-in">
+                            <Table
+                                showToolbar={true}
+                                toolbarSearch={true}
+                                toolbarSearchValue={filters.search || ''}
+                                onToolbarSearch={handleToolbarSearch}
+                                toolbarSearchPlaceholder={t('search_placeholder', 'Search invoices...')}
+                                showAddButton={true}
+                                addButtonText={t('create_invoice', '+ Create Invoice')}
+                                onAdd={handleCreate}
+                                showRefreshButton={true}
+                                onRefresh={handleRefresh}
+                                tableData={invoices?.data || invoices || []}
+                                columns={tableColumns}
+                                onEdit={(row) => handleEdit(row)}
+                                onDelete={(row) => handleDelete(row.id)}
+                                onSort={handleServerSort}
+                                serverSide={true}
+                                sortKey={filters.sort_by}
+                                sortDirection={filters.sort_dir}
+                                currentPage={invoices?.current_page || 1}
+                                totalPages={invoices?.last_page || 1}
+                                totalRecords={invoices?.total || 0}
+                                recordsPerPage={invoices?.per_page || 10}
+                                onPageChange={(page) => {
+                                    router.get(getLocalizedRoute('admin.purchases.invoices.index'), { ...filters, page }, {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                        replace: true,
+                                    });
+                                }}
+                                onRecordsPerPageChange={(perPage) => {
+                                    router.get(getLocalizedRoute('admin.purchases.invoices.index'), { ...filters, page: 1, per_page: perPage }, {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                        replace: true,
+                                    });
+                                }}
                             />
                         </div>
                     ) : (
-                        <>
-                        <form ref={invoiceRef} onSubmit={handleSubmit} className="invoice-container">
-                            
+                        <div className="fade-in">
+                            <div className="card">
+                                <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                        <button type="button" className="btn btn-outline btn-sm" onClick={() => setMode('list')}>
+                                            <span className="material-icons-outlined">arrow_back</span>
+                                            <span>{t('common.back', 'Back')}</span>
+                                        </button>
+                                        <h2 style={{ margin: 0 }}>
+                                            {mode === 'create' ? t('create_new_invoice', 'Create New Invoice') : t('edit_invoice', 'Edit Invoice')}
+                                        </h2>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <button type="button" className="btn btn-outline btn-sm" onClick={handlePrint}>
+                                            <span className="material-icons-outlined">print</span>
+                                            <span>{t('print', 'Print')}</span>
+                                        </button>
+                                        <button type="button" className="btn btn-outline btn-sm" onClick={handleExportPDF}>
+                                            <span className="material-icons-outlined">picture_as_pdf</span>
+                                            <span>PDF</span>
+                                        </button>
+                                        <button type="button" className="btn btn-outline btn-sm" onClick={handleExportExcel}>
+                                            <span className="material-icons-outlined">table_chart</span>
+                                            <span>Excel</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="card-body" style={{ padding: '20px 30px' }}>
+                                    <form ref={invoiceRef} onSubmit={handleSubmit} className="invoice-container">
+
+                                        {/* Validation summary: server-side (errors) and client-side (localErrors) */}
+                                        {(Object.keys(localErrors || {}).length > 0 || Object.keys(errors || {}).length > 0) && (
+                                            <div className="validation-summary" style={{ marginBottom: '1rem', padding: '10px', border: '1px solid #f5c6cb', background: '#fff0f0', color: '#842029' }}>
+                                                <strong>Validation errors:</strong>
+                                                <ul style={{ margin: '6px 0 0 18px' }}>
+                                                    {Object.values(localErrors || {}).map((m, i) => <li key={`local-${i}`}>{m}</li>)}
+                                                    {errors && Object.keys(errors).length > 0 && Object.entries(errors).map(([k, v]) => (
+                                                        <li key={`server-${k}`}>{Array.isArray(v) ? v.join(', ') : v}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
                             <div className="invoice-header">
                                 <div className="company-info">
                                     <h2>PURCHASE INVOICE</h2>
@@ -753,108 +1005,107 @@ export default function PurchaseInvoice({ invoices, suppliers, orders, currencie
                                 </div>
                             </div>
                         </form>
-
-                        <div className="sticky-actions-footer">
-                            <button type="button" className="btn btn-cancel" onClick={() => setMode('list')}>
-                                Cancel
-                            </button>
-                            <button type="button" className="btn btn-save" onClick={handleSubmit} disabled={processing}>
-                                {processing ? 'Saving...' : 'Save Invoice'}
-                            </button>
-                        </div>
-
-                        <div className="printable-invoice" ref={printRef}>
-                            <div className="print-header">
-                                <div className="company-branding">
-                                    <h1>ZODIC ERP</h1>
-                                    <p>123 Business Street, City, Country</p>
-                                    <p>Phone: +1 234 567 890</p>
                                 </div>
-                                <div className="doc-info">
-                                    <h2>PURCHASE INVOICE</h2>
-                                    <div className="meta-row">
-                                        <span className="label">Invoice #:</span>
-                                        <span>{data.invoice_number || '-'} </span>
-                                    </div>
-                                    <div className="meta-row">
-                                        <span className="label">Date:</span>
-                                        <span>{data.invoice_date}</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div className="print-meta-grid">
-                                <div className="meta-box">
-                                    <h3>Supplier</h3>
-                                    <p><strong>Name:</strong> {suppliers?.find(s => s.id == data.supplier_id)?.name_en || suppliers?.find(s => s.id == data.supplier_id)?.name_ar || '-'}</p>
-                                </div>
-                                <div className="meta-box">
-                                    <h3>Payment</h3>
-                                    <p><strong>Status:</strong> {data.payment_status}</p>
-                                    <p><strong>Terms:</strong> {data.payment_terms || '-'}</p>
+                                <div className="card-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '15px', padding: '20px 30px', borderTop: '1px solid #eee' }}>
+                                    <button type="button" className="btn btn-outline" onClick={() => setMode('list')}>{t('common.cancel', 'Cancel')}</button>
+                                    <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={processing}>
+                                        {processing ? t('common.saving', 'Saving...') : t('common.save', 'Save Invoice')}
+                                    </button>
                                 </div>
                             </div>
 
-                            <table className="print-table">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Description</th>
-                                        <th>Qty</th>
-                                        <th className="text-right">Price</th>
-                                        <th className="text-right">Total</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {data.items.map((item, index) => (
-                                        <tr key={index}>
-                                            <td>{index + 1}</td>
-                                            <td>{products.find(p => p.id == item.product_id)?.name_en || item.item_name_ar || '-'}</td>
-                                            <td>{Number(item.quantity)}</td>
-                                            <td className="text-right">{Number(item.unit_price).toFixed(2)}</td>
-                                            <td className="text-right">{Number(item.line_total).toFixed(2)}</td>
+                            <div className="printable-invoice" ref={printRef}>
+                                <div className="print-header">
+                                    <div className="company-branding">
+                                        <h1>ZODIC ERP</h1>
+                                        <p>123 Business Street, City, Country</p>
+                                        <p>Phone: +1 234 567 890</p>
+                                    </div>
+                                    <div className="doc-info">
+                                        <h2>PURCHASE INVOICE</h2>
+                                        <div className="meta-row">
+                                            <span className="label">Invoice #:</span>
+                                            <span>{data.invoice_number || '-'} </span>
+                                        </div>
+                                        <div className="meta-row">
+                                            <span className="label">Date:</span>
+                                            <span>{data.invoice_date}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="print-meta-grid">
+                                    <div className="meta-box">
+                                        <h3>Supplier</h3>
+                                        <p><strong>Name:</strong> {suppliers?.find(s => s.id == data.supplier_id)?.name_en || suppliers?.find(s => s.id == data.supplier_id)?.name_ar || '-'}</p>
+                                    </div>
+                                    <div className="meta-box">
+                                        <h3>Payment</h3>
+                                        <p><strong>Status:</strong> {data.payment_status}</p>
+                                        <p><strong>Terms:</strong> {data.payment_terms || '-'}</p>
+                                    </div>
+                                </div>
+
+                                <table className="print-table">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Description</th>
+                                            <th>Qty</th>
+                                            <th className="text-right">Price</th>
+                                            <th className="text-right">Total</th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        {data.items.map((item, index) => (
+                                            <tr key={index}>
+                                                <td>{index + 1}</td>
+                                                <td>{(productMap[String(item.product_id)] && (productMap[String(item.product_id)].name_en || productMap[String(item.product_id)].name)) || item.item_name_ar || '-'}</td>
+                                                <td>{Number(item.quantity)}</td>
+                                                <td className="text-right">{Number(item.unit_price).toFixed(2)}</td>
+                                                <td className="text-right">{Number(item.line_total).toFixed(2)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
 
-                            <div className="print-totals">
-                                <div className="totals-box">
-                                    <div className="row">
-                                        <span>Subtotal:</span>
-                                        <span>{Number(data.subtotal).toFixed(2)}</span>
-                                    </div>
-                                    <div className="row">
-                                        <span>Tax:</span>
-                                        <span>{Number(data.tax_amount).toFixed(2)}</span>
-                                    </div>
-                                    <div className="row">
-                                        <span>Discount:</span>
-                                        <span>{Number(data.discount_amount).toFixed(2)}</span>
-                                    </div>
-                                    <div className="row grand-total">
-                                        <span>Total:</span>
-                                        <span>{Number(data.total_amount).toFixed(2)}</span>
+                                <div className="print-totals">
+                                    <div className="totals-box">
+                                        <div className="row">
+                                            <span>Subtotal:</span>
+                                            <span>{Number(data.subtotal).toFixed(2)}</span>
+                                        </div>
+                                        <div className="row">
+                                            <span>Tax:</span>
+                                            <span>{Number(data.tax_amount).toFixed(2)}</span>
+                                        </div>
+                                        <div className="row">
+                                            <span>Discount:</span>
+                                            <span>{Number(data.discount_amount).toFixed(2)}</span>
+                                        </div>
+                                        <div className="row grand-total">
+                                            <span>Total:</span>
+                                            <span>{Number(data.total_amount).toFixed(2)}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="print-footer">
-                                <div className="notes-section">
-                                    <h4>Notes</h4>
-                                    <p>{data.internal_notes || '-'}</p>
-                                </div>
-                                <div className="signatures">
-                                    <div className="sign-box">
-                                        Supplier Signature
+                                <div className="print-footer">
+                                    <div className="notes-section">
+                                        <h4>Notes</h4>
+                                        <p>{data.internal_notes || '-'}</p>
                                     </div>
-                                    <div className="sign-box">
-                                        Authorized Signature
+                                    <div className="signatures">
+                                        <div className="sign-box">
+                                            Supplier Signature
+                                        </div>
+                                        <div className="sign-box">
+                                            Authorized Signature
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        </>
                     )}
                 </div>
             </BlankPage>

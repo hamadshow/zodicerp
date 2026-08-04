@@ -30,7 +30,7 @@ return new class extends Migration
             // Tax System
             $table->string('tax_system_code', 50)->nullable(); // e.g. VAT, GST
 
-            $table->foreignId('location_id')->constrained('locations')->onDelete('cascade');
+            $table->foreignId('country_id')->constrained('locations')->onDelete('cascade');
 
             // Legal Info
             $table->string('legal_reference', 500)->nullable();
@@ -50,7 +50,7 @@ return new class extends Migration
 
             // Indexes
             $table->index('tax_category', 'idx_tax_category');
-            $table->index('location_id', 'idx_location');
+            $table->index('country_id', 'idx_location');
             $table->index('tax_system_code', 'idx_tax_system');
         });
 

@@ -22,7 +22,8 @@ return new class extends Migration
             $table->enum('address_type', ['main', 'billing', 'shipping', 'returns'])->default('main');
             $table->string('address_name', 100)->nullable();
 
-            $table->foreignId('location_id')->nullable()->constrained('locations');
+            $table->foreignId('country_id')->nullable()->constrained('locations');
+            $table->foreignId('city_id')->nullable()->constrained('locations');
 
             $table->string('district', 100)->nullable();
             $table->string('street', 255)->nullable();

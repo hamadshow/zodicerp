@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('period_code', 50)->unique();
 
             // Scope
-            $table->foreignId('location_id')->constrained('locations');
+            $table->foreignId('country_id')->constrained('locations');
 
             $table->foreignId('tax_type_id')->constrained('tax_types');
 
@@ -46,7 +46,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Constraints and Indexes
-            $table->unique(['location_id', 'tax_type_id', 'period_year', 'period_number'], 'unique_tax_period');
+            $table->unique(['country_id', 'tax_type_id', 'period_year', 'period_number'], 'unique_tax_period');
             $table->index(['start_date', 'end_date'], 'idx_period_dates');
             $table->index('due_date', 'idx_due_date');
         });

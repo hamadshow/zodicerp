@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('withholding_code', 100)->unique();
 
             // Location
-            $table->foreignId('location_id')->constrained('locations');
+            $table->foreignId('country_id')->constrained('locations');
 
             // Information
             $table->string('name_ar', 200);
@@ -55,7 +55,7 @@ return new class extends Migration
             }
 
             // Indexes
-            $table->index(['location_id', 'is_active'], 'idx_location_active');
+            $table->index(['country_id', 'is_active'], 'idx_location_active');
         });
     }
 

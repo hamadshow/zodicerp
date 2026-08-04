@@ -18,7 +18,9 @@ return new class extends Migration
             $table->string('name_en', 200);
 
             // Scope
-            $table->foreignId('location_id')->constrained('locations');
+            $table->foreignId('country_id')->constrained('locations');
+            $table->foreignId('state_id')->nullable()->constrained('locations')->nullOnDelete();
+            $table->foreignId('city_id')->nullable()->constrained('locations')->nullOnDelete();
 
             // Application
             $table->enum('apply_to', ['customer', 'vendor', 'product', 'service', 'category', 'all']);
@@ -80,7 +82,7 @@ return new class extends Migration
             $table->timestamps();
 
             // Indexes
-            $table->index('location_id', 'idx_rule_scope');
+            $table->index('country_id', 'idx_rule_scope');
             $table->index(['effective_from', 'effective_to'], 'idx_effective_dates');
             $table->index('priority');
         });

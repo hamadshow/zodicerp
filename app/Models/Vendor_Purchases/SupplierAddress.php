@@ -15,7 +15,8 @@ class SupplierAddress extends Model
         'supplier_id',
         'address_type',
         'address_name',
-        'location_id',
+        'country_id',
+        'city_id',
         'district',
         'street',
         'building_number',
@@ -32,7 +33,8 @@ class SupplierAddress extends Model
 
     protected $casts = [
         'supplier_id' => 'integer',
-        'location_id' => 'integer',
+        'country_id' => 'integer',
+        'city_id' => 'integer',
         'is_default' => 'boolean',
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
@@ -45,16 +47,16 @@ class SupplierAddress extends Model
 
     public function location()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'city_id');
     }
 
     public function city()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'city_id');
     }
 
     public function country()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'country_id');
     }
 }

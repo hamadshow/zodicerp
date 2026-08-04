@@ -15,7 +15,8 @@ class CustomerAddress extends Model
         'customer_id',
         'address_type',
         'address_name',
-        'location_id',
+        'country_id',
+        'city_id',
         'street',
         'building_number',
         'postal_code',
@@ -46,16 +47,16 @@ class CustomerAddress extends Model
 
     public function location()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'city_id');
     }
 
     public function country()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'country_id');
     }
 
     public function city()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'city_id');
     }
 }

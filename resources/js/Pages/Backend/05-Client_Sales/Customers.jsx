@@ -870,7 +870,7 @@ export default function Customers({ customers, groups, cities, currencies, accou
                         {/* ADDRESSES TAB */}
                         <div className={`customers-module__tab-content ${activeTab === 'addresses' ? 'active' : ''}`}>
                              <button type="button" className="add-more-btn" onClick={() => addNested('addresses', {
-                                address: '', location_id: '', state: '', postal_code: '', 
+                                address: '', city_id: '', state: '', postal_code: '', 
                                 is_default: false, is_billing: false, is_shipping: false
                             })}>
                                 + Add Address
@@ -897,7 +897,7 @@ export default function Customers({ customers, groups, cities, currencies, accou
                                             </div>
                                             <div className="customers-module__group">
                                                 <label>Location</label>
-                                                <select value={addr.location_id} onChange={e => updateNested('addresses', index, 'location_id', e.target.value)}>
+                                                <select value={addr.city_id} onChange={e => updateNested('addresses', index, 'city_id', e.target.value)}>
                                                     <option value="">Select Location</option>
                                                     {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                                 </select>

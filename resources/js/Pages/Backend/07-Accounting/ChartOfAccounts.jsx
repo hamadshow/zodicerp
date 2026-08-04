@@ -82,6 +82,19 @@ export default function ChartOfAccounts() {
     return translations[`ChartOfAccounts.${key}`] || fallback;
   };
 
+  // Helper functions to convert between backend (1=Credit,2=Debit) and frontend (0=Debit,1=Credit)
+  const backendToFrontendDmType = (backendVal) => {
+    if (backendVal === 1) return 1; // Backend 1 → Credit
+    if (backendVal === 2) return 0; // Backend 2 → Debit
+    return 0; // default to Debit if invalid
+  };
+
+  const frontendToBackendDmType = (frontendVal) => {
+    if (frontendVal === 0) return 2; // Frontend 0 (Debit) → backend 2
+    if (frontendVal === 1) return 1; // Frontend 1 (Credit) → backend 1
+    return 2; // default to Debit if invalid
+  };
+
   const ACCOUNT_TYPES = [
     { value: 0, label: t('main', 'Main') },
     { value: 1, label: t('sub', 'Sub') },
@@ -637,6 +650,7 @@ export default function ChartOfAccounts() {
       .get('/accounts/valid-parents', params)
       .then((resp) => {
         const data = Array.isArray(resp.data) ? resp.data : [];
+        console.log("validParents API returned data:", data);
         setParentOptionsRemote(data);
       })
       .catch(() => {
@@ -654,35 +668,71 @@ export default function ChartOfAccounts() {
   const handleFieldChange = async (field, value) => {
     let updatedForm = { ...form, [field]: value };
 
+    const getParentAccount = (parentCode) => {
+      if (!parentCode) return null;
+      const options = parentOptionsRemote ?? parentOptions;
+      console.log("getParentAccount: parentCode:", parentCode, "options:", options);
+      const found = options.find(a => String(a.AccCode) === String(parentCode));
+      console.log("getParentAccount: found parent:", found);
+      return found;
+    };
+
     // Handle inheritance when parent changes
-     if (field === 'AccParent' && value) {
-       const parent = (parentOptionsRemote ?? parentOptions).find(a => String(a.AccCode) === String(value));
-       if (parent) {
-         updatedForm = {
-           ...updatedForm,
-           AccDmType: parent.AccDmType === 1 ? 0 : 1, // Convert 1/2 to 0/1 index
-           AccFinal: Number(parent.AccFinal) === 1,
-         };
-       }
-     }
+    if (field === 'AccParent') {
+      const parent = getParentAccount(value);
+      if (parent) {
+        console.log("handleFieldChange: parent selected, parent.AccDmType:", parent.AccDmType, "parent.AccFinal:", parent.AccFinal);
+        const convertedDmType = backendToFrontendDmType(parent.AccDmType);
+        console.log("handleFieldChange: convertedDmType:", convertedDmType);
+        updatedForm = {
+          ...updatedForm,
+          AccDmType: convertedDmType,
+          AccFinal: Number(parent.AccFinal) === 1,
+        };
+        console.log("handleFieldChange: updatedForm after parent change:", updatedForm);
+      }
+    }
 
-     setForm(updatedForm);
+    // Handle AccType changes
+    if (field === 'AccType') {
+      if (Number(value) === 1) { // Sub-account
+        const parent = getParentAccount(updatedForm.AccParent);
+        if (parent) {
+          console.log("handleFieldChange: AccType changed to Sub, parent found!");
+          const convertedDmType = backendToFrontendDmType(parent.AccDmType);
+          updatedForm = {
+            ...updatedForm,
+            AccDmType: convertedDmType,
+            AccFinal: Number(parent.AccFinal) === 1,
+          };
+          console.log("handleFieldChange: updatedForm after type change:", updatedForm);
+        }
+      }
+    }
 
-     // Auto-generate code when parent changes for new accounts
-     if (field === 'AccParent' && !currentAccount) {
-       try {
-         const response = await apiService.get(`/accounts/next-code?parent_code=${value || ''}`);
-         if (response.data && response.data.success) {
-           setForm((prev) => ({
-             ...prev,
-             AccCode: response.data.next_code,
-             // Re-apply inherited values to ensure they are not lost during async update
-             ...(value ? {
-               AccDmType: updatedForm.AccDmType,
-               AccFinal: updatedForm.AccFinal,
-             } : {})
-           }));
-         }
+    setForm(updatedForm);
+    console.log("handleFieldChange: setForm called with:", updatedForm);
+
+    // Auto-generate code when parent OR type changes for both new and existing accounts
+    if ((field === 'AccParent' || field === 'AccType')) {
+      try {
+        const parentCodeForApi = updatedForm.AccParent || '';
+        const response = await apiService.get(`/accounts/next-code?parent_code=${parentCodeForApi}`);
+        if (response.data && response.data.success) {
+          setForm((prev) => {
+            const newForm = {
+              ...prev,
+              AccCode: response.data.next_code,
+              // Re-apply inherited values to ensure they are not lost during async update
+              ...(parentCodeForApi ? {
+                AccDmType: updatedForm.AccDmType,
+                AccFinal: updatedForm.AccFinal,
+              } : {}),
+            };
+            console.log("handleFieldChange: setForm in async next code, newForm:", newForm);
+            return newForm;
+          });
+        }
       } catch (err) {
         console.error('Failed to fetch next account code', err);
       }
@@ -696,12 +746,16 @@ export default function ChartOfAccounts() {
         account.AccParent != null && Number(account.AccParent) > 0
           ? String(account.AccParent)
           : '';
+      console.log("openModal: editing account:", account);
+      console.log("openModal: account.AccDmType:", account.AccDmType);
+      const convertedDmType = backendToFrontendDmType(account.AccDmType ?? 1);
+      console.log("openModal: convertedDmType for form:", convertedDmType);
       setForm({
         AccCode: account.AccCode ?? '',
         AccName: account.AccName ?? '',
         AccType: Number(account.AccType ?? 0),
         AccParent: suggestedParent,
-        AccDmType: Number(account.AccDmType ?? 0),
+        AccDmType: convertedDmType,
         Nature: account.Nature ?? '',
         AccFinal: Number(account.AccFinal ?? 0) === 1,
         AccMaxLimt: account.AccMaxLimt != null ? String(account.AccMaxLimt) : '',
@@ -760,7 +814,7 @@ export default function ChartOfAccounts() {
       AccName: form.AccName,
       AccType: Number(form.AccType),
       AccParent: form.AccParent !== '' ? Number(form.AccParent) : null,
-      AccDmType: form.AccDmType === 0 ? 1 : 2,
+      AccDmType: frontendToBackendDmType(form.AccDmType),
       Nature: form.Nature || null,
       AccFinal: Boolean(form.AccFinal),
       AccMaxLimt: form.AccMaxLimt !== '' ? Number(form.AccMaxLimt) : null,

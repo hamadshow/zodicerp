@@ -990,7 +990,7 @@ export default function Suppliers({ suppliers, groups, cities, currencies, accou
                             {/* ADDRESSES TAB */}
                             <div className={`tab-content ${activeTab === 'addresses' ? 'active' : ''}`}>
                                 <div className="form-group">
-                                    <button type="button" className="btn-secondary" onClick={() => addNested('addresses', { address_type: '', address_name: '', street: '', location_id: '' })}>
+                                    <button type="button" className="btn-secondary" onClick={() => addNested('addresses', { address_type: '', address_name: '', street: '', city_id: '' })}>
                                         + {t('add_address', 'Add Address')}
                                     </button>
                                 </div>
@@ -1040,14 +1040,14 @@ export default function Suppliers({ suppliers, groups, cities, currencies, accou
                                                 <div className="form-group">
                                                     <label className="form-label">{t('location', 'Location')}</label>
                                                     <select 
-                                                        className={`form-control ${getNestedError('addresses', index, 'location_id') ? 'is-invalid' : ''}`} 
-                                                        value={address.location_id} 
-                                                        onChange={e => updateNested('addresses', index, 'location_id', e.target.value)}
+                                                        className={`form-control ${getNestedError('addresses', index, 'city_id') ? 'is-invalid' : ''}`} 
+                                                        value={address.city_id} 
+                                                        onChange={e => updateNested('addresses', index, 'city_id', e.target.value)}
                                                     >
                                                         <option value="">{t('select_location', 'Select Location')}</option>
                                                         {cities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                                     </select>
-                                                    {getNestedError('addresses', index, 'location_id') && <span className="invalid-feedback">{getNestedError('addresses', index, 'location_id')}</span>}
+                                                    {getNestedError('addresses', index, 'city_id') && <span className="invalid-feedback">{getNestedError('addresses', index, 'city_id')}</span>}
                                                 </div>
                                             </div>
                                         </div>

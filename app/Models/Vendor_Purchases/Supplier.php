@@ -42,7 +42,8 @@ class Supplier extends Authenticatable
         'payment_terms',
         'default_payment_method',
         'default_warehouse_id',
-        'location_id',
+        'country_id',
+        'city_id',
         'primary_phone',
         'secondary_phone',
         'fax',
@@ -74,7 +75,8 @@ class Supplier extends Authenticatable
         'available_credit' => 'decimal:2',
         'payment_terms' => 'integer',
         'default_warehouse_id' => 'integer',
-        'location_id' => 'integer',
+        'country_id' => 'integer',
+        'city_id' => 'integer',
         'is_vendor' => 'boolean',
         'is_manufacturer' => 'boolean',
         'is_active' => 'boolean',
@@ -106,17 +108,17 @@ class Supplier extends Authenticatable
 
     public function location()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'city_id');
     }
 
     public function country()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'country_id');
     }
 
     public function city()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'city_id');
     }
 
     public function addresses()

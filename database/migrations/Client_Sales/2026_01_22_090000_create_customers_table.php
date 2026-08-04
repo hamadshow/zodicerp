@@ -36,7 +36,8 @@ return new class extends Migration
 
             $table->unsignedBigInteger('default_warehouse_id')->nullable();
             $table->unsignedInteger('sales_agent_id')->nullable();
-            $table->unsignedBigInteger('location_id')->nullable();
+            $table->unsignedBigInteger('country_id')->nullable();
+            $table->unsignedBigInteger('city_id')->nullable();
 
             $table->string('primary_phone', 20)->nullable();
             $table->string('secondary_phone', 20)->nullable();
@@ -66,7 +67,8 @@ return new class extends Migration
             $table->foreign('price_list_id')->references('id')->on('price_lists')->nullOnDelete();
             $table->foreign('default_warehouse_id')->references('id')->on('warehouses')->nullOnDelete();
             $table->foreign('sales_agent_id')->references('id')->on('sales_agents')->nullOnDelete();
-            $table->foreign('location_id')->references('id')->on('locations')->nullOnDelete();
+            $table->foreign('country_id')->references('id')->on('locations')->nullOnDelete();
+            $table->foreign('city_id')->references('id')->on('locations')->nullOnDelete();
 
             // Indexes
             $table->index('customer_code', 'idx_customers_code');

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import BlankPage from '@/Components/BlankPage';
+import Table from '../components/Table';
 
 // --- View Section Component ---
 const ViewSection = ({ groups, onEdit, onDelete }) => {
@@ -9,66 +10,47 @@ const ViewSection = ({ groups, onEdit, onDelete }) => {
     const isRtl = auth?.user?.lang === 'ar' || document.dir === 'rtl';
     const t = (ar, en) => isRtl ? ar : en;
 
+    const columns = [
+        { key: 'code', header: t('الكود', 'Code'), sortable: true },
+        { key: 'name_ar', header: t('الاسم (عربي)', 'Name (AR)'), sortable: true },
+        { key: 'name_en', header: t('الاسم (إنجليزي)', 'Name (EN)'), sortable: true },
+        { 
+            key: 'parent_id', 
+            header: t('المجموعة الأم', 'Parent'), 
+            render: (row) => row.parent?.name_ar || '-' 
+        },
+        { 
+            key: 'account_id', 
+            header: t('الحساب', 'Account'), 
+            render: (row) => row.account ? (
+                <div className="account-info">
+                    <small className="account-code">{row.account.AccCode}</small>
+                    <span className="account-name"> - {isRtl ? row.account.AccNameAR : row.account.AccNameEN}</span>
+                </div>
+            ) : '-'
+        },
+        { 
+            key: 'is_active', 
+            header: t('الحالة', 'Status'), 
+            render: (row) => (
+                <span className={`status-badge ${row.is_active ? 'active' : 'inactive'}`}>
+                    {row.is_active ? t('نشط', 'Active') : t('غير نشط', 'Inactive')}
+                </span>
+            )
+        }
+    ];
+
     return (
         <div className="animate-fade-slide">
-            {/* Content Card */}
             <div className="content-card">
-                <div className="table-responsive">
-                    <table className="professional-table">
-                        <thead>
-                            <tr>
-                                <th>{t('الكود', 'Code')}</th>
-                                <th>{t('الاسم (عربي)', 'Name (AR)')}</th>
-                                <th>{t('الاسم (إنجليزي)', 'Name (EN)')}</th>
-                                <th>{t('المجموعة الأم', 'Parent')}</th>
-                                <th>{t('الحساب', 'Account')}</th>
-                                <th>{t('الحالة', 'Status')}</th>
-                                <th>{t('الإجراءات', 'Actions')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {groups.length > 0 ? (
-                                groups.map(group => (
-                                    <tr key={group.id}>
-                                        <td>{group.code}</td>
-                                        <td>{group.name_ar}</td>
-                                        <td>{group.name_en || '-'}</td>
-                                        <td>{group.parent?.name_ar || '-'}</td>
-                                        <td>
-                                            {group.account ? (
-                                                <div className="account-info">
-                                                    <small className="account-code">{group.account.AccCode}</small>
-                                                    <span className="account-name"> - {isRtl ? group.account.AccNameAR : group.account.AccNameEN}</span>
-                                                </div>
-                                            ) : '-'}
-                                        </td>
-                                        <td>
-                                            <span className={`status-badge ${group.is_active ? 'active' : 'inactive'}`}>
-                                                {group.is_active ? t('نشط', 'Active') : t('غير نشط', 'Inactive')}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div className="action-buttons">
-                                                <button onClick={() => onEdit(group)} title={t('تعديل', 'Edit')}>
-                                                    <span className="material-icons-outlined">edit</span>
-                                                </button>
-                                                <button className="delete-btn" onClick={() => onDelete(group.id)} title={t('حذف', 'Delete')}>
-                                                    <span className="material-icons-outlined">delete</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
-                                        {t('لم يتم العثور على مجموعات موردين.', 'No supplier groups found.')}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <Table 
+                    columns={columns}
+                    tableData={groups}
+                    onEdit={onEdit}
+                    onDelete={onDelete}
+                    editTitle={t('تعديل', 'Edit')}
+                    deleteTitle={t('حذف', 'Delete')}
+                />
             </div>
         </div>
     );

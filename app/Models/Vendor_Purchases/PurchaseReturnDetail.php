@@ -21,7 +21,6 @@ class PurchaseReturnDetail extends Model
         'unit_price',
         'tax_percentage',
         'tax_amount',
-        'line_total', // It's stored/generated, but sometimes useful to have in fillable if not strictly managed by DB on insert (though usually DB handles it). Laravel ignores it on insert if it's generated.
         'batch_number',
         'serial_number',
         'return_reason_details',

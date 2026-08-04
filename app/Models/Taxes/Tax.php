@@ -21,7 +21,9 @@ class Tax extends Model
         'name_en',
         'description_ar',
         'description_en',
-        'location_id',
+        'country_id',
+        'state_id',
+        'city_id',
         'jurisdiction_code',
         'tax_rate',
         'tax_amount',
@@ -68,7 +70,7 @@ class Tax extends Model
 
     public function location()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'country_id');
     }
 
     // Relationships for accounts

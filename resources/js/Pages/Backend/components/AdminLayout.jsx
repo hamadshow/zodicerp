@@ -245,6 +245,7 @@ const AdminLayout = ({
         { icon: 'request_quote', label: translations['sidebar.quotations'] || 'Sales Quotations', href: getLocalizedRoute('admin.client-sales.quotations.index'), permission: 'quotations.view' },
         { icon: 'receipt_long', label: translations['sidebar.orders'] || 'Sales Orders', href: getLocalizedRoute('admin.client-sales.orders.index'), permission: 'orders.view' },
         { icon: 'receipt', label: translations['sidebar.invoices'] || 'Sales Invoices', href: getLocalizedRoute('admin.client-sales.invoices.index'), permission: 'invoices.view' },
+        { icon: 'keyboard_return', label: translations['sidebar.sales_returns'] || 'Sales Returns', href: getLocalizedRoute('admin.client-sales.sales-returns.index'), permission: 'sales_returns.view' },
       ],
     },
     {

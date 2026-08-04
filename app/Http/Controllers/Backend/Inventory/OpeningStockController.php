@@ -19,10 +19,67 @@ class OpeningStockController extends Controller
      */
     public function index(Request $request)
     {
-        $openingStocks = OpeningStock::with(['warehouse', 'company', 'creator', 'items.product', 'items.unit'])
-            ->where('type', 'opening')
-            ->orderByDesc('id')
-            ->paginate(25);
+        $search = trim((string) $request->input('search', ''));
+        $warehouseId = $request->input('warehouse_id');
+        $sortBy = $request->input('sort_by', 'id');
+        $sortDir = $request->input('sort_dir', 'desc');
+        $perPage = (int) $request->input('per_page', 25);
+        if ($perPage < 1) {
+            $perPage = 25;
+        }
+        if (!in_array(strtolower($sortDir), ['asc', 'desc'], true)) {
+            $sortDir = 'desc';
+        }
+
+        $allowedSorts = [
+            'id',
+            'movement_date',
+            'warehouse_id',
+            'voucher_num',
+            'created_at',
+        ];
+
+        if (!in_array($sortBy, $allowedSorts, true)) {
+            $sortBy = 'id';
+        }
+
+        $query = OpeningStock::with(['warehouse', 'company', 'creator', 'items.product', 'items.unit'])
+            ->where('type', 'opening');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('voucher_num', 'like', '%' . $search . '%')
+                    ->orWhere('notes', 'like', '%' . $search . '%')
+                    ->orWhereHas('warehouse', function ($sub) use ($search) {
+                        $sub->where('name', 'like', '%' . $search . '%')
+                            ->orWhere('name_en', 'like', '%' . $search . '%')
+                            ->orWhere('name_ar', 'like', '%' . $search . '%');
+                    })
+                    ->orWhereHas('items', function ($sub) use ($search) {
+                        $sub->whereHas('product', function ($p) use ($search) {
+                            $p->where('name', 'like', '%' . $search . '%')
+                                ->orWhere('name_en', 'like', '%' . $search . '%')
+                                ->orWhere('name_ar', 'like', '%' . $search . '%')
+                                ->orWhere('sku', 'like', '%' . $search . '%')
+                                ->orWhere('barcode', 'like', '%' . $search . '%');
+                        });
+                    });
+            });
+        }
+
+        if ($warehouseId) {
+            $query->where('warehouse_id', $warehouseId);
+        }
+
+        if ($sortBy === 'warehouse_id') {
+            $query->join('warehouses', 'inventory_movement_headers.warehouse_id', '=', 'warehouses.id')
+                ->orderBy('warehouses.name', $sortDir)
+                ->select('inventory_movement_headers.*');
+        } else {
+            $query->orderBy($sortBy, $sortDir);
+        }
+
+        $openingStocks = $query->paginate($perPage)->withQueryString();
 
         $warehouses = Warehouses::query()
             ->select(['id', 'name'])
@@ -42,12 +99,29 @@ class OpeningStockController extends Controller
             ->orderBy('id')
             ->get();
 
+        $filters = [
+            'search' => $search,
+            'warehouse_id' => $warehouseId,
+            'sort_by' => $sortBy,
+            'sort_dir' => $sortDir,
+            'per_page' => $perPage,
+        ];
+
         return Inertia::render('Backend/03-Inventory/OpeningStock', [
-            'openingStocks' => $openingStocks->items(),
+            'openingStocks' => [
+                'data' => $openingStocks->items(),
+                'current_page' => $openingStocks->currentPage(),
+                'last_page' => $openingStocks->lastPage(),
+                'total' => $openingStocks->total(),
+                'per_page' => $openingStocks->perPage(),
+                'from' => $openingStocks->firstItem(),
+                'to' => $openingStocks->lastItem(),
+            ],
             'pagination' => $openingStocks->linkCollection(),
             'warehouses' => $warehouses,
             'products' => $products,
             'units' => $units,
+            'filters' => $filters,
             'initialShowForm' => false,
         ]);
     }

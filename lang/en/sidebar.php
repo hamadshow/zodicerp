@@ -6,6 +6,7 @@ return [
     'categories' => 'Categories',
     'orders' => 'Orders',
     'customers' => 'Customers',
+    'sales_returns' => 'Sales Returns',
     'settings' => 'Settings',
     'users' => 'Users',
     'reports' => 'Reports',

@@ -83,6 +83,7 @@ return [
     'sales_quotations' => 'عروض أسعار المبيعات',
     'orders' => 'طلبات المبيعات',
     'invoices' => 'فواتير المبيعات',
+    'sales_returns' => 'مرتجعات المبيعات',
     
     'fixed_assets' => 'الأصول الثابتة',
     'asset_categories' => 'فئات الأصول',

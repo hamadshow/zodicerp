@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('name_en', 200);
 
             // Scope
-            $table->foreignId('location_id')->constrained('locations');
+            $table->foreignId('country_id')->constrained('locations');
 
             $table->enum('exemption_type', ['customer', 'product', 'service', 'document', 'special']);
 

@@ -2,7 +2,9 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Head, useForm, usePage, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import SearchableComboBox from '../components/SearchableComboBox';
+import Table from '../components/Table';
 import Pagination from '../components/Pagination';
+import BlankPage from '@/Components/BlankPage';
 import { formatDate } from '@/utils/date';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
@@ -12,7 +14,8 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
     const openingStockRef = useRef(null);
     const printRef = useRef(null);
     const { props } = usePage();
-    const { localization, flash, errors } = props;
+    const { localization, errors } = props;
+    const translations = localization?.translations || {};
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -22,17 +25,225 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
         });
     };
 
-    const handleSort = (column) => {
-        const currentSort = filters.sort_by || '';
-        const currentDir = filters.sort_dir || 'asc';
-        const newDir = currentSort === column && currentDir === 'asc' ? 'desc' : 'asc';
+    const t = (key, fallback) => {
+        return translations[key] || translations[`opening_stock.${key}`] || translations[`common.${key}`] || fallback;
+    };
 
+    const computeLineTotals = (items) => {
+        const list = Array.isArray(items) ? items : [];
+        let totalLines = 0;
+        let totalQty = 0;
+        let totalValue = 0;
+        list.forEach((item) => {
+            const qty = parseFloat(item?.quantity || 0) || 0;
+            const price = parseFloat(item?.cost_price || 0) || 0;
+            if (qty > 0) {
+                totalLines++;
+                totalQty += qty;
+                totalValue += qty * price;
+            }
+        });
+        return { totalLines, totalQty, totalValue };
+    };
+
+    const safeOpeningStocks = useMemo(() => {
+        if (openingStocks && Array.isArray(openingStocks)) {
+            return {
+                data: openingStocks,
+                current_page: 1,
+                last_page: 1,
+                total: openingStocks.length,
+                per_page: openingStocks.length || 25,
+                from: 1,
+                to: openingStocks.length,
+            };
+        }
+        return openingStocks || {
+            data: [],
+            current_page: 1,
+            last_page: 1,
+            total: 0,
+            per_page: 25,
+            from: 0,
+            to: 0,
+        };
+    }, [openingStocks]);
+
+    const aggregateStats = useMemo(() => {
+        const rows = safeOpeningStocks?.data || [];
+        let totalQty = 0;
+        let totalValue = 0;
+        rows.forEach(row => {
+            const { totalQty: q, totalValue: v } = computeLineTotals(row.items);
+            totalQty += q;
+            totalValue += v;
+        });
+        return {
+            totalVouchers: rows.length,
+            totalQty,
+            totalValue,
+        };
+    }, [safeOpeningStocks]);
+
+    const breadcrumbs = [
+        { label: t('sidebar.Dashboard', 'Dashboard'), href: getLocalizedRoute('admin.dashboard') },
+        { label: t('sidebar.inventory', 'Inventory'), onClick: (e) => { e.preventDefault(); setMode('list'); } },
+        { label: t('sidebar.opening_stock', 'Opening Stock') }
+    ];
+    if (mode === 'create') {
+        breadcrumbs.push({ label: t('common.create', 'Create') });
+    } else if (mode === 'edit') {
+        breadcrumbs.push({ label: t('common.edit', 'Edit') });
+    }
+
+    const statsContent = mode === 'list' && (
+        <div className="stats-cards">
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--primary-color)' }}>
+                    <span className="material-icons-outlined">receipt_long</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{aggregateStats.totalVouchers.toLocaleString()}</div>
+                    <div className="stat-label">{t('total_vouchers', 'Total Vouchers')}</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--info-color)' }}>
+                    <span className="material-icons-outlined">inventory_2</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{aggregateStats.totalQty.toLocaleString()}</div>
+                    <div className="stat-label">{t('total_quantity', 'Total Quantity')}</div>
+                </div>
+            </div>
+            <div className="stat-card">
+                <div className="stat-icon" style={{ backgroundColor: 'var(--success-color)' }}>
+                    <span className="material-icons-outlined">payments</span>
+                </div>
+                <div className="stat-content">
+                    <div className="stat-value">{Number(aggregateStats.totalValue).toFixed(2)}</div>
+                    <div className="stat-label">{t('total_value', 'Total Value')}</div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const columns = useMemo(() => [
+        {
+            header: 'Ref #',
+            key: 'id',
+            sortable: true,
+            width: '100px',
+            render: (row) => (
+                <strong style={{ fontFamily: 'monospace' }}>#{row.id}</strong>
+            ),
+        },
+        {
+            header: 'Voucher',
+            key: 'voucher_num',
+            sortable: false,
+            width: '180px',
+            render: (row) => (
+                <span className="status-badge status-active" style={{ fontFamily: 'monospace' }}>
+                    {row.voucher_num || '-'}
+                </span>
+            ),
+        },
+        {
+            header: 'Date',
+            key: 'movement_date',
+            sortable: true,
+            width: '130px',
+            render: (row) => formatDate(row.movement_date),
+        },
+        {
+            header: 'Warehouse',
+            key: 'warehouse_id',
+            sortable: true,
+            render: (row) => row?.warehouse?.name_en || row?.warehouse?.name_ar || row?.warehouse?.name || '-',
+        },
+        {
+            header: 'Items',
+            key: 'items_count',
+            sortable: false,
+            width: '90px',
+            render: (row) => {
+                const count = Array.isArray(row?.items) ? row.items.length : 0;
+                return <span className="badge-count">{count}</span>;
+            },
+        },
+        {
+            header: 'Total Qty',
+            key: 'total_quantity',
+            sortable: false,
+            width: '130px',
+            render: (row) => {
+                const { totalQty } = computeLineTotals(row.items);
+                return Number(totalQty).toLocaleString();
+            },
+        },
+        {
+            header: 'Total Value',
+            key: 'total_value',
+            sortable: false,
+            width: '140px',
+            render: (row) => {
+                const { totalValue } = computeLineTotals(row.items);
+                return Number(totalValue).toFixed(2);
+            },
+        },
+        {
+            header: 'Created',
+            key: 'created_at',
+            sortable: true,
+            width: '150px',
+            render: (row) => (row?.created_at ? formatDate(row.created_at) : '-'),
+        },
+    ], []);
+
+    const handleToolbarSearch = (searchText) => {
         router.get(getLocalizedRoute('admin.inventory.opening-stock.index'), {
             ...filters,
-            sort_by: column,
-            sort_dir: newDir,
+            search: searchText,
             page: 1,
-        }, { preserveState: true });
+        }, { preserveState: true, preserveScroll: true, replace: true });
+    };
+
+    const handleRefresh = () => {
+        router.reload({ only: ['openingStocks', 'filters'], preserveState: true, preserveScroll: true });
+    };
+
+    const handleServerSort = (sortKey, sortDirection) => {
+        const params = { ...filters };
+        if (sortKey && sortDirection) {
+            params.sort_by = sortKey;
+            params.sort_dir = sortDirection;
+        } else {
+            delete params.sort_by;
+            delete params.sort_dir;
+        }
+        params.page = 1;
+        router.get(getLocalizedRoute('admin.inventory.opening-stock.index'), params, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
+    const handlePageChange = (page) => {
+        router.get(getLocalizedRoute('admin.inventory.opening-stock.index'), { ...filters, page }, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
+    };
+
+    const handlePerPageChange = (perPage) => {
+        router.get(getLocalizedRoute('admin.inventory.opening-stock.index'), { ...filters, page: 1, per_page: perPage }, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
     };
 
     const warehouseOptions = useMemo(() => {
@@ -265,17 +476,13 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
     };
 
     return (
-        <AdminLayout>
-            <Head title="Opening Stock" />
+        <AdminLayout activeMenu={t('sidebar.opening_stock', 'Opening Stock')}>
+            <Head title={t('title', 'Opening Stock')} />
             
-            <div className="opening-stock-module">
+            <BlankPage breadcrumbs={breadcrumbs} stats={statsContent}>
+                <div className="opening-stock-module">
                 <div className="opening-stock-module__header">
                     <h1>Opening Stock</h1>
-                    {mode === 'list' && (
-                        <button className="btn-add" onClick={handleCreate}>
-                            + Create Opening Stock
-                        </button>
-                    )}
                     {mode !== 'list' && (
                         <div className="header-actions" style={{display: 'flex', gap: '10px'}}>
                             <button type="button" className="btn-action btn-print" onClick={handlePrint} style={{padding: '0.5rem 1rem', borderRadius: '0.375rem', border: '1px solid #e2e8f0', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px'}}>
@@ -291,61 +498,41 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
                     )}
                 </div>
 
-                {flash.success && (
-                    <div className="alert alert-success">{flash.success}</div>
-                )}
-                {flash.error && (
-                    <div className="alert alert-error">{flash.error}</div>
-                )}
-
                 {mode === 'list' ? (
                     <div className="opening-stock-module__table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Ref #</th>
-                                    <th
-                                        style={{ cursor: 'pointer' }}
-                                        onClick={() => handleSort('movement_date')}
-                                    >
-                                        Date {filters.sort_by === 'movement_date' && (filters.sort_dir === 'asc' ? '↑' : '↓')}
-                                    </th>
-                                    <th>Warehouse</th>
-                                    <th>Items Count</th>
-                                    <th>Total Quantity</th>
-                                    <th>Total Value</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {openingStocks?.data?.map((stock) => (
-                                    <tr key={stock.id}>
-                                        <td>#{stock.id}</td>
-                                        <td>{formatDate(stock.movement_date)}</td>
-                                        <td>{stock.warehouse?.name_en || stock.warehouse?.name_ar || stock.warehouse?.name}</td>
-                                        <td>{stock.items?.length || 0}</td>
-                                        <td>{Number(stock.total_quantity).toLocaleString()}</td>
-                                        <td>{Number(stock.total_value).toFixed(2)}</td>
-                                        <td className="actions">
-                                            <button className="edit" onClick={() => handleEdit(stock)}>Edit</button>
-                                            <button className="delete" onClick={() => handleDelete(stock.id)}>Delete</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {(!openingStocks?.data || openingStocks.data.length === 0) && (
-                                    <tr>
-                                        <td colSpan="7" style={{ textAlign: 'center' }}>No opening stock found.</td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                        <Pagination
-                            currentPage={openingStocks.current_page}
-                            totalPages={openingStocks.last_page}
-                            totalRecords={openingStocks.total}
-                            recordsPerPage={openingStocks.per_page}
-                            onPageChange={(page) => router.get(getLocalizedRoute('admin.inventory.opening-stock.index'), { ...filters, page }, { preserveState: true })}
-                            onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.inventory.opening-stock.index'), { ...filters, page: 1, per_page: perPage }, { preserveState: true })}
+                        <Table
+                            tableData={safeOpeningStocks.data || []}
+                            columns={columns}
+
+                            currentPage={safeOpeningStocks.current_page || 1}
+                            totalPages={safeOpeningStocks.last_page || 1}
+                            totalRecords={safeOpeningStocks.total || 0}
+                            recordsPerPage={safeOpeningStocks.per_page || 25}
+
+                            onPageChange={handlePageChange}
+                            onRecordsPerPageChange={handlePerPageChange}
+
+                            serverSide={true}
+                            onSort={handleServerSort}
+                            sortKey={filters?.sort_by || null}
+                            sortDirection={filters?.sort_dir || null}
+
+                            showToolbar={true}
+                            toolbarSearch={true}
+                            toolbarSearchPlaceholder="Search by voucher, warehouse, product, notes..."
+                            toolbarSearchValue={filters?.search || ''}
+                            onToolbarSearch={handleToolbarSearch}
+                            showRefreshButton={true}
+                            onRefresh={handleRefresh}
+                            showAddButton={true}
+                            addButtonText="Create Opening Stock"
+                            onAdd={handleCreate}
+
+                            onEdit={(row) => handleEdit(row)}
+                            onDelete={(row) => handleDelete(row.id)}
+                            viewTitle="View"
+                            editTitle="Edit"
+                            deleteTitle="Delete"
                         />
                     </div>
                 ) : (
@@ -649,7 +836,8 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
                     </div>
                     </>
                 )}
-            </div>
+                </div>
+            </BlankPage>
         </AdminLayout>
     );
 }

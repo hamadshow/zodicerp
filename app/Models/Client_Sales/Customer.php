@@ -23,7 +23,7 @@ class Customer extends Authenticatable
         'currency_id', 'price_list_id', 'tax_number', 'commercial_register',
         'credit_limit', 'current_balance', 'credit_days', 'payment_terms',
         'default_payment_method', 'default_warehouse_id', 'sales_agent_id',
-        'location_id', 'primary_phone', 'secondary_phone', 'mobile',
+        'country_id', 'city_id', 'primary_phone', 'secondary_phone', 'mobile',
         'fax', 'email', 'website', 'customer_type', 'customer_class',
         'is_active', 'rating', 'registration_date', 'last_sale_date', 'notes',
         'created_by', 'password', 'company_id',
@@ -76,17 +76,17 @@ class Customer extends Authenticatable
 
     public function location()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'city_id');
     }
 
     public function country()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'country_id');
     }
 
     public function city()
     {
-        return $this->belongsTo(Location::class, 'location_id');
+        return $this->belongsTo(Location::class, 'city_id');
     }
 
     public function addresses()

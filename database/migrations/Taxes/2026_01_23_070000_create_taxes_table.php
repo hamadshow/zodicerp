@@ -25,7 +25,9 @@ return new class extends Migration
             $table->text('description_en')->nullable();
 
             // Geographic Application
-            $table->foreignId('location_id')->constrained('locations')->onDelete('cascade');
+            $table->foreignId('country_id')->constrained('locations')->onDelete('cascade');
+            $table->foreignId('state_id')->nullable()->constrained('locations')->nullOnDelete();
+            $table->foreignId('city_id')->nullable()->constrained('locations')->nullOnDelete();
 
             $table->string('jurisdiction_code', 100)->nullable();
 
@@ -80,7 +82,7 @@ return new class extends Migration
 
             // Indexes
             $table->index('tax_code', 'idx_tax_code');
-            $table->index('location_id', 'idx_location_id');
+            $table->index('country_id', 'idx_tax_country');
             $table->index(['effective_from', 'effective_to'], 'idx_effective_dates');
         });
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import Table from '../components/Table';
 import '../../../../css/backend/main.scss';
 
 
@@ -37,6 +38,44 @@ const ViewSection = ({ categories, onEdit, onCreate, onDelete }) => {
             ));
         }
     }, [searchTerm, categories]);
+
+    const columns = useMemo(() => [
+        { header: t('code', 'Code'), key: 'code' },
+        { header: t('name_ar', 'Name (AR)'), key: 'name_ar' },
+        { header: t('name_en', 'Name (EN)'), key: 'name_en' },
+        { 
+            header: t('parent_category', 'Parent Category'), 
+            key: 'parent', 
+            render: (category) => category.parent?.name_ar || '-' 
+        },
+        { header: t('type', 'Type'), key: 'category_type' },
+        { 
+            header: t('account', 'Account'), 
+            key: 'account', 
+            render: (category) => category.account?.AccName || '-' 
+        },
+        { 
+            header: t('department', 'Department'), 
+            key: 'department', 
+            render: (category) => category.department?.name_ar || category.department?.name_en || '-' 
+        },
+        { 
+            header: t('status', 'Status'), 
+            key: 'is_active', 
+            render: (category) => (
+                <span className={`status-badge ${category.is_active ? 'active' : 'inactive'}`}>
+                    {category.is_active ? t('active', 'Active') : t('inactive', 'Inactive')}
+                </span>
+            )
+        },
+    ], [localization?.current_locale]);
+
+    const tableData = useMemo(() => {
+        return filteredCategories.map(category => ({
+            ...category,
+            selected: false
+        }));
+    }, [filteredCategories]);
 
     return (
         <div className="animate-fade-slide">
@@ -90,57 +129,14 @@ const ViewSection = ({ categories, onEdit, onCreate, onDelete }) => {
                 </div>
 
                 <div className="table-responsive">
-                    <table className="professional-table">
-                        <thead>
-                            <tr>
-                                <th>{t('code', 'Code')}</th>
-                                <th>{t('name_ar', 'Name (AR)')}</th>
-                                <th>{t('name_en', 'Name (EN)')}</th>
-                                <th>{t('parent_category', 'Parent Category')}</th>
-                                <th>{t('type', 'Type')}</th>
-                                <th>{t('account', 'Account')}</th>
-                                <th>{t('department', 'Department')}</th>
-                                <th>{t('status', 'Status')}</th>
-                                <th>{t('actions', 'Actions')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredCategories.length > 0 ? (
-                                filteredCategories.map(category => (
-                                    <tr key={category.id}>
-                                        <td>{category.code}</td>
-                                        <td>{category.name_ar}</td>
-                                        <td>{category.name_en || '-'}</td>
-                                        <td>{category.parent?.name_ar || '-'}</td>
-                                        <td>{category.category_type || '-'}</td>
-                                        <td>{category.account?.AccName || '-'}</td>
-                                        <td>{category.department?.name_ar || category.department?.name_en || '-'}</td>
-                                        <td>
-                                            <span className={`status-badge ${category.is_active ? 'active' : 'inactive'}`}>
-                                                {category.is_active ? t('active', 'Active') : t('inactive', 'Inactive')}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div className="action-buttons">
-                                                <button onClick={() => onEdit(category)} title={t('edit', 'Edit')}>
-                                                    <span className="material-icons-outlined">edit</span>
-                                                </button>
-                                                <button className="delete-btn" onClick={() => onDelete(category.id)} title={t('delete', 'Delete')}>
-                                                    <span className="material-icons-outlined">delete</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>
-                                        {t('no_categories_found', 'No budget categories found.')}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+                    <Table 
+                        tableData={tableData}
+                        columns={columns}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        editTitle={t('edit', 'Edit')}
+                        deleteTitle={t('delete', 'Delete')}
+                    />
                 </div>
             </div>
         </div>

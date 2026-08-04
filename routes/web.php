@@ -396,9 +396,10 @@ Route::group([
                 return Inertia::render('Backend/ComingSoon', ['title' => 'Goods Receipts']);
             })->name('goods-receipts.index');
             Route::resource('invoices', \App\Http\Controllers\Backend\Purchases\PurchaseInvoiceController::class);
-            Route::get('returns', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Purchase Returns']);
-            })->name('returns.index');
+            Route::get('returns', [\App\Http\Controllers\Backend\Purchases\PurchaseReturnController::class, 'index'])->name('returns.index');
+            Route::post('returns', [\App\Http\Controllers\Backend\Purchases\PurchaseReturnController::class, 'store'])->name('returns.store');
+            Route::put('returns/{return}', [\App\Http\Controllers\Backend\Purchases\PurchaseReturnController::class, 'update'])->name('returns.update');
+            Route::delete('returns/{return}', [\App\Http\Controllers\Backend\Purchases\PurchaseReturnController::class, 'destroy'])->name('returns.destroy');
 
             // Discounts & Taxes
             Route::get('discounts', function () {
@@ -439,6 +440,10 @@ Route::group([
             Route::resource('invoices', \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController::class);
             Route::get('flash-sales/search-products', [\App\Http\Controllers\Backend\Client_Sales\FlashSaleController::class, 'searchProducts'])->name('flash-sales.search-products');
             Route::resource('flash-sales', \App\Http\Controllers\Backend\Client_Sales\FlashSaleController::class);
+            Route::get('sales-returns', [\App\Http\Controllers\Backend\Client_Sales\SalesReturnController::class, 'index'])->name('sales-returns.index');
+            Route::post('sales-returns', [\App\Http\Controllers\Backend\Client_Sales\SalesReturnController::class, 'store'])->name('sales-returns.store');
+            Route::put('sales-returns/{return}', [\App\Http\Controllers\Backend\Client_Sales\SalesReturnController::class, 'update'])->name('sales-returns.update');
+            Route::delete('sales-returns/{return}', [\App\Http\Controllers\Backend\Client_Sales\SalesReturnController::class, 'destroy'])->name('sales-returns.destroy');
         });
 
         Route::prefix('inventory')->name('inventory.')->group(function () {
