@@ -3,7 +3,7 @@
 namespace App\Services\Vendor_Purchases;
 
 use App\Traits\EnsuresFiscalPeriod;
-use App\Models\Accounting\Account;
+use App\Models\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
 use App\Services\Accounting\PostingService;

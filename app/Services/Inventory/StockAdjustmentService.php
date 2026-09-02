@@ -3,7 +3,7 @@
 namespace App\Services\Inventory;
 
 use App\Traits\EnsuresFiscalPeriod;
-use App\Models\Accounting\Account;
+use App\Models\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
 use App\Services\Accounting\PostingService;
@@ -16,7 +16,7 @@ class StockAdjustmentService
     /**
      * Create a stock adjustment that creates proper inventory movements.
      */
-    public function createAdjustment(array $data): array
+    public function createAdjustment(array $data): object
     {
         return DB::transaction(function () use ($data) {
             $adjustmentNumber = $this->generateAdjustmentNumber();
@@ -64,7 +64,7 @@ class StockAdjustmentService
         });
     }
 
-    public function approveAdjustment(int $adjustmentId): array
+    public function approveAdjustment(int $adjustmentId): object
     {
         return DB::transaction(function () use ($adjustmentId) {
             $adjustment = DB::table('stock_adjustments')->where('id', $adjustmentId)->first();
@@ -157,7 +157,7 @@ class StockAdjustmentService
         });
     }
 
-    public function cancelAdjustment(int $adjustmentId): array
+    public function cancelAdjustment(int $adjustmentId): object
     {
         return DB::transaction(function () use ($adjustmentId) {
             $adjustment = DB::table('stock_adjustments')->where('id', $adjustmentId)->first();
@@ -189,7 +189,7 @@ class StockAdjustmentService
             ->where('h.warehouse_id', $warehouseId)
             ->where('l.product_id', $productId)
             ->where('h.direction', 'in')
-            ->whereNull('h.deleted_at')
+
             ->sum('l.quantity');
 
         $out = DB::table('inventory_movement_headers as h')
@@ -197,7 +197,7 @@ class StockAdjustmentService
             ->where('h.warehouse_id', $warehouseId)
             ->where('l.product_id', $productId)
             ->where('h.direction', 'out')
-            ->whereNull('h.deleted_at')
+
             ->sum('l.quantity');
 
         return (float) $in - (float) $out;
@@ -211,7 +211,7 @@ class StockAdjustmentService
         $query = DB::table('inventory_movement_headers as h')
             ->join('inventory_movement_lines as l', 'l.stock_movement_id', '=', 'h.id')
             ->where('l.product_id', $productId)
-            ->whereNull('h.deleted_at')
+
             ->select(
                 'h.movement_date',
                 'h.type',
@@ -267,7 +267,7 @@ class StockAdjustmentService
         $movements = DB::table('inventory_movement_headers as h')
             ->join('inventory_movement_lines as l', 'l.stock_movement_id', '=', 'h.id')
             ->where('h.warehouse_id', $warehouseId)
-            ->whereNull('h.deleted_at')
+
             ->select('l.product_id', 'h.direction', DB::raw('SUM(l.quantity) as total_qty'))
             ->groupBy('l.product_id', 'h.direction')
             ->get();
@@ -408,29 +408,27 @@ class StockAdjustmentService
 
     private function resolveInventoryAssetAccountId(): ?int
     {
-        // Inventory asset is typically in 1xxx range
-        return Account::where('AccType', 1)
-            ->where('AccCode', 'like', '1%')
+        // Inventory asset is typically in 1xxx range (AccCode is integer in this schema)
+        // Try name-based lookup first, then fallback to asset account code range
+        return Account::where('AccCode', '>=', 1110)
+            ->where('AccCode', '<=', 1199)
             ->where('AccName', 'like', '%inventory%')
             ->orderBy('AccCode')
             ->value('AccID')
-            ?? Account::where('AccType', 1)
-                ->where('AccCode', 'like', '1.1.5%')
+            ?? Account::where('AccCode', '>=', 1110)
+                ->where('AccCode', '<=', 1199)
                 ->orderBy('AccCode')
                 ->value('AccID');
     }
 
     private function resolveInventoryAdjustmentAccountId(): ?int
     {
-        // Inventory adjustment gain/loss is typically in 4xxx or 6xxx range
-        return Account::where('AccType', 1)
-            ->where('AccCode', 'like', '4%')
-            ->where('AccName', 'like', '%adjustment%')
+        // Inventory adjustment gain/loss — try adjustment account first, then fallback to generic expense
+        return Account::where('AccName', 'like', '%adjustment%')
             ->orderBy('AccCode')
             ->value('AccID')
-            ?? Account::where('AccType', 1)
-                ->where('AccCode', 'like', '6%')
-                ->where('AccName', 'like', '%adjustment%')
+            ?? Account::where('AccCode', '>=', 6100)
+                ->where('AccCode', '<=', 6999)
                 ->orderBy('AccCode')
                 ->value('AccID');
     }

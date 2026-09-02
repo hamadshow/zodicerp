@@ -5,6 +5,7 @@
 .env
 .env.backup
 .env.production
+.env.testing
 .env_
 .env.*.local
 .phpactor.json

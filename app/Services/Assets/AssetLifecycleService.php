@@ -3,7 +3,7 @@
 namespace App\Services\Assets;
 
 use App\Traits\EnsuresFiscalPeriod;
-use App\Models\Accounting\Account;
+use App\Models\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
 use App\Services\Accounting\PostingService;
@@ -38,7 +38,7 @@ class AssetLifecycleService
         }
 
         $depreciationMethod = $asset->depreciation_method ?? 'straight_line';
-        $cost = (float) ($asset->purchase_price ?? $asset->cost ?? 0);
+        $cost = (float) ($asset->total_cost ?? $asset->unit_cost ?? 0);
         $residualValue = (float) ($asset->residual_value ?? 0);
         $usefulLife = (int) ($asset->useful_life ?? 1);
         $startDate = $asset->depreciation_start_date ?? $asset->acquisition_date ?? $asset->purchase_date;
@@ -177,7 +177,7 @@ class AssetLifecycleService
             throw new \Exception('Asset not found.');
         }
 
-        $cost = (float) ($asset->purchase_price ?? $asset->cost ?? 0);
+        $cost = (float) ($asset->total_cost ?? $asset->unit_cost ?? 0);
         $residualValue = (float) ($asset->residual_value ?? 0);
         $usefulLife = (int) ($asset->useful_life ?? 1);
         $depreciableAmount = $cost - $residualValue;
@@ -265,7 +265,7 @@ class AssetLifecycleService
                 throw new \Exception('This asset has already been disposed on this date.');
             }
 
-            $cost = (float) ($asset->purchase_price ?? $asset->cost ?? 0);
+            $cost = (float) ($asset->total_cost ?? $asset->unit_cost ?? 0);
             $accumulatedDepreciation = (float) DB::table('asset_depreciation')
                 ->where('asset_id', $asset->id)
                 ->where('is_posted', true)
@@ -297,8 +297,7 @@ class AssetLifecycleService
                 'disposal_amount' => round($proceeds, 4),
                 'gain_loss_amount' => round($gainLoss, 4),
                 'is_posted' => true,
-                'reason' => $data['reason'] ?? null,
-                'notes' => $data['notes'] ?? null,
+                'notes' => $data['notes'] ?? $data['reason'] ?? null,
                 'created_by' => auth()->id(),
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -562,77 +561,69 @@ class AssetLifecycleService
 
     private function resolveFixedAssetAccountId(object $asset): ?int
     {
-        // Try to find asset category account, fallback to generic fixed asset account
-        if (!empty($asset->account_id)) {
-            return $asset->account_id;
+        // Try asset's own account, then category account, then generic fixed asset
+        if (!empty($asset->inventory_account_id)) {
+            return $asset->inventory_account_id;
         }
-        return Account::where('AccType', 1)
-            ->where('AccCode', 'like', '1%')
-            ->where('AccName', 'like', '%fixed%asset%')
-            ->orderBy('AccCode')
+        // Look for fixed asset account by AccCode 121 (الأصول الثابثة)
+        return Account::where('AccCode', 121)
             ->value('AccID')
-            ?? Account::where('AccType', 1)
-                ->where('AccCode', 'like', '1.1.4%')
+            ?? Account::where('AccCode', '>=', 12100)
+                ->where('AccCode', '<=', 12199)
                 ->orderBy('AccCode')
                 ->value('AccID');
     }
 
     private function resolveCashAccountId(): ?int
     {
-        return Account::where('AccType', 1)
-            ->where('AccCode', 'like', '1.1%')
-            ->orderBy('AccCode')
-            ->value('AccID');
+        // Cash account: AccCode 111 (النقدية وما في حكمها)
+        return Account::where('AccCode', 111)
+            ->value('AccID')
+            ?? Account::where('AccCode', '>=', 1110)
+                ->where('AccCode', '<=', 1119)
+                ->orderBy('AccCode')
+                ->value('AccID');
     }
 
     private function resolveGainOnDisposalAccountId(): ?int
     {
-        return Account::where('AccType', 1)
-            ->where('AccCode', 'like', '4%')
-            ->where('AccName', 'like', '%gain%disposal%')
+        // Gain on disposal — use revenue/income accounts (4xxx range)
+        return Account::where('AccCode', '>=', 4100)
+            ->where('AccCode', '<=', 4999)
             ->orderBy('AccCode')
-            ->value('AccID')
-            ?? Account::where('AccType', 1)
-                ->where('AccCode', 'like', '4%')
-                ->orderBy('AccCode')
-                ->value('AccID');
+            ->value('AccID');
     }
 
     private function resolveLossOnDisposalAccountId(): ?int
     {
-        return Account::where('AccType', 1)
-            ->where('AccCode', 'like', '6%')
-            ->where('AccName', 'like', '%loss%disposal%')
+        // Loss on disposal — use expense accounts (6xxx range)
+        return Account::where('AccCode', '>=', 6100)
+            ->where('AccCode', '<=', 6999)
             ->orderBy('AccCode')
-            ->value('AccID')
-            ?? Account::where('AccType', 1)
-                ->where('AccCode', 'like', '6%')
-                ->orderBy('AccCode')
-                ->value('AccID');
+            ->value('AccID');
     }
 
     private function resolveDepreciationExpenseAccountId(): ?int
     {
-        // Depreciation Expense is typically in 6xxx range
-        return Account::where('AccType', 1)
-            ->where('AccCode', 'like', '6%')
-            ->where('AccName', 'like', '%depreciation%')
-            ->orderBy('AccCode')
+        // Depreciation Expense: AccCode 612 (مصروفات استهلاك اصول)
+        return Account::where('AccCode', 612)
             ->value('AccID')
-            ?? Account::where('AccType', 1)
-                ->where('AccCode', 'like', '6%')
+            ?? Account::where('AccCode', '>=', 6100)
+                ->where('AccCode', '<=', 6199)
                 ->orderBy('AccCode')
                 ->value('AccID');
     }
 
     private function resolveAccumulatedDepreciationAccountId(): ?int
     {
-        // Accumulated Depreciation is a contra-asset in 1xxx range
-        return Account::where('AccType', 1)
-            ->where('AccCode', 'like', '1%')
-            ->where('AccName', 'like', '%accumulated%depreciation%')
-            ->orderBy('AccCode')
-            ->value('AccID');
+        // Accumulated Depreciation — use the fixed asset account as contra
+        // (no dedicated accumulated depreciation account in this chart)
+        return Account::where('AccCode', 121)
+            ->value('AccID')
+            ?? Account::where('AccCode', '>=', 12100)
+                ->where('AccCode', '<=', 12199)
+                ->orderBy('AccCode')
+                ->value('AccID');
     }
 
     private function generateNextEntryCode(): string

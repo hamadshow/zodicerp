@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Accounting\Account;
+use App\Models\Account;
 use App\Models\Accounting\AccountPosting;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
