@@ -361,24 +361,16 @@ Route::group([
             Route::resource('categories', \App\Http\Controllers\Backend\Assets\AssetCategoryController::class);
             Route::resource('asset-attributes', \App\Http\Controllers\Backend\Assets\AssetAttributeController::class);
             Route::resource('register', \App\Http\Controllers\Backend\Assets\AssetController::class);
-            Route::get('movements', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Asset Movements']);
-            })->name('movements.index');
-            Route::get('revaluation', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Asset Revaluation']);
-            })->name('revaluation.index');
-            Route::get('disposal', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Asset Disposal']);
-            })->name('disposal.index');
-            Route::get('depreciation/run', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Run Depreciation']);
-            })->name('depreciation.run');
-            Route::get('depreciation/schedule', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Depreciation Schedule']);
-            })->name('depreciation.schedule');
-            Route::get('depreciation/report', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Depreciation Report']);
-            })->name('depreciation.report');
+            $alc = \App\Http\Controllers\Backend\Assets\AssetLifecycleController::class;
+            Route::get('movements', [$alc, 'movements'])->name('movements.index');
+            Route::post('movements', [$alc, 'move'])->name('movements.store');
+            Route::get('revaluation', [$alc, 'revaluation'])->name('revaluation.index');
+            Route::get('disposal', [$alc, 'disposals'])->name('disposal.index');
+            Route::post('disposal', [$alc, 'dispose'])->name('disposal.store');
+            Route::get('depreciation/run', [$alc, 'runDepreciation'])->name('depreciation.run');
+            Route::post('depreciation/run', [$alc, 'runBulkDepreciation'])->name('depreciation.run.post');
+            Route::get('depreciation/schedule', [$alc, 'depreciationSchedule'])->name('depreciation.schedule');
+            Route::get('depreciation/report', [$alc, 'depreciationReport'])->name('depreciation.report');
         });
 
         // 5. Purchases (المشتريات)
@@ -392,9 +384,15 @@ Route::group([
             Route::resource('suppliers', \App\Http\Controllers\Backend\Purchases\SupplierController::class);
             Route::resource('quotations', \App\Http\Controllers\Backend\Purchases\PurchaseQuotationController::class);
             Route::resource('orders', \App\Http\Controllers\Backend\Purchases\PurchaseOrderController::class);
-            Route::get('goods-receipts', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Goods Receipts']);
-            })->name('goods-receipts.index');
+            $grc = \App\Http\Controllers\Backend\Purchases\GoodsReceiptController::class;
+            Route::get('goods-receipts', [$grc, 'index'])->name('goods-receipts.index');
+            Route::post('goods-receipts', [$grc, 'store'])->name('goods-receipts.store');
+            Route::get('goods-receipts/{goodsReceipt}', [$grc, 'show'])->name('goods-receipts.show');
+            Route::post('goods-receipts/{goodsReceipt}/approve', [$grc, 'approve'])->name('goods-receipts.approve');
+            Route::post('goods-receipts/{goodsReceipt}/receive', [$grc, 'receive'])->name('goods-receipts.receive');
+            Route::post('goods-receipts/{goodsReceipt}/check', [$grc, 'check'])->name('goods-receipts.check');
+            Route::post('goods-receipts/{goodsReceipt}/cancel', [$grc, 'cancel'])->name('goods-receipts.cancel');
+            Route::delete('goods-receipts/{goodsReceipt}', [$grc, 'destroy'])->name('goods-receipts.destroy');
             Route::resource('invoices', \App\Http\Controllers\Backend\Purchases\PurchaseInvoiceController::class);
             Route::get('returns', [\App\Http\Controllers\Backend\Purchases\PurchaseReturnController::class, 'index'])->name('returns.index');
             Route::post('returns', [\App\Http\Controllers\Backend\Purchases\PurchaseReturnController::class, 'store'])->name('returns.store');
@@ -468,11 +466,16 @@ Route::group([
 
             Route::resource('stock-transfers', \App\Http\Controllers\Backend\Inventory\StockTransferController::class);
 
-            Route::get('stock-adjustments', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Stock Adjustments']);
-            })->name('stock-adjustments.index');
+            $sac = \App\Http\Controllers\Backend\Inventory\StockAdjustmentController::class;
+            Route::get('stock-adjustments', [$sac, 'index'])->name('stock-adjustments.index');
+            Route::post('stock-adjustments', [$sac, 'store'])->name('stock-adjustments.store');
+            Route::post('stock-adjustments/{id}/approve', [$sac, 'approve'])->name('stock-adjustments.approve');
+            Route::post('stock-adjustments/{id}/cancel', [$sac, 'cancel'])->name('stock-adjustments.cancel');
+            Route::delete('stock-adjustments/{id}', [$sac, 'destroy'])->name('stock-adjustments.destroy');
+            Route::get('stock-card', [$sac, 'stockCard'])->name('stock-card');
+            Route::get('warehouse-stock', [$sac, 'warehouseReport'])->name('warehouse-stock');
             Route::get('reports', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Inventory Reports']);
+                return Inertia::render('Backend/03-Inventory/InventoryReports');
             })->name('reports.index');
         });
 
@@ -486,6 +489,13 @@ Route::group([
         Route::get('journal-entries', function () {
             return Inertia::render('Backend/07-Accounting/JournalEntity');
         })->name('journal-entries');
+        $fpc = \App\Http\Controllers\Backend\Accounting\FiscalPeriodController::class;
+        Route::get('fiscal-periods', [$fpc, 'index'])->name('fiscal-periods.index');
+        Route::post('fiscal-periods', [$fpc, 'store'])->name('fiscal-periods.store');
+        Route::post('fiscal-periods/{id}/open', [$fpc, 'open'])->name('fiscal-periods.open');
+        Route::post('fiscal-periods/{id}/close', [$fpc, 'close'])->name('fiscal-periods.close');
+        Route::post('fiscal-periods/period/{id}/close', [$fpc, 'closePeriod'])->name('fiscal-periods.period.close');
+        Route::post('fiscal-periods/period/{id}/reopen', [$fpc, 'reopenPeriod'])->name('fiscal-periods.period.reopen');
         Route::get('financial-reports', [FinancialReportController::class, 'index'])->name('financial-reports.index');
         Route::get('financial-reports/coa', [FinancialReportController::class, 'coaReport'])->name('financial-reports.coa');
         Route::get('financial-reports/general-ledger', [FinancialReportController::class, 'generalLedger'])->name('financial-reports.general-ledger');
@@ -609,6 +619,55 @@ Route::group([
         Route::delete('payment-vouchers/{voucher}', [\App\Http\Controllers\Backend\Cash\PaymentVoucherController::class, 'destroy'])
             ->name('payment-vouchers.destroy');
 
+        Route::prefix('receipt-vouchers')->name('receipt-vouchers.')->group(function () {
+            Route::get('/', function (\Illuminate\Http\Request $request) {
+                $search = trim((string) $request->input('search', ''));
+                $status = trim((string) $request->input('status', ''));
+                $customerId = $request->input('customer_id');
+                $perPage = max(5, min(100, (int) $request->input('per_page', 10)));
+
+                $vouchersQuery = \App\Models\Client_Sales\CustomerPayment::query()
+                    ->with(['customer:id,name_ar', 'currency:id,code,name', 'allocations.invoice:id,invoice_number,invoice_date'])
+                    ->latest('id');
+
+                if ($search !== '') {
+                    $vouchersQuery->where(function ($q) use ($search) {
+                        $q->where('payment_number', 'like', "%{$search}%")
+                            ->orWhere('reference_number', 'like', "%{$search}%");
+                    });
+                }
+                if ($status !== '') {
+                    $vouchersQuery->where('status', $status);
+                }
+                if (!empty($customerId)) {
+                    $vouchersQuery->where('customer_id', $customerId);
+                }
+
+                $vouchers = $vouchersQuery->paginate($perPage)->withQueryString();
+                $customers = \App\Models\Client_Sales\Customer::where('is_active', true)
+                    ->select('id', 'name_ar', 'is_active')->orderBy('name_ar')->get();
+                $currencies = \App\Models\Currency::where('status', 'active')
+                    ->select('id', 'code', 'name')->orderBy('code')->get();
+                $bankAccounts = \App\Models\BankAccount::where('status', 'active')->get();
+                $openInvoices = \App\Models\Client_Sales\SalesInvoice::query()
+                    ->select('id', 'invoice_number', 'invoice_date', 'customer_id', 'currency_id', 'total_amount', 'paid_amount', 'payment_status')
+                    ->where('payment_status', '!=', 'paid')
+                    ->orderByDesc('id')->limit(200)->get();
+
+                return Inertia::render('Backend/06-Cash/ReceiptVoucher', [
+                    'vouchers' => $vouchers,
+                    'customers' => $customers,
+                    'currencies' => $currencies,
+                    'bankAccounts' => $bankAccounts,
+                    'openInvoices' => $openInvoices,
+                    'filters' => ['search' => $search, 'status' => $status, 'customer_id' => $customerId],
+                ]);
+            })->name('index');
+            Route::post('/', [\App\Http\Controllers\Backend\Cash\ReceiptVoucherController::class, 'store'])->name('store');
+            Route::put('/{voucher}', [\App\Http\Controllers\Backend\Cash\ReceiptVoucherController::class, 'update'])->name('update');
+            Route::delete('/{voucher}', [\App\Http\Controllers\Backend\Cash\ReceiptVoucherController::class, 'destroy'])->name('destroy');
+        });
+
         // 10. Investing (الاستثمار)
         Route::prefix('investing')->name('investing.')->group(function () {
             Route::resource('industries', \App\Http\Controllers\Backend\InvestingStack\IndustryController::class);
@@ -699,11 +758,14 @@ Route::group([
         // 12. Taxes (الضرائب)
         Route::prefix('taxes')->name('taxes.')->group(function () {
             Route::resource('types', \App\Http\Controllers\Backend\Taxes\TaxTypeController::class);
+            $trc = \App\Http\Controllers\Backend\Taxes\TaxRateController::class;
+            Route::resource('rates', $trc);
+            Route::patch('rates/{tax}/toggle', [$trc, 'toggleStatus'])->name('rates.toggle');
             Route::get('settings', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Tax Settings']);
+                return Inertia::render('Backend/09-Taxes/TaxSettings');
             })->name('settings.index');
             Route::get('reports', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Tax Reports']);
+                return Inertia::render('Backend/09-Taxes/TaxReports');
             })->name('reports.index');
         });
 
