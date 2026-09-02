@@ -108,8 +108,7 @@ Route::group([
     // ------------------------------------------------------------------------
     // A. Frontend Routes (المسارات الأمامية - المتجر)
     // ------------------------------------------------------------------------
-    Route::get('/', [HomeController::class, 'index'])->name('home');
-    Route::get('/products', [HomeController::class, 'products'])->name('products.index');
+    Route::get('/', [HomeController::class, 'index'])->name('home');        Route::get('/products', [HomeController::class, 'products'])->name('home.products');
     Route::get('/product/{identifier}', [HomeController::class, 'productDetails'])->name('product.details');
     Route::get('/suppliers', [HomeController::class, 'suppliers'])->name('suppliers.index');
 
@@ -481,7 +480,7 @@ Route::group([
 
         // 8. Accounting & Business (المحاسبة)
         Route::prefix('accounts')->name('accounts.')->group(function () {
-            Route::post('bulk-import', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'bulkImport'])->name('bulkImport');
+            Route::post('bulk-import', [\App\Http\Controllers\Backend\Accounting\AccountsController::class, 'bulkImport'])->name('web-bulkImport');
         });
         Route::get('chart-of-accounts', function () {
             return Inertia::render('Backend/07-Accounting/ChartOfAccounts');
@@ -881,8 +880,8 @@ Route::group([
     // ------------------------------------------------------------------------
     Route::prefix('api')->name('api.')->group(function () {
         Route::get('/search', [HomeController::class, 'globalSearch'])->name('search');
-        Route::get('/countries', [LocationController::class, 'getCountries']);
-        Route::get('/cities', [LocationController::class, 'getCities']);
+        Route::get('/countries', [LocationController::class, 'getCountries'])->name('countries');
+        Route::get('/cities', [LocationController::class, 'getCities'])->name('cities');
     });
 
 });

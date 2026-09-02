@@ -37,6 +37,12 @@ jobs:
       - name: 🧹 Remove node_modules
         run: rm -rf node_modules
 
+      - name: 🧹 Generate fresh route cache for production
+        run: |
+          # Generate a fresh route cache from the current route definitions.
+          # This is uploaded to production to replace any stale cached routes.
+          php artisan route:cache
+
       - name: 📂 Sync files
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -53,7 +59,6 @@ jobs:
             .env
             .env_
             /storage/
-            /bootstrap/cache/
             /tests/
             /phpunit.xml
             /README.md
