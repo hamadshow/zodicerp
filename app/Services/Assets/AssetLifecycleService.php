@@ -6,6 +6,7 @@ use App\Traits\EnsuresFiscalPeriod;
 use App\Models\Accounting\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
+use App\Services\Accounting\PostingService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -402,6 +403,10 @@ class AssetLifecycleService
             'related_name_details' => $reference,
             'description' => 'Accumulated Depreciation',
         ]);
+
+        // Sync account_postings cache for Trial Balance consistency
+        $companyId = auth()->user()?->company_id ?? 1;
+        app(PostingService::class)->recalculatePostings($companyId);
 
         return $header->id;
     }

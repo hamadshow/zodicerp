@@ -6,6 +6,7 @@ use App\Traits\EnsuresFiscalPeriod;
 use App\Models\Accounting\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
+use App\Services\Accounting\PostingService;
 use App\Models\Vendor_Purchases\PurchaseInvoice;
 use App\Models\Vendor_Purchases\PurchaseInvoiceDetail;
 use App\Models\Vendor_Purchases\PurchaseReturn;
@@ -525,6 +526,12 @@ class PurchaseReturnService
                 'related_name_details' => $reference,
                 'description' => 'Input Tax reversal - ' . $reference,
             ]);
+        }
+
+        // Sync account_postings cache for Trial Balance consistency
+        $companyId = $return->company_id ?? Auth::user()?->company_id;
+        if ($companyId) {
+            app(PostingService::class)->recalculatePostings($companyId);
         }
     }
 

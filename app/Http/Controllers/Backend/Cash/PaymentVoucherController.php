@@ -7,6 +7,7 @@ use App\Traits\EnsuresFiscalPeriod;
 use App\Models\Accounting\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
+use App\Services\Accounting\PostingService;
 use App\Models\BankAccount;
 use App\Models\Vendor_Purchases\PurchaseInvoice;
 use App\Models\Vendor_Purchases\Supplier;
@@ -378,19 +379,38 @@ class PaymentVoucherController extends Controller
             return;
         }
 
-        $this->ensureOpenFiscalPeriod($validated['payment_date'] ?? $payment->payment_date);
-        $entryCode = $this->generateNextEntryCode();
         $reference = $payment->payment_number;
+        $paymentDate = $validated['payment_date'] ?? $payment->payment_date;
 
-        JournalEntry::create([
-            'entry_code' => $entryCode,
-            'entry_type' => 'SupplierPayment',
-            'reference' => $reference,
-            'date' => $validated['payment_date'] ?? $payment->payment_date,
-            'description' => 'Supplier Payment ' . $reference,
-            'total_amount' => $amount,
-            'status' => 'Post',
-        ]);
+        // Fiscal period validation (always check, even for existing entries)
+        $this->ensureOpenFiscalPeriod($paymentDate);
+
+        // Upsert pattern (idempotent) — match SalesInvoice pattern
+        $existingHeader = JournalEntry::where('reference', $reference)
+            ->where('entry_type', 'SupplierPayment')
+            ->lockForUpdate()
+            ->first();
+
+        if ($existingHeader) {
+            JournalEntryLine::where('journal_entry_code', $existingHeader->entry_code)->delete();
+            $existingHeader->update([
+                'date' => $paymentDate,
+                'total_amount' => $amount,
+                'status' => 'Post',
+            ]);
+            $entryCode = $existingHeader->entry_code;
+        } else {
+            $entryCode = $this->generateNextEntryCode();
+            JournalEntry::create([
+                'entry_code' => $entryCode,
+                'entry_type' => 'SupplierPayment',
+                'reference' => $reference,
+                'date' => $paymentDate,
+                'description' => 'Supplier Payment ' . $reference,
+                'total_amount' => $amount,
+                'status' => 'Post',
+            ]);
+        }
 
         JournalEntryLine::create([
             'journal_entry_code' => $entryCode,
@@ -411,6 +431,12 @@ class PaymentVoucherController extends Controller
             'related_name_details' => $reference,
             'description' => 'Cash/Bank paid - ' . $reference,
         ]);
+
+        // Sync account_postings cache for Trial Balance consistency
+        $companyId = $payment->company_id ?? Auth::user()?->company_id;
+        if ($companyId) {
+            app(PostingService::class)->recalculatePostings($companyId);
+        }
     }
 
     private function deleteJournalEntryForPayment(SupplierPayment $payment): void

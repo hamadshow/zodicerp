@@ -18,6 +18,7 @@ use App\Models\Warehouses;
 use App\Models\BankAccount;
 use App\Models\TreasuryTransaction;
 use App\Services\TreasuryService;
+use App\Services\Accounting\PostingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -377,6 +378,12 @@ class SalesInvoiceController extends Controller
                 'description' => $description,
                 'cost_center_code' => null,
             ]);
+        }
+
+        // Sync account_postings cache for Trial Balance consistency
+        $companyId = $invoice->company_id ?? Auth::user()?->company_id;
+        if ($companyId) {
+            app(PostingService::class)->recalculatePostings($companyId);
         }
     }
 

@@ -7,6 +7,7 @@ use App\Traits\EnsuresFiscalPeriod;
 use App\Models\Accounting\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
+use App\Services\Accounting\PostingService;
 use App\Models\Currency;
 use App\Models\ItemUnit;
 use App\Models\Products;
@@ -109,6 +110,12 @@ class PurchaseInvoiceController extends Controller
             'related_name_details' => $reference,
             'description' => 'Accounts Payable - ' . $reference,
         ]);
+
+        // Sync account_postings cache for Trial Balance consistency
+        $companyId = Auth::user()?->company_id;
+        if ($companyId) {
+            app(PostingService::class)->recalculatePostings($companyId);
+        }
     }
 
     protected function deleteJournalEntryForInvoice(PurchaseInvoice $invoice): void

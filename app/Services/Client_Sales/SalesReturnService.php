@@ -6,6 +6,7 @@ use App\Traits\EnsuresFiscalPeriod;
 use App\Models\Accounting\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
+use App\Services\Accounting\PostingService;
 use App\Models\Client_Sales\Customer;
 use App\Models\Client_Sales\SalesInvoice;
 use App\Models\Client_Sales\SalesInvoiceDetail;
@@ -534,6 +535,9 @@ class SalesReturnService
             return;
         }
 
+        // Fiscal period validation — always check, even for existing entries
+        $this->ensureOpenFiscalPeriod($return->return_date);
+
         // Check for existing journal entry (idempotency)
         $reference = $return->return_number;
         $existingHeader = JournalEntry::where('reference', $reference)
@@ -549,7 +553,6 @@ class SalesReturnService
                 'status' => 'Post',
             ]);
         } else {
-            $this->ensureOpenFiscalPeriod($return->return_date);
             $entryCode = $this->generateNextEntryCode();
             JournalEntry::create([
                 'entry_code' => $entryCode,
@@ -580,10 +583,16 @@ class SalesReturnService
             'debit' => 0,
             'credit' => $totalAmount,
             'related_id_name' => 'SalesReturn',
-            'related_name_details' => $reference,
-            'description' => 'AR reduction - Return ' . $reference,
+            'related_name_details' => $reference,            'description' => 'AR reduction - Return ' . $reference,
         ]);
+
+        // Sync account_postings cache for Trial Balance consistency
+        $companyId = $return->company_id ?? Auth::user()?->company_id;
+        if ($companyId) {
+            app(PostingService::class)->recalculatePostings($companyId);
+        }
     }
+
 
     /**
      * Create stock movements for returned items (goods come back into inventory).
