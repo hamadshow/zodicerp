@@ -4,10 +4,22 @@ namespace App\Services\Assets;
 
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Asset lifecycle service — depreciation, disposal, movement.
+ *
+ * Table schema references (from existing migrations):
+ *   asset_depreciation (singular): fiscal_year, period_month, period_year,
+ *       depreciation_date, depreciation_amount, accumulated_depreciation,
+ *       net_book_value_before, net_book_value_after, journal_entry_id, is_posted, posted_date
+ *   asset_disposals: disposal_method, original_cost, accumulated_depreciation,
+ *       net_book_value, disposal_amount, gain_loss_amount, is_posted
+ *   asset_movements: movement_type, from/to warehouse/department/employee
+ */
 class AssetLifecycleService
 {
     /**
-     * Calculate and post depreciation for an asset up to a given date.
+     * Calculate depreciation for an asset up to asOfDate.
+     * Returns the computed amounts without writing to the database.
      */
     public function calculateDepreciation(array $data): array
     {
@@ -32,7 +44,6 @@ class AssetLifecycleService
         $depreciableAmount = $cost - $residualValue;
         $annualDepreciation = $depreciableAmount / max($usefulLife, 1);
 
-        // Calculate months from start to asOfDate
         $start = new \DateTime($startDate);
         $end = new \DateTime($asOfDate);
         $interval = $start->diff($end);
@@ -45,14 +56,18 @@ class AssetLifecycleService
         $totalDepreciation = round(($annualDepreciation / 12) * $monthsToDepreciate, 2);
         $totalDepreciation = min($totalDepreciation, $depreciableAmount);
 
-        $accumulatedDepreciation = (float) DB::table('asset_depreciations')
+        // Already posted accumulated depreciation
+        $accumulatedDepreciation = (float) DB::table('asset_depreciation')
             ->where('asset_id', $assetId)
-            ->where('status', 'posted')
-            ->sum('amount');
+            ->where('is_posted', true)
+            ->sum('depreciation_amount');
 
         $remainingToDepreciate = $totalDepreciation - $accumulatedDepreciation;
+        if ($remainingToDepreciate < 0.01) {
+            $remainingToDepreciate = 0;
+        }
 
-        $bookValue = $cost - $accumulatedDepreciation - max(0, $remainingToDepreciate);
+        $currentBookValue = $cost - $accumulatedDepreciation;
 
         return [
             'asset_id' => $assetId,
@@ -64,42 +79,62 @@ class AssetLifecycleService
             'months_elapsed' => $monthsElapsed,
             'total_depreciation_to_date' => $totalDepreciation,
             'accumulated_depreciation_posted' => $accumulatedDepreciation,
-            'remaining_to_post' => max(0, $remainingToDepreciate),
-            'book_value' => round($bookValue, 2),
+            'remaining_to_post' => $remainingToDepreciate,
+            'book_value' => round($currentBookValue - $remainingToDepreciate, 2),
         ];
     }
 
     /**
      * Post depreciation entries for an asset up to asOfDate.
+     * Uses the asset_depreciation table (singular, per migration).
      */
     public function postDepreciation(array $data): array
     {
         return DB::transaction(function () use ($data) {
             $calc = $this->calculateDepreciation($data);
             $assetId = $data['asset_id'];
+            $asOfDate = $data['as_of_date'] ?? now()->toDateString();
             $remaining = $calc['remaining_to_post'];
 
             if ($remaining <= 0) {
                 return ['message' => 'No depreciation to post.', 'calculation' => $calc];
             }
 
-            // Create depreciation record
-            $depreciationId = DB::table('asset_depreciations')->insertGetId([
+            $postingDate = new \DateTime($asOfDate);
+            $periodYear = (int) $postingDate->format('Y');
+            $periodMonth = (int) $postingDate->format('n');
+            $fiscalYear = $periodYear;
+
+            // Check for duplicate posting (unique constraint: asset_id + period_month + period_year)
+            $existing = DB::table('asset_depreciation')
+                ->where('asset_id', $assetId)
+                ->where('period_month', $periodMonth)
+                ->where('period_year', $periodYear)
+                ->first();
+
+            if ($existing) {
+                throw new \Exception("Depreciation for period {$periodMonth}/{$periodYear} already posted for this asset.");
+            }
+
+            $cost = $calc['cost'];
+            $accumulatedAfter = $calc['accumulated_depreciation_posted'] + $remaining;
+            $bookValueBefore = $cost - $calc['accumulated_depreciation_posted'];
+            $bookValueAfter = $bookValueBefore - $remaining;
+
+            $depreciationId = DB::table('asset_depreciation')->insertGetId([
                 'asset_id' => $assetId,
-                'period_start' => $data['as_of_date'] ?? now()->toDateString(),
-                'period_end' => $data['as_of_date'] ?? now()->toDateString(),
-                'depreciation_method' => $calc['depreciation_method'],
-                'useful_life' => $calc['useful_life_years'],
-                'cost' => $calc['cost'],
-                'residual_value' => $calc['residual_value'],
-                'depreciable_amount' => $calc['depreciable_amount'],
-                'amount' => $remaining,
-                'accumulated_depreciation' => $calc['accumulated_depreciation_posted'] + $remaining,
-                'book_value' => $calc['book_value'],
-                'status' => 'posted',
-                'posted_by' => auth()->id(),
-                'posted_at' => now(),
-                'company_id' => auth()->user()->company_id ?? 1,
+                'fiscal_year' => $fiscalYear,
+                'period_month' => $periodMonth,
+                'period_year' => $periodYear,
+                'depreciation_date' => $asOfDate,
+                'depreciation_amount' => round($remaining, 4),
+                'accumulated_depreciation' => round($accumulatedAfter, 4),
+                'net_book_value_before' => round($bookValueBefore, 4),
+                'net_book_value_after' => round($bookValueAfter, 4),
+                'is_posted' => true,
+                'posted_date' => $asOfDate,
+                'notes' => "Straight-line depreciation for {$periodMonth}/{$periodYear}",
+                'created_by' => auth()->id(),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -113,7 +148,7 @@ class AssetLifecycleService
     }
 
     /**
-     * Generate depreciation schedule for an asset.
+     * Generate depreciation schedule for an asset (yearly projection).
      */
     public function getDepreciationSchedule(array $data): array
     {
@@ -155,7 +190,36 @@ class AssetLifecycleService
     }
 
     /**
+     * Run bulk depreciation for all active assets.
+     */
+    public function runBulkDepreciation(array $data): array
+    {
+        $asOfDate = $data['as_of_date'] ?? now()->toDateString();
+        $assets = DB::table('assets')
+            ->where('status', 'active')
+            ->whereNotNull('depreciation_start_date')
+            ->orWhereNotNull('acquisition_date')
+            ->get();
+
+        $results = [];
+        foreach ($assets as $asset) {
+            try {
+                $result = $this->postDepreciation([
+                    'asset_id' => $asset->id,
+                    'as_of_date' => $asOfDate,
+                ]);
+                $results[] = ['asset_id' => $asset->id, 'status' => 'posted', ...$result];
+            } catch (\Exception $e) {
+                $results[] = ['asset_id' => $asset->id, 'status' => 'skipped', 'message' => $e->getMessage()];
+            }
+        }
+
+        return $results;
+    }
+
+    /**
      * Dispose an asset with gain/loss calculation.
+     * Uses the asset_disposals table per the existing migration schema.
      */
     public function disposeAsset(array $data): array
     {
@@ -166,28 +230,39 @@ class AssetLifecycleService
             }
 
             $cost = (float) ($asset->purchase_price ?? $asset->cost ?? 0);
-            $accumulatedDepreciation = (float) DB::table('asset_depreciations')
+            $accumulatedDepreciation = (float) DB::table('asset_depreciation')
                 ->where('asset_id', $asset->id)
-                ->where('status', 'posted')
-                ->sum('amount');
+                ->where('is_posted', true)
+                ->sum('depreciation_amount');
 
             $netBookValue = $cost - $accumulatedDepreciation;
-            $proceeds = (float) ($data['disposal_proceeds'] ?? 0);
+            $proceeds = (float) ($data['disposal_proceeds'] ?? $data['disposal_amount'] ?? 0);
             $gainLoss = $proceeds - $netBookValue;
+
+            // Map common disposal type names to the migration enum
+            $disposalTypeMap = [
+                'sale' => 'sale',
+                'scrap' => 'scrap',
+                'donation' => 'donation',
+                'loss' => 'loss',
+                'theft' => 'theft',
+                'exchange' => 'exchange',
+                'destroyed' => 'scrap',
+            ];
+            $disposalMethod = $disposalTypeMap[$data['disposal_type'] ?? 'sale'] ?? 'sale';
 
             DB::table('asset_disposals')->insert([
                 'asset_id' => $asset->id,
                 'disposal_date' => $data['disposal_date'],
-                'disposal_type' => $data['disposal_type'] ?? 'sale',
-                'disposal_proceeds' => $proceeds,
-                'cost' => $cost,
-                'accumulated_depreciation' => $accumulatedDepreciation,
-                'net_book_value' => $netBookValue,
-                'gain_loss' => $gainLoss,
+                'disposal_method' => $disposalMethod,
+                'original_cost' => round($cost, 4),
+                'accumulated_depreciation' => round($accumulatedDepreciation, 4),
+                'net_book_value' => round($netBookValue, 4),
+                'disposal_amount' => round($proceeds, 4),
+                'gain_loss_amount' => round($gainLoss, 4),
+                'is_posted' => true,
                 'reason' => $data['reason'] ?? null,
                 'notes' => $data['notes'] ?? null,
-                'status' => 'completed',
-                'company_id' => auth()->user()->company_id ?? 1,
                 'created_by' => auth()->id(),
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -212,6 +287,7 @@ class AssetLifecycleService
 
     /**
      * Record an asset movement (transfer between locations/departments).
+     * Uses the asset_movements table per the existing migration schema.
      */
     public function moveAsset(array $data): array
     {
@@ -221,8 +297,18 @@ class AssetLifecycleService
                 throw new \Exception('Asset not found.');
             }
 
+            // Map to migration enum values
+            $typeMap = [
+                'transfer' => 'transfer',
+                'loan' => 'loan',
+                'return' => 'return',
+                'adjustment' => 'adjustment',
+            ];
+            $movementType = $typeMap[$data['movement_type'] ?? 'transfer'] ?? 'transfer';
+
             DB::table('asset_movements')->insert([
                 'asset_id' => $asset->id,
+                'movement_type' => $movementType,
                 'movement_date' => $data['movement_date'],
                 'from_warehouse_id' => $asset->warehouse_id ?? null,
                 'to_warehouse_id' => $data['to_warehouse_id'] ?? null,

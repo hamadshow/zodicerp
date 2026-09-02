@@ -97,6 +97,24 @@ class StockAdjustmentService
                 throw new \Exception('Only draft adjustments can be approved.');
             }
 
+            // Update product quantities based on adjustment items
+            $items = DB::table('stock_adjustment_items')
+                ->where('adjustment_id', $adjustmentId)
+                ->get();
+
+            foreach ($items as $item) {
+                $adjQty = (float) $item->adjustment_quantity;
+                if ($adjQty != 0) {
+                    // Use raw update to add signed adjustment quantity
+                    DB::table('products')
+                        ->where('id', $item->product_id)
+                        ->update([
+                            'quantity' => DB::raw("quantity + ({$adjQty})"),
+                            'updated_at' => now(),
+                        ]);
+                }
+            }
+
             DB::table('stock_adjustments')->where('id', $adjustmentId)->update([
                 'status' => 'approved',
                 'approved_by' => auth()->id(),

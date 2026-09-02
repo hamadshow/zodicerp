@@ -12,6 +12,7 @@ use App\Imports\JournalImport;
 use App\Exports\JournalExport;
 use App\Services\Accounting\JournalImportService;
 use App\Services\Accounting\PostingService;
+use App\Services\Accounting\FiscalPeriodService;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -24,7 +25,10 @@ class JournalController extends Controller
 
     protected int $journalCodeStart = 10001;
 
-    public function __construct(protected PostingService $postingService) {}
+    public function __construct(
+        protected PostingService $postingService,
+        protected FiscalPeriodService $periodService
+    ) {}
 
     public function nextCode()
     {
@@ -128,6 +132,12 @@ class JournalController extends Controller
         $this->ensureBalanced($lines);
 
         return DB::transaction(function () use ($data, $lines) {
+            // Fiscal period validation — block posting into closed periods
+            $targetStatus = $data['status'] ?? 'UnPost';
+            if (in_array($targetStatus, ['Post', 'posted'])) {
+                $this->periodService->validatePostingDate($data['date']);
+            }
+
             $code = $this->generateNextEntryCode();
 
             $total = 0;
@@ -505,7 +515,29 @@ class JournalController extends Controller
         }
 
         return DB::transaction(function () use ($companyId) {
-            // 1. Update status of all unposted journals for this company
+            // 1. Validate fiscal periods for all journals about to be posted
+            $unpostedJournals = JournalEntry::where('company_id', $companyId)
+                ->where(function ($q) {
+                    $q->where('status', 'UnPost')
+                      ->orWhere('status', 'unposted')
+                      ->orWhereNull('status')
+                      ->orWhere('status', '');
+                })->get();
+
+            foreach ($unpostedJournals as $journal) {
+                if ($journal->date) {
+                    try {
+                        $this->periodService->validatePostingDate($journal->date);
+                    } catch (\Exception $e) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => "Cannot post journal {$journal->entry_code}: " . $e->getMessage(),
+                        ], 422);
+                    }
+                }
+            }
+
+            // 2. Update status of all unposted journals for this company
             JournalEntry::where('company_id', $companyId)
                 ->where(function ($q) {
                     $q->where('status', 'UnPost')
@@ -515,7 +547,7 @@ class JournalController extends Controller
                 })
                 ->update(['status' => 'Post']);
 
-            // 2. Recalculate account postings
+            // 3. Recalculate account postings
             $this->postingService->recalculatePostings($companyId);
 
             return response()->json([

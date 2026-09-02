@@ -2,6 +2,9 @@
 
 namespace App\Services\Vendor_Purchases;
 
+use App\Models\Accounting\Account;
+use App\Models\Accounting\JournalEntry;
+use App\Models\Accounting\JournalEntryLine;
 use App\Models\Vendor_Purchases\PurchaseInvoice;
 use App\Models\Vendor_Purchases\PurchaseInvoiceDetail;
 use App\Models\Vendor_Purchases\PurchaseReturn;
@@ -284,6 +287,11 @@ class PurchaseReturnService
                 $purchaseReturn->details()->create($item);
             }
 
+            // Create journal entry if return is approved/completed
+            if (in_array($status, ['approved', 'completed'])) {
+                $this->createJournalEntryForReturn($purchaseReturn, $totals);
+            }
+
             return $purchaseReturn;
         });
     }
@@ -415,5 +423,115 @@ class PurchaseReturnService
             ],
             'details' => $details,
         ];
+    }
+
+    /**
+     * Create journal entry for purchase return (Debit Note):
+     *   Dr Accounts Payable (total return amount)
+     *   Cr Purchase/Expense (return subtotal)
+     *   Cr Input Tax (return tax amount)
+     */
+    private function createJournalEntryForReturn(PurchaseReturn $return, array $totals): void
+    {
+        $totalAmount = (float) ($totals['total_amount'] ?? $return->total_amount ?? 0);
+        $taxAmount = (float) ($totals['tax_amount'] ?? $return->tax_amount ?? 0);
+        $netAmount = $totalAmount - $taxAmount;
+
+        $apAccountId = $this->resolveAccountsPayableAccountId($return->supplier_id);
+        $purchaseAccountId = $this->resolvePurchaseAccountId();
+        $taxAccountId = $this->resolveInputTaxAccountId();
+
+        if (!$apAccountId || !$purchaseAccountId) {
+            return;
+        }
+
+        $entryCode = $this->generateNextEntryCode();
+        $reference = $return->return_number;
+
+        JournalEntry::create([
+            'entry_code' => $entryCode,
+            'entry_type' => 'PurchaseReturn',
+            'reference' => $reference,
+            'date' => $return->return_date,
+            'description' => 'Purchase Return ' . $reference,
+            'total_amount' => $totalAmount,
+            'status' => 'Post',
+        ]);
+
+        // Dr Accounts Payable
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $apAccountId,
+            'debit' => $totalAmount,
+            'credit' => 0,
+            'related_id_name' => 'PurchaseReturn',
+            'related_name_details' => $reference,
+            'description' => 'AP reduction - Return ' . $reference,
+        ]);
+
+        // Cr Purchase/Expense
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $purchaseAccountId,
+            'debit' => 0,
+            'credit' => $netAmount,
+            'related_id_name' => 'PurchaseReturn',
+            'related_name_details' => $reference,
+            'description' => 'Purchase reversal - ' . $reference,
+        ]);
+
+        // Cr Input Tax (if applicable)
+        if ($taxAmount > 0 && $taxAccountId) {
+            JournalEntryLine::create([
+                'journal_entry_code' => $entryCode,
+                'account_id' => $taxAccountId,
+                'debit' => 0,
+                'credit' => $taxAmount,
+                'related_id_name' => 'PurchaseReturn',
+                'related_name_details' => $reference,
+                'description' => 'Input Tax reversal - ' . $reference,
+            ]);
+        }
+    }
+
+    private function resolveAccountsPayableAccountId(?int $supplierId = null): ?int
+    {
+        if ($supplierId) {
+            $supplier = \App\Models\Vendor_Purchases\Supplier::find($supplierId);
+            if ($supplier && $supplier->account_id) {
+                return $supplier->account_id;
+            }
+        }
+        return Account::where('AccCode', 'like', '2%')->where('AccType', 1)->value('AccID');
+    }
+
+    private function resolvePurchaseAccountId(): ?int
+    {
+        return Account::where('AccType', 1)
+            ->where('AccCode', 'like', '5%')
+            ->orderBy('AccCode')
+            ->value('AccID');
+    }
+
+    private function resolveInputTaxAccountId(): ?int
+    {
+        return Account::where('AccCode', 'like', '2.1.3%')
+            ->orWhere('AccCode', 'like', '213%')
+            ->value('AccID');
+    }
+
+    private function generateNextEntryCode(): string
+    {
+        $lastCode = JournalEntry::whereNotNull('entry_code')
+            ->where('entry_code', '!=', '')
+            ->orderByDesc('id')
+            ->value('entry_code');
+
+        $nextNumber = 10001;
+        if ($lastCode && preg_match('/(\d+)$/', $lastCode, $matches)) {
+            $nextNumber = (int) $matches[1] + 1;
+        }
+
+        return 'QID-' . $nextNumber;
     }
 }

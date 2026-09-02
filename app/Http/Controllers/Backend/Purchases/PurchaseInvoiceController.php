@@ -3,6 +3,9 @@
 namespace App\Http\Controllers\Backend\Purchases;
 
 use App\Http\Controllers\Controller;
+use App\Models\Accounting\Account;
+use App\Models\Accounting\JournalEntry;
+use App\Models\Accounting\JournalEntryLine;
 use App\Models\Currency;
 use App\Models\ItemUnit;
 use App\Models\Products;
@@ -16,6 +19,143 @@ use Inertia\Inertia;
 
 class PurchaseInvoiceController extends Controller
 {
+    protected string $journalCodePrefix = 'QID-';
+    protected int $journalCodeStart = 10001;
+
+    /**
+     * Create journal entry for purchase invoice:
+     *   Dr Purchase/Inventory Expense (total - tax)
+     *   Dr Input Tax (tax_amount)
+     *   Cr Accounts Payable (total_amount)
+     */
+    protected function createJournalEntryForInvoice(PurchaseInvoice $invoice, array $validated): void
+    {
+        $totalAmount = (float) ($validated['total_amount'] ?? 0);
+        $taxAmount = (float) ($validated['tax_amount'] ?? 0);
+        $netAmount = $totalAmount - $taxAmount;
+
+        $purchaseAccountId = $this->resolvePurchaseAccountId();
+        $apAccountId = $this->resolveAccountsPayableAccountId($invoice->supplier_id);
+        $taxAccountId = $this->resolveInputTaxAccountId();
+
+        if (!$purchaseAccountId || !$apAccountId) {
+            throw new \RuntimeException('Required accounts not configured for purchase journal entry.');
+        }
+
+        $entryCode = $this->generateNextEntryCode();
+        $reference = $invoice->invoice_number;
+        $status = 'Post';
+
+        JournalEntry::create([
+            'entry_code' => $entryCode,
+            'entry_type' => 'PurchaseInvoice',
+            'reference' => $reference,
+            'date' => $validated['invoice_date'] ?? $invoice->invoice_date,
+            'description' => 'Purchase Invoice ' . $reference,
+            'total_amount' => $totalAmount,
+            'status' => $status,
+        ]);
+
+        // Dr Purchase/Inventory Expense
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $purchaseAccountId,
+            'debit' => $netAmount,
+            'credit' => 0,
+            'related_id_name' => 'PurchaseInvoice',
+            'related_name_details' => $reference,
+            'description' => 'Purchase Invoice ' . $reference,
+        ]);
+
+        // Dr Input Tax (if applicable)
+        if ($taxAmount > 0 && $taxAccountId) {
+            JournalEntryLine::create([
+                'journal_entry_code' => $entryCode,
+                'account_id' => $taxAccountId,
+                'debit' => $taxAmount,
+                'credit' => 0,
+                'related_id_name' => 'PurchaseInvoice',
+                'related_name_details' => $reference,
+                'description' => 'Input Tax on ' . $reference,
+            ]);
+        }
+
+        // Cr Accounts Payable
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $apAccountId,
+            'debit' => 0,
+            'credit' => $totalAmount,
+            'related_id_name' => 'PurchaseInvoice',
+            'related_name_details' => $reference,
+            'description' => 'Accounts Payable - ' . $reference,
+        ]);
+    }
+
+    protected function deleteJournalEntryForInvoice(PurchaseInvoice $invoice): void
+    {
+        $header = JournalEntry::where('reference', $invoice->invoice_number)
+            ->where('entry_type', 'PurchaseInvoice')
+            ->first();
+
+        if ($header) {
+            JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
+            $header->delete();
+        }
+    }
+
+    protected function resolvePurchaseAccountId(): ?int
+    {
+        return Account::query()
+            ->where('AccType', 1)
+            ->where('AccStopped', false)
+            ->where('AccCode', 'like', '5%')
+            ->orderBy('AccCode')
+            ->value('AccID');
+    }
+
+    protected function resolveAccountsPayableAccountId(?int $supplierId = null): ?int
+    {
+        // Try supplier-specific account first
+        if ($supplierId) {
+            $supplier = Supplier::find($supplierId);
+            if ($supplier && $supplier->account_id) {
+                return $supplier->account_id;
+            }
+        }
+        // Fall back to default AP account (2xxx)
+        return Account::query()
+            ->where('AccType', 1)
+            ->where('AccCode', 'like', '2%')
+            ->orderBy('AccCode')
+            ->value('AccID');
+    }
+
+    protected function resolveInputTaxAccountId(): ?int
+    {
+        return Account::query()
+            ->where('AccType', 1)
+            ->where('AccCode', 'like', '2.1.3%')
+            ->orWhere('AccCode', 'like', '213%')
+            ->value('AccID');
+    }
+
+    protected function generateNextEntryCode(): string
+    {
+        $lastCode = JournalEntry::whereNotNull('entry_code')
+            ->where('entry_code', '!=', '')
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->value('entry_code');
+
+        $nextNumber = $this->journalCodeStart;
+        if ($lastCode && preg_match('/(\d+)$/', $lastCode, $matches)) {
+            $nextNumber = (int) $matches[1] + 1;
+        }
+
+        return $this->journalCodePrefix . $nextNumber;
+    }
+
     public function index(Request $request)
     {
         $query = PurchaseInvoice::query()
@@ -135,6 +275,9 @@ class PurchaseInvoiceController extends Controller
                 ]);
             }
 
+            // Create journal entry for the purchase invoice
+            $this->createJournalEntryForInvoice($invoice, $validated);
+
             DB::commit();
 
             return redirect()->back()->with('success', 'Purchase Invoice created successfully.');
@@ -223,6 +366,7 @@ class PurchaseInvoiceController extends Controller
     {
         try {
             $invoice = PurchaseInvoice::findOrFail($id);
+            $this->deleteJournalEntryForInvoice($invoice);
             $invoice->delete(); // Soft delete
 
             return redirect()->back()->with('success', 'Purchase Invoice deleted successfully.');

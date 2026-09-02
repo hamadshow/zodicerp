@@ -89,14 +89,14 @@ class AssetLifecycleController extends Controller
             ->orderBy('name')
             ->get();
 
-        $report = DB::table('asset_depreciations')
-            ->join('assets', 'assets.id', '=', 'asset_depreciations.asset_id')
+        $report = DB::table('asset_depreciation')
+            ->join('assets', 'assets.id', '=', 'asset_depreciation.asset_id')
             ->where('assets.company_id', $companyId)
-            ->where('asset_depreciations.status', 'posted')
+            ->where('asset_depreciation.is_posted', true)
             ->select(
                 'assets.name as asset_name',
                 'assets.purchase_price as cost',
-                DB::raw('SUM(asset_depreciations.amount) as total_depreciation')
+                DB::raw('SUM(asset_depreciation.depreciation_amount) as total_depreciation')
             )
             ->groupBy('assets.id', 'assets.name', 'assets.purchase_price')
             ->get();
@@ -112,7 +112,7 @@ class AssetLifecycleController extends Controller
         $validated = $request->validate([
             'asset_id' => 'required|exists:assets,id',
             'disposal_date' => 'required|date',
-            'disposal_type' => 'nullable|in:sale,scrap,donation,destroyed',
+            'disposal_type' => 'nullable|in:sale,scrap,donation,loss,theft,exchange',
             'disposal_proceeds' => 'required|numeric|min:0',
             'reason' => 'nullable|string',
             'notes' => 'nullable|string',
@@ -199,10 +199,10 @@ class AssetLifecycleController extends Controller
             ->orderBy('name')
             ->get();
 
-        $revaluations = DB::table('asset_revaluations')
-            ->join('assets', 'assets.id', '=', 'asset_revaluations.asset_id')
+        $revaluations = DB::table('asset_revaluation')
+            ->join('assets', 'assets.id', '=', 'asset_revaluation.asset_id')
             ->where('assets.company_id', $companyId)
-            ->orderByDesc('asset_revaluations.created_at')
+            ->orderByDesc('asset_revaluation.created_at')
             ->get();
 
         return Inertia::render('Backend/08-Assets/AssetRevaluation', [

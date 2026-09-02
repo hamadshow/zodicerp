@@ -3,6 +3,11 @@
 namespace App\Http\Controllers\Backend\Cash;
 
 use App\Http\Controllers\Controller;
+use App\Models\Accounting\Account;
+use App\Models\Accounting\JournalEntry;
+use App\Models\Accounting\JournalEntryLine;
+use App\Models\BankAccount;
+use App\Models\Client_Sales\Customer;
 use App\Models\Client_Sales\CustomerPayment;
 use App\Models\Client_Sales\CustomerPaymentAllocation;
 use App\Models\Client_Sales\SalesInvoice;
@@ -24,6 +29,7 @@ class ReceiptVoucherController extends Controller
             $payment = CustomerPayment::create($this->paymentData($validated, true));
             $invoiceIds = $this->syncAllocations($payment, $validated['allocations'] ?? []);
             $this->refreshInvoices($invoiceIds);
+            $this->createJournalEntryForPayment($payment, $validated);
         });
 
         return redirect()->back()->with('success', 'Receipt voucher created successfully.');
@@ -35,10 +41,12 @@ class ReceiptVoucherController extends Controller
         $validated = $this->validatePayload($request, $payload, $voucher);
 
         DB::transaction(function () use ($voucher, $validated) {
+            $this->deleteJournalEntryForPayment($voucher);
             $previousInvoiceIds = $voucher->allocations()->pluck('invoice_id')->filter()->all();
             $voucher->update($this->paymentData($validated, false));
             $newInvoiceIds = $this->syncAllocations($voucher, $validated['allocations'] ?? []);
             $this->refreshInvoices(array_unique(array_merge($previousInvoiceIds, $newInvoiceIds)));
+            $this->createJournalEntryForPayment($voucher->fresh(), $validated);
         });
 
         return redirect()->back()->with('success', 'Receipt voucher updated successfully.');
@@ -47,6 +55,7 @@ class ReceiptVoucherController extends Controller
     public function destroy(CustomerPayment $voucher): RedirectResponse
     {
         DB::transaction(function () use ($voucher) {
+            $this->deleteJournalEntryForPayment($voucher);
             $invoiceIds = $voucher->allocations()->pluck('invoice_id')->filter()->all();
             $voucher->allocations()->delete();
             $voucher->delete();
@@ -243,5 +252,97 @@ class ReceiptVoucherController extends Controller
         } while (CustomerPayment::where('payment_number', $number)->exists());
 
         return $number;
+    }
+
+    /**
+     * Create journal entry for customer receipt:
+     *   Dr Cash/Bank (from bank_account.gl_account_id)
+     *   Cr Accounts Receivable (from customer.account_id or default)
+     */
+    private function createJournalEntryForPayment(CustomerPayment $payment, array $validated): void
+    {
+        $amount = (float) $payment->amount;
+        if ($amount <= 0) {
+            return;
+        }
+
+        $bankGlAccountId = null;
+        if (!empty($payment->bank_account_id)) {
+            $bankAccount = BankAccount::find($payment->bank_account_id);
+            $bankGlAccountId = $bankAccount?->gl_account_id;
+        }
+        if (!$bankGlAccountId) {
+            $bankGlAccountId = Account::where('AccCode', 'like', '1.1%')->where('AccType', 1)->value('AccID');
+        }
+
+        $customer = Customer::find($payment->customer_id);
+        $arAccountId = $customer?->account_id;
+        if (!$arAccountId) {
+            $arAccountId = Account::where('AccCode', 'like', '1.2%')->where('AccType', 1)->value('AccID');
+        }
+
+        if (!$bankGlAccountId || !$arAccountId) {
+            return; // Accounts not configured
+        }
+
+        $entryCode = $this->generateNextEntryCode();
+        $reference = $payment->payment_number;
+
+        JournalEntry::create([
+            'entry_code' => $entryCode,
+            'entry_type' => 'CustomerReceipt',
+            'reference' => $reference,
+            'date' => $validated['payment_date'] ?? $payment->payment_date,
+            'description' => 'Customer Receipt ' . $reference,
+            'total_amount' => $amount,
+            'status' => 'Post',
+        ]);
+
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $bankGlAccountId,
+            'debit' => $amount,
+            'credit' => 0,
+            'related_id_name' => 'CustomerReceipt',
+            'related_name_details' => $reference,
+            'description' => 'Cash/Bank received - ' . $reference,
+        ]);
+
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $arAccountId,
+            'debit' => 0,
+            'credit' => $amount,
+            'related_id_name' => 'CustomerReceipt',
+            'related_name_details' => $reference,
+            'description' => 'AR reduction - ' . $reference,
+        ]);
+    }
+
+    private function deleteJournalEntryForPayment(CustomerPayment $payment): void
+    {
+        $header = JournalEntry::where('reference', $payment->payment_number)
+            ->where('entry_type', 'CustomerReceipt')
+            ->first();
+        if ($header) {
+            JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
+            $header->delete();
+        }
+    }
+
+    protected function generateNextEntryCode(): string
+    {
+        $lastCode = JournalEntry::whereNotNull('entry_code')
+            ->where('entry_code', '!=', '')
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->value('entry_code');
+
+        $nextNumber = 10001;
+        if ($lastCode && preg_match('/(\d+)$/', $lastCode, $matches)) {
+            $nextNumber = (int) $matches[1] + 1;
+        }
+
+        return 'QID-' . $nextNumber;
     }
 }

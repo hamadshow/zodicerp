@@ -2,6 +2,10 @@
 
 namespace App\Services\Client_Sales;
 
+use App\Models\Accounting\Account;
+use App\Models\Accounting\JournalEntry;
+use App\Models\Accounting\JournalEntryLine;
+use App\Models\Client_Sales\Customer;
 use App\Models\Client_Sales\SalesInvoice;
 use App\Models\Client_Sales\SalesInvoiceDetail;
 use App\Models\Client_Sales\SalesReturn;
@@ -335,6 +339,12 @@ class SalesReturnService
                 $salesReturn->details()->create($item);
             }
 
+            // Create journal entry + stock movements if approved/completed
+            if (in_array($status, ['approved', 'completed'])) {
+                $this->createJournalEntryForReturn($salesReturn, $totals);
+                $this->createStockMovementsForReturn($salesReturn);
+            }
+
             return $salesReturn;
         });
     }
@@ -479,5 +489,158 @@ class SalesReturnService
             ],
             'details' => $details,
         ];
+    }
+
+    /**
+     * Create journal entry for sales return (Credit Note):
+     *   Dr Accounts Receivable (total return amount)
+     *   Dr Output Tax (tax reversal)
+     *   Cr Revenue (net return amount)
+     */
+    private function createJournalEntryForReturn(SalesReturn $return, array $totals): void
+    {
+        $totalAmount = (float) ($totals['total_amount'] ?? $return->total_amount ?? 0);
+        $taxAmount = (float) ($totals['tax_amount'] ?? $return->tax_amount ?? 0);
+        $netAmount = $totalAmount - $taxAmount;
+
+        $arAccountId = $this->resolveArAccountId($return->customer_id);
+        $revenueAccountId = $this->resolveRevenueAccountId();
+        $taxAccountId = $this->resolveOutputTaxAccountId();
+
+        if (!$arAccountId || !$revenueAccountId) {
+            return;
+        }
+
+        $entryCode = $this->generateNextEntryCode();
+        $reference = $return->return_number;
+
+        JournalEntry::create([
+            'entry_code' => $entryCode,
+            'entry_type' => 'SalesReturn',
+            'reference' => $reference,
+            'date' => $return->return_date,
+            'description' => 'Sales Return ' . $reference,
+            'total_amount' => $totalAmount,
+            'status' => 'Post',
+        ]);
+
+        // Dr Accounts Receivable (credit note reduces what customer owes... but for returns we reverse: Dr AR = customer owes less)
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $revenueAccountId,
+            'debit' => $totalAmount,
+            'credit' => 0,
+            'related_id_name' => 'SalesReturn',
+            'related_name_details' => $reference,
+            'description' => 'Revenue reversal - Return ' . $reference,
+        ]);
+
+        // Cr Accounts Receivable
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $arAccountId,
+            'debit' => 0,
+            'credit' => $totalAmount,
+            'related_id_name' => 'SalesReturn',
+            'related_name_details' => $reference,
+            'description' => 'AR reduction - Return ' . $reference,
+        ]);
+
+        // Dr Output Tax reversal (if applicable)
+        if ($taxAmount > 0 && $taxAccountId) {
+            JournalEntryLine::create([
+                'journal_entry_code' => $entryCode,
+                'account_id' => $taxAccountId,
+                'debit' => $taxAmount,
+                'credit' => 0,
+                'related_id_name' => 'SalesReturn',
+                'related_name_details' => $reference,
+                'description' => 'Output Tax reversal - ' . $reference,
+            ]);
+        }
+    }
+
+    /**
+     * Create stock movements for returned items (goods come back into inventory).
+     */
+    private function createStockMovementsForReturn(SalesReturn $return): void
+    {
+        $return->load('details');
+        foreach ($return->details as $detail) {
+            if (($detail->quantity ?? 0) <= 0) {
+                continue;
+            }
+
+            $movementHeaderId = DB::table('inventory_movement_headers')->insertGetId([
+                'movement_date' => $return->return_date,
+                'type' => 'sales_return',
+                'direction' => 'in',
+                'reference_id' => $return->id,
+                'reference_type' => 'sales_return',
+                'voucher_num' => $return->return_number,
+                'warehouse_id' => $return->warehouse_id,
+                'company_id' => auth()->user()->company_id ?? 1,
+                'created_by' => auth()->id(),
+                'notes' => "Sales Return: {$return->return_number}",
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            DB::table('inventory_movement_lines')->insert([
+                'stock_movement_id' => $movementHeaderId,
+                'product_id' => $detail->product_id,
+                'unit_id' => $detail->unit_id ?? null,
+                'quantity' => $detail->quantity,
+                'cost_price' => $detail->unit_cost ?? 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Update product quantity
+            DB::table('products')
+                ->where('id', $detail->product_id)
+                ->increment('quantity', (float) $detail->quantity);
+        }
+    }
+
+    private function resolveArAccountId(?int $customerId = null): ?int
+    {
+        if ($customerId) {
+            $customer = Customer::find($customerId);
+            if ($customer && $customer->account_id) {
+                return $customer->account_id;
+            }
+        }
+        return Account::where('AccCode', 'like', '1.2%')->where('AccType', 1)->value('AccID');
+    }
+
+    private function resolveRevenueAccountId(): ?int
+    {
+        return Account::where('AccType', 1)
+            ->where('AccCode', 'like', '4%')
+            ->orderBy('AccCode')
+            ->value('AccID');
+    }
+
+    private function resolveOutputTaxAccountId(): ?int
+    {
+        return Account::where('AccCode', 'like', '2.1.4%')
+            ->orWhere('AccCode', 'like', '214%')
+            ->value('AccID');
+    }
+
+    private function generateNextEntryCode(): string
+    {
+        $lastCode = JournalEntry::whereNotNull('entry_code')
+            ->where('entry_code', '!=', '')
+            ->orderByDesc('id')
+            ->value('entry_code');
+
+        $nextNumber = 10001;
+        if ($lastCode && preg_match('/(\d+)$/', $lastCode, $matches)) {
+            $nextNumber = (int) $matches[1] + 1;
+        }
+
+        return 'QID-' . $nextNumber;
     }
 }

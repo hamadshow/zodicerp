@@ -87,10 +87,15 @@ class GoodsReceiptService
                 'approved_by' => auth()->id(),
             ]);
 
-            // Create inventory movements for accepted items
+            // Create inventory movements and update product quantities for accepted items
             foreach ($receipt->details as $detail) {
                 if ($detail->is_accepted && $detail->accepted_quantity > 0) {
                     $this->createStockMovement($receipt, $detail);
+
+                    // Update product quantity
+                    DB::table('products')
+                        ->where('id', $detail->product_id)
+                        ->increment('quantity', (float) $detail->accepted_quantity);
                 }
             }
 

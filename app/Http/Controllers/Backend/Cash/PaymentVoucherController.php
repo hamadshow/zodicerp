@@ -3,7 +3,12 @@
 namespace App\Http\Controllers\Backend\Cash;
 
 use App\Http\Controllers\Controller;
+use App\Models\Accounting\Account;
+use App\Models\Accounting\JournalEntry;
+use App\Models\Accounting\JournalEntryLine;
+use App\Models\BankAccount;
 use App\Models\Vendor_Purchases\PurchaseInvoice;
+use App\Models\Vendor_Purchases\Supplier;
 use App\Models\Vendor_Purchases\SupplierPayment;
 use App\Models\Vendor_Purchases\SupplierPaymentAllocation;
 use Illuminate\Http\RedirectResponse;
@@ -24,31 +29,30 @@ class PaymentVoucherController extends Controller
             $invoiceIds = $this->syncAllocations($payment, $validated['allocations'] ?? []);
 
             $this->refreshInvoices($invoiceIds);
+            $this->createJournalEntryForPayment($payment, $validated);
         });
 
         return redirect()->back()->with('success', 'Payment voucher created successfully.');
-    }
-
-    public function update(Request $request, SupplierPayment $voucher): RedirectResponse
+    }    public function update(Request $request, SupplierPayment $voucher): RedirectResponse
     {
         $payload = $this->normalizePayload($request);
         $validated = $this->validatePayload($request, $payload, $voucher);
 
         DB::transaction(function () use ($voucher, $validated) {
+            $this->deleteJournalEntryForPayment($voucher);
             $previousInvoiceIds = $voucher->allocations()->pluck('invoice_id')->filter()->all();
 
             $voucher->update($this->paymentData($validated, false));
             $newInvoiceIds = $this->syncAllocations($voucher, $validated['allocations'] ?? []);
-
             $this->refreshInvoices(array_unique(array_merge($previousInvoiceIds, $newInvoiceIds)));
+            $this->createJournalEntryForPayment($voucher->fresh(), $validated);
         });
 
         return redirect()->back()->with('success', 'Payment voucher updated successfully.');
-    }
-
-    public function destroy(SupplierPayment $voucher): RedirectResponse
+    }    public function destroy(SupplierPayment $voucher): RedirectResponse
     {
         DB::transaction(function () use ($voucher) {
+            $this->deleteJournalEntryForPayment($voucher);
             $invoiceIds = $voucher->allocations()->pluck('invoice_id')->filter()->all();
 
             $voucher->allocations()->delete();
@@ -330,5 +334,100 @@ class PaymentVoucherController extends Controller
         } while (SupplierPayment::query()->where('payment_number', $number)->exists());
 
         return $number;
+    }
+
+    /**
+     * Create journal entry for supplier payment:
+     *   Dr Accounts Payable (from supplier.account_id or default)
+     *   Cr Cash/Bank (from bank_account.gl_account_id)
+     */
+    private function createJournalEntryForPayment(SupplierPayment $payment, array $validated): void
+    {
+        $amount = (float) $payment->amount;
+        if ($amount <= 0) {
+            return;
+        }
+
+        $apAccountId = null;
+        if ($payment->supplier_id) {
+            $supplier = Supplier::find($payment->supplier_id);
+            $apAccountId = $supplier?->account_id;
+        }
+        if (!$apAccountId) {
+            $apAccountId = Account::where('AccCode', 'like', '2%')->where('AccType', 1)->value('AccID');
+        }
+
+        $bankGlAccountId = null;
+        if (!empty($payment->bank_account_id)) {
+            $bankAccount = BankAccount::find($payment->bank_account_id);
+            $bankGlAccountId = $bankAccount?->gl_account_id;
+        }
+        if (!$bankGlAccountId) {
+            $bankGlAccountId = Account::where('AccCode', 'like', '1.1%')->where('AccType', 1)->value('AccID');
+        }
+
+        if (!$apAccountId || !$bankGlAccountId) {
+            return;
+        }
+
+        $entryCode = $this->generateNextEntryCode();
+        $reference = $payment->payment_number;
+
+        JournalEntry::create([
+            'entry_code' => $entryCode,
+            'entry_type' => 'SupplierPayment',
+            'reference' => $reference,
+            'date' => $validated['payment_date'] ?? $payment->payment_date,
+            'description' => 'Supplier Payment ' . $reference,
+            'total_amount' => $amount,
+            'status' => 'Post',
+        ]);
+
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $apAccountId,
+            'debit' => $amount,
+            'credit' => 0,
+            'related_id_name' => 'SupplierPayment',
+            'related_name_details' => $reference,
+            'description' => 'AP reduction - ' . $reference,
+        ]);
+
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $bankGlAccountId,
+            'debit' => 0,
+            'credit' => $amount,
+            'related_id_name' => 'SupplierPayment',
+            'related_name_details' => $reference,
+            'description' => 'Cash/Bank paid - ' . $reference,
+        ]);
+    }
+
+    private function deleteJournalEntryForPayment(SupplierPayment $payment): void
+    {
+        $header = JournalEntry::where('reference', $payment->payment_number)
+            ->where('entry_type', 'SupplierPayment')
+            ->first();
+        if ($header) {
+            JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
+            $header->delete();
+        }
+    }
+
+    protected function generateNextEntryCode(): string
+    {
+        $lastCode = JournalEntry::whereNotNull('entry_code')
+            ->where('entry_code', '!=', '')
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->value('entry_code');
+
+        $nextNumber = 10001;
+        if ($lastCode && preg_match('/(\d+)$/', $lastCode, $matches)) {
+            $nextNumber = (int) $matches[1] + 1;
+        }
+
+        return 'QID-' . $nextNumber;
     }
 }
