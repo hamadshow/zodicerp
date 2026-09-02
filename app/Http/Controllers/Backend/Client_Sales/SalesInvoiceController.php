@@ -434,13 +434,10 @@ class SalesInvoiceController extends Controller
 
     protected function generateNextEntryCode(): string
     {
-        $lastCode = JournalEntry::whereNotNull('entry_code')
-            ->where('entry_code', '!=', '')
-            ->orderByDesc('id')
-            ->lockForUpdate()
-            ->value('entry_code');
-
-        $nextNumber = $this->nextNumericPart($lastCode ?? '', $this->journalCodeStart);
+        $nextNumber = $this->journalCodeStart;
+        foreach (JournalEntry::whereNotNull('entry_code')->pluck('entry_code') as $entryCode) {
+            $nextNumber = max($nextNumber, (int) $this->nextNumericPart($entryCode, $this->journalCodeStart));
+        }
 
         return $this->journalCodePrefix.$nextNumber;
     }

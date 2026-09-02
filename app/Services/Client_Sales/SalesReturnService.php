@@ -666,14 +666,11 @@ class SalesReturnService
 
     private function generateNextEntryCode(): string
     {
-        $lastCode = JournalEntry::whereNotNull('entry_code')
-            ->where('entry_code', '!=', '')
-            ->orderByDesc('id')
-            ->value('entry_code');
-
         $nextNumber = 10001;
-        if ($lastCode && preg_match('/(\d+)$/', $lastCode, $matches)) {
-            $nextNumber = (int) $matches[1] + 1;
+        foreach (JournalEntry::whereNotNull('entry_code')->pluck('entry_code') as $entryCode) {
+            if (preg_match('/(\d+)$/', $entryCode, $matches)) {
+                $nextNumber = max($nextNumber, (int) $matches[1] + 1);
+            }
         }
 
         return 'QID-' . $nextNumber;

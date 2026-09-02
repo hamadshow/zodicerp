@@ -362,13 +362,10 @@ class JournalController extends Controller
         $prefix = $this->journalCodePrefix;
         $start = $this->journalCodeStart;
 
-        $lastCode = JournalEntry::whereNotNull('entry_code')
-            ->where('entry_code', '!=', '')
-            ->orderByDesc('id')
-            ->lockForUpdate()
-            ->value('entry_code');
-
-        $nextNumber = $this->nextNumericPart($lastCode ?? '', $start);
+        $nextNumber = $start;
+        foreach (JournalEntry::whereNotNull('entry_code')->pluck('entry_code') as $entryCode) {
+            $nextNumber = max($nextNumber, (int) $this->nextNumericPart($entryCode, $start));
+        }
 
         return $prefix.$nextNumber;
     }

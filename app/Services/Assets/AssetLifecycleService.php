@@ -565,9 +565,11 @@ class AssetLifecycleService
         if (!empty($asset->inventory_account_id)) {
             return $asset->inventory_account_id;
         }
-        // Look for fixed asset account by AccCode 121 (الأصول الثابثة)
-        return Account::where('AccCode', 121)
+        // Prefer the four-digit fixed-asset account used by the chart.
+        return Account::where('AccCode', 1210)
             ->value('AccID')
+            ?? Account::where('AccCode', 121)
+                ->value('AccID')
             ?? Account::where('AccCode', '>=', 1200)
                 ->where('AccCode', '<=', 1299)
                 ->orderBy('AccCode')
@@ -576,9 +578,11 @@ class AssetLifecycleService
 
     private function resolveCashAccountId(): ?int
     {
-        // Cash account: AccCode 111 (النقدية وما في حكمها)
-        return Account::where('AccCode', 111)
+        // Prefer the four-digit cash account used by the chart.
+        return Account::where('AccCode', 1001)
             ->value('AccID')
+            ?? Account::where('AccCode', 111)
+                ->value('AccID')
             ?? Account::where('AccCode', '>=', 1110)
                 ->where('AccCode', '<=', 1119)
                 ->orderBy('AccCode')
@@ -616,12 +620,11 @@ class AssetLifecycleService
 
     private function resolveAccumulatedDepreciationAccountId(): ?int
     {
-        // Accumulated Depreciation — use the fixed asset account as contra
-        // (no dedicated accumulated depreciation account in this chart)
-        return Account::where('AccCode', 121)
+        // Prefer the chart's dedicated accumulated-depreciation range.
+        return Account::where('AccCode', 1220)
             ->value('AccID')
-            ?? Account::where('AccCode', '>=', 1200)
-                ->where('AccCode', '<=', 1299)
+            ?? Account::where('AccCode', '>=', 1220)
+                ->where('AccCode', '<=', 1229)
                 ->orderBy('AccCode')
                 ->value('AccID');
     }

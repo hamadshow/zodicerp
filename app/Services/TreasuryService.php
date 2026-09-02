@@ -227,8 +227,10 @@ class TreasuryService
 
     protected function generateNextEntryCode(): string
     {
-        $lastCode = JournalEntry::orderByDesc('id')->value('entry_code');
-        $nextNumber = $this->nextNumericPart($lastCode, 10001);
+        $nextNumber = 10001;
+        foreach (JournalEntry::whereNotNull('entry_code')->pluck('entry_code') as $entryCode) {
+            $nextNumber = max($nextNumber, $this->nextNumericPart($entryCode, 10001));
+        }
         return 'QID-' . $nextNumber;
     }
 

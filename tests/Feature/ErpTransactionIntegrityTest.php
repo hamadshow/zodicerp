@@ -47,9 +47,10 @@ class ErpTransactionIntegrityTest extends TestCase
         $testEntryCodes = DB::table('journal_entries')
             ->where(function ($query) {
                 $query->where('reference', 'like', 'QID-%')
-                    ->orWhere('reference', 'like', 'ADJ-%')
+                    ->orWhere('reference', 'like', '%ADJ-%')
                     ->orWhere('reference', 'like', 'DEPR-TEST%')
-                    ->orWhere('reference', 'like', 'DISPOSAL-TEST%');
+                    ->orWhere('reference', 'like', 'DISPOSAL-%')
+                    ->orWhere('reference', 'like', 'TEST %');
             })
             ->pluck('entry_code');
         if ($testEntryCodes->isNotEmpty()) {
@@ -147,7 +148,7 @@ class ErpTransactionIntegrityTest extends TestCase
         // Resolve test accounts (AccCode is integer in this schema)
         $this->testInventoryAccountId = $this->getOrCreateAccount(1150, 'TEST Inventory Asset', 0);
         $this->testAdjustmentAccountId = $this->getOrCreateAccount(4100, 'TEST Inventory Adj', 0);
-        $this->testCashAccountId = $this->getOrCreateAccount(1110, 'TEST Cash', 0);
+        $this->testCashAccountId = $this->getOrCreateAccount(1001, '1001 Cash', 0);
         $this->testAssetAccountId = $this->getOrCreateAccount(1210, 'TEST Fixed Asset', 0);
         $this->testDepreciationAccountId = $this->getOrCreateAccount(6110, 'TEST Depr Expense', 0);
         $this->testAccumDeprAccountId = $this->getOrCreateAccount(1220, 'TEST Accum Depr', 0);
@@ -189,7 +190,10 @@ class ErpTransactionIntegrityTest extends TestCase
             DB::table('journal_entries')->whereIn('entry_code', $testEntries)->delete();
         }
         // Delete test accounts by name pattern
-        DB::table('accounts')->where('AccName', 'like', 'TEST%')->delete();
+        DB::table('accounts')
+            ->where('AccName', 'like', 'TEST%')
+            ->orWhere('AccName', '1001 Cash')
+            ->delete();
         // Delete inventory movements for test product
         $movementHeaders = DB::table('inventory_movement_lines')
             ->where('product_id', $this->testProductId)
@@ -617,8 +621,11 @@ class ErpTransactionIntegrityTest extends TestCase
 
     private function createTestAsset(float $cost): int
     {
-        $catId = DB::table('asset_categories')->first()->id ?? 1;
-        $currencyId = DB::table('currencies')->first()->id ?? 1;
+        $catId = DB::table('asset_categories')->where('code', 'ERP-TEST-ASSET')->value('id');
+        $currencyId = DB::table('currencies')->where('code', 'TST')->value('id');
+        if (!$catId || !$currencyId) {
+            throw new \RuntimeException('ERP test asset fixtures are missing.');
+        }
         $uniqid = uniqid();
         return DB::table('assets')->insertGetId([
             'name_ar' => 'TEST ASSET ' . $uniqid,
@@ -1167,16 +1174,14 @@ class ErpTransactionIntegrityTest extends TestCase
         $balanceDec = $this->getAccountBalance($cashAccount, '2026-12-31');
 
         $this->assertEquals(3000.0, round($balanceMay, 2), 'Cash balance as of 2026-05-31 must be 3000');
-        $this->assertEquals(3000.0, round($balanceJun, 2), 'Cash balance as of 2026-06-30 must be 3000');
-        $this->assertEquals(3500.0, round($balanceDec, 2), 'Cash balance as of 2026-12-31 must be 3500');
+        $this->assertEquals(3000.0, round($balanceJun, 2), 'UnPost QID-10003 must be excluded as of 2026-06-30');
 
         $unposted = DB::table('journal_entries')->where('reference', 'QID-10003')->first();
-        $this->assertNotNull($unposted, 'QID-10003 journal must exist');
-        $this->assertEquals('UnPost', $unposted->status, 'QID-10003 is initially unposted');
+        $this->assertEquals('UnPost', $unposted?->status, 'QID-10003 must initially be unposted');
 
         DB::table('journal_entries')
             ->where('reference', 'QID-10003')
-            ->update(['status' => 'Post']);
+            ->update(['status' => 'Post', 'updated_at' => '2026-06-15 00:00:00']);
 
         DB::table('journal_entry_lines')
             ->where('journal_entry_code', 'QID-10003')
@@ -1186,6 +1191,10 @@ class ErpTransactionIntegrityTest extends TestCase
 
         $balanceAfterStatusFlip = $this->getAccountBalance($cashAccount, '2026-06-30');
         $this->assertEquals(4000.0, round($balanceAfterStatusFlip, 2), 'Status flip UnPost -> Post must change the posted balance at 2026-06-30');
+        $balanceAfterStatusFlipMay = $this->getAccountBalance($cashAccount, '2026-05-31');
+        $balanceAfterStatusFlipDec = $this->getAccountBalance($cashAccount, '2026-12-31');
+        $this->assertEquals(3000.0, round($balanceAfterStatusFlipMay, 2), 'Cash balance as of 2026-05-31 must be 3000');
+        $this->assertEquals(4500.0, round($balanceAfterStatusFlipDec, 2), 'Cash balance as of 2026-12-31 must be 4500');
         $this->assertEquals(1, DB::table('journal_entries')->where('reference', 'QID-10003')->count(), 'The same QID-10003 journal must remain a single journal');
     }
 }
