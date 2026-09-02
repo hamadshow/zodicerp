@@ -46,6 +46,11 @@ export default function BalanceSheetComparison() {
     }).format(num);
   };
 
+  const formatPercentage = (current, previous) => {
+    if (!previous) return 'N/A';
+    return `${((current - previous) / Math.abs(previous) * 100).toFixed(1)}%`;
+  };
+
   const t = {
     ar: {
       title: 'مقارنة الميزانية العمومية',
@@ -320,7 +325,7 @@ export default function BalanceSheetComparison() {
                     <td className="py-3 px-4 text-right text-indigo-200">{formatNumber(data.comparison.total_assets)}</td>
                     <td className="py-3 px-4 text-right">{(data.main.total_assets - data.comparison.total_assets) >= 0 ? '+' : ''}{formatNumber(data.main.total_assets - data.comparison.total_assets)}</td>
                     <td className="py-3 px-4 text-right text-xs">
-                      {data.comparison.total_assets !== 0 ? ((data.main.total_assets - data.comparison.total_assets) / Math.abs(data.comparison.total_assets) * 100).toFixed(1) : '100'}%
+                      {formatPercentage(data.main.total_assets, data.comparison.total_assets)}
                     </td>
                   </tr>
 
@@ -333,7 +338,7 @@ export default function BalanceSheetComparison() {
                     <td className="py-3 px-4 text-right text-gray-500">{formatNumber(data.comparison.total_liabilities)}</td>
                     <td className="py-3 px-4 text-right">{formatNumber(data.main.total_liabilities - data.comparison.total_liabilities)}</td>
                     <td className="py-3 px-4 text-right text-xs">
-                      {data.comparison.total_liabilities !== 0 ? ((data.main.total_liabilities - data.comparison.total_liabilities) / Math.abs(data.comparison.total_liabilities) * 100).toFixed(1) : '0'}%
+                      {formatPercentage(data.main.total_liabilities, data.comparison.total_liabilities)}
                     </td>
                   </tr>
 
@@ -346,7 +351,7 @@ export default function BalanceSheetComparison() {
                     <td className="py-3 px-4 text-right text-gray-500">{formatNumber(data.comparison.total_equity)}</td>
                     <td className="py-3 px-4 text-right">{formatNumber(data.main.total_equity - data.comparison.total_equity)}</td>
                     <td className="py-3 px-4 text-right text-xs">
-                      {data.comparison.total_equity !== 0 ? ((data.main.total_equity - data.comparison.total_equity) / Math.abs(data.comparison.total_equity) * 100).toFixed(1) : '0'}%
+                      {formatPercentage(data.main.total_equity, data.comparison.total_equity)}
                     </td>
                   </tr>
 
@@ -356,7 +361,7 @@ export default function BalanceSheetComparison() {
                     <td className="py-4 px-4 text-right text-gray-400">{formatNumber(data.comparison.total_liabilities + data.comparison.total_equity)}</td>
                     <td className="py-4 px-4 text-right">{formatNumber(totalMainLE - (data.comparison.total_liabilities + data.comparison.total_equity))}</td>
                     <td className="py-4 px-4 text-right text-sm">
-                      {(data.comparison.total_liabilities + data.comparison.total_equity) !== 0 ? ((totalMainLE - (data.comparison.total_liabilities + data.comparison.total_equity)) / Math.abs(data.comparison.total_liabilities + data.comparison.total_equity) * 100).toFixed(1) : '0'}%
+                      {formatPercentage(totalMainLE, data.comparison.total_liabilities + data.comparison.total_equity)}
                     </td>
                   </tr>
                 </tbody>

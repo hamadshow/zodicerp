@@ -16,6 +16,13 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class FinancialReportController extends Controller
 {
+    private const POSTED_STATUSES = ['Post', 'posted'];
+
+    private function postedJournalQuery($query, string $alias = 'e')
+    {
+        return $query->whereIn("{$alias}.status", self::POSTED_STATUSES);
+    }
+
     public function index(): Response
     {
         return Inertia::render('Backend/07-Accounting/FinancialReports');
@@ -33,7 +40,9 @@ class FinancialReportController extends Controller
         $hasCompanyColumn = Schema::hasColumn('financial_reports', 'company_id');
         $hasFavoriteCompanyColumn = Schema::hasColumn('user_favorite_reports', 'company_id');
 
-        $reportsQuery = FinancialReport::query()->where('is_active', true);
+        $reportsQuery = FinancialReport::query()
+            ->where('is_active', true)
+            ->where('route_name', '!=', '#');
 
         if ($hasCompanyColumn && $companyId) {
             $reportsQuery->where(function ($q) use ($companyId) {
@@ -300,6 +309,9 @@ class FinancialReportController extends Controller
         $compareDate = $request->query('compare_date');
         $compareToOpening = $request->query('compare_to_opening') === 'true';
 
+        // The journal model supports accrual reporting only; there is no settlement
+        // dimension to calculate a genuine cash-basis balance sheet.
+
         // Get data for the main date
         $data = $this->fetchBalanceSheetData($companyId, $asOfDate);
 
@@ -333,12 +345,10 @@ class FinancialReportController extends Controller
 
         // 2. Calculate balances from journal_entry_lines (source of truth)
         //    Filter: posted journals only, date <= $date
-        $statusPostedValues = ['Post', 'Posted'];
-
         $activity = DB::table('journal_entry_lines as l')
             ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
             ->where('e.company_id', $companyId)
-            ->whereIn('e.status', $statusPostedValues)
+            ->whereIn('e.status', self::POSTED_STATUSES)
             ->where('e.date', '<=', $date)
             ->select(
                 'l.account_id',
@@ -439,16 +449,10 @@ class FinancialReportController extends Controller
         $startDate = $request->query('start_date', now()->startOfYear()->toDateString());
         $endDate = $request->query('end_date', now()->toDateString());
 
-        // For now, return standard P&L data as a base
-        $data = $this->fetchProfitLossData($companyId, $startDate, $endDate);
-
         return response()->json([
-            'main' => $data,
-            'period' => [
-                'start' => $startDate,
-                'end' => $endDate,
-            ],
-        ]);
+            'message' => 'Profit & Loss by Class is unavailable because journal entries have no class dimension.',
+            'period' => ['start' => $startDate, 'end' => $endDate],
+        ], 501);
     }
 
     public function getProfitLossByCustomerData(Request $request): JsonResponse
@@ -461,15 +465,10 @@ class FinancialReportController extends Controller
         $startDate = $request->query('start_date', now()->startOfYear()->toDateString());
         $endDate = $request->query('end_date', now()->toDateString());
 
-        $data = $this->fetchProfitLossData($companyId, $startDate, $endDate);
-
         return response()->json([
-            'main' => $data,
-            'period' => [
-                'start' => $startDate,
-                'end' => $endDate,
-            ],
-        ]);
+            'message' => 'Profit & Loss by Customer is unavailable because journal entries have no customer attribution.',
+            'period' => ['start' => $startDate, 'end' => $endDate],
+        ], 501);
     }
 
     public function getProfitLossByMonthData(Request $request): JsonResponse
@@ -483,9 +482,20 @@ class FinancialReportController extends Controller
         $endDate = $request->query('end_date', now()->toDateString());
 
         $data = $this->fetchProfitLossData($companyId, $startDate, $endDate);
+        $months = [];
+        $cursor = new \DateTimeImmutable(substr($startDate, 0, 7) . '-01');
+        $lastMonth = new \DateTimeImmutable(substr($endDate, 0, 7) . '-01');
+        while ($cursor <= $lastMonth) {
+            $monthStart = $cursor->format('Y-m-01');
+            $monthEnd = min($endDate, $cursor->format('Y-m-t'));
+            $months[$cursor->format('Y-m')] = $this->fetchProfitLossData($companyId, $monthStart, $monthEnd);
+            $cursor = $cursor->modify('+1 month');
+        }
+        $data['months'] = $months;
 
         return response()->json([
             'main' => $data,
+            'months' => $months,
             'period' => [
                 'start' => $startDate,
                 'end' => $endDate,
@@ -512,9 +522,23 @@ class FinancialReportController extends Controller
             $comparisonData = $this->fetchProfitLossData($companyId, $compareStartDate, $compareEndDate);
         }
 
+        $variance = null;
+        if ($comparisonData) {
+            $variance = [
+                'total_income' => $data['total_income'] - $comparisonData['total_income'],
+                'total_cogs' => $data['total_cogs'] - $comparisonData['total_cogs'],
+                'total_expenses' => $data['total_expenses'] - $comparisonData['total_expenses'],
+                'net_income' => $data['net_income'] - $comparisonData['net_income'],
+                'net_income_percentage' => $comparisonData['net_income'] == 0
+                    ? null
+                    : (($data['net_income'] - $comparisonData['net_income']) / abs($comparisonData['net_income'])) * 100,
+            ];
+        }
+
         return response()->json([
             'main' => $data,
             'comparison' => $comparisonData,
+            'variance' => $variance,
             'period' => [
                 'start' => $startDate,
                 'end' => $endDate,
@@ -537,6 +561,26 @@ class FinancialReportController extends Controller
         $endDate = $request->query('end_date', now()->toDateString());
 
         $data = $this->fetchProfitLossData($companyId, $startDate, $endDate);
+        $data['details'] = DB::table('journal_entry_lines as l')
+            ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
+            ->join('accounts as a', 'a.AccID', '=', 'l.account_id')
+            ->where('e.company_id', $companyId)
+            ->whereIn('e.status', self::POSTED_STATUSES)
+            ->whereBetween('e.date', [$startDate, $endDate])
+            ->where(function ($query) {
+                $query->where('a.AccCode', 'like', '4%')
+                    ->orWhere('a.AccCode', 'like', '5%')
+                    ->orWhere('a.AccCode', 'like', '6%');
+            })
+            ->orderBy('e.date')
+            ->orderBy('e.entry_code')
+            ->orderBy('l.id')
+            ->get([
+                'e.entry_code as journal_entry_code', 'e.date', 'e.reference',
+                'e.description as entry_description', 'l.id as journal_line_id',
+                'a.AccID', 'a.AccCode', 'a.AccName', 'l.debit', 'l.credit',
+                'l.description as line_description',
+            ]);
 
         return response()->json([
             'main' => $data,
@@ -560,57 +604,24 @@ class FinancialReportController extends Controller
         // 1. Get Cash Accounts (usually start with 11)
         $cashAccounts = DB::table('accounts')
             ->where('company_id', $companyId)
-            ->where('AccCode', 'like', '11%')
+            ->where(function ($query) {
+                $query->where('AccCode', 'like', '10%')->orWhere('AccCode', 'like', '11%');
+            })
             ->get();
 
         $cashAccountCodes = $cashAccounts->pluck('AccCode')->all();
         $cashAccountIds = $cashAccounts->pluck('AccID')->all();
         $allCashIds = array_unique(array_merge($cashAccountCodes, $cashAccountIds));
 
-        // 2. Calculate Beginning Cash (Balance as of $startDate)
-        $beginningCash = 0;
-        
-        // Sum opening balances from account_postings for the current fiscal year
-        $postings = DB::table('account_postings')
-            ->where('company_id', $companyId)
-            ->whereIn('account_id', $allCashIds)
-            ->where('period_start', '<=', $startDate)
-            ->orderBy('period_start', 'desc')
-            ->get()
-            ->groupBy('account_id');
-
-        foreach ($postings as $accountId => $accountPostings) {
-            $latestPosting = $accountPostings->first(); // Take the most recent period starting before $startDate
-            $beginningCash += (float)$latestPosting->opening_debit - (float)$latestPosting->opening_credit;
-            
-            // Add activity from period_start of this posting up to $startDate - 1 day
-            $activityBeforeStart = DB::table('journal_entry_lines as l')
-                ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
-                ->where('e.company_id', $companyId)
-                ->where('l.account_id', $accountId)
-                ->whereBetween('e.date', [$latestPosting->period_start, date('Y-m-d', strtotime($startDate . ' -1 day'))])
-                ->select(DB::raw('SUM(l.debit) as debit'), DB::raw('SUM(l.credit) as credit'))
-                ->first();
-                
-            if ($activityBeforeStart) {
-                $beginningCash += (float)$activityBeforeStart->debit - (float)$activityBeforeStart->credit;
-            }
-        }
-
-        // If no postings found, try to calculate from all journal entries before $startDate
-        if ($postings->isEmpty()) {
-            $allActivityBeforeStart = DB::table('journal_entry_lines as l')
-                ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
-                ->where('e.company_id', $companyId)
-                ->whereIn('l.account_id', $allCashIds)
-                ->where('e.date', '<', $startDate)
-                ->select(DB::raw('SUM(l.debit) as debit'), DB::raw('SUM(l.credit) as credit'))
-                ->first();
-                
-            if ($allActivityBeforeStart) {
-                $beginningCash += (float)$allActivityBeforeStart->debit - (float)$allActivityBeforeStart->credit;
-            }
-        }
+        // Beginning cash is calculated only from authoritative posted journal lines.
+        $beginningCash = (float) (DB::table('journal_entry_lines as l')
+            ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
+            ->where('e.company_id', $companyId)
+            ->whereIn('e.status', self::POSTED_STATUSES)
+            ->whereIn('l.account_id', $allCashIds)
+            ->where('e.date', '<', $startDate)
+            ->selectRaw('COALESCE(SUM(l.debit - l.credit), 0) as balance')
+            ->value('balance'));
 
         // 3. Calculate Net Income for the period (Revenue - Expenses)
         // Usually accounts starting with 4 (Revenue) and 5, 6 (Expenses)
@@ -618,6 +629,7 @@ class FinancialReportController extends Controller
             ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
             ->join('accounts as a', 'a.AccID', '=', 'l.account_id')
             ->where('e.company_id', $companyId)
+            ->whereIn('e.status', self::POSTED_STATUSES)
             ->whereBetween('e.date', [$startDate, $endDate])
             ->where('a.AccCode', 'like', '4%')
             ->select(DB::raw('SUM(l.credit - l.debit) as total'))
@@ -627,6 +639,7 @@ class FinancialReportController extends Controller
             ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
             ->join('accounts as a', 'a.AccID', '=', 'l.account_id')
             ->where('e.company_id', $companyId)
+            ->whereIn('e.status', self::POSTED_STATUSES)
             ->whereBetween('e.date', [$startDate, $endDate])
             ->where(function($q) {
                 $q->where('a.AccCode', 'like', '5%')
@@ -644,6 +657,7 @@ class FinancialReportController extends Controller
         
         $allOtherAccounts = DB::table('accounts')
             ->where('company_id', $companyId)
+            ->where('AccCode', 'not like', '10%')
             ->where('AccCode', 'not like', '11%') // Not cash
             ->where(function($q) {
                 $q->where('AccCode', 'like', '1%') // Assets
@@ -658,6 +672,7 @@ class FinancialReportController extends Controller
             $periodActivity = DB::table('journal_entry_lines as l')
                 ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
                 ->where('e.company_id', $companyId)
+                ->whereIn('e.status', self::POSTED_STATUSES)
                 ->where('l.account_id', $acc->AccID)
                 ->whereBetween('e.date', [$startDate, $endDate])
                 ->select(DB::raw('SUM(l.debit) as debit'), DB::raw('SUM(l.credit) as credit'))
@@ -735,7 +750,8 @@ class FinancialReportController extends Controller
         // 2. Get balances from journal entries for the period
         $activity = DB::table('journal_entry_lines as l')
             ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
-            ->where('e.company_id', $companyId)
+                ->where('e.company_id', $companyId)
+                ->whereIn('e.status', self::POSTED_STATUSES)
             ->whereBetween('e.date', [$startDate, $endDate])
             ->select(
                 'l.account_id',
@@ -869,23 +885,26 @@ class FinancialReportController extends Controller
             ->get(['AccID', 'AccCode', 'AccName', 'AccType', 'AccParent', 'AccDmType']);
 
         // 2. Get balances from account_postings table (Summary table)
-        $postings = DB::table('account_postings')
-            ->where('company_id', $companyId)
-            ->get();
-            
-        // Key by account_id (which could be AccID or AccCode)
-        $postingsById = $postings->keyBy('account_id');
+        $asOfDate = $request->query('as_of_date', $request->query('date', now()->toDateString()));
+        $startDate = $request->query('start_date', date('Y-01-01', strtotime($asOfDate)));
 
-        // 3. Prepare account data with their own balances
+        $activity = DB::table('journal_entry_lines as l')
+            ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
+            ->where('e.company_id', $companyId)
+            ->whereIn('e.status', self::POSTED_STATUSES)
+            ->where('e.date', '<=', $asOfDate)
+            ->select('l.account_id', DB::raw('SUM(CASE WHEN e.date < ? THEN l.debit ELSE 0 END) as beginning_debit'), DB::raw('SUM(CASE WHEN e.date < ? THEN l.credit ELSE 0 END) as beginning_credit'), DB::raw('SUM(CASE WHEN e.date >= ? THEN l.debit ELSE 0 END) as current_debit'), DB::raw('SUM(CASE WHEN e.date >= ? THEN l.credit ELSE 0 END) as current_credit'))
+            ->addBinding([$startDate, $startDate, $startDate, $startDate], 'select')
+            ->groupBy('l.account_id')
+            ->get()
+            ->keyBy('account_id');
+
+        // 3. Prepare account data from authoritative journal activity
         $accountData = [];
         foreach ($accounts as $account) {
             $id = $account->AccID;
             $code = $account->AccCode;
-            
-            // Get all postings that match either AccID or AccCode (to handle inconsistencies)
-            $matchPostings = $postings->filter(function($p) use ($id, $code) {
-                return $p->account_id == $id || $p->account_id == $code;
-            });
+            $activityRow = $activity->get($id) ?? $activity->get($code);
             
             $accountData[$code] = [ // Key by AccCode for tree building
                 'AccID' => $account->AccID,
@@ -893,10 +912,10 @@ class FinancialReportController extends Controller
                 'AccName' => $account->AccName,
                 'AccType' => (int)$account->AccType,
                 'AccParent' => $account->AccParent,
-                'beginning_debit' => (float)$matchPostings->sum('opening_debit'),
-                'beginning_credit' => (float)$matchPostings->sum('opening_credit'),
-                'current_debit' => (float)$matchPostings->sum('current_debit'),
-                'current_credit' => (float)$matchPostings->sum('current_credit'),
+                'beginning_debit' => (float)($activityRow?->beginning_debit ?? 0),
+                'beginning_credit' => (float)($activityRow?->beginning_credit ?? 0),
+                'current_debit' => (float)($activityRow?->current_debit ?? 0),
+                'current_credit' => (float)($activityRow?->current_credit ?? 0),
             ];
         }
 
@@ -1049,8 +1068,6 @@ class FinancialReportController extends Controller
         }
 
         $nature = (int) ($account->AccDmType ?? 0);
-        $statusPostedValues = ['Post', 'Posted'];
-
         $applyAccountFilter = function ($query) use ($account) {
             $query->where(function ($q) use ($account) {
                 $q->where('b.account_id', $account->AccID)
@@ -1058,11 +1075,11 @@ class FinancialReportController extends Controller
             });
         };
 
-        $applyStatusFilter = function ($query) use ($status, $statusPostedValues) {
+        $applyStatusFilter = function ($query) use ($status) {
             if ($status === 'posted') {
-                $query->whereIn('h.status', $statusPostedValues);
+                $query->whereIn('h.status', self::POSTED_STATUSES);
             } elseif ($status === 'unposted') {
-                $query->whereNotIn('h.status', $statusPostedValues);
+                $query->whereNotIn('h.status', self::POSTED_STATUSES);
             }
         };
 

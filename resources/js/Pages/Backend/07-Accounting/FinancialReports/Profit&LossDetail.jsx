@@ -232,6 +232,39 @@ export default function ProfitLossDetail() {
             </div>
 
             <div className="report-body p-8">
+              {data.details && (
+                <section className="mb-12 overflow-x-auto">
+                  <h4 className="section-header-pill bg-blue-50 text-blue-700 px-4 py-2 rounded-full inline-block font-bold mb-4">
+                    {currentLang.title}
+                  </h4>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b-2 border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
+                        <th className="text-left py-3">Journal</th>
+                        <th className="text-left py-3">Date</th>
+                        <th className="text-left py-3">Reference</th>
+                        <th className="text-left py-3">Account</th>
+                        <th className="text-right py-3">Debit</th>
+                        <th className="text-right py-3">Credit</th>
+                        <th className="text-left py-3">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {data.details.map((detail) => (
+                        <tr key={detail.journal_line_id}>
+                          <td className="py-2 font-mono">{detail.journal_entry_code}</td>
+                          <td className="py-2">{detail.date}</td>
+                          <td className="py-2">{detail.reference || '-'}</td>
+                          <td className="py-2">{detail.AccCode} - {detail.AccName}</td>
+                          <td className="py-2 text-right">{formatNumber(detail.debit)}</td>
+                          <td className="py-2 text-right">{formatNumber(detail.credit)}</td>
+                          <td className="py-2">{detail.line_description || detail.entry_description || '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </section>
+              )}
               <div className="space-y-12">
                 {/* Income Section */}
                 <div>

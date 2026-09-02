@@ -234,6 +234,35 @@ export default function ProfitLossByMonth() {
             </div>
 
             <div className="report-body p-8">
+              {data.months && (
+                <section className="mb-12">
+                  <h4 className="section-header-pill bg-blue-50 text-blue-700 px-4 py-2 rounded-full inline-block font-bold mb-4">
+                    {currentLang.month}
+                  </h4>
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b-2 border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
+                        <th className="text-left py-3 font-semibold">{currentLang.month}</th>
+                        <th className="text-right py-3 font-semibold">{currentLang.totalIncome}</th>
+                        <th className="text-right py-3 font-semibold">{currentLang.totalCogs}</th>
+                        <th className="text-right py-3 font-semibold">{currentLang.totalExpenses}</th>
+                        <th className="text-right py-3 font-semibold">{currentLang.netIncome}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {Object.entries(data.months).map(([month, monthData]) => (
+                        <tr key={month}>
+                          <td className="py-3 font-mono">{month}</td>
+                          <td className="py-3 text-right">{formatNumber(monthData.total_income)}</td>
+                          <td className="py-3 text-right">{formatNumber(monthData.total_cogs)}</td>
+                          <td className="py-3 text-right">{formatNumber(monthData.total_expenses)}</td>
+                          <td className="py-3 text-right font-bold">{formatNumber(monthData.net_income)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </section>
+              )}
               <div className="space-y-12">
                 {/* Income Section */}
                 <div>

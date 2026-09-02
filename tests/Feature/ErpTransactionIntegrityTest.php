@@ -50,7 +50,8 @@ class ErpTransactionIntegrityTest extends TestCase
                     ->orWhere('reference', 'like', '%ADJ-%')
                     ->orWhere('reference', 'like', 'DEPR-TEST%')
                     ->orWhere('reference', 'like', 'DISPOSAL-%')
-                    ->orWhere('reference', 'like', 'TEST %');
+                    ->orWhere('reference', 'like', 'TEST %')
+                    ->orWhere('reference', 'like', 'REPORT-TEST%');
             })
             ->pluck('entry_code');
         if ($testEntryCodes->isNotEmpty()) {
@@ -184,6 +185,7 @@ class ErpTransactionIntegrityTest extends TestCase
             ->orWhere('reference', 'like', '%DEPR-TEST%')
             ->orWhere('reference', 'like', '%DISPOSAL-TEST%')
             ->orWhere('reference', 'like', 'QID-%')
+            ->orWhere('reference', 'like', 'REPORT-TEST%')
             ->pluck('entry_code');
         if ($testEntries->isNotEmpty()) {
             DB::table('journal_entry_lines')->whereIn('journal_entry_code', $testEntries)->delete();
@@ -1196,5 +1198,86 @@ class ErpTransactionIntegrityTest extends TestCase
         $this->assertEquals(3000.0, round($balanceAfterStatusFlipMay, 2), 'Cash balance as of 2026-05-31 must be 3000');
         $this->assertEquals(4500.0, round($balanceAfterStatusFlipDec, 2), 'Cash balance as of 2026-12-31 must be 4500');
         $this->assertEquals(1, DB::table('journal_entries')->where('reference', 'QID-10003')->count(), 'The same QID-10003 journal must remain a single journal');
+    }
+
+    /** @test */
+    public function financial_reports_use_posted_authoritative_date_scoped_data()
+    {
+        $this->actingAsTestUser();
+
+        $incomeAccount = $this->getOrCreateAccount(4310, 'REPORT-TEST Income', 0);
+        $expenseAccount = $this->getOrCreateAccount(6310, 'REPORT-TEST Expense', 0);
+        $assetAccount = $this->testInventoryAccountId;
+        $this->insertReportJournal('REPORT-TEST-JAN', '2026-01-15', 'Post', $incomeAccount, 1000);
+        $this->insertReportJournal('REPORT-TEST-MAR', '2026-03-15', 'Post', $expenseAccount, 200);
+        $this->insertReportJournal('REPORT-TEST-UNPOSTED', '2026-04-15', 'UnPost', $incomeAccount, 500);
+        $this->insertReportJournal('REPORT-TEST-FUTURE', '2026-12-15', 'Post', $incomeAccount, 700);
+        $this->insertReportJournal('REPORT-TEST-ASSET-FUTURE', '2026-12-20', 'Post', $assetAccount, 900);
+
+        $profitLoss = $this->getJson('/api/reports/profit-loss?start_date=2026-01-01&end_date=2026-06-30')->assertOk()->json('main');
+        $this->assertEquals(1000.0, $profitLoss['total_income']);
+        $this->assertEquals(200.0, $profitLoss['total_expenses']);
+        $this->assertEquals(800.0, $profitLoss['net_income']);
+
+        $detail = $this->getJson('/api/reports/profit-loss-detail?start_date=2026-01-01&end_date=2026-06-30')->assertOk()->json('main.details');
+        $this->assertCount(2, $detail);
+        $this->assertSame('REPORT-TEST-JAN', $detail[0]['journal_entry_code']);
+
+        $monthly = $this->getJson('/api/reports/profit-loss-month?start_date=2026-01-01&end_date=2026-06-30')->assertOk()->json('months');
+        $this->assertEquals(1000.0, $monthly['2026-01']['total_income']);
+        $this->assertEquals(200.0, $monthly['2026-03']['total_expenses']);
+
+        $comparison = $this->getJson('/api/reports/profit-loss-comparison?start_date=2026-01-01&end_date=2026-03-31&compare_start_date=2026-04-01&compare_end_date=2026-06-30')->assertOk()->json();
+        $this->assertEquals(1000.0, $comparison['main']['total_income']);
+        $this->assertEquals(0.0, $comparison['comparison']['total_income']);
+        $this->assertNull($comparison['variance']['net_income_percentage']);
+
+        $trialBalance = $this->getJson('/api/reports/trial-balance?start_date=2026-01-01&as_of_date=2026-06-30')->assertOk()->json();
+        $incomeRow = collect($trialBalance)->firstWhere('AccID', $incomeAccount);
+        $this->assertNotNull($incomeRow);
+        $this->assertEquals(1000.0, $incomeRow['current_credit']);
+
+        $balanceSheet = $this->getJson('/api/reports/balance-sheet?date=2026-06-30')->assertOk()->json('main');
+        $this->assertEquals(0.0, $this->findBalanceSheetAccount($balanceSheet['assets'], $assetAccount));
+
+        $cashFlow = $this->getJson('/api/reports/cash-flow?start_date=2026-01-01&end_date=2026-06-30')->assertOk()->json('main');
+        $this->assertEquals(800.0, $cashFlow['net_income']);
+    }
+
+    private function insertReportJournal(string $code, string $date, string $status, int $accountId, float $amount): void
+    {
+        $accountCode = (string) DB::table('accounts')->where('AccID', $accountId)->value('AccCode');
+        $isIncome = str_starts_with($accountCode, '4');
+        DB::table('journal_entries')->insert([
+            'entry_code' => $code,
+            'entry_type' => 'Manual',
+            'reference' => $code,
+            'date' => $date,
+            'description' => $code,
+            'total_amount' => $amount,
+            'status' => $status,
+            'company_id' => $this->testCompanyId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('journal_entry_lines')->insert([
+            ['journal_entry_code' => $code, 'account_id' => $accountId, 'debit' => $isIncome ? 0 : $amount, 'credit' => $isIncome ? $amount : 0, 'created_at' => now(), 'updated_at' => now()],
+            ['journal_entry_code' => $code, 'account_id' => $this->testCashAccountId, 'debit' => $isIncome ? $amount : 0, 'credit' => $isIncome ? 0 : $amount, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+    }
+
+    private function findBalanceSheetAccount(array $nodes, int $accountId): float
+    {
+        foreach ($nodes as $node) {
+            if ((int) $node['AccID'] === $accountId) {
+                return (float) $node['balance'];
+            }
+            $balance = $this->findBalanceSheetAccount($node['children'] ?? [], $accountId);
+            if ($balance !== 0.0) {
+                return $balance;
+            }
+        }
+
+        return 0.0;
     }
 }

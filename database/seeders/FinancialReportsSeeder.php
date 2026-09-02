@@ -22,8 +22,8 @@ class FinancialReportsSeeder extends Seeder
                     ['key' => 'cash-flow', 'name' => 'Cash Flow Statement', 'name_ar' => 'قائمة التدفقات النقدية', 'desc' => 'Track cash inflows and outflows from operating, investing, and financing activities.', 'desc_ar' => 'تتبع التدفقات النقدية الداخلة والخارجة من الأنشطة التشغيلية والاستثمارية والتمويلية.', 'route' => 'admin.financial-reports.cash-flow', 'icon' => 'payments'],
                     ['key' => 'profit-loss', 'name' => 'Profit & Loss', 'name_ar' => 'الأرباح والخسائر', 'desc' => 'Summary of revenues, costs, and expenses for a specific period.', 'desc_ar' => 'ملخص الإيرادات والتكاليف والمصروفات لفترة محددة.', 'route' => 'admin.financial-reports.profit-loss', 'icon' => 'trending_up'],
                     ['key' => 'profit-loss-comparison', 'name' => 'Profit & Loss Comparison', 'name_ar' => 'مقارنة الأرباح والخسائر', 'desc' => 'Compare P&L results across multiple financial periods.', 'desc_ar' => 'قارن نتائج الأرباح والخسائر عبر فترات مالية متعددة.', 'route' => 'admin.financial-reports.profit-loss-comparison', 'icon' => 'bar_chart'],
-                    ['key' => 'profit-loss-class', 'name' => 'Profit & Loss by Class', 'name_ar' => 'الأرباح والخسائر حسب الفئة', 'desc' => 'Analyze profitability segmented by class or department.', 'desc_ar' => 'تحليل الربحية مقسمة حسب الفئة أو القسم.', 'route' => 'admin.financial-reports.profit-loss-class', 'icon' => 'category'],
-                    ['key' => 'profit-loss-customer', 'name' => 'Profit & Loss by Customer', 'name_ar' => 'الأرباح والخسائر حسب العميل', 'desc' => 'Profitability analysis for each customer account.', 'desc_ar' => 'تحليل الربحية لكل حساب عميل.', 'route' => 'admin.financial-reports.profit-loss-customer', 'icon' => 'person'],
+                    ['key' => 'profit-loss-class', 'name' => 'Profit & Loss by Class', 'name_ar' => 'الأرباح والخسائر حسب الفئة', 'desc' => 'Unavailable until journal entries support a class dimension.', 'desc_ar' => 'غير متاح حتى تدعم قيود اليومية بُعد الفئة.', 'route' => '#', 'icon' => 'category'],
+                    ['key' => 'profit-loss-customer', 'name' => 'Profit & Loss by Customer', 'name_ar' => 'الأرباح والخسائر حسب العميل', 'desc' => 'Unavailable until journal entries support customer attribution.', 'desc_ar' => 'غير متاح حتى تدعم قيود اليومية إسناد العميل.', 'route' => '#', 'icon' => 'person'],
                     ['key' => 'profit-loss-month', 'name' => 'Profit & Loss by Month', 'name_ar' => 'الأرباح والخسائر حسب الشهر', 'desc' => 'Monthly breakdown of income and expenses.', 'desc_ar' => 'تفصيل شهري للإيرادات والمصروفات.', 'route' => 'admin.financial-reports.profit-loss-month', 'icon' => 'calendar_month'],
                     ['key' => 'profit-loss-detail', 'name' => 'Profit & Loss Detail', 'name_ar' => 'تفاصيل الأرباح والخسائر', 'desc' => 'Detailed line-by-line P&L report with account-level detail.', 'desc_ar' => 'تقرير أرباح وخسائر تفصيلي سطر بسطر مع تفاصيل مستوى الحساب.', 'route' => 'admin.financial-reports.profit-loss-detail', 'icon' => 'description'],
                     ['key' => 'equity-change', 'name' => 'Statement of Changes in Equity', 'name_ar' => 'قائمة التغيرات في حقوق الملكية', 'desc' => 'Details changes in shareholders equity over the period.', 'desc_ar' => 'يُفصّل التغيرات في حقوق الملكية خلال الفترة.', 'route' => '#', 'icon' => 'monitoring'],
@@ -177,7 +177,7 @@ class FinancialReportsSeeder extends Seeder
                         'route_name' => $report['route'],
                         'icon' => $report['icon'] ?? 'description',
                         'sort_order' => $index + 1,
-                        'is_active' => true,
+                        'is_active' => $report['route'] !== '#',
                     ],
                 );
             }

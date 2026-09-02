@@ -20,19 +20,18 @@ export default function BalanceSheet() {
   const [lang] = useState(currentLocale);
   const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split('T')[0]);
   const [collapsedNodes, setCollapsedNodes] = useState({});
-  const [reportingBasis, setReportingBasis] = useState('Accrual');
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await apiService.get(`/reports/balance-sheet?date=${asOfDate}&basis=${reportingBasis}`);
+      const response = await apiService.get(`/reports/balance-sheet?date=${asOfDate}`);
       setData(response.data.main);
     } catch (error) {
       console.error('Failed to fetch balance sheet:', error);
     } finally {
       setLoading(false);
     }
-  }, [asOfDate, reportingBasis]);
+  }, [asOfDate]);
 
   useEffect(() => {
     fetchData();
@@ -200,19 +199,6 @@ export default function BalanceSheet() {
                 value={asOfDate} 
                 onChange={(e) => setAsOfDate(e.target.value)} 
               />
-            </div>
-            <div className="field">
-              <label>{t('accounting_method', 'Accounting method')}</label>
-              <div className="radio-group">
-                <label className={reportingBasis === 'Cash' ? 'active' : ''}>
-                  <input type="radio" name="basis" value="Cash" checked={reportingBasis === 'Cash'} onChange={e => setReportingBasis(e.target.value)} />
-                  {t('cash', 'Cash')}
-                </label>
-                <label className={reportingBasis === 'Accrual' ? 'active' : ''}>
-                  <input type="radio" name="basis" value="Accrual" checked={reportingBasis === 'Accrual'} onChange={e => setReportingBasis(e.target.value)} />
-                  {t('accrual', 'Accrual')}
-                </label>
-              </div>
             </div>
           </div>
           <div className="bar-actions">

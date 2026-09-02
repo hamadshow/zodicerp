@@ -65,6 +65,15 @@ Route::middleware([\App\Http\Middleware\ApiAuth::class])->group(function () {
     Route::get('/accounts', [App\Http\Controllers\Backend\Accounting\AccountsController::class, 'index']);
     Route::get('/journals/next-code', [App\Http\Controllers\Backend\Accounting\JournalController::class, 'nextCode']);
     Route::get('/reports/general-ledger', [App\Http\Controllers\Backend\Accounting\JournalController::class, 'generalLedger']);
+    Route::get('/reports/balance-sheet', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getBalanceSheetData']);
+    Route::get('/reports/trial-balance', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getTrialBalanceData']);
+    Route::get('/reports/profit-loss', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossData']);
+    Route::get('/reports/profit-loss-class', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossByClassData']);
+    Route::get('/reports/profit-loss-customer', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossByCustomerData']);
+    Route::get('/reports/profit-loss-month', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossByMonthData']);
+    Route::get('/reports/profit-loss-comparison', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossComparisonData']);
+    Route::get('/reports/profit-loss-detail', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossDetailData']);
+    Route::get('/reports/cash-flow', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getCashFlowData']);
     Route::get('/financial-reports', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getData']);
     Route::get('/reports/favorites', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'favorites']);
 

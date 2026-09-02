@@ -54,8 +54,13 @@ export default function ProfitLossComparison() {
   };
 
   const calculateChange = (current, previous) => {
-    if (!previous || previous === 0) return current > 0 ? 100 : 0;
+    if (!previous || previous === 0) return null;
     return ((current - previous) / Math.abs(previous)) * 100;
+  };
+
+  const formatChange = (current, previous, digits = 2) => {
+    const change = calculateChange(current, previous);
+    return change === null ? 'N/A' : `${change.toFixed(digits)}%`;
   };
 
   const t = {
@@ -159,7 +164,7 @@ export default function ProfitLossComparison() {
             <td className={`text-right font-mono text-xs py-2 px-4 ${
               change > 0 ? 'text-green-600' : change < 0 ? 'text-red-600' : 'text-gray-400'
             }`}>
-              {change !== 0 ? `${change > 0 ? '+' : ''}${change.toFixed(1)}%` : '0%'}
+              {change === null ? 'N/A' : change !== 0 ? `${change > 0 ? '+' : ''}${change.toFixed(1)}%` : '0%'}
             </td>
           </tr>
           {node.children && node.children.length > 0 && renderAccountRows(node.children, compNodes, depth + 1)}
@@ -185,13 +190,12 @@ export default function ProfitLossComparison() {
       nodes.forEach(n => {
         const compNode = findComparisonNode(compNodes, n.AccCode);
         const compBalance = compNode ? compNode.balance : 0;
-        const change = calculateChange(n.balance, compBalance);
         const indent = '    '.repeat(depth);
         rows.push([
           indent + n.AccCode + ' - ' + n.AccName, 
           n.balance, 
           compBalance, 
-          `${change.toFixed(2)}%`
+          formatChange(n.balance, compBalance)
         ]);
         if (n.children && n.children.length > 0) {
           flatten(n.children, compNodes, depth + 1);
@@ -202,27 +206,27 @@ export default function ProfitLossComparison() {
     // Income
     rows.push([currentLang.income.toUpperCase()]);
     flatten(data.income, comparisonData?.income);
-    rows.push([currentLang.totalIncome, data.total_income, comparisonData?.total_income, `${calculateChange(data.total_income, comparisonData?.total_income).toFixed(2)}%`]);
+    rows.push([currentLang.totalIncome, data.total_income, comparisonData?.total_income, formatChange(data.total_income, comparisonData?.total_income)]);
     rows.push([]);
 
     // COGS
     rows.push([currentLang.cogs.toUpperCase()]);
     flatten(data.cogs, comparisonData?.cogs);
-    rows.push([currentLang.totalCogs, data.total_cogs, comparisonData?.total_cogs, `${calculateChange(data.total_cogs, comparisonData?.total_cogs).toFixed(2)}%`]);
+    rows.push([currentLang.totalCogs, data.total_cogs, comparisonData?.total_cogs, formatChange(data.total_cogs, comparisonData?.total_cogs)]);
     rows.push([]);
 
     // Gross Profit
-    rows.push([currentLang.grossProfit.toUpperCase(), data.gross_profit, comparisonData?.gross_profit, `${calculateChange(data.gross_profit, comparisonData?.gross_profit).toFixed(2)}%`]);
+    rows.push([currentLang.grossProfit.toUpperCase(), data.gross_profit, comparisonData?.gross_profit, formatChange(data.gross_profit, comparisonData?.gross_profit)]);
     rows.push([]);
 
     // Expenses
     rows.push([currentLang.expenses.toUpperCase()]);
     flatten(data.expenses, comparisonData?.expenses);
-    rows.push([currentLang.totalExpenses, data.total_expenses, comparisonData?.total_expenses, `${calculateChange(data.total_expenses, comparisonData?.total_expenses).toFixed(2)}%`]);
+    rows.push([currentLang.totalExpenses, data.total_expenses, comparisonData?.total_expenses, formatChange(data.total_expenses, comparisonData?.total_expenses)]);
     rows.push([]);
 
     // Net Income
-    rows.push([currentLang.netIncome.toUpperCase(), data.net_income, comparisonData?.net_income, `${calculateChange(data.net_income, comparisonData?.net_income).toFixed(2)}%`]);
+    rows.push([currentLang.netIncome.toUpperCase(), data.net_income, comparisonData?.net_income, formatChange(data.net_income, comparisonData?.net_income)]);
 
     const worksheet = XLSX.utils.aoa_to_sheet(rows);
     worksheet['!cols'] = [{ wch: 50 }, { wch: 15 }, { wch: 15 }, { wch: 12 }];
@@ -312,7 +316,7 @@ export default function ProfitLossComparison() {
                         <td className="py-3 px-4 text-right">{formatNumber(data.total_income)}</td>
                         <td className="py-3 px-4 text-right text-gray-500">{formatNumber(comparisonData?.total_income)}</td>
                         <td className={`py-3 px-4 text-right rounded-r-md ${calculateChange(data.total_income, comparisonData?.total_income) > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {calculateChange(data.total_income, comparisonData?.total_income).toFixed(1)}%
+                          {formatChange(data.total_income, comparisonData?.total_income, 1)}
                         </td>
                       </tr>
                     </tbody>
@@ -340,7 +344,7 @@ export default function ProfitLossComparison() {
                         <td className="py-3 px-4 text-right">{formatNumber(data.total_cogs)}</td>
                         <td className="py-3 px-4 text-right text-gray-500">{formatNumber(comparisonData?.total_cogs)}</td>
                         <td className={`py-3 px-4 text-right rounded-r-md ${calculateChange(data.total_cogs, comparisonData?.total_cogs) > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {calculateChange(data.total_cogs, comparisonData?.total_cogs).toFixed(1)}%
+                          {formatChange(data.total_cogs, comparisonData?.total_cogs, 1)}
                         </td>
                       </tr>
                     </tbody>
@@ -383,7 +387,7 @@ export default function ProfitLossComparison() {
                         <td className="py-3 px-4 text-right">{formatNumber(data.total_expenses)}</td>
                         <td className="py-3 px-4 text-right text-gray-500">{formatNumber(comparisonData?.total_expenses)}</td>
                         <td className={`py-3 px-4 text-right rounded-r-md ${calculateChange(data.total_expenses, comparisonData?.total_expenses) > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {calculateChange(data.total_expenses, comparisonData?.total_expenses).toFixed(1)}%
+                          {formatChange(data.total_expenses, comparisonData?.total_expenses, 1)}
                         </td>
                       </tr>
                     </tbody>
