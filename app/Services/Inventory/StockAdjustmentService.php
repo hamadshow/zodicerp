@@ -2,10 +2,17 @@
 
 namespace App\Services\Inventory;
 
+use App\Traits\EnsuresFiscalPeriod;
+use App\Models\Accounting\Account;
+use App\Models\Accounting\JournalEntry;
+use App\Models\Accounting\JournalEntryLine;
+use App\Services\Accounting\PostingService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class StockAdjustmentService
 {
+    use EnsuresFiscalPeriod;
     /**
      * Create a stock adjustment that creates proper inventory movements.
      */
@@ -102,6 +109,8 @@ class StockAdjustmentService
                 ->where('adjustment_id', $adjustmentId)
                 ->get();
 
+            $totalAdjustmentValue = 0;
+
             foreach ($items as $item) {
                 $adjQty = (float) $item->adjustment_quantity;
                 if ($adjQty != 0) {
@@ -112,7 +121,42 @@ class StockAdjustmentService
                             'quantity' => DB::raw("quantity + ({$adjQty})"),
                             'updated_at' => now(),
                         ]);
+
+                    // Create inventory movement for traceability
+                    $direction = $adjQty > 0 ? 'in' : 'out';
+                    $movementHeaderId = DB::table('inventory_movement_headers')->insertGetId([
+                        'movement_date' => $adjustment->adjustment_date,
+                        'type' => 'adjustment',
+                        'direction' => $direction,
+                        'reference_id' => $adjustmentId,
+                        'reference_type' => 'stock_adjustment',
+                        'voucher_num' => $adjustment->adjustment_number,
+                        'warehouse_id' => $adjustment->warehouse_id,
+                        'company_id' => $adjustment->company_id ?? 1,
+                        'created_by' => auth()->id(),
+                        'notes' => "Stock Adjustment: {$adjustment->adjustment_number}",
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                    DB::table('inventory_movement_lines')->insert([
+                        'stock_movement_id' => $movementHeaderId,
+                        'product_id' => $item->product_id,
+                        'unit_id' => $item->unit_id,
+                        'quantity' => abs($adjQty),
+                        'cost_price' => $item->unit_cost ?? 0,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+
+                    // Accumulate total adjustment value for GL
+                    $totalAdjustmentValue += abs($adjQty) * (float) ($item->unit_cost ?? 0);
                 }
+            }
+
+            // Create GL entry if there's a monetary value
+            if ($totalAdjustmentValue > 0) {
+                $this->createJournalEntryForAdjustment($adjustment, $items, $totalAdjustmentValue);
             }
 
             DB::table('stock_adjustments')->where('id', $adjustmentId)->update([
@@ -275,5 +319,147 @@ class StockAdjustmentService
         } while (DB::table('stock_adjustments')->where('adjustment_number', $number)->exists());
 
         return $number;
+    }
+
+    /**
+     * Create GL entry for stock adjustment:
+     *   Positive: Dr Inventory Asset, Cr Inventory Adjustment Gain
+     *   Negative: Dr Inventory Adjustment Loss, Cr Inventory Asset
+     */
+    private function createJournalEntryForAdjustment(object $adjustment, $items, float $totalValue): void
+    {
+        // Determine net direction
+        $netQty = 0;
+        foreach ($items as $item) {
+            $netQty += (float) $item->adjustment_quantity;
+        }
+
+        $inventoryAccountId = $this->resolveInventoryAssetAccountId();
+        $adjustmentAccountId = $this->resolveInventoryAdjustmentAccountId();
+
+        if (!$inventoryAccountId || !$adjustmentAccountId) {
+            return; // Accounts not configured
+        }
+
+        $this->ensureOpenFiscalPeriod($adjustment->adjustment_date);
+
+        // Upsert pattern (idempotent)
+        $reference = $adjustment->adjustment_number;
+        $existingHeader = JournalEntry::where('reference', $reference)
+            ->where('entry_type', 'StockAdjustment')
+            ->first();
+
+        if ($existingHeader) {
+            JournalEntryLine::where('journal_entry_code', $existingHeader->entry_code)->delete();
+            $existingHeader->update([
+                'date' => $adjustment->adjustment_date,
+                'total_amount' => round($totalValue, 2),
+                'status' => 'Post',
+            ]);
+            $entryCode = $existingHeader->entry_code;
+        } else {
+            $entryCode = $this->generateNextEntryCode();
+            JournalEntry::create([
+                'entry_code' => $entryCode,
+                'entry_type' => 'StockAdjustment',
+                'reference' => $reference,
+                'date' => $adjustment->adjustment_date,
+                'description' => 'Stock Adjustment ' . $reference,
+                'total_amount' => round($totalValue, 2),
+                'status' => 'Post',
+            ]);
+        }
+
+        if ($netQty >= 0) {
+            // Positive adjustment: Dr Inventory, Cr Adjustment Gain
+            JournalEntryLine::create([
+                'journal_entry_code' => $entryCode,
+                'account_id' => $inventoryAccountId,
+                'debit' => round($totalValue, 2),
+                'credit' => 0,
+                'related_id_name' => 'StockAdjustment',
+                'related_name_details' => $reference,
+                'description' => 'Inventory increase - ' . $reference,
+            ]);
+            JournalEntryLine::create([
+                'journal_entry_code' => $entryCode,
+                'account_id' => $adjustmentAccountId,
+                'debit' => 0,
+                'credit' => round($totalValue, 2),
+                'related_id_name' => 'StockAdjustment',
+                'related_name_details' => $reference,
+                'description' => 'Inventory adjustment gain - ' . $reference,
+            ]);
+        } else {
+            // Negative adjustment: Dr Adjustment Loss, Cr Inventory
+            JournalEntryLine::create([
+                'journal_entry_code' => $entryCode,
+                'account_id' => $adjustmentAccountId,
+                'debit' => round($totalValue, 2),
+                'credit' => 0,
+                'related_id_name' => 'StockAdjustment',
+                'related_name_details' => $reference,
+                'description' => 'Inventory adjustment loss - ' . $reference,
+            ]);
+            JournalEntryLine::create([
+                'journal_entry_code' => $entryCode,
+                'account_id' => $inventoryAccountId,
+                'debit' => 0,
+                'credit' => round($totalValue, 2),
+                'related_id_name' => 'StockAdjustment',
+                'related_name_details' => $reference,
+                'description' => 'Inventory decrease - ' . $reference,
+            ]);
+        }
+
+        // Sync account_postings cache
+        $companyId = $adjustment->company_id ?? Auth::user()?->company_id;
+        if ($companyId) {
+            app(PostingService::class)->recalculatePostings($companyId);
+        }
+    }
+
+    private function resolveInventoryAssetAccountId(): ?int
+    {
+        // Inventory asset is typically in 1xxx range
+        return Account::where('AccType', 1)
+            ->where('AccCode', 'like', '1%')
+            ->where('AccName', 'like', '%inventory%')
+            ->orderBy('AccCode')
+            ->value('AccID')
+            ?? Account::where('AccType', 1)
+                ->where('AccCode', 'like', '1.1.5%')
+                ->orderBy('AccCode')
+                ->value('AccID');
+    }
+
+    private function resolveInventoryAdjustmentAccountId(): ?int
+    {
+        // Inventory adjustment gain/loss is typically in 4xxx or 6xxx range
+        return Account::where('AccType', 1)
+            ->where('AccCode', 'like', '4%')
+            ->where('AccName', 'like', '%adjustment%')
+            ->orderBy('AccCode')
+            ->value('AccID')
+            ?? Account::where('AccType', 1)
+                ->where('AccCode', 'like', '6%')
+                ->where('AccName', 'like', '%adjustment%')
+                ->orderBy('AccCode')
+                ->value('AccID');
+    }
+
+    private function generateNextEntryCode(): string
+    {
+        $lastCode = JournalEntry::whereNotNull('entry_code')
+            ->where('entry_code', '!=', '')
+            ->orderByDesc('id')
+            ->value('entry_code');
+
+        $nextNumber = 10001;
+        if ($lastCode && preg_match('/(\d+)$/', $lastCode, $matches)) {
+            $nextNumber = (int) $matches[1] + 1;
+        }
+
+        return 'QID-' . $nextNumber;
     }
 }

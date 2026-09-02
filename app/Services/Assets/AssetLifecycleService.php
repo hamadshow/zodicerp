@@ -284,6 +284,15 @@ class AssetLifecycleService
                 'updated_at' => now(),
             ]);
 
+            // Create GL entry for disposal
+            $journalEntryId = $this->createDisposalJournalEntry($asset, $cost, $accumulatedDepreciation, $proceeds, $gainLoss, $data['disposal_date'] ?? now()->toDateString());
+
+            // Store journal_entry_id on disposal record
+            DB::table('asset_disposals')
+                ->where('asset_id', $asset->id)
+                ->where('disposal_date', $data['disposal_date'] ?? now()->toDateString())
+                ->update(['journal_entry_id' => $journalEntryId]);
+
             // Mark asset as disposed
             DB::table('assets')->where('id', $asset->id)->update([
                 'status' => 'disposed',
@@ -409,6 +418,177 @@ class AssetLifecycleService
         app(PostingService::class)->recalculatePostings($companyId);
 
         return $header->id;
+    }
+
+    /**
+     * Create GL entry for asset disposal:
+     *   Dr Cash/Receivable (proceeds)
+     *   Dr Accumulated Depreciation
+     *   Cr Fixed Asset Cost
+     *   Gain/Loss balancing
+     */
+    private function createDisposalJournalEntry(object $asset, float $cost, float $accumulatedDepreciation, float $proceeds, float $gainLoss, string $disposalDate): ?int
+    {
+        $assetAccountId = $this->resolveFixedAssetAccountId($asset);
+        $accumDeprAccountId = $this->resolveAccumulatedDepreciationAccountId();
+        $cashAccountId = $this->resolveCashAccountId();
+        $gainLossAccountId = $gainLoss >= 0
+            ? $this->resolveGainOnDisposalAccountId()
+            : $this->resolveLossOnDisposalAccountId();
+
+        if (!$assetAccountId || !$accumDeprAccountId) {
+            return null;
+        }
+
+        $this->ensureOpenFiscalPeriod($disposalDate);
+
+        // Upsert pattern (idempotent)
+        $reference = "DISPOSAL-{$asset->id}-" . substr($disposalDate, 0, 10);
+        $existingHeader = JournalEntry::where('reference', $reference)
+            ->where('entry_type', 'AssetDisposal')
+            ->first();
+
+        if ($existingHeader) {
+            JournalEntryLine::where('journal_entry_code', $existingHeader->entry_code)->delete();
+            $existingHeader->update([
+                'date' => $disposalDate,
+                'total_amount' => round($cost, 2),
+                'status' => 'Post',
+            ]);
+            $entryCode = $existingHeader->entry_code;
+        } else {
+            $entryCode = $this->generateNextEntryCode();
+            JournalEntry::create([
+                'entry_code' => $entryCode,
+                'entry_type' => 'AssetDisposal',
+                'reference' => $reference,
+                'date' => $disposalDate,
+                'description' => 'Asset Disposal: ' . ($asset->name ?? $asset->id),
+                'total_amount' => round($cost, 2),
+                'status' => 'Post',
+            ]);
+        }
+
+        // Dr Cash/Receivable (proceeds)
+        if ($proceeds > 0 && $cashAccountId) {
+            JournalEntryLine::create([
+                'journal_entry_code' => $entryCode,
+                'account_id' => $cashAccountId,
+                'debit' => round($proceeds, 2),
+                'credit' => 0,
+                'related_id_name' => 'AssetDisposal',
+                'related_name_details' => $reference,
+                'description' => 'Disposal proceeds',
+            ]);
+        }
+
+        // Dr Accumulated Depreciation
+        if ($accumulatedDepreciation > 0) {
+            JournalEntryLine::create([
+                'journal_entry_code' => $entryCode,
+                'account_id' => $accumDeprAccountId,
+                'debit' => round($accumulatedDepreciation, 2),
+                'credit' => 0,
+                'related_id_name' => 'AssetDisposal',
+                'related_name_details' => $reference,
+                'description' => 'Remove accumulated depreciation',
+            ]);
+        }
+
+        // Cr Fixed Asset Cost
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $assetAccountId,
+            'debit' => 0,
+            'credit' => round($cost, 2),
+            'related_id_name' => 'AssetDisposal',
+            'related_name_details' => $reference,
+            'description' => 'Remove asset cost',
+        ]);
+
+        // Gain or Loss balancing entry
+        if ($gainLoss != 0 && $gainLossAccountId) {
+            if ($gainLoss > 0) {
+                // Gain: Cr Gain account
+                JournalEntryLine::create([
+                    'journal_entry_code' => $entryCode,
+                    'account_id' => $gainLossAccountId,
+                    'debit' => 0,
+                    'credit' => round(abs($gainLoss), 2),
+                    'related_id_name' => 'AssetDisposal',
+                    'related_name_details' => $reference,
+                    'description' => 'Gain on disposal',
+                ]);
+            } else {
+                // Loss: Dr Loss account
+                JournalEntryLine::create([
+                    'journal_entry_code' => $entryCode,
+                    'account_id' => $gainLossAccountId,
+                    'debit' => round(abs($gainLoss), 2),
+                    'credit' => 0,
+                    'related_id_name' => 'AssetDisposal',
+                    'related_name_details' => $reference,
+                    'description' => 'Loss on disposal',
+                ]);
+            }
+        }
+
+        // Sync account_postings cache
+        $companyId = $asset->company_id ?? auth()->user()?->company_id ?? 1;
+        app(PostingService::class)->recalculatePostings($companyId);
+
+        return $existingHeader?->id ?? JournalEntry::where('entry_code', $entryCode)->value('id');
+    }
+
+    private function resolveFixedAssetAccountId(object $asset): ?int
+    {
+        // Try to find asset category account, fallback to generic fixed asset account
+        if (!empty($asset->account_id)) {
+            return $asset->account_id;
+        }
+        return Account::where('AccType', 1)
+            ->where('AccCode', 'like', '1%')
+            ->where('AccName', 'like', '%fixed%asset%')
+            ->orderBy('AccCode')
+            ->value('AccID')
+            ?? Account::where('AccType', 1)
+                ->where('AccCode', 'like', '1.1.4%')
+                ->orderBy('AccCode')
+                ->value('AccID');
+    }
+
+    private function resolveCashAccountId(): ?int
+    {
+        return Account::where('AccType', 1)
+            ->where('AccCode', 'like', '1.1%')
+            ->orderBy('AccCode')
+            ->value('AccID');
+    }
+
+    private function resolveGainOnDisposalAccountId(): ?int
+    {
+        return Account::where('AccType', 1)
+            ->where('AccCode', 'like', '4%')
+            ->where('AccName', 'like', '%gain%disposal%')
+            ->orderBy('AccCode')
+            ->value('AccID')
+            ?? Account::where('AccType', 1)
+                ->where('AccCode', 'like', '4%')
+                ->orderBy('AccCode')
+                ->value('AccID');
+    }
+
+    private function resolveLossOnDisposalAccountId(): ?int
+    {
+        return Account::where('AccType', 1)
+            ->where('AccCode', 'like', '6%')
+            ->where('AccName', 'like', '%loss%disposal%')
+            ->orderBy('AccCode')
+            ->value('AccID')
+            ?? Account::where('AccType', 1)
+                ->where('AccCode', 'like', '6%')
+                ->orderBy('AccCode')
+                ->value('AccID');
     }
 
     private function resolveDepreciationExpenseAccountId(): ?int

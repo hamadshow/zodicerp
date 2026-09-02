@@ -193,6 +193,11 @@ class SalesInvoiceController extends Controller
 
                 $this->upsertJournalEntryForInvoice($invoice);
                 $this->upsertBankReceiptForInvoice($invoice);
+
+                // Stock deduction — only for posted invoices
+                if ($invoice->is_posted) {
+                    $this->createStockMovementsForInvoice($invoice);
+                }
             });
 
             return redirect()->back()->with('success', 'Sales Invoice created successfully.');
@@ -281,6 +286,12 @@ class SalesInvoiceController extends Controller
 
                 $this->upsertJournalEntryForInvoice($invoice->fresh());
                 $this->upsertBankReceiptForInvoice($invoice->fresh());
+
+                // Stock deduction — reverse old movements, create new ones for posted invoices
+                if ($invoice->fresh()->is_posted) {
+                    $this->reverseStockMovementsForInvoice($invoice->fresh());
+                    $this->createStockMovementsForInvoice($invoice->fresh());
+                }
             });
 
             return redirect()->back()->with('success', 'Sales Invoice updated successfully.');
@@ -295,6 +306,10 @@ class SalesInvoiceController extends Controller
         try {
             DB::transaction(function () use ($id) {
                 $invoice = SalesInvoice::findOrFail($id);
+                // Reverse stock movements before deleting
+                if ($invoice->is_posted) {
+                    $this->reverseStockMovementsForInvoice($invoice);
+                }
                 $this->deleteJournalEntryForInvoice($invoice);
                 $this->deleteBankReceiptForInvoice($invoice);
                 $invoice->details()->delete();
@@ -498,5 +513,100 @@ class SalesInvoiceController extends Controller
         }
 
         return $fallbackStart;
+    }
+
+    /**
+     * Create inventory movements (direction: out) for a posted Sales Invoice.
+     * Idempotent: skips if movements already exist for this invoice.
+     */
+    protected function createStockMovementsForInvoice(SalesInvoice $invoice): void
+    {
+        // Check for existing movements (idempotency)
+        $existingMovements = DB::table('inventory_movement_headers')
+            ->where('reference_id', $invoice->id)
+            ->where('reference_type', 'SalesInvoice')
+            ->count();
+
+        if ($existingMovements > 0) {
+            return; // Already deducted
+        }
+
+        $invoice->load('details');
+        $warehouseId = $invoice->warehouse_id;
+
+        $movementHeaderId = DB::table('inventory_movement_headers')->insertGetId([
+            'movement_date' => $invoice->invoice_date,
+            'type' => 'sale',
+            'direction' => 'out',
+            'reference_id' => $invoice->id,
+            'reference_type' => 'SalesInvoice',
+            'voucher_num' => $invoice->invoice_number,
+            'warehouse_id' => $warehouseId,
+            'company_id' => $invoice->company_id ?? Auth::user()?->company_id ?? 1,
+            'created_by' => Auth::id(),
+            'notes' => "Sales Invoice: {$invoice->invoice_number}",
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        foreach ($invoice->details as $detail) {
+            $qty = (float) $detail->quantity;
+            if ($qty <= 0) {
+                continue;
+            }
+
+            // Get cost from product
+            $product = DB::table('products')->where('id', $detail->product_id)->first();
+            $costPrice = (float) ($product->cost_per_item ?? 0);
+
+            DB::table('inventory_movement_lines')->insert([
+                'stock_movement_id' => $movementHeaderId,
+                'product_id' => $detail->product_id,
+                'unit_id' => $detail->unit_id,
+                'quantity' => $qty,
+                'cost_price' => $costPrice,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // Deduct product quantity
+            DB::table('products')
+                ->where('id', $detail->product_id)
+                ->decrement('quantity', $qty);
+        }
+    }
+
+    /**
+     * Reverse inventory movements for a Sales Invoice.
+     * Restores product quantities and deletes movement records.
+     */
+    protected function reverseStockMovementsForInvoice(SalesInvoice $invoice): void
+    {
+        $headers = DB::table('inventory_movement_headers')
+            ->where('reference_id', $invoice->id)
+            ->where('reference_type', 'SalesInvoice')
+            ->get();
+
+        foreach ($headers as $header) {
+            // Reverse product quantities
+            $lines = DB::table('inventory_movement_lines')
+                ->where('stock_movement_id', $header->id)
+                ->get();
+
+            foreach ($lines as $line) {
+                DB::table('products')
+                    ->where('id', $line->product_id)
+                    ->increment('quantity', (float) $line->quantity);
+            }
+
+            DB::table('inventory_movement_lines')
+                ->where('stock_movement_id', $header->id)
+                ->delete();
+        }
+
+        DB::table('inventory_movement_headers')
+            ->where('reference_id', $invoice->id)
+            ->where('reference_type', 'SalesInvoice')
+            ->delete();
     }
 }
