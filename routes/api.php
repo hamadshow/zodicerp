@@ -98,7 +98,8 @@ Route::middleware([\App\Http\Middleware\ApiAuth::class])->group(function () {
     Route::post('/reports/unpost-journal', [App\Http\Controllers\Backend\Accounting\JournalController::class, 'unpostAll']);
     Route::get('/reports/general-ledger', [App\Http\Controllers\Backend\Accounting\JournalController::class, 'generalLedger']);
     Route::get('/financial-reports', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getData']);
-    Route::post('/reports/favorite', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'favorites']);
+    Route::get('/reports/favorites', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'favorites']);
+    Route::post('/reports/favorite', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'toggleFavorite']);
 
     // Category Management API Routes
     Route::get('/categories/tree', [App\Http\Controllers\Api\CategoryController::class, 'tree']);
