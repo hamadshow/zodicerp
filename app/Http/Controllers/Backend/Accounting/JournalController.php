@@ -11,6 +11,7 @@ use App\Models\Accounting\AccountPosting;
 use App\Imports\JournalImport;
 use App\Exports\JournalExport;
 use App\Services\Accounting\JournalImportService;
+use App\Services\Accounting\PostingService;
 use Maatwebsite\Excel\Facades\Excel;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
@@ -22,6 +23,8 @@ class JournalController extends Controller
     protected string $journalCodePrefix = 'QID-';
 
     protected int $journalCodeStart = 10001;
+
+    public function __construct(protected PostingService $postingService) {}
 
     public function nextCode()
     {
@@ -157,7 +160,7 @@ class JournalController extends Controller
 
             // Automatically recalculate postings if status is Post
             if (in_array($journalEntry->status, ['Post', 'posted'])) {
-                $this->recalculatePostings(request()->user()->company_id);
+                $this->postingService->recalculatePostings(request()->user()->company_id);
             }
 
             return response()->json([
@@ -409,7 +412,7 @@ class JournalController extends Controller
 
             // Automatically recalculate postings
             if ($data['status'] === 'Post' || $data['status'] === 'posted') {
-                $this->recalculatePostings(request()->user()->company_id);
+                $this->postingService->recalculatePostings(request()->user()->company_id);
             }
 
             return response()->json([
@@ -513,7 +516,7 @@ class JournalController extends Controller
                 ->update(['status' => 'Post']);
 
             // 2. Recalculate account postings
-            $this->recalculatePostings($companyId);
+            $this->postingService->recalculatePostings($companyId);
 
             return response()->json([
                 'success' => true,
@@ -539,7 +542,7 @@ class JournalController extends Controller
                 ->update(['status' => 'UnPost']);
 
             // 2. Recalculate account postings
-            $this->recalculatePostings($companyId);
+            $this->postingService->recalculatePostings($companyId);
 
             return response()->json([
                 'success' => true,
@@ -548,44 +551,7 @@ class JournalController extends Controller
         });
     }
 
-    private function recalculatePostings($companyId)
-    {
-        // Reset current debits/credits for this company
-        AccountPosting::where('company_id', $companyId)->update([
-            'current_debit' => 0,
-            'current_credit' => 0,
-        ]);
 
-        // Aggregate from posted journal lines
-        $lines = DB::table('journal_entry_lines')
-            ->join('journal_entries', 'journal_entry_lines.journal_entry_code', '=', 'journal_entries.entry_code')
-            ->where('journal_entries.company_id', $companyId)
-            ->whereIn('journal_entries.status', ['Post', 'posted'])
-            ->select(
-                'journal_entry_lines.account_id',
-                DB::raw('SUM(journal_entry_lines.debit) as total_debit'),
-                DB::raw('SUM(journal_entry_lines.credit) as total_credit')
-            )
-            ->groupBy('journal_entry_lines.account_id')
-            ->get();
-
-        foreach ($lines as $line) {
-            if (!$line->account_id) continue;
-            
-            AccountPosting::updateOrCreate(
-                [
-                    'account_id' => $line->account_id,
-                    'company_id' => $companyId
-                ],
-                [
-                    'current_debit' => $line->total_debit,
-                    'current_credit' => $line->total_credit,
-                    'period_start' => now()->startOfYear()->toDateString(),
-                    'period_end' => now()->endOfYear()->toDateString(),
-                ]
-            );
-        }
-    }
 
     public function generalLedger(Request $request)
     {

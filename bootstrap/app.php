@@ -48,6 +48,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \App\Http\Middleware\EnsureUserHasRole::class,
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'api.admin' => \App\Http\Middleware\ApiAdminMiddleware::class,
             'supplier' => \App\Http\Middleware\SupplierMiddleware::class,
             'customer' => \App\Http\Middleware\CustomerMiddleware::class,
             'company.scope' => \App\Http\Middleware\EnsureCompanyScope::class,

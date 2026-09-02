@@ -306,7 +306,9 @@ class FinancialReportController extends Controller
         // Get data for comparison date if requested
         $comparisonData = null;
         if ($compareToOpening) {
-            $comparisonData = $this->fetchBalanceSheetData($companyId, $asOfDate, true);
+            // Compare to opening balance (start of the fiscal year for the as-of date)
+            $openingDate = date('Y-01-01', strtotime($asOfDate));
+            $comparisonData = $this->fetchBalanceSheetData($companyId, $openingDate);
         } elseif ($compareDate) {
             $comparisonData = $this->fetchBalanceSheetData($companyId, $compareDate);
         }
@@ -319,7 +321,7 @@ class FinancialReportController extends Controller
         ]);
     }
 
-    private function fetchBalanceSheetData($companyId, $date, $isOpening = false)
+    private function fetchBalanceSheetData($companyId, $date)
     {
         // 1. Get all accounts for this company that are Balance Sheet accounts (AccFinal = 0 or NULL)
         $accounts = DB::table('accounts')
@@ -329,30 +331,37 @@ class FinancialReportController extends Controller
             })
             ->get(['AccID', 'AccCode', 'AccName', 'AccType', 'AccParent', 'Nature']);
 
-        // 2. Calculate balances up to $date
-        // For professional use, we should ideally aggregate journal entries up to $date.
-        // But for now, using account_postings as the user requested "easiest way".
-        $postings = DB::table('account_postings')
-            ->where('company_id', $companyId)
-            ->get()
-            ->keyBy('account_id');
+        // 2. Calculate balances from journal_entry_lines (source of truth)
+        //    Filter: posted journals only, date <= $date
+        $statusPostedValues = ['Post', 'Posted'];
+
+        $activity = DB::table('journal_entry_lines as l')
+            ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
+            ->where('e.company_id', $companyId)
+            ->whereIn('e.status', $statusPostedValues)
+            ->where('e.date', '<=', $date)
+            ->select(
+                'l.account_id',
+                DB::raw('SUM(l.debit) as total_debit'),
+                DB::raw('SUM(l.credit) as total_credit')
+            )
+            ->groupBy('l.account_id')
+            ->get();
+
+        $activityById = $activity->keyBy('account_id');
 
         $accountData = [];
         foreach ($accounts as $account) {
             $code = $account->AccCode;
             $id = $account->AccID;
-            $posting = $postings->get($id) ?? $postings->get($code);
 
-            if ($isOpening) {
-                $debit = (float)($posting?->opening_debit ?? 0);
-                $credit = (float)($posting?->opening_credit ?? 0);
-            } else {
-                $debit = (float)($posting?->opening_debit ?? 0) + (float)($posting?->current_debit ?? 0);
-                $credit = (float)($posting?->opening_credit ?? 0) + (float)($posting?->current_credit ?? 0);
-            }
+            $act = $activityById->get($id) ?? $activityById->get($code);
+
+            $debit = (float)($act?->total_debit ?? 0);
+            $credit = (float)($act?->total_credit ?? 0);
 
             $balance = 0;
-            $firstDigit = substr((string)$code, 0, 1);
+            $firstDigit = substr((string) $code, 0, 1);
             if ($firstDigit === '1') { // Assets
                 $balance = $debit - $credit;
             } else { // Liabilities & Equity
@@ -363,7 +372,7 @@ class FinancialReportController extends Controller
                 'AccID' => $id,
                 'AccCode' => $code,
                 'AccName' => $account->AccName,
-                'AccType' => (int)$account->AccType,
+                'AccType' => (int) $account->AccType,
                 'AccParent' => $account->AccParent,
                 'balance' => $balance,
             ];
@@ -383,7 +392,7 @@ class FinancialReportController extends Controller
         ];
 
         foreach ($tree as $node) {
-            $firstDigit = substr((string)$node['AccCode'], 0, 1);
+            $firstDigit = substr((string) $node['AccCode'], 0, 1);
             if ($firstDigit === '1') {
                 $result['assets'][] = $node;
                 $result['total_assets'] += $node['balance'];
@@ -969,165 +978,9 @@ class FinancialReportController extends Controller
         return $flat;
     }
 
-    public function postJournalToPostings(Request $request): JsonResponse
-    {
-        $companyId = $request->user()?->company_id;
-        if (!$companyId) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
-
-        try {
-            DB::beginTransaction();
-
-            // 1. Get all account balances from journal entries
-            // Using DB::raw for performance since we need to group by account
-            
-            // Beginning Balances (Opening)
-            $openingBalances = DB::table('journal_entry_lines as l')
-                ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
-                ->join('accounts as a', function($join) {
-                    $join->on('a.AccCode', '=', 'l.account_id')
-                         ->orOn('a.AccID', '=', 'l.account_id');
-                })
-                ->where('e.company_id', $companyId)
-                ->where('a.company_id', $companyId)
-                ->where('e.entry_type', 'Opening')
-                ->select(
-                    'a.AccCode as account_code',
-                    DB::raw('SUM(l.debit) as opening_debit'),
-                    DB::raw('SUM(l.credit) as opening_credit')
-                )
-                ->groupBy('a.AccCode')
-                ->get()
-                ->keyBy('account_code');
-
-            // Current Activity (Non-Opening)
-            $currentActivity = DB::table('journal_entry_lines as l')
-                ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
-                ->join('accounts as a', function($join) {
-                    $join->on('a.AccCode', '=', 'l.account_id')
-                         ->orOn('a.AccID', '=', 'l.account_id');
-                })
-                ->where('e.company_id', $companyId)
-                ->where('a.company_id', $companyId)
-                ->where('e.entry_type', '!=', 'Opening')
-                ->select(
-                    'a.AccCode as account_code',
-                    DB::raw('SUM(l.debit) as current_debit'),
-                    DB::raw('SUM(l.credit) as current_credit'),
-                    DB::raw('MIN(e.date) as period_start'),
-                    DB::raw('MAX(e.date) as period_end')
-                )
-                ->groupBy('a.AccCode')
-                ->get()
-                ->keyBy('account_code');
-
-            // 2. Clear old postings for this company
-            DB::table('account_postings')->where('company_id', $companyId)->delete();
-
-            // 3. Prepare data for insertion
-            $allCodes = $openingBalances->keys()->merge($currentActivity->keys())->unique();
-            
-            $postings = [];
-            $now = now();
-
-            foreach ($allCodes as $code) {
-                $opening = $openingBalances->get($code);
-                $current = $currentActivity->get($code);
-
-                $begDebit = (float)($opening?->opening_debit ?? 0);
-                $begCredit = (float)($opening?->opening_credit ?? 0);
-                $currDebit = (float)($current?->current_debit ?? 0);
-                $currCredit = (float)($current?->current_credit ?? 0);
-
-                // Calculate Net Ending Balance
-                $totalDebit = $begDebit + $currDebit;
-                $totalCredit = $begCredit + $currCredit;
-                
-                $endDebit = 0;
-                $endCredit = 0;
-
-                if ($totalDebit >= $totalCredit) {
-                    $endDebit = $totalDebit - $totalCredit;
-                } else {
-                    $endCredit = $totalCredit - $totalDebit;
-                }
-
-                $postings[] = [
-                    'account_id' => $code, // Use canonical AccCode
-                    'company_id' => $companyId,
-                    'period_start' => $current?->period_start ?? '2026-01-01',
-                    'period_end' => $current?->period_end ?? '2026-12-31',
-                    'opening_debit' => $begDebit,
-                    'opening_credit' => $begCredit,
-                    'current_debit' => $currDebit,
-                    'current_credit' => $currCredit,
-                    'ending_debit' => $endDebit,
-                    'ending_credit' => $endCredit,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ];
-            }
-
-            // 4. Batch insert for better performance
-            if (!empty($postings)) {
-                DB::table('account_postings')->insert($postings);
-            }
-
-            // 5. Update journal_entries status to 'Post'
-            DB::table('journal_entries')
-                ->where('company_id', $companyId)
-                ->where('status', '!=', 'Post')
-                ->update(['status' => 'Post']);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Data posted successfully to account_postings',
-                'count' => count($postings)
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Failed to post data',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function unpostJournalFromPostings(Request $request): JsonResponse
-    {
-        $companyId = $request->user()?->company_id;
-        if (!$companyId) {
-            return response()->json(['message' => 'Unauthorized'], 401);
-        }
-
-        try {
-            DB::beginTransaction();
-
-            // 1. Clear account_postings for this company
-            DB::table('account_postings')->where('company_id', $companyId)->delete();
-
-            // 2. Update all journal_entries status back to 'UnPost'
-            DB::table('journal_entries')
-                ->where('company_id', $companyId)
-                ->update(['status' => 'UnPost']);
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Data unposted successfully and all entries set to UnPost'
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Failed to unpost data',
-                'error' => $e->getMessage()
-            ], 500);
-        }
-    }
+    // P0-07: postJournalToPostings() and unpostJournalFromPostings() removed.
+    // These were dead code with zero callers in the repository.
+    // Caveat: Repository-static analysis cannot rule out runtime-only external invocation.
 
     public function inventoryValuationSummary(Request $request): Response
     {

@@ -45,11 +45,15 @@ class AppServiceProvider extends ServiceProvider
             'cash' => BankAccount::class, // Unified to BankAccount
         ]);
 
-        \Illuminate\Support\Facades\DB::listen(function ($query) {
-            \Illuminate\Support\Facades\Log::info("SQL Query: [{$query->time}ms] {$query->sql}", [
-                'bindings' => $query->bindings,
-            ]);
-        });
+        // P0-06: Only log SQL queries in debug/local environments to prevent
+        // performance degradation and sensitive data leakage in production.
+        if (config('app.debug')) {
+            \Illuminate\Support\Facades\DB::listen(function ($query) {
+                \Illuminate\Support\Facades\Log::debug("SQL: [{$query->time}ms] {$query->sql}", [
+                    'bindings' => $query->bindings,
+                ]);
+            });
+        }
 
         Vite::prefetch(concurrency: 3);
         $this->loadMigrationsFrom([

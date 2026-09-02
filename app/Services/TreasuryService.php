@@ -8,6 +8,7 @@ use App\Models\Accounting\AccountPosting;
 use App\Models\Account;
 use App\Models\BankAccount;
 use App\Models\TreasuryTransaction;
+use App\Services\Accounting\PostingService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -15,6 +16,8 @@ class TreasuryService
 {
     protected string $transactionCodePrefix = 'TRX-';
     protected int $transactionCodeStart = 10001;
+
+    public function __construct(protected PostingService $postingService) {}
 
     /**
      * Resolve account model based on type and ID.
@@ -60,7 +63,7 @@ class TreasuryService
                 $this->deleteJournalEntry($transaction);
             }
 
-            $this->recalculatePostings($transaction->company_id);
+            $this->postingService->recalculatePostings($transaction->company_id);
 
             return $transaction;
         });
@@ -75,7 +78,7 @@ class TreasuryService
             $companyId = $transaction->company_id;
             $this->deleteJournalEntry($transaction);
             $transaction->delete();
-            $this->recalculatePostings($companyId);
+            $this->postingService->recalculatePostings($companyId);
             return true;
         });
     }
@@ -206,46 +209,9 @@ class TreasuryService
         }
     }
 
-    public function recalculatePostings(int $companyId): void
-    {
-        AccountPosting::where('company_id', $companyId)->update([
-            'current_debit' => 0,
-            'current_credit' => 0,
-        ]);
-
-        $lines = DB::table('journal_entry_lines')
-            ->join('journal_entries', 'journal_entry_lines.journal_entry_code', '=', 'journal_entries.entry_code')
-            ->where('journal_entries.company_id', $companyId)
-            ->whereIn('journal_entries.status', ['Post', 'posted'])
-            ->select(
-                'journal_entry_lines.account_id',
-                DB::raw('SUM(journal_entry_lines.debit) as total_debit'),
-                DB::raw('SUM(journal_entry_lines.credit) as total_credit')
-            )
-            ->groupBy('journal_entry_lines.account_id')
-            ->get();
-
-        foreach ($lines as $line) {
-            if (!$line->account_id) continue;
-            
-            AccountPosting::updateOrCreate(
-                [
-                    'account_id' => $line->account_id,
-                    'company_id' => $companyId
-                ],
-                [
-                    'current_debit' => $line->total_debit,
-                    'current_credit' => $line->total_credit,
-                    'period_start' => now()->startOfYear()->toDateString(),
-                    'period_end' => now()->endOfYear()->toDateString(),
-                ]
-            );
-        }
-    }
-
     public function updateTreasuryBalance(TreasuryTransaction $transaction): void
     {
-        $this->recalculatePostings($transaction->company_id);
+        $this->postingService->recalculatePostings($transaction->company_id);
     }
 
     public function generateNextTransactionCode(): string
