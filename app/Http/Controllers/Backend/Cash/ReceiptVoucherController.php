@@ -31,7 +31,10 @@ class ReceiptVoucherController extends Controller
             $payment = CustomerPayment::create($this->paymentData($validated, true));
             $invoiceIds = $this->syncAllocations($payment, $validated['allocations'] ?? []);
             $this->refreshInvoices($invoiceIds);
-            $this->createJournalEntryForPayment($payment, $validated);
+            // Only create GL entry when payment is posted/reconciled, not draft
+            if (in_array($validated['status'] ?? 'draft', ['posted', 'reconciled'])) {
+                $this->createJournalEntryForPayment($payment, $validated);
+            }
         });
 
         return redirect()->back()->with('success', 'Receipt voucher created successfully.');
@@ -48,7 +51,10 @@ class ReceiptVoucherController extends Controller
             $voucher->update($this->paymentData($validated, false));
             $newInvoiceIds = $this->syncAllocations($voucher, $validated['allocations'] ?? []);
             $this->refreshInvoices(array_unique(array_merge($previousInvoiceIds, $newInvoiceIds)));
-            $this->createJournalEntryForPayment($voucher->fresh(), $validated);
+            // Only create GL entry when payment is posted/reconciled
+            if (in_array($validated['status'] ?? 'draft', ['posted', 'reconciled'])) {
+                $this->createJournalEntryForPayment($voucher->fresh(), $validated);
+            }
         });
 
         return redirect()->back()->with('success', 'Receipt voucher updated successfully.');

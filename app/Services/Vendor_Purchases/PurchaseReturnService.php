@@ -302,6 +302,7 @@ class PurchaseReturnService
     {
         return DB::transaction(function () use ($id, $data) {
             $purchaseReturn = PurchaseReturn::with('details')->findOrFail($id);
+            $oldStatus = $purchaseReturn->status;
 
             $invoice = PurchaseInvoice::with('items.product')->findOrFail((int) $data['invoice_id']);
 
@@ -341,6 +342,9 @@ class PurchaseReturnService
                 ? $data['refund_status']
                 : ($purchaseReturn->refund_status ?? 'pending');
 
+            $newStatusIsPosted = in_array($status, ['approved', 'completed']);
+            $oldStatusWasPosted = in_array($oldStatus, ['approved', 'completed']);
+
             $purchaseReturn->update([
                 'return_number' => $returnNumber,
                 'invoice_id' => $invoice->id,
@@ -367,7 +371,19 @@ class PurchaseReturnService
                 $purchaseReturn->details()->create($item);
             }
 
-            return $purchaseReturn;
+            // Synchronize financial effects based on status transitions
+            $freshReturn = $purchaseReturn->fresh();
+
+            if ($newStatusIsPosted && !$oldStatusWasPosted) {
+                $this->createJournalEntryForReturn($freshReturn, $totals);
+            } elseif ($newStatusIsPosted && $oldStatusWasPosted) {
+                $this->reverseJournalEntryForReturn($freshReturn);
+                $this->createJournalEntryForReturn($freshReturn, $totals);
+            } elseif (!$newStatusIsPosted && $oldStatusWasPosted) {
+                $this->reverseJournalEntryForReturn($freshReturn);
+            }
+
+            return $freshReturn;
         });
     }
 
@@ -447,19 +463,34 @@ class PurchaseReturnService
             return;
         }
 
-        $this->ensureOpenFiscalPeriod($return->return_date);
-        $entryCode = $this->generateNextEntryCode();
         $reference = $return->return_number;
 
-        JournalEntry::create([
-            'entry_code' => $entryCode,
-            'entry_type' => 'PurchaseReturn',
+        // Upsert pattern (idempotent)
+        $this->ensureOpenFiscalPeriod($return->return_date);
+        $existingHeader = JournalEntry::where('reference', $reference)
+            ->where('entry_type', 'PurchaseReturn')
+            ->first();
+
+        if ($existingHeader) {
+            JournalEntryLine::where('journal_entry_code', $existingHeader->entry_code)->delete();
+            $existingHeader->update([
+                'date' => $return->return_date,
+                'total_amount' => $totalAmount,
+                'status' => 'Post',
+            ]);
+            $entryCode = $existingHeader->entry_code;
+        } else {
+            $entryCode = $this->generateNextEntryCode();
+            JournalEntry::create([
+                'entry_code' => $entryCode,
+                'entry_type' => 'PurchaseReturn',
             'reference' => $reference,
             'date' => $return->return_date,
             'description' => 'Purchase Return ' . $reference,
             'total_amount' => $totalAmount,
             'status' => 'Post',
-        ]);
+            ]);
+        }
 
         // Dr Accounts Payable
         JournalEntryLine::create([
@@ -537,5 +568,22 @@ class PurchaseReturnService
         }
 
         return 'QID-' . $nextNumber;
+    }
+
+    /**
+     * Reverse/remove the journal entry for a purchase return.
+     * Called when status changes from approved/completed to draft/requested/cancelled.
+     */
+    private function reverseJournalEntryForReturn(PurchaseReturn $return): void
+    {
+        $reference = $return->return_number;
+        $header = JournalEntry::where('reference', $reference)
+            ->where('entry_type', 'PurchaseReturn')
+            ->first();
+
+        if ($header) {
+            JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
+            $header->delete();
+        }
     }
 }

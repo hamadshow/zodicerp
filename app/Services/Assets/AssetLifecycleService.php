@@ -2,6 +2,10 @@
 
 namespace App\Services\Assets;
 
+use App\Traits\EnsuresFiscalPeriod;
+use App\Models\Accounting\Account;
+use App\Models\Accounting\JournalEntry;
+use App\Models\Accounting\JournalEntryLine;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -17,6 +21,7 @@ use Illuminate\Support\Facades\DB;
  */
 class AssetLifecycleService
 {
+    use EnsuresFiscalPeriod;
     /**
      * Calculate depreciation for an asset up to asOfDate.
      * Returns the computed amounts without writing to the database.
@@ -138,6 +143,14 @@ class AssetLifecycleService
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            // Create GL entry: Dr Depreciation Expense, Cr Accumulated Depreciation
+            $journalEntryId = $this->createDepreciationJournalEntry($assetId, $remaining, $asOfDate, $periodMonth, $periodYear);
+
+            // Link journal entry to depreciation record
+            DB::table('asset_depreciation')
+                ->where('id', $depreciationId)
+                ->update(['journal_entry_id' => $journalEntryId]);
 
             return [
                 'depreciation_id' => $depreciationId,
@@ -339,5 +352,96 @@ class AssetLifecycleService
 
             return ['message' => 'Asset movement recorded successfully.', 'asset_id' => $asset->id];
         });
+    }
+
+    /**
+     * Create GL entry for depreciation:
+     *   Dr Depreciation Expense
+     *   Cr Accumulated Depreciation
+     */
+    private function createDepreciationJournalEntry(int $assetId, float $amount, string $asOfDate, int $periodMonth, int $periodYear): ?int
+    {
+        $expenseAccountId = $this->resolveDepreciationExpenseAccountId();
+        $accumDeprAccountId = $this->resolveAccumulatedDepreciationAccountId();
+
+        if (!$expenseAccountId || !$accumDeprAccountId) {
+            return null;
+        }
+
+        $this->ensureOpenFiscalPeriod($asOfDate);
+
+        $entryCode = $this->generateNextEntryCode();
+        $reference = "DEPR-{$assetId}-{$periodYear}-{$periodMonth}";
+
+        $header = JournalEntry::create([
+            'entry_code' => $entryCode,
+            'entry_type' => 'Depreciation',
+            'reference' => $reference,
+            'date' => $asOfDate,
+            'description' => "Asset depreciation for period {$periodMonth}/{$periodYear}",
+            'total_amount' => round($amount, 2),
+            'status' => 'Post',
+        ]);
+
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $expenseAccountId,
+            'debit' => round($amount, 2),
+            'credit' => 0,
+            'related_id_name' => 'Depreciation',
+            'related_name_details' => $reference,
+            'description' => 'Depreciation Expense',
+        ]);
+
+        JournalEntryLine::create([
+            'journal_entry_code' => $entryCode,
+            'account_id' => $accumDeprAccountId,
+            'debit' => 0,
+            'credit' => round($amount, 2),
+            'related_id_name' => 'Depreciation',
+            'related_name_details' => $reference,
+            'description' => 'Accumulated Depreciation',
+        ]);
+
+        return $header->id;
+    }
+
+    private function resolveDepreciationExpenseAccountId(): ?int
+    {
+        // Depreciation Expense is typically in 6xxx range
+        return Account::where('AccType', 1)
+            ->where('AccCode', 'like', '6%')
+            ->where('AccName', 'like', '%depreciation%')
+            ->orderBy('AccCode')
+            ->value('AccID')
+            ?? Account::where('AccType', 1)
+                ->where('AccCode', 'like', '6%')
+                ->orderBy('AccCode')
+                ->value('AccID');
+    }
+
+    private function resolveAccumulatedDepreciationAccountId(): ?int
+    {
+        // Accumulated Depreciation is a contra-asset in 1xxx range
+        return Account::where('AccType', 1)
+            ->where('AccCode', 'like', '1%')
+            ->where('AccName', 'like', '%accumulated%depreciation%')
+            ->orderBy('AccCode')
+            ->value('AccID');
+    }
+
+    private function generateNextEntryCode(): string
+    {
+        $lastCode = JournalEntry::whereNotNull('entry_code')
+            ->where('entry_code', '!=', '')
+            ->orderByDesc('id')
+            ->value('entry_code');
+
+        $nextNumber = 10001;
+        if ($lastCode && preg_match('/(\d+)$/', $lastCode, $matches)) {
+            $nextNumber = (int) $matches[1] + 1;
+        }
+
+        return 'QID-' . $nextNumber;
     }
 }

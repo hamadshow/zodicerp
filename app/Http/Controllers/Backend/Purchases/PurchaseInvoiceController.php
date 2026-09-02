@@ -296,8 +296,10 @@ class PurchaseInvoiceController extends Controller
                 ]);
             }
 
-            // Create journal entry for the purchase invoice
-            $this->createJournalEntryForInvoice($invoice, $validated);
+            // Create journal entry only for standard invoices (not proforma)
+            if (($validated['invoice_type'] ?? 'standard') === 'standard') {
+                $this->createJournalEntryForInvoice($invoice, $validated);
+            }
 
             DB::commit();
 
@@ -372,8 +374,13 @@ class PurchaseInvoiceController extends Controller
                 ]);
             }
 
-            // Sync journal entry on update
-            $this->createJournalEntryForInvoice($invoice->fresh(), $validated);
+            // Sync journal entry on update (only for standard invoices)
+            if (($validated['invoice_type'] ?? 'standard') === 'standard') {
+                $this->createJournalEntryForInvoice($invoice->fresh(), $validated);
+            } else {
+                // If changed to proforma, remove existing journal entry
+                $this->deleteJournalEntryForInvoice($invoice->fresh());
+            }
 
             DB::commit();
 

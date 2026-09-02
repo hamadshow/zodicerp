@@ -355,6 +355,7 @@ class SalesReturnService
     {
         return DB::transaction(function () use ($id, $data) {
             $salesReturn = SalesReturn::with('details')->findOrFail($id);
+            $oldStatus = $salesReturn->status;
 
             $invoice = SalesInvoice::with('details.product', 'details.tax')->findOrFail((int) $data['invoice_id']);
 
@@ -391,6 +392,9 @@ class SalesReturnService
                 ? $data['refund_status']
                 : ($salesReturn->refund_status ?? 'pending');
 
+            $newStatusIsPosted = in_array($status, ['approved', 'completed']);
+            $oldStatusWasPosted = in_array($oldStatus, ['approved', 'completed']);
+
             $salesReturn->update([
                 'return_number' => $returnNumber,
                 'invoice_id' => $invoice->id,
@@ -419,7 +423,26 @@ class SalesReturnService
                 $salesReturn->details()->create($item);
             }
 
-            return $salesReturn;
+            // Synchronize financial effects based on status transitions
+            $freshReturn = $salesReturn->fresh();
+
+            if ($newStatusIsPosted && !$oldStatusWasPosted) {
+                // Draft/requested → approved/completed: CREATE effects
+                $this->createJournalEntryForReturn($freshReturn, $totals);
+                $this->createStockMovementsForReturn($freshReturn);
+            } elseif ($newStatusIsPosted && $oldStatusWasPosted) {
+                // Already posted, still posted: UPDATE effects (idempotent)
+                $this->reverseStockMovementsForReturn($freshReturn);
+                $this->createJournalEntryForReturn($freshReturn, $totals);
+                $this->createStockMovementsForReturn($freshReturn);
+            } elseif (!$newStatusIsPosted && $oldStatusWasPosted) {
+                // approved/completed → draft/requested/cancelled: REVERSE effects
+                $this->reverseJournalEntryForReturn($freshReturn);
+                $this->reverseStockMovementsForReturn($freshReturn);
+            }
+            // else: both draft/requested — no financial effects needed
+
+            return $freshReturn;
         });
     }
 
@@ -645,5 +668,57 @@ class SalesReturnService
         }
 
         return 'QID-' . $nextNumber;
+    }
+
+    /**
+     * Reverse/remove the journal entry for a sales return.
+     * Called when status changes from approved/completed to draft/requested/cancelled.
+     */
+    private function reverseJournalEntryForReturn(SalesReturn $return): void
+    {
+        $reference = $return->return_number;
+        $header = JournalEntry::where('reference', $reference)
+            ->where('entry_type', 'SalesReturn')
+            ->first();
+
+        if ($header) {
+            JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
+            $header->delete();
+        }
+    }
+
+    /**
+     * Reverse/remove stock movements and product quantity for a sales return.
+     * Called when status changes from approved/completed to draft/requested/cancelled.
+     */
+    private function reverseStockMovementsForReturn(SalesReturn $return): void
+    {
+        // Find and delete existing movements for this return
+        $headers = DB::table('inventory_movement_headers')
+            ->where('reference_id', $return->id)
+            ->where('reference_type', 'sales_return')
+            ->get();
+
+        foreach ($headers as $header) {
+            // Reverse product quantities
+            $lines = DB::table('inventory_movement_lines')
+                ->where('stock_movement_id', $header->id)
+                ->get();
+
+            foreach ($lines as $line) {
+                DB::table('products')
+                    ->where('id', $line->product_id)
+                    ->decrement('quantity', (float) $line->quantity);
+            }
+
+            DB::table('inventory_movement_lines')
+                ->where('stock_movement_id', $header->id)
+                ->delete();
+        }
+
+        DB::table('inventory_movement_headers')
+            ->where('reference_id', $return->id)
+            ->where('reference_type', 'sales_return')
+            ->delete();
     }
 }
