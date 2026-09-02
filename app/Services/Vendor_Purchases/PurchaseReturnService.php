@@ -2,6 +2,7 @@
 
 namespace App\Services\Vendor_Purchases;
 
+use App\Traits\EnsuresFiscalPeriod;
 use App\Models\Accounting\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
@@ -15,6 +16,7 @@ use Illuminate\Validation\ValidationException;
 
 class PurchaseReturnService
 {
+    use EnsuresFiscalPeriod;
     public function getPreviouslyReturnedQuantities(int $invoiceId, ?int $excludeReturnId = null): array
     {
         $query = PurchaseReturnDetail::query()
@@ -445,6 +447,7 @@ class PurchaseReturnService
             return;
         }
 
+        $this->ensureOpenFiscalPeriod($return->return_date);
         $entryCode = $this->generateNextEntryCode();
         $reference = $return->return_number;
 
@@ -515,9 +518,10 @@ class PurchaseReturnService
 
     private function resolveInputTaxAccountId(): ?int
     {
-        return Account::where('AccCode', 'like', '2.1.3%')
-            ->orWhere('AccCode', 'like', '213%')
-            ->value('AccID');
+        return Account::where(function ($q) {
+            $q->where('AccCode', 'like', '2.1.3%')
+              ->orWhere('AccCode', 'like', '213%');
+        })->value('AccID');
     }
 
     private function generateNextEntryCode(): string

@@ -2,6 +2,7 @@
 
 namespace App\Services\Client_Sales;
 
+use App\Traits\EnsuresFiscalPeriod;
 use App\Models\Accounting\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
@@ -16,6 +17,7 @@ use Illuminate\Validation\ValidationException;
 
 class SalesReturnService
 {
+    use EnsuresFiscalPeriod;
     public function getPreviouslyReturnedQuantities(int $invoiceId, ?int $excludeReturnId = null): array
     {
         $query = SalesReturnDetail::query()
@@ -501,30 +503,44 @@ class SalesReturnService
     {
         $totalAmount = (float) ($totals['total_amount'] ?? $return->total_amount ?? 0);
         $taxAmount = (float) ($totals['tax_amount'] ?? $return->tax_amount ?? 0);
-        $netAmount = $totalAmount - $taxAmount;
 
         $arAccountId = $this->resolveArAccountId($return->customer_id);
         $revenueAccountId = $this->resolveRevenueAccountId();
-        $taxAccountId = $this->resolveOutputTaxAccountId();
 
         if (!$arAccountId || !$revenueAccountId) {
             return;
         }
 
-        $entryCode = $this->generateNextEntryCode();
+        // Check for existing journal entry (idempotency)
         $reference = $return->return_number;
+        $existingHeader = JournalEntry::where('reference', $reference)
+            ->where('entry_type', 'SalesReturn')
+            ->first();
 
-        JournalEntry::create([
-            'entry_code' => $entryCode,
-            'entry_type' => 'SalesReturn',
-            'reference' => $reference,
-            'date' => $return->return_date,
-            'description' => 'Sales Return ' . $reference,
-            'total_amount' => $totalAmount,
-            'status' => 'Post',
-        ]);
+        if ($existingHeader) {
+            JournalEntryLine::where('journal_entry_code', $existingHeader->entry_code)->delete();
+            $entryCode = $existingHeader->entry_code;
+            $existingHeader->update([
+                'date' => $return->return_date,
+                'total_amount' => $totalAmount,
+                'status' => 'Post',
+            ]);
+        } else {
+            $this->ensureOpenFiscalPeriod($return->return_date);
+            $entryCode = $this->generateNextEntryCode();
+            JournalEntry::create([
+                'entry_code' => $entryCode,
+                'entry_type' => 'SalesReturn',
+                'reference' => $reference,
+                'date' => $return->return_date,
+                'description' => 'Sales Return ' . $reference,
+                'total_amount' => $totalAmount,
+                'status' => 'Post',
+            ]);
+        }
 
-        // Dr Accounts Receivable (credit note reduces what customer owes... but for returns we reverse: Dr AR = customer owes less)
+        // Mirror the original Sales Invoice entry (Dr Revenue, Cr AR) — the Sales Invoice
+        // credits Revenue for total_amount (including tax), so we reverse the same amount.
         JournalEntryLine::create([
             'journal_entry_code' => $entryCode,
             'account_id' => $revenueAccountId,
@@ -535,7 +551,6 @@ class SalesReturnService
             'description' => 'Revenue reversal - Return ' . $reference,
         ]);
 
-        // Cr Accounts Receivable
         JournalEntryLine::create([
             'journal_entry_code' => $entryCode,
             'account_id' => $arAccountId,
@@ -545,19 +560,6 @@ class SalesReturnService
             'related_name_details' => $reference,
             'description' => 'AR reduction - Return ' . $reference,
         ]);
-
-        // Dr Output Tax reversal (if applicable)
-        if ($taxAmount > 0 && $taxAccountId) {
-            JournalEntryLine::create([
-                'journal_entry_code' => $entryCode,
-                'account_id' => $taxAccountId,
-                'debit' => $taxAmount,
-                'credit' => 0,
-                'related_id_name' => 'SalesReturn',
-                'related_name_details' => $reference,
-                'description' => 'Output Tax reversal - ' . $reference,
-            ]);
-        }
     }
 
     /**
@@ -624,9 +626,10 @@ class SalesReturnService
 
     private function resolveOutputTaxAccountId(): ?int
     {
-        return Account::where('AccCode', 'like', '2.1.4%')
-            ->orWhere('AccCode', 'like', '214%')
-            ->value('AccID');
+        return Account::where(function ($q) {
+            $q->where('AccCode', 'like', '2.1.4%')
+              ->orWhere('AccCode', 'like', '214%');
+        })->value('AccID');
     }
 
     private function generateNextEntryCode(): string

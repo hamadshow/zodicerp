@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Backend\Cash;
 
 use App\Http\Controllers\Controller;
+use App\Traits\EnsuresFiscalPeriod;
 use App\Models\Accounting\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
@@ -19,6 +20,7 @@ use Illuminate\Validation\ValidationException;
 
 class PaymentVoucherController extends Controller
 {
+    use EnsuresFiscalPeriod;
     public function store(Request $request): RedirectResponse
     {
         $payload = $this->normalizePayload($request);
@@ -370,6 +372,7 @@ class PaymentVoucherController extends Controller
             return;
         }
 
+        $this->ensureOpenFiscalPeriod($validated['payment_date'] ?? $payment->payment_date);
         $entryCode = $this->generateNextEntryCode();
         $reference = $payment->payment_number;
 

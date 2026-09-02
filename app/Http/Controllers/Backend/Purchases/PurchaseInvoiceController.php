@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Backend\Purchases;
 
 use App\Http\Controllers\Controller;
+use App\Traits\EnsuresFiscalPeriod;
 use App\Models\Accounting\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
@@ -19,6 +20,7 @@ use Inertia\Inertia;
 
 class PurchaseInvoiceController extends Controller
 {
+    use EnsuresFiscalPeriod;
     protected string $journalCodePrefix = 'QID-';
     protected int $journalCodeStart = 10001;
 
@@ -42,19 +44,36 @@ class PurchaseInvoiceController extends Controller
             throw new \RuntimeException('Required accounts not configured for purchase journal entry.');
         }
 
-        $entryCode = $this->generateNextEntryCode();
         $reference = $invoice->invoice_number;
         $status = 'Post';
+        $invoiceDate = $validated['invoice_date'] ?? $invoice->invoice_date;
 
-        JournalEntry::create([
-            'entry_code' => $entryCode,
-            'entry_type' => 'PurchaseInvoice',
-            'reference' => $reference,
-            'date' => $validated['invoice_date'] ?? $invoice->invoice_date,
-            'description' => 'Purchase Invoice ' . $reference,
-            'total_amount' => $totalAmount,
-            'status' => $status,
-        ]);
+        // Upsert pattern: update existing journal or create new (idempotent)
+        $this->ensureOpenFiscalPeriod($invoiceDate);
+        $existingHeader = JournalEntry::where('reference', $reference)
+            ->where('entry_type', 'PurchaseInvoice')
+            ->first();
+
+        if ($existingHeader) {
+            $existingHeader->update([
+                'date' => $invoiceDate,
+                'total_amount' => $totalAmount,
+                'status' => $status,
+            ]);
+            JournalEntryLine::where('journal_entry_code', $existingHeader->entry_code)->delete();
+            $entryCode = $existingHeader->entry_code;
+        } else {
+            $entryCode = $this->generateNextEntryCode();
+            JournalEntry::create([
+                'entry_code' => $entryCode,
+                'entry_type' => 'PurchaseInvoice',
+                'reference' => $reference,
+                'date' => $invoiceDate,
+                'description' => 'Purchase Invoice ' . $reference,
+                'total_amount' => $totalAmount,
+                'status' => $status,
+            ]);
+        }
 
         // Dr Purchase/Inventory Expense
         JournalEntryLine::create([
@@ -135,8 +154,10 @@ class PurchaseInvoiceController extends Controller
     {
         return Account::query()
             ->where('AccType', 1)
-            ->where('AccCode', 'like', '2.1.3%')
-            ->orWhere('AccCode', 'like', '213%')
+            ->where(function ($q) {
+                $q->where('AccCode', 'like', '2.1.3%')
+                  ->orWhere('AccCode', 'like', '213%');
+            })
             ->value('AccID');
     }
 
@@ -350,6 +371,9 @@ class PurchaseInvoiceController extends Controller
                     'tax_percentage' => $item['tax_percent'] ?? $item['tax_percentage'] ?? 0,
                 ]);
             }
+
+            // Sync journal entry on update
+            $this->createJournalEntryForInvoice($invoice->fresh(), $validated);
 
             DB::commit();
 

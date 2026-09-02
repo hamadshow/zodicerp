@@ -8,6 +8,7 @@ use App\Models\Accounting\JournalEntryLine;
 use App\Models\Client_Sales\SalesOrder;
 use App\Models\Vendor_Purchases\SalesAgent;
 use App\Http\Controllers\Controller;
+use App\Traits\EnsuresFiscalPeriod;
 use App\Models\Client_Sales\Customer;
 use App\Models\Client_Sales\SalesInvoice;
 use App\Models\Currency;
@@ -24,6 +25,7 @@ use Inertia\Inertia;
 
 class SalesInvoiceController extends Controller
 {
+    use EnsuresFiscalPeriod;
     protected string $journalCodePrefix = 'QID-';
 
     protected int $journalCodeStart = 10001;
@@ -322,6 +324,7 @@ class SalesInvoiceController extends Controller
         $status = $invoice->is_posted ? 'Post' : 'UnPost';
         $description = 'Sales Invoice '.$reference;
 
+        $this->ensureOpenFiscalPeriod($invoice->invoice_date);
         $header = JournalEntry::where('reference', $reference)
             ->where('entry_type', $entryType)
             ->lockForUpdate()

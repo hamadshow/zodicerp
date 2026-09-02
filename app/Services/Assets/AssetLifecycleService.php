@@ -197,8 +197,10 @@ class AssetLifecycleService
         $asOfDate = $data['as_of_date'] ?? now()->toDateString();
         $assets = DB::table('assets')
             ->where('status', 'active')
-            ->whereNotNull('depreciation_start_date')
-            ->orWhereNotNull('acquisition_date')
+            ->where(function ($q) {
+                $q->whereNotNull('depreciation_start_date')
+                  ->orWhereNotNull('acquisition_date');
+            })
             ->get();
 
         $results = [];

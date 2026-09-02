@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Traits\EnsuresFiscalPeriod;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
 use App\Models\Accounting\AccountPosting;
@@ -14,6 +15,8 @@ use Illuminate\Support\Facades\DB;
 
 class TreasuryService
 {
+    use EnsuresFiscalPeriod;
+
     protected string $transactionCodePrefix = 'TRX-';
     protected int $transactionCodeStart = 10001;
 
@@ -101,6 +104,7 @@ class TreasuryService
 
         $details = $transaction->notes ?: $transaction->reference;
 
+        $this->ensureOpenFiscalPeriod($transaction->transaction_date);
         $header = JournalEntry::where('reference', $code)
             ->where('entry_type', $qaidType)
             ->first();
