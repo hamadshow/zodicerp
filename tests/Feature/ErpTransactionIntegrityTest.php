@@ -44,6 +44,65 @@ class ErpTransactionIntegrityTest extends TestCase
             $this->markTestSkipped('This test requires a MySQL database.');
         }
 
+        $testEntryCodes = DB::table('journal_entries')
+            ->where(function ($query) {
+                $query->where('reference', 'like', 'QID-%')
+                    ->orWhere('reference', 'like', 'ADJ-%')
+                    ->orWhere('reference', 'like', 'DEPR-TEST%')
+                    ->orWhere('reference', 'like', 'DISPOSAL-TEST%');
+            })
+            ->pluck('entry_code');
+        if ($testEntryCodes->isNotEmpty()) {
+            DB::table('journal_entry_lines')->whereIn('journal_entry_code', $testEntryCodes)->delete();
+            DB::table('journal_entries')->whereIn('entry_code', $testEntryCodes)->delete();
+        }
+
+        DB::table('company')->insertOrIgnore([
+            'id' => 1,
+            'company_name' => 'ERP Integrity Test Company',
+            'company_code' => 'ERP-TEST',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('currencies')->insertOrIgnore([
+            'id' => 1,
+            'code' => 'TST',
+            'name' => 'Test Currency',
+            'symbol' => 'TST',
+            'is_base' => true,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('asset_categories')->insertOrIgnore([
+            'id' => 1,
+            'code' => 'ERP-TEST-ASSET',
+            'name_ar' => 'ERP Integrity Test Asset',
+            'depreciation_method' => 'straight_line',
+            'useful_life_years' => 5,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $branch = DB::table('branches')->where('branch_code', 'ERP-TEST-BRANCH')->first();
+        $branchId = $branch?->id ?? DB::table('branches')->insertGetId([
+            'company_id' => 1,
+            'branch_code' => 'ERP-TEST-BRANCH',
+            'branch_name' => 'ERP Integrity Test Branch',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $warehouse = DB::table('warehouses')->where('warehouse_code', 'ERP-TEST-WAREHOUSE')->first();
+        $this->testWarehouseId = $warehouse?->id ?? DB::table('warehouses')->insertGetId([
+            'warehouse_code' => 'ERP-TEST-WAREHOUSE',
+            'name' => 'ERP Integrity Test Warehouse',
+            'branch_id' => $branchId,
+            'company_id' => 1,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         // Create a unique test user
         $email = 'integrity-test-' . uniqid() . '@zodicerp-test.com';
         $this->testUserId = DB::table('users')->insertGetId([
@@ -58,9 +117,6 @@ class ErpTransactionIntegrityTest extends TestCase
         ]);
 
         $this->testCompanyId = 1;
-
-        // Use existing warehouse
-        $this->testWarehouseId = DB::table('warehouses')->first()->id;
 
         // Create test product with known quantity
         $uniqid = uniqid();
@@ -77,8 +133,16 @@ class ErpTransactionIntegrityTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        // Use existing unit
-        $this->testUnitId = DB::table('item_units')->first()->id;
+        $unit = DB::table('item_units')->where('name', 'ERP Integrity Test Unit')->first();
+        $this->testUnitId = $unit?->id ?? DB::table('item_units')->insertGetId([
+            'name' => 'ERP Integrity Test Unit',
+            'unit_type' => 1,
+            'conversion_factor' => 1,
+            'active' => true,
+            'created_by' => $this->testUserId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         // Resolve test accounts (AccCode is integer in this schema)
         $this->testInventoryAccountId = $this->getOrCreateAccount(1150, 'TEST Inventory Asset', 0);
@@ -110,7 +174,6 @@ class ErpTransactionIntegrityTest extends TestCase
                 ->pluck('adjustment_id');
             DB::table('stock_adjustment_items')->whereIn('adjustment_id', $adjustmentIds)->delete();
             DB::table('stock_adjustments')->whereIn('id', $adjustmentIds)->delete();
-            DB::table('products')->where('id', $this->testProductId)->delete();
         }
         // Delete test journal entries (with TEST in reference/description)
         $testEntries = DB::table('journal_entries')
@@ -119,6 +182,7 @@ class ErpTransactionIntegrityTest extends TestCase
             ->orWhere('reference', 'like', '%ADJ-%')
             ->orWhere('reference', 'like', '%DEPR-TEST%')
             ->orWhere('reference', 'like', '%DISPOSAL-TEST%')
+            ->orWhere('reference', 'like', 'QID-%')
             ->pluck('entry_code');
         if ($testEntries->isNotEmpty()) {
             DB::table('journal_entry_lines')->whereIn('journal_entry_code', $testEntries)->delete();
@@ -133,6 +197,9 @@ class ErpTransactionIntegrityTest extends TestCase
         if ($movementHeaders->isNotEmpty()) {
             DB::table('inventory_movement_lines')->whereIn('stock_movement_id', $movementHeaders)->delete();
             DB::table('inventory_movement_headers')->whereIn('id', $movementHeaders)->delete();
+        }
+        if ($this->testProductId) {
+            DB::table('products')->where('id', $this->testProductId)->delete();
         }
         // Delete test asset disposals and depreciation first
         $testAssetIds = DB::table('assets')->where('name_ar', 'like', 'TEST ASSET%')->pluck('id');
@@ -186,25 +253,29 @@ class ErpTransactionIntegrityTest extends TestCase
             DB::table('fiscal_years')->where('id', $existing->id)->update(['status' => 'open']);
         }
 
-        // Ensure at least one open accounting period for current month
-        $month = date('m');
-        $periodName = "$year-$month";
-        $existingPeriod = DB::table('accounting_periods')
-            ->where('name', $periodName)
-            ->first();
+        // Open every month used by the historical integration scenarios.
+        $fiscalYearId = DB::table('fiscal_years')
+            ->where('name', "FY $year")
+            ->where('company_id', $this->testCompanyId)
+            ->first()->id;
+        foreach (range(1, 12) as $monthNumber) {
+            $month = str_pad((string) $monthNumber, 2, '0', STR_PAD_LEFT);
+            $periodName = "$year-$month";
+            $existingPeriod = DB::table('accounting_periods')->where('name', $periodName)->first();
 
-        if (!$existingPeriod) {
-            DB::table('accounting_periods')->insert([
-                'fiscal_year_id' => DB::table('fiscal_years')->where('name', "FY $year")->where('company_id', $this->testCompanyId)->first()->id,
-                'name' => $periodName,
-                'start_date' => "$year-$month-01",
-                'end_date' => date('Y-m-t', strtotime("$year-$month-01")),
-                'status' => 'open',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-        } elseif ($existingPeriod->status !== 'open') {
-            DB::table('accounting_periods')->where('id', $existingPeriod->id)->update(['status' => 'open']);
+            if (!$existingPeriod) {
+                DB::table('accounting_periods')->insert([
+                    'fiscal_year_id' => $fiscalYearId,
+                    'name' => $periodName,
+                    'start_date' => "$year-$month-01",
+                    'end_date' => date('Y-m-t', strtotime("$year-$month-01")),
+                    'status' => 'open',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            } elseif ($existingPeriod->status !== 'open') {
+                DB::table('accounting_periods')->where('id', $existingPeriod->id)->update(['status' => 'open']);
+            }
         }
     }
 
@@ -491,6 +562,53 @@ class ErpTransactionIntegrityTest extends TestCase
             ->where('reference', $result->adjustment_number)
             ->where('entry_type', 'StockAdjustment')
             ->count(), 'Must be exactly one journal for this adjustment');
+    }
+
+    /** @test */
+    public function mixed_sign_stock_adjustment_lines_are_accounted_per_direction()
+    {
+        $this->actingAsTestUser();
+        $service = new StockAdjustmentService();
+
+        $result = $service->createAdjustment([
+            'warehouse_id' => $this->testWarehouseId,
+            'adjustment_date' => '2026-06-15',
+            'reason' => 'correction',
+            'description' => 'TEST mixed sign adjustment',
+            'items' => [
+                [
+                    'product_id' => $this->testProductId,
+                    'unit_id' => $this->testUnitId,
+                    'adjustment_quantity' => 20,
+                    'unit_cost' => 25.50,
+                ],
+                [
+                    'product_id' => $this->testProductId,
+                    'unit_id' => $this->testUnitId,
+                    'adjustment_quantity' => -10,
+                    'unit_cost' => 25.50,
+                ],
+            ],
+        ]);
+
+        $service->approveAdjustment($result->id);
+
+        $journalEntry = DB::table('journal_entries')
+            ->where('reference', $result->adjustment_number)
+            ->where('entry_type', 'StockAdjustment')
+            ->first();
+
+        $this->assertNotNull($journalEntry, 'Mixed-sign adjustment must create a stock adjustment journal');
+
+        $lines = DB::table('journal_entry_lines')
+            ->where('journal_entry_code', $journalEntry->entry_code)
+            ->get();
+
+        $totalDebit = (float) $lines->sum('debit');
+        $totalCredit = (float) $lines->sum('credit');
+        $this->assertEquals(765.0, round($totalDebit, 2), 'Mixed adjustment must total the correct debit amount');
+        $this->assertEquals(round($totalDebit, 2), round($totalCredit, 2), 'Mixed adjustment journal must balance');
+        $this->assertGreaterThanOrEqual(2, $lines->count(), 'Mixed direction adjustment should include both positive and negative accounting sides');
     }
 
     // =========================================================================
@@ -998,5 +1116,76 @@ class ErpTransactionIntegrityTest extends TestCase
             ->selectRaw('COALESCE(SUM(jel.debit - jel.credit), 0) as balance')
             ->value('balance');
         $this->assertEquals(3500, round((float)$b2, 2), 'Cash balance as of 2026-12-31 must be 3500');
+    }
+
+    /** @test */
+    public function required_qid_accounting_status_transition_scenario_maintains_single_reference_and_balances()
+    {
+        $this->actingAsTestUser();
+
+        $cashAccount = $this->testCashAccountId;
+        $revenueAccount = $this->testRevenueAccountId;
+
+        $qidEntryCodes = collect(['QID-10001', 'QID-10002', 'QID-10003', 'QID-10004']);
+        DB::table('journal_entry_lines')->whereIn('journal_entry_code', $qidEntryCodes)->delete();
+        DB::table('journal_entries')->whereIn('entry_code', $qidEntryCodes)->delete();
+
+        $journalSpecs = [
+            ['reference' => 'QID-10001', 'status' => 'Post', 'date' => '2026-01-15', 'amount' => 5000, 'direction' => 'debit'],
+            ['reference' => 'QID-10002', 'status' => 'Post', 'date' => '2026-03-01', 'amount' => 2000, 'direction' => 'credit'],
+            ['reference' => 'QID-10003', 'status' => 'UnPost', 'date' => '2026-06-01', 'amount' => 1000, 'direction' => 'debit'],
+            ['reference' => 'QID-10004', 'status' => 'Post', 'date' => '2026-12-31', 'amount' => 500, 'direction' => 'debit'],
+        ];
+
+        foreach ($journalSpecs as $spec) {
+            $entryCode = $spec['reference'];
+            DB::table('journal_entries')->insert([
+                'entry_code' => $entryCode,
+                'entry_type' => 'Manual',
+                'reference' => $spec['reference'],
+                'date' => $spec['date'],
+                'total_amount' => $spec['amount'],
+                'status' => $spec['status'],
+                'company_id' => $this->testCompanyId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $debit = ($spec['direction'] === 'debit') ? $spec['amount'] : 0;
+            $credit = ($spec['direction'] === 'credit') ? $spec['amount'] : 0;
+
+            DB::table('journal_entry_lines')->insert([
+                ['journal_entry_code' => $entryCode, 'account_id' => $cashAccount, 'debit' => $debit, 'credit' => $credit, 'created_at' => now(), 'updated_at' => now()],
+                ['journal_entry_code' => $entryCode, 'account_id' => $revenueAccount, 'debit' => $credit, 'credit' => $debit, 'created_at' => now(), 'updated_at' => now()],
+            ]);
+        }
+
+        app(PostingService::class)->recalculatePostings($this->testCompanyId);
+
+        $balanceMay = $this->getAccountBalance($cashAccount, '2026-05-31');
+        $balanceJun = $this->getAccountBalance($cashAccount, '2026-06-30');
+        $balanceDec = $this->getAccountBalance($cashAccount, '2026-12-31');
+
+        $this->assertEquals(3000.0, round($balanceMay, 2), 'Cash balance as of 2026-05-31 must be 3000');
+        $this->assertEquals(3000.0, round($balanceJun, 2), 'Cash balance as of 2026-06-30 must be 3000');
+        $this->assertEquals(3500.0, round($balanceDec, 2), 'Cash balance as of 2026-12-31 must be 3500');
+
+        $unposted = DB::table('journal_entries')->where('reference', 'QID-10003')->first();
+        $this->assertNotNull($unposted, 'QID-10003 journal must exist');
+        $this->assertEquals('UnPost', $unposted->status, 'QID-10003 is initially unposted');
+
+        DB::table('journal_entries')
+            ->where('reference', 'QID-10003')
+            ->update(['status' => 'Post']);
+
+        DB::table('journal_entry_lines')
+            ->where('journal_entry_code', 'QID-10003')
+            ->update(['updated_at' => now()]);
+
+        app(PostingService::class)->recalculatePostings($this->testCompanyId);
+
+        $balanceAfterStatusFlip = $this->getAccountBalance($cashAccount, '2026-06-30');
+        $this->assertEquals(4000.0, round($balanceAfterStatusFlip, 2), 'Status flip UnPost -> Post must change the posted balance at 2026-06-30');
+        $this->assertEquals(1, DB::table('journal_entries')->where('reference', 'QID-10003')->count(), 'The same QID-10003 journal must remain a single journal');
     }
 }
