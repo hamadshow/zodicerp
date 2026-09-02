@@ -5,6 +5,8 @@ namespace App\Services\Accounting;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
 use App\Models\Account;
+use App\Services\Accounting\PostingService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -77,6 +79,12 @@ class JournalImportService
 
         // Clear resolved accounts to free memory
         $this->resolvedAccounts = [];
+
+        // Sync account_postings cache if any entries were successfully imported
+        if ($summary['imported'] > 0) {
+            $companyId = auth()->user()?->company_id ?? 1;
+            app(PostingService::class)->recalculatePostings($companyId);
+        }
 
         return $summary;
     }
@@ -155,7 +163,9 @@ class JournalImportService
                 DB::table('journal_entry_lines')->insert($linesToInsert);
             }
 
-            return ['success' => true];
+            // Sync account_postings cache for imported journals
+            // PostingService is called after transaction commits in importRows()
+            return ['success' => true, 'entry_code' => $code];
         });
     }
 

@@ -56,35 +56,8 @@ class StockAdjustmentService
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
-
-                // Create inventory movement for traceability
-                if ($adjustmentQty != 0) {
-                    $direction = $adjustmentQty > 0 ? 'in' : 'out';
-                    $movementHeaderId = DB::table('inventory_movement_headers')->insertGetId([
-                        'movement_date' => $data['adjustment_date'],
-                        'type' => 'adjustment',
-                        'direction' => $direction,
-                        'reference_id' => $adjustmentId,
-                        'reference_type' => 'stock_adjustment',
-                        'voucher_num' => $adjustmentNumber,
-                        'warehouse_id' => $data['warehouse_id'],
-                        'company_id' => auth()->user()->company_id ?? 1,
-                        'created_by' => auth()->id(),
-                        'notes' => "Stock Adjustment: {$adjustmentNumber} - " . ($item['reason'] ?? 'correction'),
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-
-                    DB::table('inventory_movement_lines')->insert([
-                        'stock_movement_id' => $movementHeaderId,
-                        'product_id' => $item['product_id'],
-                        'unit_id' => $item['unit_id'],
-                        'quantity' => abs($adjustmentQty),
-                        'cost_price' => $item['unit_cost'] ?? 0,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                }
+                // Inventory movements are created ONLY during approval, not during draft creation.
+                // This ensures draft adjustments cannot affect effective inventory.
             }
 
             return DB::table('stock_adjustments')->where('id', $adjustmentId)->first();
@@ -100,8 +73,22 @@ class StockAdjustmentService
                 throw new \Exception('Stock adjustment not found.');
             }
 
+            // Idempotent: if already approved, return without creating duplicate effects
+            if ($adjustment->status === 'approved') {
+                return DB::table('stock_adjustments')->where('id', $adjustmentId)->first();
+            }
+
             if ($adjustment->status !== 'draft') {
                 throw new \Exception('Only draft adjustments can be approved.');
+            }
+
+            // Check for existing movements to prevent duplicate approval
+            $existingMovement = DB::table('inventory_movement_headers')
+                ->where('reference_type', 'stock_adjustment')
+                ->where('reference_id', $adjustmentId)
+                ->first();
+            if ($existingMovement) {
+                throw new \Exception('Stock adjustment already has inventory movements. Cannot approve again.');
             }
 
             // Update product quantities based on adjustment items

@@ -118,8 +118,14 @@ class AssetLifecycleService
                 ->where('period_year', $periodYear)
                 ->first();
 
+            // Idempotent: if already posted for this period, return existing record
             if ($existing) {
-                throw new \Exception("Depreciation for period {$periodMonth}/{$periodYear} already posted for this asset.");
+                return [
+                    'asset_id' => $assetId,
+                    'depreciation_id' => $existing->id,
+                    'depreciation_amount' => $existing->depreciation_amount,
+                    'journal_entry_id' => $existing->journal_entry_id,
+                ];
             }
 
             $cost = $calc['cost'];
@@ -243,6 +249,20 @@ class AssetLifecycleService
             $asset = DB::table('assets')->where('id', $data['asset_id'])->first();
             if (!$asset) {
                 throw new \Exception('Asset not found.');
+            }
+
+            // Prevent duplicate disposal
+            if (($asset->status ?? 'active') === 'disposed') {
+                throw new \Exception('Asset has already been disposed.');
+            }
+
+            // Prevent duplicate disposal record for same date
+            $existingDisposal = DB::table('asset_disposals')
+                ->where('asset_id', $asset->id)
+                ->where('disposal_date', $data['disposal_date'] ?? now()->toDateString())
+                ->first();
+            if ($existingDisposal) {
+                throw new \Exception('This asset has already been disposed on this date.');
             }
 
             $cost = (float) ($asset->purchase_price ?? $asset->cost ?? 0);
