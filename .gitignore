@@ -16,6 +16,8 @@
 /.phpunit.cache
 /.vscode
 /.zed
+/.vs
+/.continue
 /.freebuff
 /auth.json
 /node_modules
