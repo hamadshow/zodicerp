@@ -169,6 +169,11 @@ class OpeningStockController extends Controller
                         'quantity' => $item['quantity'],
                         'cost_price' => $item['cost_price'] ?? 0,
                     ]);
+
+                    // Update product quantity (opening stock sets initial stock level)
+                    DB::table('products')
+                        ->where('id', (int) $item['product_id'])
+                        ->increment('quantity', (float) $item['quantity']);
                 }
             });
         } catch (\Exception $e) {
@@ -241,6 +246,14 @@ class OpeningStockController extends Controller
                 $openingStock = OpeningStock::where('id', $id)
                     ->firstOrFail();
 
+                // Reverse old quantities before deleting old items
+                $oldItems = $openingStock->items()->get();
+                foreach ($oldItems as $oldItem) {
+                    DB::table('products')
+                        ->where('id', $oldItem->product_id)
+                        ->decrement('quantity', (float) $oldItem->quantity);
+                }
+
                 $openingStock->update([
                     'movement_date' => $validated['movement_date'] ?? null,
                     'warehouse_id' => $validated['warehouse_id'],
@@ -257,6 +270,11 @@ class OpeningStockController extends Controller
                         'quantity' => $item['quantity'],
                         'cost_price' => $item['cost_price'] ?? 0,
                     ]);
+
+                    // Apply new quantities
+                    DB::table('products')
+                        ->where('id', (int) $item['product_id'])
+                        ->increment('quantity', (float) $item['quantity']);
                 }
             });
         } catch (\Exception $e) {
@@ -276,10 +294,18 @@ class OpeningStockController extends Controller
         try {
             DB::beginTransaction();
 
-            // 1. Delete items first
+            // 1. Reverse quantities for each item
+            $items = $openingStock->items()->get();
+            foreach ($items as $item) {
+                DB::table('products')
+                    ->where('id', $item->product_id)
+                    ->decrement('quantity', (float) $item->quantity);
+            }
+
+            // 2. Delete items first
             $openingStock->items()->delete();
 
-            // 2. Delete the header
+            // 3. Delete the header
             $openingStock->delete();
 
             DB::commit();

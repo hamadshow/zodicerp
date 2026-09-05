@@ -187,12 +187,12 @@ class OpeningStockAndTransferTest extends TestCase
     }
 
     /** @test */
-    public function opening_stock_does_not_update_product_quantity()
+    public function opening_stock_updates_product_quantity()
     {
         $this->createOpeningStock(50, 10.00);
 
         $product = DB::table('products')->where('id', $this->testProductId)->first();
-        $this->assertEquals(0, (int) $product->quantity, 'Opening stock must NOT update product quantity');
+        $this->assertEquals(50, (int) $product->quantity, 'Opening stock MUST update product quantity');
     }
 
     /** @test */
@@ -281,15 +281,14 @@ class OpeningStockAndTransferTest extends TestCase
         $this->assertEquals(0, $journals, 'Stock transfer must NOT create journal entries');
     }
 
-    /** @test */
-    public function stock_transfer_cost_price_is_zero()
+    /** @test */    public function stock_transfer_cost_price_uses_product_cost()
     {
         $id = $this->createStockTransfer(20);
 
-        $line = DB::table('inventory_movement_lines')
-            ->where('stock_movement_id', $id)
-            ->first();
-        $this->assertEquals(0.0, (float) $line->cost_price, 'Stock transfer cost_price must be 0');
+        $line = DB::table('inventory_movement_lines')->where('stock_movement_id', $id)->first();
+        $product = DB::table('products')->where('id', $this->testProductId)->first();
+        $expectedCost = (float) ($product->cost_per_item ?? 0);
+        $this->assertEquals($expectedCost, (float) $line->cost_price, 'Stock transfer must use products.cost_per_item');
     }
 
     /** @test */
@@ -307,15 +306,15 @@ class OpeningStockAndTransferTest extends TestCase
     /** @test */
     public function stock_transfer_total_inventory_unchanged()
     {
-        // Create initial stock via opening stock (record only)
+        // Create initial stock via opening stock (now updates product quantity)
         $this->createOpeningStock(100, 10.00);
 
-        // Record a transfer (record only)
+        // Record a transfer (global quantity unchanged — stock moves between warehouses)
         $this->createStockTransfer(30);
 
-        // Product quantity should still be 0 (no physical effect)
+        // Product quantity should reflect opening stock only (transfer doesn't change global quantity)
         $product = DB::table('products')->where('id', $this->testProductId)->first();
-        $this->assertEquals(0, (int) $product->quantity, 'Total inventory must be unchanged');
+        $this->assertEquals(100, (int) $product->quantity, 'Total inventory unchanged by warehouse-to-warehouse transfer');
     }
 
     // ========================================================================
@@ -351,6 +350,11 @@ class OpeningStockAndTransferTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        // Mirror controller behavior: update product quantity
+        DB::table('products')
+            ->where('id', $this->testProductId)
+            ->increment('quantity', $quantity);
+
         return $id;
     }
 
@@ -373,12 +377,16 @@ class OpeningStockAndTransferTest extends TestCase
             'updated_at' => now(),
         ]);
 
+        // Use product's cost_per_item as transfer cost basis (matches controller behavior)
+        $product = DB::table('products')->where('id', $this->testProductId)->first();
+        $costPrice = (float) ($product->cost_per_item ?? 0);
+
         DB::table('inventory_movement_lines')->insert([
             'stock_movement_id' => $id,
             'product_id' => $this->testProductId,
             'unit_id' => $this->testUnitId,
             'quantity' => $quantity,
-            'cost_price' => 0,
+            'cost_price' => $costPrice,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

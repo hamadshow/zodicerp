@@ -649,12 +649,38 @@ class SalesReturnService
                 'updated_at' => now(),
             ]);
 
+            // Recover historical cost from original sale's inventory movement
+            $costPrice = 0.0;
+            if ($return->invoice_id) {
+                $saleMovementHeader = DB::table('inventory_movement_headers')
+                    ->where('reference_id', $return->invoice_id)
+                    ->where('reference_type', 'SalesInvoice')
+                    ->first();
+
+                if ($saleMovementHeader) {
+                    $originalLine = DB::table('inventory_movement_lines')
+                        ->where('stock_movement_id', $saleMovementHeader->id)
+                        ->where('product_id', $detail->product_id)
+                        ->first();
+
+                    if ($originalLine && (float) $originalLine->cost_price > 0) {
+                        $costPrice = (float) $originalLine->cost_price;
+                    }
+                }
+            }
+
+            // Fallback to current product cost if no historical movement found
+            if ($costPrice <= 0) {
+                $product = DB::table('products')->where('id', $detail->product_id)->first();
+                $costPrice = (float) ($product->cost_per_item ?? 0);
+            }
+
             DB::table('inventory_movement_lines')->insert([
                 'stock_movement_id' => $movementHeaderId,
                 'product_id' => $detail->product_id,
                 'unit_id' => $detail->unit_id ?? null,
                 'quantity' => $detail->quantity,
-                'cost_price' => $detail->unit_cost ?? 0,
+                'cost_price' => $costPrice,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -717,17 +743,27 @@ class SalesReturnService
 
     /**
      * Calculate COGS reversal amount for a Sales Return.
-     * Uses products.cost_per_item — the same cost source as the original sale.
+     * Uses the HISTORICAL cost from the original sale's inventory movement
+     * (inventory_movement_lines.cost_price where reference_type = 'SalesInvoice').
      *
-     * NOTE: sales_return_details does not have a unit_cost column, so we
-     * cannot recover the original sale's recorded cost. products.cost_per_item
-     * is the closest reliable match — it is the same field used by
-     * SalesInvoiceController::createStockMovementsForInvoice.
+     * This ensures the COGS reversal matches the original sale's recorded cost,
+     * even if products.cost_per_item has changed since the original sale.
+     * Falls back to current products.cost_per_item only if no historical movement exists.
      */
     private function calculateCogsReversalAmount(SalesReturn $return): float
     {
         $return->load('details');
         $totalCogs = 0.0;
+
+        if (!$return->invoice_id) {
+            return $totalCogs;
+        }
+
+        // Find the original sale's inventory movement header
+        $saleMovementHeader = DB::table('inventory_movement_headers')
+            ->where('reference_id', $return->invoice_id)
+            ->where('reference_type', 'SalesInvoice')
+            ->first();
 
         foreach ($return->details as $detail) {
             $qty = (float) ($detail->quantity ?? 0);
@@ -735,8 +771,25 @@ class SalesReturnService
                 continue;
             }
 
-            $product = DB::table('products')->where('id', $detail->product_id)->first();
-            $costPrice = (float) ($product->cost_per_item ?? 0);
+            $costPrice = 0.0;
+
+            // Try to recover historical cost from original sale's inventory movement
+            if ($saleMovementHeader) {
+                $originalLine = DB::table('inventory_movement_lines')
+                    ->where('stock_movement_id', $saleMovementHeader->id)
+                    ->where('product_id', $detail->product_id)
+                    ->first();
+
+                if ($originalLine && (float) $originalLine->cost_price > 0) {
+                    $costPrice = (float) $originalLine->cost_price;
+                }
+            }
+
+            // Fallback: use current products.cost_per_item if no historical movement exists
+            if ($costPrice <= 0) {
+                $product = DB::table('products')->where('id', $detail->product_id)->first();
+                $costPrice = (float) ($product->cost_per_item ?? 0);
+            }
 
             $totalCogs += $qty * $costPrice;
         }

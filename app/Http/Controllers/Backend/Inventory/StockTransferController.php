@@ -129,12 +129,16 @@ class StockTransferController extends Controller
                 ]);
 
                 foreach ($validated['items'] as $item) {
+                    // Use product's cost_per_item as the transfer cost basis
+                    $product = Products::where('id', (int) $item['product_id'])->first();
+                    $costPrice = (float) ($product->cost_per_item ?? 0);
+
                     TransferStockItem::create([
                         'stock_movement_id' => $transfer->id,
                         'product_id' => (int) $item['product_id'],
                         'unit_id' => (int) $item['unit_id'],
                         'quantity' => $item['quantity'],
-                        'cost_price' => 0,
+                        'cost_price' => $costPrice,
                     ]);
                 }
             });
@@ -192,11 +196,15 @@ class StockTransferController extends Controller
                 $transfer->items()->delete();
 
                 foreach ($validated['items'] as $item) {
+                    // Use product's cost_per_item as the transfer cost basis
+                    $product = Products::where('id', (int) $item['product_id'])->first();
+                    $costPrice = (float) ($product->cost_per_item ?? 0);
+
                     $transfer->items()->create([
                         'product_id' => (int) $item['product_id'],
                         'unit_id' => (int) $item['unit_id'],
                         'quantity' => $item['quantity'],
-                        'cost_price' => 0,
+                        'cost_price' => $costPrice,
                     ]);
                 }
             });

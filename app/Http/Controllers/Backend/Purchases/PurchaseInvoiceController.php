@@ -136,12 +136,23 @@ class PurchaseInvoiceController extends Controller
         }
     }
 
+    /**
+     * P0-FIX: Resolve the Inventory Asset account for purchase recognition.
+     *
+     * Purchase Invoice should debit Inventory Asset (11401 range), NOT COGS (501).
+     * This ensures the P&L only shows COGS from actual sales, not purchases.
+     *
+     * Perpetual inventory model:
+     *   Purchase: Dr Inventory Asset, Dr Tax, Cr AP
+     *   Sale:     Dr COGS, Cr Inventory Asset
+     */
     protected function resolvePurchaseAccountId(): ?int
     {
+        // P0-FIX: Use Inventory Asset account (1110-1199 range) instead of COGS (5xxx)
         return Account::query()
             ->where('AccType', 1)
-            ->where('AccStopped', false)
-            ->where('AccCode', 'like', '5%')
+            ->where('AccCode', '>=', 1110)
+            ->where('AccCode', '<=', 1199)
             ->orderBy('AccCode')
             ->value('AccID');
     }

@@ -546,10 +546,18 @@ class PurchaseReturnService
         return Account::where('AccCode', 'like', '2%')->where('AccType', 1)->value('AccID');
     }
 
+    /**
+     * P0-FIX: Resolve the Inventory Asset account for purchase return.
+     *
+     * Purchase Return should credit Inventory Asset (11401 range), NOT COGS (501).
+     * This is consistent with Purchase Invoice debiting Inventory Asset.
+     */
     private function resolvePurchaseAccountId(): ?int
     {
+        // P0-FIX: Use Inventory Asset account (1110-1199 range) instead of COGS (5xxx)
         return Account::where('AccType', 1)
-            ->where('AccCode', 'like', '5%')
+            ->where('AccCode', '>=', 1110)
+            ->where('AccCode', '<=', 1199)
             ->orderBy('AccCode')
             ->value('AccID');
     }
