@@ -68,15 +68,33 @@ class FinancialReportController extends Controller
 
         $payload = $reports->map(function (FinancialReport $report) use ($favoriteIds, $request) {
             $route = null;
+            $routeName = null;
 
             if ($report->route_name && $report->route_name !== '#') {
+                $routeName = $report->route_name;
                 try {
-                    // Try to get parameters from request or session
+                    $country = $request->route('country')
+                        ?? session('country_code')
+                        ?? $request->header('X-Country-Code')
+                        ?? config('app.default_country', 'sa');
+                    $lang = $request->route('lang')
+                        ?? session('locale')
+                        ?? $request->header('X-Locale')
+                        ?? app()->getLocale()
+                        ?? config('app.fallback_locale', 'en');
+
+                    if (preg_match('/^[a-zA-Z]{2,3}$/', (string) $country) !== 1) {
+                        $country = 'sa';
+                    }
+                    if (preg_match('/^[a-z]{2}$/', (string) $lang) !== 1) {
+                        $lang = 'en';
+                    }
+
                     $params = [
-                        'country' => $request->route('country') ?? session('country_code', 'sa'),
-                        'lang' => $request->route('lang') ?? session('locale', 'en'),
+                        'country' => strtolower((string) $country),
+                        'lang' => strtolower((string) $lang),
                     ];
-                    $route = route($report->route_name, $params);
+                    $route = route($report->route_name, $params, false);
                 } catch (\Throwable) {
                     $route = null;
                 }
@@ -138,11 +156,28 @@ class FinancialReportController extends Controller
 
                 if ($report->route_name && $report->route_name !== '#') {
                     try {
+                        $country = $request->route('country')
+                            ?? session('country_code')
+                            ?? $request->header('X-Country-Code')
+                            ?? config('app.default_country', 'sa');
+                        $lang = $request->route('lang')
+                            ?? session('locale')
+                            ?? $request->header('X-Locale')
+                            ?? app()->getLocale()
+                            ?? config('app.fallback_locale', 'en');
+
+                        if (preg_match('/^[a-zA-Z]{2,3}$/', (string) $country) !== 1) {
+                            $country = 'sa';
+                        }
+                        if (preg_match('/^[a-z]{2}$/', (string) $lang) !== 1) {
+                            $lang = 'en';
+                        }
+
                         $params = [
-                            'country' => $request->route('country') ?? session('country_code', 'sa'),
-                            'lang' => $request->route('lang') ?? session('locale', 'en'),
+                            'country' => strtolower((string) $country),
+                            'lang' => strtolower((string) $lang),
                         ];
-                        $route = route($report->route_name, $params);
+                        $route = route($report->route_name, $params, false);
                     } catch (\Throwable) {
                         $route = null;
                     }
@@ -1260,8 +1295,8 @@ class FinancialReportController extends Controller
         $productIds = $products->pluck('id')->toArray();
 
         // 2. Get ALL movements for these products in one query to avoid N+1
-        $allMovements = DB::table('stock_movements_items as i')
-            ->join('stock_movements as h', 'h.id', '=', 'i.stock_movement_id')
+        $allMovements = DB::table('inventory_movement_lines as i')
+            ->join('inventory_movement_headers as h', 'h.id', '=', 'i.stock_movement_id')
             ->leftJoin('item_units as u', 'i.unit_id', '=', 'u.id')
             ->where('h.company_id', $companyId)
             ->whereIn('i.product_id', $productIds)

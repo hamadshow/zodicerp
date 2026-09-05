@@ -75,6 +75,7 @@ Route::middleware([\App\Http\Middleware\ApiAuth::class])->group(function () {
     Route::get('/reports/profit-loss-detail', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getProfitLossDetailData']);
     Route::get('/reports/cash-flow', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getCashFlowData']);
     Route::get('/financial-reports', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getData']);
+    Route::get('/financial-reports/inventory-valuation-summary', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'getInventoryValuationSummaryData']);
     Route::get('/reports/favorites', [App\Http\Controllers\Backend\Accounting\FinancialReportController::class, 'favorites']);
 
     // Read-only category data

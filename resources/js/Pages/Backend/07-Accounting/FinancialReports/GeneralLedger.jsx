@@ -13,6 +13,11 @@ const STATUS_OPTIONS = [
 ];
 
 export default function GeneralLedger() {
+  const financialReportsRoute = () => route('admin.financial-reports.index', {
+    country: route().params.country || 'sa',
+    lang: route().params.lang || 'ar',
+  });
+
   const [accounts, setAccounts] = useState([]);
   const [filters, setFilters] = useState({
     dateFrom: '',
@@ -271,7 +276,7 @@ export default function GeneralLedger() {
           <span>/</span>
           <a href="#">Accounting</a>
           <span>/</span>
-          <a href="/reports">Financial Reports</a>
+          <a href={financialReportsRoute()}>Financial Reports</a>
           <span>/</span>
           <span>General Ledger</span>
         </div>

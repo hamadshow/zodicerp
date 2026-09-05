@@ -74,7 +74,7 @@ const AdminLayout = ({
       country: localization?.country_code || 'sa',
       lang: localization?.current_locale || 'ar',
       ...params
-    });
+    }, false);
   };
 
   // Helper to determine if a menu item is active based on current URL

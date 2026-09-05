@@ -9,6 +9,10 @@ export default function InventoryValuationSummary() {
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const financialReportsRoute = () => route('admin.financial-reports.index', {
+        country: route().params.country || 'sa',
+        lang: route().params.lang || 'ar',
+    });
 
     useEffect(() => {
         fetchData();
@@ -74,7 +78,7 @@ export default function InventoryValuationSummary() {
                 <div className="breadcrumb no-print">
                     <Link href={route('admin.dashboard')}>Dashboard</Link>
                     <span>/</span>
-                    <Link href={route('admin.financial-reports.index')}>Financial Reports</Link>
+                    <Link href={financialReportsRoute()}>Financial Reports</Link>
                     <span>/</span>
                     <span>Inventory Reports</span>
                     <span>/</span>

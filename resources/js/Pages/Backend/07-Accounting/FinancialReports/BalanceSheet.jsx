@@ -8,7 +8,11 @@ export default function BalanceSheet() {
   const { props } = usePage();
   const localization = props.localization || {};
   const translations = localization.translations || {};
-  const currentLocale = localization.current_locale || 'ar';
+  const currentLocale = localization.current_locale || route().params.lang || 'ar';
+  const financialReportsRoute = () => route('admin.financial-reports.index', {
+    country: localization.country_code || route().params.country || 'sa',
+    lang: currentLocale,
+  });
   
   const t = (key, fallback) => {
     // Try to find the key in FinancialReports first, then fall back to the provided fallback
@@ -164,7 +168,7 @@ export default function BalanceSheet() {
             <span className="item active">{t('balance_sheet', 'Balance Sheet')}</span>
           </div>
           <div className="top-actions">
-            <button className="action-link" onClick={() => router.get(route('admin.accounting.financial-reports'))}>
+            <button className="action-link" onClick={() => router.get(financialReportsRoute())}>
               {t('back_to_report_list', 'Back to report list')}
             </button>
           </div>

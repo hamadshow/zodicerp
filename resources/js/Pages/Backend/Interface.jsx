@@ -21,7 +21,7 @@ const Interface = () => {
                 country: localization?.country_code || 'sa',
                 lang: localization?.current_locale || 'ar',
                 ...params
-            });
+            }, false);
         } catch {
             return '#';
         }

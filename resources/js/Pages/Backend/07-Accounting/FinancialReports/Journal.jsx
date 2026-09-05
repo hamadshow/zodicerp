@@ -9,8 +9,12 @@ export default function JournalReport() {
   const { props } = usePage();
   const localization = props?.localization || {};
   const translations = localization?.translations || {};
-  const locale = localization?.current_locale || 'ar';
+  const locale = localization?.current_locale || route().params.lang || 'ar';
   const isAr = locale === 'ar';
+  const financialReportsRoute = () => route('admin.financial-reports.index', {
+    country: localization?.country_code || route().params.country || 'sa',
+    lang: locale,
+  });
 
   const t = (key, fallback, replacements = {}) => {
     let message = translations[`Journal.${key}`] || translations[`FinancialReports.${key}`] || translations[key] || fallback;
@@ -233,7 +237,7 @@ export default function JournalReport() {
             <span className="item active">{t('journal', 'Journal')}</span>
           </div>
           <div className="top-actions">
-            <button className="action-link" onClick={() => router.get(route('admin.accounting.financial-reports'))}>
+            <button className="action-link" onClick={() => router.get(financialReportsRoute())}>
               {t('back_to_report_list', 'Back to report list')}
             </button>
           </div>
