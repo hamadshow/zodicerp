@@ -9,6 +9,7 @@ use App\Models\Employee;
 use App\Models\ItemUnit;
 use App\Models\User;
 use App\Models\Warehouses;
+use App\Models\Accounting\JournalEntry;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -236,6 +237,26 @@ class AssetController extends Controller
     public function destroy(Asset $asset)
     {
         try {
+            // P0-06: Check for posted depreciation or disposal journals
+            $hasPostedJournals = JournalEntry::where('entry_type', 'Depreciation')
+                ->where('reference', 'like', "DEPR-{$asset->id}-%")
+                ->whereIn('status', ['Post', 'posted'])
+                ->exists()
+                || JournalEntry::where('entry_type', 'AssetDisposal')
+                ->where('reference', 'like', "DISPOSAL-{$asset->id}-%")
+                ->whereIn('status', ['Post', 'posted'])
+                ->exists()
+                || JournalEntry::where('entry_type', 'AssetRevaluation')
+                ->where('reference', 'like', "REVAL-{$asset->id}-%")
+                ->whereIn('status', ['Post', 'posted'])
+                ->exists();
+
+            if ($hasPostedJournals) {
+                return back()->withErrors([
+                    'error' => 'Cannot delete an asset with posted accounting entries. Reverse the depreciation/disposal first.'
+                ]);
+            }
+
             if ($asset->image_path && Storage::disk('public')->exists($asset->image_path)) {
                 Storage::disk('public')->delete($asset->image_path);
             }

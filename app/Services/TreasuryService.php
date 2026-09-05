@@ -10,6 +10,7 @@ use App\Models\Account;
 use App\Models\BankAccount;
 use App\Models\TreasuryTransaction;
 use App\Services\Accounting\PostingService;
+use App\Services\Accounting\JournalReversalService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -58,6 +59,11 @@ class TreasuryService
     public function updateTransaction(TreasuryTransaction $transaction, array $data): TreasuryTransaction
     {
         return DB::transaction(function () use ($transaction, $data) {
+            // P0-06: If posted, create reversal before updating
+            if (in_array($transaction->status, ['posted', 'reconciled'])) {
+                $this->reverseJournalEntry($transaction);
+            }
+
             $transaction->update($data);
 
             if ($transaction->status === 'posted') {
@@ -74,12 +80,20 @@ class TreasuryService
 
     /**
      * Delete a treasury transaction.
+     * P0-06: If posted, create reversal journal instead of deleting.
      */
     public function deleteTransaction(TreasuryTransaction $transaction): bool
     {
         return DB::transaction(function () use ($transaction) {
             $companyId = $transaction->company_id;
-            $this->deleteJournalEntry($transaction);
+
+            // P0-06: If posted, create reversal instead of deleting journal
+            if (in_array($transaction->status, ['posted', 'reconciled'])) {
+                $this->reverseJournalEntry($transaction);
+            } else {
+                $this->deleteJournalEntry($transaction);
+            }
+
             $transaction->delete();
             $this->postingService->recalculatePostings($companyId);
             return true;
@@ -208,8 +222,35 @@ class TreasuryService
             ->first();
 
         if ($header) {
+            // P0-06: Only allow deletion of unposted journals
+            if (in_array($header->status, ['Post', 'posted'])) {
+                return;
+            }
             JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
             $header->delete();
+        }
+    }
+
+    /**
+     * P0-06: Create a reversal journal for a posted treasury transaction.
+     */
+    public function reverseJournalEntry(TreasuryTransaction $transaction): void
+    {
+        $qaidType = match($transaction->transaction_type) {
+            'deposit' => 'BnkReceipt',
+            'withdrawal' => 'BnkPayment',
+            'transfer' => 'BnkTransfer',
+        };
+
+        $header = JournalEntry::where('reference', $transaction->transaction_no)
+            ->where('entry_type', $qaidType)
+            ->first();
+
+        if ($header && in_array($header->status, ['Post', 'posted'])) {
+            app(JournalReversalService::class)->createReversal(
+                $header->entry_code,
+                'Treasury transaction deletion - ' . $transaction->transaction_no
+            );
         }
     }
 
