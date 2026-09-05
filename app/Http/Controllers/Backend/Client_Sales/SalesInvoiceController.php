@@ -19,6 +19,7 @@ use App\Models\BankAccount;
 use App\Models\TreasuryTransaction;
 use App\Services\TreasuryService;
 use App\Services\Accounting\PostingService;
+use App\Services\Accounting\JournalReversalService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -284,13 +285,20 @@ class SalesInvoiceController extends Controller
                     ]);
                 }
 
-                $this->upsertJournalEntryForInvoice($invoice->fresh());
-                $this->upsertBankReceiptForInvoice($invoice->fresh());
+                $freshInvoice = $invoice->fresh();
 
-                // Stock deduction — reverse old movements, create new ones for posted invoices
-                if ($invoice->fresh()->is_posted) {
-                    $this->reverseStockMovementsForInvoice($invoice->fresh());
-                    $this->createStockMovementsForInvoice($invoice->fresh());
+                // P0-06: When updating a posted invoice, create reversal of old journal first
+                if ($freshInvoice->is_posted) {
+                    $this->createReversalForInvoice($freshInvoice);
+                    $this->reverseStockMovementsForInvoice($freshInvoice);
+                }
+
+                $this->upsertJournalEntryForInvoice($freshInvoice);
+                $this->upsertBankReceiptForInvoice($freshInvoice);
+
+                // Stock deduction — create new movements for posted invoices
+                if ($freshInvoice->is_posted) {
+                    $this->createStockMovementsForInvoice($freshInvoice);
                 }
             });
 
@@ -306,12 +314,20 @@ class SalesInvoiceController extends Controller
         try {
             DB::transaction(function () use ($id) {
                 $invoice = SalesInvoice::findOrFail($id);
-                // Reverse stock movements before deleting
+
                 if ($invoice->is_posted) {
+                    // P0-06: Create reversal journal instead of deleting the original
+                    $this->createReversalForInvoice($invoice);
+                    // Reverse stock movements
                     $this->reverseStockMovementsForInvoice($invoice);
+                    // Reverse bank receipt
+                    $this->reverseBankReceiptForInvoice($invoice);
+                } else {
+                    // Draft invoices can be deleted (no posted journal)
+                    $this->deleteJournalEntryForInvoice($invoice);
+                    $this->deleteBankReceiptForInvoice($invoice);
                 }
-                $this->deleteJournalEntryForInvoice($invoice);
-                $this->deleteBankReceiptForInvoice($invoice);
+
                 $invoice->details()->delete();
                 $invoice->delete();
             });
@@ -428,6 +444,41 @@ class SalesInvoiceController extends Controller
         }
     }
 
+    /**
+     * P0-06: Create a reversal journal for a posted Sales Invoice.
+     * Preserves original journal for audit trail.
+     */
+    protected function createReversalForInvoice(SalesInvoice $invoice): void
+    {
+        $entryType = 'SalesInvoice';
+        $reference = (string) $invoice->invoice_number;
+
+        $header = JournalEntry::where('reference', $reference)
+            ->where('entry_type', $entryType)
+            ->first();
+
+        if ($header) {
+            app(JournalReversalService::class)->createReversal(
+                $header->entry_code,
+                'Sales Invoice deletion - ' . $reference
+            );
+        }
+    }
+
+    /**
+     * P0-06: Reverse bank receipt for a deleted posted invoice.
+     */
+    protected function reverseBankReceiptForInvoice(SalesInvoice $invoice): void
+    {
+        $receipt = TreasuryTransaction::where('related_invoice_id', $invoice->id)
+            ->where('related_invoice_type', 'SalesInvoice')
+            ->first();
+
+        if ($receipt) {
+            app(TreasuryService::class)->deleteTransaction($receipt);
+        }
+    }
+
     protected function deleteJournalEntryForInvoice(SalesInvoice $invoice): void
     {
         $entryType = 'SalesInvoice';
@@ -439,6 +490,11 @@ class SalesInvoiceController extends Controller
 
         if (! $header) {
             return;
+        }
+
+        // P0-06: Only allow deletion of unposted journals
+        if (in_array($header->status, ['Post', 'posted'])) {
+            return; // Should not reach here — destroy() handles posted invoices via reversal
         }
 
         JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();

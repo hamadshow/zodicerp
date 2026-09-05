@@ -8,6 +8,7 @@ use App\Models\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
 use App\Services\Accounting\PostingService;
+use App\Services\Accounting\JournalReversalService;
 use App\Models\Currency;
 use App\Models\ItemUnit;
 use App\Models\Products;
@@ -125,6 +126,11 @@ class PurchaseInvoiceController extends Controller
             ->first();
 
         if ($header) {
+            // P0-06: Only allow deletion of unposted journals
+            if (in_array($header->status, ['Post', 'posted'])) {
+                return; // Should not reach here — destroy() handles posted invoices via reversal
+            }
+
             JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
             $header->delete();
         }
@@ -377,6 +383,17 @@ class PurchaseInvoiceController extends Controller
                 ]);
             }
 
+            // P0-06: Create reversal of existing journal before rewriting
+            $existingHeader = JournalEntry::where('reference', $invoice->fresh()->invoice_number)
+                ->where('entry_type', 'PurchaseInvoice')
+                ->first();
+            if ($existingHeader && in_array($existingHeader->status, ['Post', 'posted'])) {
+                app(JournalReversalService::class)->createReversal(
+                    $existingHeader->entry_code,
+                    'Purchase Invoice update - ' . $invoice->fresh()->invoice_number
+                );
+            }
+
             // Sync journal entry on update (only for standard invoices)
             if (($validated['invoice_type'] ?? 'standard') === 'standard') {
                 $this->createJournalEntryForInvoice($invoice->fresh(), $validated);
@@ -400,7 +417,23 @@ class PurchaseInvoiceController extends Controller
     {
         try {
             $invoice = PurchaseInvoice::findOrFail($id);
-            $this->deleteJournalEntryForInvoice($invoice);
+
+            // P0-06: Check if journal is posted
+            $header = JournalEntry::where('reference', $invoice->invoice_number)
+                ->where('entry_type', 'PurchaseInvoice')
+                ->first();
+
+            if ($header && in_array($header->status, ['Post', 'posted'])) {
+                // Posted: create reversal, preserve original
+                app(JournalReversalService::class)->createReversal(
+                    $header->entry_code,
+                    'Purchase Invoice deletion - ' . $invoice->invoice_number
+                );
+            } else {
+                // Draft: safe to delete
+                $this->deleteJournalEntryForInvoice($invoice);
+            }
+
             $invoice->delete(); // Soft delete
 
             return redirect()->back()->with('success', 'Purchase Invoice deleted successfully.');

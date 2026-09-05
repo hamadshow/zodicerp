@@ -10,6 +10,8 @@ use App\Models\Vendor_Purchases\PurchaseReturn;
 use App\Models\Vendor_Purchases\Supplier;
 use App\Models\Warehouses;
 use App\Services\Vendor_Purchases\PurchaseReturnService;
+use App\Services\Accounting\JournalReversalService;
+use App\Models\Accounting\JournalEntry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -253,6 +255,18 @@ class PurchaseReturnController extends Controller
                 $purchaseReturn->restore();
                 $message = 'Purchase Return restored successfully.';
             } else {
+                // P0-06: If posted, create reversal journal
+                $header = JournalEntry::where('reference', $purchaseReturn->return_number)
+                    ->where('entry_type', 'PurchaseReturn')
+                    ->first();
+
+                if ($header && in_array($header->status, ['Post', 'posted'])) {
+                    app(JournalReversalService::class)->createReversal(
+                        $header->entry_code,
+                        'Purchase Return deletion - ' . $purchaseReturn->return_number
+                    );
+                }
+
                 $purchaseReturn->delete();
                 $message = 'Purchase Return deleted successfully.';
             }

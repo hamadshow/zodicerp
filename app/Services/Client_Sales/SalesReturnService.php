@@ -757,7 +757,7 @@ class SalesReturnService
     }
 
     /**
-     * Reverse/remove the journal entry for a sales return.
+     * P0-06: Create a reversal journal for a sales return instead of deleting the original.
      * Called when status changes from approved/completed to draft/requested/cancelled.
      */
     private function reverseJournalEntryForReturn(SalesReturn $return): void
@@ -767,7 +767,14 @@ class SalesReturnService
             ->where('entry_type', 'SalesReturn')
             ->first();
 
-        if ($header) {
+        if ($header && in_array($header->status, ['Post', 'posted'])) {
+            // Posted: create reversal, preserve original
+            app(\App\Services\Accounting\JournalReversalService::class)->createReversal(
+                $header->entry_code,
+                'Sales Return cancellation - ' . $reference
+            );
+        } elseif ($header) {
+            // Unposted: safe to delete
             JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
             $header->delete();
         }

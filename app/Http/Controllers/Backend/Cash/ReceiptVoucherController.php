@@ -8,6 +8,7 @@ use App\Models\Account;
 use App\Models\Accounting\JournalEntry;
 use App\Models\Accounting\JournalEntryLine;
 use App\Services\Accounting\PostingService;
+use App\Services\Accounting\JournalReversalService;
 use App\Models\BankAccount;
 use App\Models\Client_Sales\Customer;
 use App\Models\Client_Sales\CustomerPayment;
@@ -47,6 +48,16 @@ class ReceiptVoucherController extends Controller
         $validated = $this->validatePayload($request, $payload, $voucher);
 
         DB::transaction(function () use ($voucher, $validated) {
+            // P0-06: If posted, create reversal before updating
+            $existingHeader = JournalEntry::where('reference', $voucher->payment_number)
+                ->where('entry_type', 'CustomerReceipt')
+                ->first();
+            if ($existingHeader && in_array($existingHeader->status, ['Post', 'posted'])) {
+                app(JournalReversalService::class)->createReversal(
+                    $existingHeader->entry_code,
+                    'Receipt Voucher update - ' . $voucher->payment_number
+                );
+            }
             $this->deleteJournalEntryForPayment($voucher);
             $previousInvoiceIds = $voucher->allocations()->pluck('invoice_id')->filter()->all();
             $voucher->update($this->paymentData($validated, false));
@@ -64,7 +75,22 @@ class ReceiptVoucherController extends Controller
     public function destroy(CustomerPayment $voucher): RedirectResponse
     {
         DB::transaction(function () use ($voucher) {
-            $this->deleteJournalEntryForPayment($voucher);
+            // P0-06: Check if journal is posted
+            $header = JournalEntry::where('reference', $voucher->payment_number)
+                ->where('entry_type', 'CustomerReceipt')
+                ->first();
+
+            if ($header && in_array($header->status, ['Post', 'posted'])) {
+                // Posted: create reversal, preserve original
+                app(JournalReversalService::class)->createReversal(
+                    $header->entry_code,
+                    'Receipt Voucher deletion - ' . $voucher->payment_number
+                );
+            } else {
+                // Draft: safe to delete
+                $this->deleteJournalEntryForPayment($voucher);
+            }
+
             $invoiceIds = $voucher->allocations()->pluck('invoice_id')->filter()->all();
             $voucher->allocations()->delete();
             $voucher->delete();
@@ -360,6 +386,10 @@ class ReceiptVoucherController extends Controller
             ->where('entry_type', 'CustomerReceipt')
             ->first();
         if ($header) {
+            // P0-06: Only allow deletion of unposted journals
+            if (in_array($header->status, ['Post', 'posted'])) {
+                return;
+            }
             JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
             $header->delete();
         }

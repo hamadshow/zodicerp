@@ -9,6 +9,8 @@ use App\Models\ItemUnit;
 use App\Models\Products;
 use App\Models\Warehouses;
 use App\Services\Client_Sales\SalesReturnService;
+use App\Services\Accounting\JournalReversalService;
+use App\Models\Accounting\JournalEntry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -279,6 +281,18 @@ class SalesReturnController extends Controller
                 $salesReturn->restore();
                 $message = 'Sales Return restored successfully.';
             } else {
+                // P0-06: If posted, create reversal journal
+                $header = JournalEntry::where('reference', $salesReturn->return_number)
+                    ->where('entry_type', 'SalesReturn')
+                    ->first();
+
+                if ($header && in_array($header->status, ['Post', 'posted'])) {
+                    app(JournalReversalService::class)->createReversal(
+                        $header->entry_code,
+                        'Sales Return deletion - ' . $salesReturn->return_number
+                    );
+                }
+
                 $salesReturn->delete();
                 $message = 'Sales Return deleted successfully.';
             }
