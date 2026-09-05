@@ -374,13 +374,39 @@ class SalesInvoiceController extends Controller
                 'account_id' => $treasuryId,
                 'debit' => $amount,
                 'credit' => 0,
+                'desc' => $description,
             ],
             [
                 'account_id' => $revenueAccountId,
                 'debit' => 0,
                 'credit' => $amount,
+                'desc' => $description,
             ],
         ];
+
+        // Add COGS/Inventory lines for posted invoices
+        if ($invoice->is_posted) {
+            $cogsAmount = $this->calculateCogsAmount($invoice);
+            if ($cogsAmount > 0) {
+                $cogsAccountId = $this->resolveCogsAccountId();
+                $inventoryAccountId = $this->resolveInventoryAssetAccountId();
+
+                if ($cogsAccountId && $inventoryAccountId) {
+                    $lines[] = [
+                        'account_id' => $cogsAccountId,
+                        'debit' => round($cogsAmount, 2),
+                        'credit' => 0,
+                        'desc' => 'COGS - ' . $description,
+                    ];
+                    $lines[] = [
+                        'account_id' => $inventoryAccountId,
+                        'debit' => 0,
+                        'credit' => round($cogsAmount, 2),
+                        'desc' => 'Inventory reduction - ' . $description,
+                    ];
+                }
+            }
+        }
 
         foreach ($lines as $line) {
             JournalEntryLine::create([
@@ -390,7 +416,7 @@ class SalesInvoiceController extends Controller
                 'credit' => $line['credit'],
                 'related_id_name' => $entryType,
                 'related_name_details' => $reference,
-                'description' => $description,
+                'description' => $line['desc'],
                 'cost_center_code' => null,
             ]);
         }
@@ -430,6 +456,59 @@ class SalesInvoiceController extends Controller
             ->value('AccID');
 
         return $row ? (int) $row : null;
+    }
+
+    /**
+     * Resolve the COGS account (Account 501 - Cost of Sales).
+     */
+    protected function resolveCogsAccountId(): ?int
+    {
+        $row = Account::query()
+            ->where('AccCode', 'like', '5%')
+            ->where('AccType', 1)
+            ->orderBy('AccCode')
+            ->value('AccID');
+
+        return $row ? (int) $row : null;
+    }
+
+    /**
+     * Resolve the Inventory Asset account (11401 - Main Warehouse).
+     */
+    protected function resolveInventoryAssetAccountId(): ?int
+    {
+        // Match StockAdjustmentService pattern: find inventory account in 1110-1199 range
+        return Account::where('AccCode', '>=', 1110)
+            ->where('AccCode', '<=', 1199)
+            ->orderBy('AccCode')
+            ->value('AccID');
+    }
+
+    /**
+     * Calculate COGS amount for a posted Sales Invoice.
+     * COGS = sum(quantity × cost_per_item) for each invoice detail.
+     *
+     * Uses products.cost_per_item as the authoritative inventory cost basis.
+     * This is the SAME cost used by createStockMovementsForInvoice.
+     */
+    protected function calculateCogsAmount(SalesInvoice $invoice): float
+    {
+        $invoice->load('details');
+        $totalCogs = 0.0;
+
+        foreach ($invoice->details as $detail) {
+            $qty = (float) $detail->quantity;
+            if ($qty <= 0) {
+                continue;
+            }
+
+            $product = DB::table('products')->where('id', $detail->product_id)->first();
+            $costPrice = (float) ($product->cost_per_item ?? 0);
+
+            $totalCogs += $qty * $costPrice;
+        }
+
+        return $totalCogs;
     }
 
     protected function generateNextEntryCode(): string

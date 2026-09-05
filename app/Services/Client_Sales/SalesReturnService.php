@@ -565,8 +565,7 @@ class SalesReturnService
             ]);
         }
 
-        // Mirror the original Sales Invoice entry (Dr Revenue, Cr AR) — the Sales Invoice
-        // credits Revenue for total_amount (including tax), so we reverse the same amount.
+        // Revenue reversal (Dr Revenue, Cr AR)
         JournalEntryLine::create([
             'journal_entry_code' => $entryCode,
             'account_id' => $revenueAccountId,
@@ -583,8 +582,38 @@ class SalesReturnService
             'debit' => 0,
             'credit' => $totalAmount,
             'related_id_name' => 'SalesReturn',
-            'related_name_details' => $reference,            'description' => 'AR reduction - Return ' . $reference,
+            'related_name_details' => $reference,
+            'description' => 'AR reduction - Return ' . $reference,
         ]);
+
+        // COGS reversal (Dr Inventory, Cr COGS) — restores inventory value and reverses COGS
+        $cogsReversalAmount = $this->calculateCogsReversalAmount($return);
+        if ($cogsReversalAmount > 0) {
+            $cogsAccountId = $this->resolveCogsAccountId();
+            $inventoryAccountId = $this->resolveInventoryAssetAccountId();
+
+            if ($cogsAccountId && $inventoryAccountId) {
+                JournalEntryLine::create([
+                    'journal_entry_code' => $entryCode,
+                    'account_id' => $inventoryAccountId,
+                    'debit' => round($cogsReversalAmount, 2),
+                    'credit' => 0,
+                    'related_id_name' => 'SalesReturn',
+                    'related_name_details' => $reference,
+                    'description' => 'Inventory restoration - Return ' . $reference,
+                ]);
+
+                JournalEntryLine::create([
+                    'journal_entry_code' => $entryCode,
+                    'account_id' => $cogsAccountId,
+                    'debit' => 0,
+                    'credit' => round($cogsReversalAmount, 2),
+                    'related_id_name' => 'SalesReturn',
+                    'related_name_details' => $reference,
+                    'description' => 'COGS reversal - Return ' . $reference,
+                ]);
+            }
+        }
 
         // Sync account_postings cache for Trial Balance consistency
         $companyId = $return->company_id ?? Auth::user()?->company_id;
@@ -662,6 +691,57 @@ class SalesReturnService
             $q->where('AccCode', 'like', '2.1.4%')
               ->orWhere('AccCode', 'like', '214%');
         })->value('AccID');
+    }
+
+    /**
+     * Resolve the COGS account (501 - Cost of Sales).
+     */
+    private function resolveCogsAccountId(): ?int
+    {
+        return Account::where('AccCode', 'like', '5%')
+            ->where('AccType', 1)
+            ->orderBy('AccCode')
+            ->value('AccID');
+    }
+
+    /**
+     * Resolve the Inventory Asset account (11401 - Main Warehouse).
+     */
+    private function resolveInventoryAssetAccountId(): ?int
+    {
+        return Account::where('AccCode', '>=', 1110)
+            ->where('AccCode', '<=', 1199)
+            ->orderBy('AccCode')
+            ->value('AccID');
+    }
+
+    /**
+     * Calculate COGS reversal amount for a Sales Return.
+     * Uses products.cost_per_item — the same cost source as the original sale.
+     *
+     * NOTE: sales_return_details does not have a unit_cost column, so we
+     * cannot recover the original sale's recorded cost. products.cost_per_item
+     * is the closest reliable match — it is the same field used by
+     * SalesInvoiceController::createStockMovementsForInvoice.
+     */
+    private function calculateCogsReversalAmount(SalesReturn $return): float
+    {
+        $return->load('details');
+        $totalCogs = 0.0;
+
+        foreach ($return->details as $detail) {
+            $qty = (float) ($detail->quantity ?? 0);
+            if ($qty <= 0) {
+                continue;
+            }
+
+            $product = DB::table('products')->where('id', $detail->product_id)->first();
+            $costPrice = (float) ($product->cost_per_item ?? 0);
+
+            $totalCogs += $qty * $costPrice;
+        }
+
+        return $totalCogs;
     }
 
     private function generateNextEntryCode(): string
