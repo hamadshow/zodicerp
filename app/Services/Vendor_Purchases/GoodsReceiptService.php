@@ -78,6 +78,11 @@ class GoodsReceiptService
     public function approveReceipt(GoodsReceipt $receipt): GoodsReceipt
     {
         return DB::transaction(function () use ($receipt) {
+            // Idempotent: if already approved, return without error
+            if ($receipt->status === 'approved') {
+                return $receipt->fresh();
+            }
+
             if ($receipt->status !== 'draft' && $receipt->status !== 'received') {
                 throw new \Exception('Only draft or received receipts can be approved.');
             }
@@ -101,6 +106,24 @@ class GoodsReceiptService
 
             // Update purchase order received quantities
             $this->updatePurchaseOrderQuantities($receipt);
+
+            // NOTE: No GL journal entry is created here.
+            //
+            // ARCHITECTURE DECISION (Forensic Audit — Prompt #2):
+            //
+            // The ZodicERP architecture is "Invoice-driven inventory recognition":
+            //   - Purchase Invoice creates: Dr Purchase/COGS, Cr Accounts Payable
+            //   - The GRN is purely an operational/warehouse transaction
+            //   - No GRNI (Goods Received Not Invoiced) account exists in the chart of accounts
+            //   - No receipt allocation or matching concept exists
+            //   - The Purchase Invoice is the sole financial trigger for purchases
+            //
+            // Using account 501 (Purchase/COGS) as a GRNI proxy would cause incorrect
+            // account balances when GRN and Invoice amounts differ, because the residual
+            // would sit in an expense account rather than a proper clearing account.
+            //
+            // The GRN should remain operational-only until a proper GRNI account
+            // and receipt allocation mechanism are added to the architecture.
 
             return $receipt->fresh();
         });
