@@ -130,7 +130,7 @@ class SalesInvoiceCogsTest extends TestCase
         $controller->upsertJournalEntryForInvoice($invoiceModel);
 
         $cogsAccountId = DB::table('accounts')->where('AccCode', 'like', '5%')->where('AccType', 1)->orderBy('AccCode')->value('AccID');
-        $inventoryAccountId = DB::table('accounts')->where('AccCode', '>=', 1110)->where('AccCode', '<=', 1199)->orderBy('AccCode')->value('AccID');
+        $inventoryAccountId = DB::table('accounts')->where('AccCode', '11401')->value('AccID');
 
         $this->assertNotNull($cogsAccountId, 'COGS account (501) must exist');
         $this->assertNotNull($inventoryAccountId, 'Inventory asset account must exist');
@@ -330,7 +330,7 @@ class SalesInvoiceCogsTest extends TestCase
         $method->invoke($service, $returnModel, $totals);
 
         $cogsAccountId = DB::table('accounts')->where('AccCode', 'like', '5%')->where('AccType', 1)->orderBy('AccCode')->value('AccID');
-        $inventoryAccountId = DB::table('accounts')->where('AccCode', '>=', 1110)->where('AccCode', '<=', 1199)->orderBy('AccCode')->value('AccID');
+        $inventoryAccountId = DB::table('accounts')->where('AccCode', '11401')->value('AccID');
 
         $inventoryDebit = DB::table('journal_entry_lines')
             ->where('account_id', $inventoryAccountId)

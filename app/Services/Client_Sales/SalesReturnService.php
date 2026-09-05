@@ -735,9 +735,8 @@ class SalesReturnService
      */
     private function resolveInventoryAssetAccountId(): ?int
     {
-        return Account::where('AccCode', '>=', 1110)
-            ->where('AccCode', '<=', 1199)
-            ->orderBy('AccCode')
+        // P0-FIX: Use exact match for Inventory Asset account (11401).
+        return Account::where('AccCode', '11401')
             ->value('AccID');
     }
 

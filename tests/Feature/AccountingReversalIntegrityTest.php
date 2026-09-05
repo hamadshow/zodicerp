@@ -300,7 +300,7 @@ class AccountingReversalIntegrityTest extends TestCase
 
         // Verify original has COGS and Inventory lines
         $cogsAccountId = DB::table('accounts')->where('AccCode', 'like', '5%')->where('AccType', 1)->orderBy('AccCode')->value('AccID');
-        $inventoryAccountId = DB::table('accounts')->where('AccCode', '>=', 1110)->where('AccCode', '<=', 1199)->orderBy('AccCode')->value('AccID');
+        $inventoryAccountId = DB::table('accounts')->where('AccCode', '11401')->value('AccID');
 
         $originalCogsDebit = DB::table('journal_entry_lines')
             ->where('journal_entry_code', $originalEntryCode)

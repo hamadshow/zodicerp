@@ -74,7 +74,7 @@ class PerpetualInventoryTest extends TestCase
         // Simulate the account resolution
         $resolvedAccountId = $controller->resolvePurchaseAccountId();
 
-        // CRITICAL: Must resolve to Inventory Asset (1110-1199), NOT COGS (5xxx)
+        // CRITICAL: Must resolve to Inventory Asset (11401), NOT COGS (501)
         $this->assertEquals($inventoryAccountId, $resolvedAccountId, 'Purchase Invoice must debit Inventory Asset, NOT COGS');
         $this->assertNotEquals($cogsAccountId, $resolvedAccountId, 'Purchase Invoice must NOT debit COGS account');
     }
@@ -96,7 +96,7 @@ class PerpetualInventoryTest extends TestCase
         $method->setAccessible(true);
         $resolvedAccountId = $method->invoke($service);
 
-        // CRITICAL: Must resolve to Inventory Asset (1110-1199), NOT COGS (5xxx)
+        // CRITICAL: Must resolve to Inventory Asset (11401), NOT COGS (501)
         $this->assertEquals($inventoryAccountId, $resolvedAccountId, 'Purchase Return must credit Inventory Asset, NOT COGS');
         $this->assertNotEquals($cogsAccountId, $resolvedAccountId, 'Purchase Return must NOT credit COGS account');
     }
@@ -115,7 +115,7 @@ class PerpetualInventoryTest extends TestCase
         $cogsResolved = $controller->resolveCogsAccountId();
         $inventoryResolved = $controller->resolveInventoryAssetAccountId();
 
-        // Sales Invoice COGS must debit COGS (5xxx) and credit Inventory (1110-1199)
+        // Sales Invoice COGS must debit COGS (501) and credit Inventory (11401)
         $this->assertEquals($cogsAccountId, $cogsResolved, 'Sales COGS must debit COGS account');
         $this->assertEquals($inventoryAccountId, $inventoryResolved, 'Sales COGS must credit Inventory Asset');
         $this->assertNotEquals($cogsResolved, $inventoryResolved, 'COGS and Inventory must be different accounts');
@@ -229,10 +229,7 @@ class PerpetualInventoryTest extends TestCase
     private function getInventoryAssetAccountId(): ?int
     {
         return DB::table('accounts')
-            ->where('AccCode', '>=', 1110)
-            ->where('AccCode', '<=', 1199)
-            ->where('AccType', 1)
-            ->orderBy('AccCode')
+            ->where('AccCode', '11401')
             ->value('AccID');
     }
 

@@ -425,17 +425,9 @@ class StockAdjustmentService
 
     private function resolveInventoryAssetAccountId(): ?int
     {
-        // Inventory asset is typically in 1xxx range (AccCode is integer in this schema)
-        // Try name-based lookup first, then fallback to asset account code range
-        return Account::where('AccCode', '>=', 1110)
-            ->where('AccCode', '<=', 1199)
-            ->where('AccName', 'like', '%inventory%')
-            ->orderBy('AccCode')
-            ->value('AccID')
-            ?? Account::where('AccCode', '>=', 1110)
-                ->where('AccCode', '<=', 1199)
-                ->orderBy('AccCode')
-                ->value('AccID');
+        // P0-FIX: Use exact match for Inventory Asset account (11401).
+        return Account::where('AccCode', '11401')
+            ->value('AccID');
     }
 
     private function resolveInventoryAdjustmentAccountId(): ?int

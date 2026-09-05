@@ -393,7 +393,7 @@ class JournalReversalTest extends TestCase
         $this->assertNotNull($reversalCogsCredit, 'Reversal must have COGS credit line');
 
         // Verify reversal has Inventory debit (was credit in original)
-        $inventoryAccountId = DB::table('accounts')->where('AccCode', '>=', 1110)->where('AccCode', '<=', 1199)->orderBy('AccCode')->value('AccID');
+        $inventoryAccountId = DB::table('accounts')->where('AccCode', '11401')->value('AccID');
         $reversalInventoryDebit = DB::table('journal_entry_lines')
             ->where('journal_entry_code', $reversal->entry_code)
             ->where('account_id', $inventoryAccountId)

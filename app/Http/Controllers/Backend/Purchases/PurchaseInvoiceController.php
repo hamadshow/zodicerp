@@ -148,12 +148,12 @@ class PurchaseInvoiceController extends Controller
      */
     protected function resolvePurchaseAccountId(): ?int
     {
-        // P0-FIX: Use Inventory Asset account (1110-1199 range) instead of COGS (5xxx)
+        // P0-FIX: Use exact match for Inventory Asset account (11401).
+        // The previous range query (AccCode >= 1110 AND <= 1199) was broken:
+        // MySQL implicitly casts varchar '11401' to int 11401, which is outside
+        // the 4-digit range [1110,1199], returning Cash (1111) instead.
         return Account::query()
-            ->where('AccType', 1)
-            ->where('AccCode', '>=', 1110)
-            ->where('AccCode', '<=', 1199)
-            ->orderBy('AccCode')
+            ->where('AccCode', '11401')
             ->value('AccID');
     }
 

@@ -554,11 +554,8 @@ class PurchaseReturnService
      */
     private function resolvePurchaseAccountId(): ?int
     {
-        // P0-FIX: Use Inventory Asset account (1110-1199 range) instead of COGS (5xxx)
-        return Account::where('AccType', 1)
-            ->where('AccCode', '>=', 1110)
-            ->where('AccCode', '<=', 1199)
-            ->orderBy('AccCode')
+        // P0-FIX: Use exact match for Inventory Asset account (11401).
+        return Account::where('AccCode', '11401')
             ->value('AccID');
     }
 

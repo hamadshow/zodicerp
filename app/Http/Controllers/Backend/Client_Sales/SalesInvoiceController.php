@@ -533,10 +533,8 @@ class SalesInvoiceController extends Controller
      */
     protected function resolveInventoryAssetAccountId(): ?int
     {
-        // Match StockAdjustmentService pattern: find inventory account in 1110-1199 range
-        return Account::where('AccCode', '>=', 1110)
-            ->where('AccCode', '<=', 1199)
-            ->orderBy('AccCode')
+        // P0-FIX: Use exact match for Inventory Asset account (11401).
+        return Account::where('AccCode', '11401')
             ->value('AccID');
     }
 
