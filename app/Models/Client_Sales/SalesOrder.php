@@ -15,6 +15,38 @@ class SalesOrder extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const STATUSES = [
+        'draft',
+        'pending',
+        'confirmed',
+        'processing',
+        'ready_for_delivery',
+        'partially_delivered',
+        'completed',
+        'cancelled',
+    ];
+
+    private const STATUS_TRANSITIONS = [
+        'draft' => ['draft', 'pending', 'confirmed', 'cancelled'],
+        'pending' => ['pending', 'confirmed', 'cancelled'],
+        'confirmed' => ['confirmed', 'processing', 'cancelled'],
+        'processing' => ['processing', 'ready_for_delivery', 'cancelled'],
+        'ready_for_delivery' => ['ready_for_delivery', 'partially_delivered', 'completed', 'cancelled'],
+        'partially_delivered' => ['partially_delivered', 'completed', 'cancelled'],
+        'completed' => ['completed'],
+        'cancelled' => ['cancelled'],
+    ];
+
+    public static function statuses(): array
+    {
+        return self::STATUSES;
+    }
+
+    public function canTransitionTo(string $status): bool
+    {
+        return in_array($status, self::STATUS_TRANSITIONS[$this->status] ?? [], true);
+    }
+
     protected $fillable = [
         'order_number',
         'customer_id',

@@ -236,9 +236,7 @@ class PerpetualInventoryTest extends TestCase
     private function getCogsAccountId(): ?int
     {
         return DB::table('accounts')
-            ->where('AccCode', 'like', '5%')
-            ->where('AccType', 1)
-            ->orderBy('AccCode')
+            ->where('AccCode', '501')
             ->value('AccID');
     }
 

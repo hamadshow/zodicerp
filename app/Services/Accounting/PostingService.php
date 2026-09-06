@@ -30,6 +30,10 @@ class PostingService
      */
     public function recalculatePostings(int $companyId): void
     {
+        if ($companyId <= 0) {
+            throw new \InvalidArgumentException('A valid company context is required for posting recalculation.');
+        }
+
         // Reset current debits/credits for this company
         AccountPosting::where('company_id', $companyId)->update([
             'current_debit' => 0,

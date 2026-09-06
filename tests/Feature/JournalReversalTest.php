@@ -371,7 +371,7 @@ class JournalReversalTest extends TestCase
         $this->cleanupEntryCodes[] = $originalEntryCode;
 
         // Verify original has COGS line
-        $cogsAccountId = DB::table('accounts')->where('AccCode', 'like', '5%')->where('AccType', 1)->orderBy('AccCode')->value('AccID');
+        $cogsAccountId = DB::table('accounts')->where('AccCode', '501')->value('AccID');
         $cogsLine = DB::table('journal_entry_lines')
             ->where('journal_entry_code', $originalEntryCode)
             ->where('account_id', $cogsAccountId)
@@ -462,7 +462,7 @@ class JournalReversalTest extends TestCase
         $this->cleanupEntryCodes[] = $reversal->entry_code;
 
         // Get original COGS amount
-        $cogsAccountId = DB::table('accounts')->where('AccCode', 'like', '5%')->where('AccType', 1)->orderBy('AccCode')->value('AccID');
+        $cogsAccountId = DB::table('accounts')->where('AccCode', '501')->value('AccID');
         $originalCogs = (float) DB::table('journal_entry_lines')
             ->where('journal_entry_code', $originalEntryCode)
             ->where('account_id', $cogsAccountId)

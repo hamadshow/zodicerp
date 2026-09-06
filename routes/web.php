@@ -434,6 +434,7 @@ Route::group([
             Route::resource('customers', \App\Http\Controllers\Backend\Client_Sales\CustomerController::class);
             Route::resource('quotations', \App\Http\Controllers\Backend\Client_Sales\SalesQuotationController::class);
             Route::resource('orders', \App\Http\Controllers\Backend\Client_Sales\SalesOrderController::class);
+            Route::post('invoices/{invoice}/post', [\App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController::class, 'post'])->name('invoices.post');
             Route::resource('invoices', \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController::class);
             Route::get('flash-sales/search-products', [\App\Http\Controllers\Backend\Client_Sales\FlashSaleController::class, 'searchProducts'])->name('flash-sales.search-products');
             Route::resource('flash-sales', \App\Http\Controllers\Backend\Client_Sales\FlashSaleController::class);

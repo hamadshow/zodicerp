@@ -7,6 +7,7 @@ use App\Models\Vendor_Purchases\GoodsReceiptDetail;
 use App\Models\Vendor_Purchases\PurchaseOrder;
 use App\Models\Vendor_Purchases\PurchaseOrderItem;
 use Illuminate\Support\Facades\DB;
+use App\Services\CompanyContext;
 
 class GoodsReceiptService
 {
@@ -83,8 +84,8 @@ class GoodsReceiptService
                 return $receipt->fresh();
             }
 
-            if ($receipt->status !== 'draft' && $receipt->status !== 'received') {
-                throw new \Exception('Only draft or received receipts can be approved.');
+            if (! in_array($receipt->status, ['draft', 'received', 'checked'], true)) {
+                throw new \Exception('Only draft, received, or checked receipts can be approved.');
             }
 
             $receipt->update([
@@ -189,7 +190,7 @@ class GoodsReceiptService
             'reference_type' => 'goods_receipt',
             'voucher_num' => $receipt->receipt_number,
             'warehouse_id' => $receipt->warehouse_id,
-            'company_id' => $receipt->order->company_id ?? 1,
+            'company_id' => app(CompanyContext::class)->id(),
             'created_by' => auth()->id(),
             'notes' => "Goods Receipt: {$receipt->receipt_number}",
             'created_at' => now(),
@@ -236,12 +237,10 @@ class GoodsReceiptService
             if ($received >= $ordered - 0.0001) {
                 $item->update([
                     'received_quantity' => $ordered,
-                    'status' => 'fully_received',
                 ]);
             } elseif ($received > 0) {
                 $item->update([
                     'received_quantity' => $received,
-                    'status' => 'partially_received',
                 ]);
             }
         }

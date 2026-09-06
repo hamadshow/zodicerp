@@ -20,6 +20,7 @@ use App\Models\TreasuryTransaction;
 use App\Services\TreasuryService;
 use App\Services\Accounting\PostingService;
 use App\Services\Accounting\JournalReversalService;
+use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -192,11 +193,9 @@ class SalesInvoiceController extends Controller
                     ]);
                 }
 
-                $this->upsertJournalEntryForInvoice($invoice);
-                $this->upsertBankReceiptForInvoice($invoice);
-
-                // Stock deduction — only for posted invoices
                 if ($invoice->is_posted) {
+                    $this->upsertJournalEntryForInvoice($invoice);
+                    $this->upsertBankReceiptForInvoice($invoice);
                     $this->createStockMovementsForInvoice($invoice);
                 }
             });
@@ -211,6 +210,12 @@ class SalesInvoiceController extends Controller
     public function update(Request $request, $id)
     {
         $invoice = SalesInvoice::findOrFail($id);
+
+        if ($invoice->is_posted) {
+            return redirect()->back()->withErrors([
+                'invoice' => 'Posted sales invoices cannot be edited. Reverse and recreate the invoice instead.',
+            ]);
+        }
 
         $validated = $request->validate([
             'invoice_date' => 'required|date',
@@ -259,7 +264,6 @@ class SalesInvoiceController extends Controller
                     'customer_notes' => $request->customer_notes,
                     'internal_notes' => $request->internal_notes,
 
-                    'updated_by' => Auth::id(),
                     'warehouse_id' => $warehouseId,
                     'subtotal' => $request->subtotal,
                     'tax_amount' => $request->tax_amount,
@@ -293,11 +297,9 @@ class SalesInvoiceController extends Controller
                     $this->reverseStockMovementsForInvoice($freshInvoice);
                 }
 
-                $this->upsertJournalEntryForInvoice($freshInvoice);
-                $this->upsertBankReceiptForInvoice($freshInvoice);
-
-                // Stock deduction — create new movements for posted invoices
                 if ($freshInvoice->is_posted) {
+                    $this->upsertJournalEntryForInvoice($freshInvoice);
+                    $this->upsertBankReceiptForInvoice($freshInvoice);
                     $this->createStockMovementsForInvoice($freshInvoice);
                 }
             });
@@ -306,6 +308,34 @@ class SalesInvoiceController extends Controller
 
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', 'Error updating invoice: '.$e->getMessage());
+        }
+    }
+
+    public function post(SalesInvoice $invoice)
+    {
+        try {
+            DB::transaction(function () use ($invoice) {
+                $invoice = $invoice->fresh(['details']);
+
+                if ($invoice->is_posted) {
+                    return;
+                }
+
+                $invoice->forceFill([
+                    'is_posted' => true,
+                    'posted_at' => now(),
+                    'posted_by' => Auth::id(),
+                ])->save();
+
+                $postedInvoice = $invoice->fresh(['details']);
+                $this->upsertJournalEntryForInvoice($postedInvoice);
+                $this->upsertBankReceiptForInvoice($postedInvoice);
+                $this->createStockMovementsForInvoice($postedInvoice);
+            });
+
+            return redirect()->back()->with('success', 'Sales Invoice posted successfully.');
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', 'Error posting invoice: '.$e->getMessage());
         }
     }
 
@@ -556,8 +586,7 @@ class SalesInvoiceController extends Controller
                 continue;
             }
 
-            $product = DB::table('products')->where('id', $detail->product_id)->first();
-            $costPrice = (float) ($product->cost_per_item ?? 0);
+            $costPrice = $this->resolveHistoricalCostPrice($detail->product_id);
 
             $totalCogs += $qty * $costPrice;
         }
@@ -572,7 +601,12 @@ class SalesInvoiceController extends Controller
             $nextNumber = max($nextNumber, (int) $this->nextNumericPart($entryCode, $this->journalCodeStart));
         }
 
-        return $this->journalCodePrefix.$nextNumber;
+        do {
+            $entryCode = $this->journalCodePrefix.$nextNumber;
+            $nextNumber++;
+        } while (JournalEntry::where('entry_code', $entryCode)->exists());
+
+        return $entryCode;
     }
 
     protected function upsertBankReceiptForInvoice(SalesInvoice $invoice): void
@@ -598,6 +632,12 @@ class SalesInvoiceController extends Controller
             $payerId = Account::where('AccCode', 'like', '12%')->where('AccType', 1)->value('AccID');
         }
 
+        $amount = (float) $invoice->paid_amount;
+        if ($amount <= 0) {
+            $this->deleteBankReceiptForInvoice($invoice);
+            return;
+        }
+
         $data = [
             'transaction_type' => 'deposit',
             'destination_account_type' => 'bank',
@@ -605,11 +645,11 @@ class SalesInvoiceController extends Controller
             'transaction_date' => $invoice->invoice_date,
             'counterparty_type' => 'customer',
             'counterparty_id' => $payerId,
-            'amount' => $invoice->paid_amount > 0 ? $invoice->paid_amount : $invoice->total_amount,
+            'amount' => $amount,
             'reference' => $invoice->invoice_number,
             'notes' => 'Bank receipt generated from Sales Invoice #' . $invoice->invoice_number,
             'status' => 'posted',
-            'company_id' => $invoice->company_id,
+            'company_id' => app(CompanyContext::class)->id(),
             'related_invoice_id' => $invoice->id,
             'related_invoice_type' => 'SalesInvoice',
         ];
@@ -672,7 +712,7 @@ class SalesInvoiceController extends Controller
             'reference_type' => 'SalesInvoice',
             'voucher_num' => $invoice->invoice_number,
             'warehouse_id' => $warehouseId,
-            'company_id' => $invoice->company_id ?? Auth::user()?->company_id ?? 1,
+            'company_id' => app(CompanyContext::class)->id(),
             'created_by' => Auth::id(),
             'notes' => "Sales Invoice: {$invoice->invoice_number}",
             'created_at' => now(),
@@ -685,9 +725,7 @@ class SalesInvoiceController extends Controller
                 continue;
             }
 
-            // Get cost from product
-            $product = DB::table('products')->where('id', $detail->product_id)->first();
-            $costPrice = (float) ($product->cost_per_item ?? 0);
+            $costPrice = $this->resolveHistoricalCostPrice($detail->product_id);
 
             DB::table('inventory_movement_lines')->insert([
                 'stock_movement_id' => $movementHeaderId,
@@ -704,6 +742,25 @@ class SalesInvoiceController extends Controller
                 ->where('id', $detail->product_id)
                 ->decrement('quantity', $qty);
         }
+    }
+
+    protected function resolveHistoricalCostPrice(int $productId): float
+    {
+        $movement = DB::table('inventory_movement_lines as lines')
+            ->join('inventory_movement_headers as headers', 'headers.id', '=', 'lines.stock_movement_id')
+            ->where('lines.product_id', $productId)
+            ->where('headers.direction', 'in')
+            ->whereIn('headers.type', ['opening', 'purchase'])
+            ->orderByDesc('headers.movement_date')
+            ->orderByDesc('headers.id')
+            ->select('lines.cost_price')
+            ->first();
+
+        if (! $movement) {
+            throw new \RuntimeException('No historical inventory cost exists for product '.$productId.'.');
+        }
+
+        return (float) $movement->cost_price;
     }
 
     /**

@@ -149,6 +149,29 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
             ),
         },
         {
+            header: t('posting', 'Posting'),
+            key: 'is_posted',
+            sortable: false,
+            width: '120px',
+            render: (row) => row.is_posted ? (
+                <span className="status-badge status-paid">{t('posted', 'Posted')}</span>
+            ) : (
+                <button
+                    type="button"
+                    className="btn btn-sm btn-primary"
+                    title={t('post_invoice', 'Post invoice')}
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        router.post(getLocalizedRoute('admin.client-sales.invoices.post', { invoice: row.id }), {}, {
+                            preserveScroll: true,
+                        });
+                    }}
+                >
+                    {t('post', 'Post')}
+                </button>
+            ),
+        },
+        {
             header: t('total', 'Total'),
             key: 'total_amount',
             sortable: true,

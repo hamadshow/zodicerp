@@ -5,6 +5,7 @@ namespace App\Models\Accounting;
 use App\Models\Account;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use LogicException;
 
 class JournalEntryLine extends Model
 {
@@ -24,6 +25,7 @@ class JournalEntryLine extends Model
         'related_name_details',
         'description',
         'cost_center_code',
+        'company_id',
     ];
 
     protected $casts = [
@@ -33,6 +35,23 @@ class JournalEntryLine extends Model
     ];
 
     protected $appends = ['account_name'];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $line): void {
+            $entryCode = trim((string) $line->journal_entry_code);
+
+            if ($entryCode === '' || ! JournalEntry::where('entry_code', $entryCode)->exists()) {
+                throw new LogicException('Journal line requires an existing journal entry code.');
+            }
+
+            if ($line->account_id && ! Account::where('AccID', $line->account_id)->exists()) {
+                throw new LogicException('Journal line account_id must reference accounts.AccID.');
+            }
+
+            $line->journal_entry_code = $entryCode;
+        });
+    }
 
     public function getAccountNameAttribute()
     {

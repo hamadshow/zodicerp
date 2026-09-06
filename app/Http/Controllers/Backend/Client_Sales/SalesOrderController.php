@@ -13,6 +13,7 @@ use App\Models\Warehouses;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class SalesOrderController extends Controller
@@ -77,10 +78,11 @@ class SalesOrderController extends Controller
             'customer_id' => 'required|exists:customers,id',
             'currency_id' => 'required|exists:currencies,id',
             'exchange_rate' => 'required|numeric|min:0',
-            'status' => 'required|in:draft,confirmed,processing,shipped,delivered,cancelled',
+            'status' => ['required', Rule::in(SalesOrder::statuses())],
             'priority' => 'required|in:low,normal,high,urgent',
+            'warehouse_id' => 'required|exists:warehouses,id',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'nullable|exists:products,id',
+            'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.001',
             'items.*.unit_id' => 'required|exists:item_units,id',
             'items.*.unit_price' => 'required|numeric|min:0',
@@ -145,9 +147,19 @@ class SalesOrderController extends Controller
         $validated = $request->validate([
             'order_date' => 'required|date',
             'customer_id' => 'required|exists:customers,id',
+            'currency_id' => 'required|exists:currencies,id',
+            'warehouse_id' => 'required|exists:warehouses,id',
+            'status' => ['required', Rule::in(SalesOrder::statuses())],
             'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
             'items.*.unit_id' => 'required|exists:item_units,id',
         ]);
+
+        if (! $order->canTransitionTo($validated['status'])) {
+            return redirect()->back()->withErrors([
+                'status' => "Cannot transition sales order from {$order->status} to {$validated['status']}.",
+            ]);
+        }
 
         DB::beginTransaction();
         try {

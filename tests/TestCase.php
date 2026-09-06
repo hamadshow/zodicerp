@@ -4,12 +4,17 @@ namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
+use RuntimeException;
 
 abstract class TestCase extends BaseTestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
+
+        if (config('database.default') !== 'mysql' || config('database.connections.mysql.database') === 'u244683233_zodic') {
+            throw new RuntimeException('HARD STOP — TEST ENVIRONMENT IS NOT ISOLATED');
+        }
 
         \Illuminate\Support\Facades\URL::defaults([
             'country' => 'sa',
@@ -37,7 +42,7 @@ abstract class TestCase extends BaseTestCase
      *
      * This is a TEST-ONLY helper. It must NOT be used in production seeders.
      */
-    protected function ensureTestFiscalPeriods(int $companyId = 1): void
+    protected function ensureTestFiscalPeriods(int $companyId): void
     {
         $existingYear = DB::table('fiscal_years')
             ->where('company_id', $companyId)
@@ -45,7 +50,7 @@ abstract class TestCase extends BaseTestCase
             ->first();
 
         if ($existingYear) {
-            return; // already set up
+            return;
         }
 
         $fiscalYearId = DB::table('fiscal_years')->insertGetId([
@@ -54,7 +59,6 @@ abstract class TestCase extends BaseTestCase
             'end_date' => '2026-12-31',
             'status' => 'open',
             'company_id' => $companyId,
-            'created_by' => 1,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -86,12 +90,20 @@ abstract class TestCase extends BaseTestCase
      */
     protected function createTestAccount(string $code, string $name, int $type = 1): int
     {
+        $existingAccountId = DB::table('accounts')
+            ->where('AccCode', $code)
+            ->value('AccID');
+
+        if ($existingAccountId) {
+            return (int) $existingAccountId;
+        }
+
         return DB::table('accounts')->insertGetId([
             'AccCode' => $code,
             'AccName' => $name,
             'AccType' => $type,
+            'AccFinal' => 1,
             'AccGroup' => $code[0] === '1' ? 'Assets' : ($code[0] === '2' ? 'Liabilities' : ($code[0] === '4' ? 'Revenue' : 'Expenses')),
-            'company_id' => 1,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

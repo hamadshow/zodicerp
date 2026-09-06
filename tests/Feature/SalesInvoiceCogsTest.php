@@ -129,7 +129,7 @@ class SalesInvoiceCogsTest extends TestCase
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
         $controller->upsertJournalEntryForInvoice($invoiceModel);
 
-        $cogsAccountId = DB::table('accounts')->where('AccCode', 'like', '5%')->where('AccType', 1)->orderBy('AccCode')->value('AccID');
+        $cogsAccountId = DB::table('accounts')->where('AccCode', '501')->value('AccID');
         $inventoryAccountId = DB::table('accounts')->where('AccCode', '11401')->value('AccID');
 
         $this->assertNotNull($cogsAccountId, 'COGS account (501) must exist');
@@ -271,7 +271,7 @@ class SalesInvoiceCogsTest extends TestCase
 
         $this->assertEquals(1, $journalCount, 'Must have exactly one journal entry after duplicate posting');
 
-        $cogsAccountId = DB::table('accounts')->where('AccCode', 'like', '5%')->where('AccType', 1)->orderBy('AccCode')->value('AccID');
+        $cogsAccountId = DB::table('accounts')->where('AccCode', '501')->value('AccID');
         $cogsDebit = (float) DB::table('journal_entry_lines')
             ->where('related_name_details', $invoiceNumber)
             ->where('account_id', $cogsAccountId)
@@ -329,7 +329,7 @@ class SalesInvoiceCogsTest extends TestCase
         $method->setAccessible(true);
         $method->invoke($service, $returnModel, $totals);
 
-        $cogsAccountId = DB::table('accounts')->where('AccCode', 'like', '5%')->where('AccType', 1)->orderBy('AccCode')->value('AccID');
+        $cogsAccountId = DB::table('accounts')->where('AccCode', '501')->value('AccID');
         $inventoryAccountId = DB::table('accounts')->where('AccCode', '11401')->value('AccID');
 
         $inventoryDebit = DB::table('journal_entry_lines')

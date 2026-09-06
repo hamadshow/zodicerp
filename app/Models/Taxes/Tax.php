@@ -6,11 +6,10 @@ use App\Models\Account;
 use App\Models\Location;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model; // Assuming Account model exists in App\Models or App\Models\Accounting
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tax extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
 
     protected $table = 'taxes';
 
@@ -62,6 +61,35 @@ class Tax extends Model
         'effective_to' => 'date',
         'rounding_precision' => 'integer',
     ];
+
+    protected $appends = ['name', 'code', 'rate', 'type', 'is_inclusive'];
+
+    public function getNameAttribute(): string
+    {
+        return (string) ($this->name_en ?: $this->name_ar);
+    }
+
+    public function getCodeAttribute(): string
+    {
+        return (string) $this->tax_code;
+    }
+
+    public function getRateAttribute(): mixed
+    {
+        return $this->tax_rate;
+    }
+
+    public function getTypeAttribute(): ?string
+    {
+        return $this->relationLoaded('taxType')
+            ? $this->taxType?->tax_category
+            : null;
+    }
+
+    public function getIsInclusiveAttribute(): bool
+    {
+        return $this->calculation_basis === 'inclusive';
+    }
 
     public function taxType()
     {
