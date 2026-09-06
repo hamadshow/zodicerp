@@ -18,8 +18,10 @@ class AssetLifecycleController extends Controller
     public function depreciationSchedule(Request $request): Response
     {
         $assets = DB::table('assets')
-            ->where('status', 'active')
-            ->orderBy('name')
+            ->leftJoin('users', 'users.id', '=', 'assets.created_by')
+            ->where('assets.status', 'active')
+            ->select('assets.*', DB::raw('COALESCE(assets.name_en, assets.name_ar) as name'))
+            ->orderBy('name_ar')
             ->get();
 
         $schedule = null;
@@ -153,11 +155,17 @@ class AssetLifecycleController extends Controller
 
         $movements = DB::table('asset_movements')
             ->join('assets', 'assets.id', '=', 'asset_movements.asset_id')
-            ->where('assets.company_id', $companyId)
+            ->join('users', 'users.id', '=', 'assets.created_by')
+            ->where('users.company_id', $companyId)
             ->orderByDesc('asset_movements.movement_date')
             ->paginate(20);
 
-        $assets = DB::table('assets')->where('company_id', $companyId)->orderBy('name')->get();
+        $assets = DB::table('assets')
+            ->join('users', 'users.id', '=', 'assets.created_by')
+            ->where('users.company_id', $companyId)
+            ->select('assets.*', DB::raw('COALESCE(assets.name_en, assets.name_ar) as name'))
+            ->orderBy('name_ar')
+            ->get();
         $warehouses = DB::table('warehouses')->orderBy('name')->get();
 
         return Inertia::render('Backend/08-Assets/AssetMovement', [
@@ -173,14 +181,17 @@ class AssetLifecycleController extends Controller
 
         $disposals = DB::table('asset_disposals')
             ->join('assets', 'assets.id', '=', 'asset_disposals.asset_id')
-            ->where('assets.company_id', $companyId)
+            ->join('users', 'users.id', '=', 'assets.created_by')
+            ->where('users.company_id', $companyId)
             ->orderByDesc('asset_disposals.disposal_date')
             ->paginate(20);
 
         $assets = DB::table('assets')
-            ->where('company_id', $companyId)
-            ->where('status', 'active')
-            ->orderBy('name')
+            ->join('users', 'users.id', '=', 'assets.created_by')
+            ->where('users.company_id', $companyId)
+            ->where('assets.status', 'active')
+            ->select('assets.*', DB::raw('COALESCE(assets.name_en, assets.name_ar) as name'))
+            ->orderBy('name_ar')
             ->get();
 
         return Inertia::render('Backend/08-Assets/AssetDisposal', [

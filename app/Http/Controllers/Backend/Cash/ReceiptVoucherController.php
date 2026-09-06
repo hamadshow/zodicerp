@@ -129,7 +129,9 @@ class ReceiptVoucherController extends Controller
             'cancelled' => 'cancelled',
         ];
 
-        $payload['payment_method'] = $methodMap[$payload['payment_method'] ?? 'cash'] ?? $payload['payment_method'] ?? 'cash';
+        if (array_key_exists('payment_method', $payload)) {
+            $payload['payment_method'] = $methodMap[$payload['payment_method']] ?? $payload['payment_method'];
+        }
         $payload['payment_type'] = $typeMap[$payload['payment_type'] ?? 'invoice_payment'] ?? $payload['payment_type'] ?? 'invoice_payment';
         $payload['status'] = $statusMap[$payload['status'] ?? 'draft'] ?? $payload['status'] ?? 'draft';
         $payload['is_posted'] = filter_var($payload['is_posted'] ?? false, FILTER_VALIDATE_BOOL);

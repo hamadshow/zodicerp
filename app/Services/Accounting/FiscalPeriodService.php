@@ -9,7 +9,7 @@ class FiscalPeriodService
     /**
      * Create a fiscal year with monthly accounting periods.
      */
-    public function createFiscalYear(array $data): array
+    public function createFiscalYear(array $data): \stdClass
     {
         $companyId = auth()->user()->company_id ?? 1;
 
@@ -56,7 +56,7 @@ class FiscalPeriodService
     /**
      * Open a fiscal year (allow posting).
      */
-    public function openFiscalYear(int $fiscalYearId): array
+    public function openFiscalYear(int $fiscalYearId): \stdClass
     {
         $year = DB::table('fiscal_years')->where('id', $fiscalYearId)->first();
         if (!$year) {
@@ -74,7 +74,7 @@ class FiscalPeriodService
     /**
      * Close a fiscal year and all its periods.
      */
-    public function closeFiscalYear(int $fiscalYearId): array
+    public function closeFiscalYear(int $fiscalYearId): \stdClass
     {
         return DB::transaction(function () use ($fiscalYearId) {
             $year = DB::table('fiscal_years')->where('id', $fiscalYearId)->first();
@@ -104,7 +104,7 @@ class FiscalPeriodService
     /**
      * Close a single accounting period.
      */
-    public function closePeriod(int $periodId): array
+    public function closePeriod(int $periodId): \stdClass
     {
         return DB::transaction(function () use ($periodId) {
             $period = DB::table('accounting_periods')->where('id', $periodId)->first();
@@ -130,7 +130,7 @@ class FiscalPeriodService
     /**
      * Reopen a single accounting period.
      */
-    public function reopenPeriod(int $periodId): array
+    public function reopenPeriod(int $periodId): \stdClass
     {
         $period = DB::table('accounting_periods')->where('id', $periodId)->first();
         if (!$period) {

@@ -29,7 +29,7 @@ class ErpWorkflowTest extends TestCase
             ]
         );
 
-        $this->actingAs($user, 'sanctum');
+        $this->actingAs($user, 'web');
         return $user;
     }
 
