@@ -19,12 +19,75 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use App\Services\CompanyContext;
+use App\Services\Inventory\WeightedAverageCostService;
 
 class PurchaseInvoiceController extends Controller
 {
     use EnsuresFiscalPeriod;
     protected string $journalCodePrefix = 'QID-';
     protected int $journalCodeStart = 10001;
+
+    protected function reconcileWeightedAverage(PurchaseInvoice $invoice): void
+    {
+        $costing = app(WeightedAverageCostService::class);
+        $companyId = app(CompanyContext::class)->id();
+
+        foreach ($invoice->items as $detail) {
+            $received = DB::table('goods_receipt_details as grd')
+                ->join('goods_receipts as gr', 'gr.id', '=', 'grd.receipt_id')
+                ->where('grd.invoice_detail_id', $detail->id)
+                ->where('gr.status', 'approved')
+                ->where('grd.is_accepted', true)
+                ->whereNull('gr.deleted_at')
+                ->sum('grd.accepted_quantity');
+
+            $received = (string) $received;
+            if (bccomp($received, '0', 6) <= 0) {
+                continue;
+            }
+
+            $provisional = DB::table('inventory_cost_transactions')
+                ->where('company_id', $companyId)
+                ->where('product_id', $detail->product_id)
+                ->where('warehouse_id', $detail->warehouse_id)
+                ->where('source_type', 'goods_receipt_detail')
+                ->whereIn('source_id', function ($query) use ($detail) {
+                    $query->select('grd.id')
+                        ->from('goods_receipt_details as grd')
+                        ->join('goods_receipts as gr', 'gr.id', '=', 'grd.receipt_id')
+                        ->where('grd.invoice_detail_id', $detail->id)
+                        ->where('gr.status', 'approved');
+                })
+                ->sum('value_delta');
+
+            $invoiceValue = bcmul($received, $this->netUnitCost($detail), 6);
+            $adjustment = bcsub($invoiceValue, (string) $provisional, 6);
+            if (bccomp($adjustment, '0', 6) === 0) {
+                continue;
+            }
+
+            $costing->applyValueAdjustment(
+                (int) $detail->product_id,
+                (int) $detail->warehouse_id,
+                $adjustment,
+                $this->netUnitCost($detail),
+                'purchase_invoice_reconciliation',
+                (int) $detail->id,
+                (string) $invoice->invoice_date,
+            );
+        }
+    }
+
+    protected function netUnitCost($detail): string
+    {
+        $quantity = (string) $detail->quantity;
+        if (bccomp($quantity, '0', 6) <= 0) {
+            throw new \RuntimeException('Purchase Invoice quantity must be greater than zero.');
+        }
+
+        return bcsub((string) $detail->unit_price, bcdiv((string) ($detail->discount_amount ?? '0'), $quantity, 6), 6);
+    }
 
     /**
      * Create journal entry for purchase invoice:
@@ -319,6 +382,7 @@ class PurchaseInvoiceController extends Controller
             // Create journal entry only for standard invoices (not proforma)
             if (($validated['invoice_type'] ?? 'standard') === 'standard') {
                 $this->createJournalEntryForInvoice($invoice, $validated);
+                $this->reconcileWeightedAverage($invoice->fresh('items'));
             }
 
             DB::commit();
@@ -408,6 +472,7 @@ class PurchaseInvoiceController extends Controller
             // Sync journal entry on update (only for standard invoices)
             if (($validated['invoice_type'] ?? 'standard') === 'standard') {
                 $this->createJournalEntryForInvoice($invoice->fresh(), $validated);
+                $this->reconcileWeightedAverage($invoice->fresh('items'));
             } else {
                 // If changed to proforma, remove existing journal entry
                 $this->deleteJournalEntryForInvoice($invoice->fresh());

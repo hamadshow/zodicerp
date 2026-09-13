@@ -35,6 +35,7 @@ class JournalReversalTest extends TestCase
         }
 
         $this->testUserId = DB::table('users')->first()->id ?? 1;
+        $this->actingAs(\App\Models\User::find($this->testUserId));
     }
 
     protected function tearDown(): void
@@ -56,7 +57,7 @@ class JournalReversalTest extends TestCase
                     ->whereIn('invoice_number', $this->cleanupRefs)
                     ->pluck('id');
                 if ($invoiceIds->isNotEmpty()) {
-                    DB::table('sales_invoice_details')->whereIn('sales_invoice_id', $invoiceIds)->delete();
+                    DB::table('sales_invoice_details')->whereIn('invoice_id', $invoiceIds)->delete();
                     DB::table('sales_invoices')->whereIn('id', $invoiceIds)->delete();
                 }
             }
@@ -78,6 +79,7 @@ class JournalReversalTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 100.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '100');
 
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
@@ -97,7 +99,7 @@ class JournalReversalTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            'sales_invoice_id' => $invoiceId,
+            'invoice_id' => $invoiceId,
             'product_id' => $productId,
             'quantity' => 5,
             'unit_id' => $unitId,
@@ -105,9 +107,8 @@ class JournalReversalTest extends TestCase
             'warehouse_id' => $warehouseId,
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         // Verify original journal exists
         $journal = DB::table('journal_entries')
@@ -131,6 +132,7 @@ class JournalReversalTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 80.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '80');
 
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
@@ -150,7 +152,7 @@ class JournalReversalTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            'sales_invoice_id' => $invoiceId,
+            'invoice_id' => $invoiceId,
             'product_id' => $productId,
             'quantity' => 5,
             'unit_id' => $unitId,
@@ -158,9 +160,8 @@ class JournalReversalTest extends TestCase
             'warehouse_id' => $warehouseId,
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         // Get the journal entry code before deletion
         $journal = DB::table('journal_entries')
@@ -202,6 +203,7 @@ class JournalReversalTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 60.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '60');
 
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
@@ -221,7 +223,7 @@ class JournalReversalTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            'sales_invoice_id' => $invoiceId,
+            'invoice_id' => $invoiceId,
             'product_id' => $productId,
             'quantity' => 5,
             'unit_id' => $unitId,
@@ -229,9 +231,8 @@ class JournalReversalTest extends TestCase
             'warehouse_id' => $warehouseId,
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         $journal = DB::table('journal_entries')
             ->where('reference', $invoiceNumber)
@@ -271,6 +272,7 @@ class JournalReversalTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 90.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '90');
 
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
@@ -290,7 +292,7 @@ class JournalReversalTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            'sales_invoice_id' => $invoiceId,
+            'invoice_id' => $invoiceId,
             'product_id' => $productId,
             'quantity' => 5,
             'unit_id' => $unitId,
@@ -298,9 +300,8 @@ class JournalReversalTest extends TestCase
             'warehouse_id' => $warehouseId,
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         $journal = DB::table('journal_entries')
             ->where('reference', $invoiceNumber)
@@ -331,6 +332,7 @@ class JournalReversalTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 75.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '75');
 
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
@@ -350,7 +352,7 @@ class JournalReversalTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            'sales_invoice_id' => $invoiceId,
+            'invoice_id' => $invoiceId,
             'product_id' => $productId,
             'quantity' => 5,
             'unit_id' => $unitId,
@@ -358,9 +360,8 @@ class JournalReversalTest extends TestCase
             'warehouse_id' => $warehouseId,
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         $journal = DB::table('journal_entries')
             ->where('reference', $invoiceNumber)
@@ -414,6 +415,7 @@ class JournalReversalTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 50.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '50');
 
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
@@ -433,7 +435,7 @@ class JournalReversalTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            'sales_invoice_id' => $invoiceId,
+            'invoice_id' => $invoiceId,
             'product_id' => $productId,
             'quantity' => 5,
             'unit_id' => $unitId,
@@ -441,9 +443,8 @@ class JournalReversalTest extends TestCase
             'warehouse_id' => $warehouseId,
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         $journal = DB::table('journal_entries')
             ->where('reference', $invoiceNumber)
@@ -493,6 +494,7 @@ class JournalReversalTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 120.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '120');
 
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
@@ -512,7 +514,7 @@ class JournalReversalTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            'sales_invoice_id' => $invoiceId,
+            'invoice_id' => $invoiceId,
             'product_id' => $productId,
             'quantity' => 5,
             'unit_id' => $unitId,
@@ -520,9 +522,8 @@ class JournalReversalTest extends TestCase
             'warehouse_id' => $warehouseId,
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         $journal = DB::table('journal_entries')
             ->where('reference', $invoiceNumber)
@@ -560,6 +561,7 @@ class JournalReversalTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 40.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '40');
 
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
@@ -579,7 +581,7 @@ class JournalReversalTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            'sales_invoice_id' => $invoiceId,
+            'invoice_id' => $invoiceId,
             'product_id' => $productId,
             'quantity' => 5,
             'unit_id' => $unitId,
@@ -587,9 +589,8 @@ class JournalReversalTest extends TestCase
             'warehouse_id' => $warehouseId,
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         $journal = DB::table('journal_entries')
             ->where('reference', $invoiceNumber)
@@ -624,11 +625,12 @@ class JournalReversalTest extends TestCase
     private function createTestProduct(string $name, float $cost): int
     {
         $slug = str()->slug($name) . '-' . uniqid();
+        $code = 'PRD-' . strtoupper(substr($slug, 0, 6)) . '-' . substr(uniqid(), -6);
         return DB::table('products')->insertGetId([
-            'product_code' => 'PRD-' . strtoupper(substr($slug, 0, 10)),
+            'product_code' => $code,
             'name' => $name,
             'slug' => $slug,
-            'sku' => 'SKU-' . strtoupper(substr($slug, 0, 8)),
+            'sku' => 'SKU-' . strtoupper(substr($code, 4)),
             'status' => 'active',
             'quantity' => 0,
             'cost_per_item' => $cost,
@@ -646,6 +648,8 @@ class JournalReversalTest extends TestCase
             'name_ar' => 'عميل تجريبي',
             'name_en' => 'Test Customer',
             'customer_code' => 'CUST-' . uniqid(),
+            'customer_group_id' => DB::table('customer_groups')->first()->id ?? 1,
+            'account_id' => DB::table('accounts')->where('AccCode', 1200)->value('AccID') ?? 61,
             'is_active' => true,
             'company_id' => $this->companyId,
             'created_at' => now(),
@@ -656,9 +660,11 @@ class JournalReversalTest extends TestCase
     private function createTestWarehouse(): int
     {
         return DB::table('warehouses')->insertGetId([
-            'name' => 'Test Warehouse',
-            'name_ar' => 'مستودع تجريبي',
+            'warehouse_code' => 'WH-' . uniqid(),
+            'name' => 'Test Warehouse ' . uniqid(),
+            'branch_id' => DB::table('branches')->where('company_id', $this->companyId)->value('id') ?? DB::table('branches')->insertGetId(['company_id' => $this->companyId, 'branch_code' => 'BR-' . uniqid(), 'branch_name' => 'Test Branch', 'created_at' => now(), 'updated_at' => now()]),
             'company_id' => $this->companyId,
+            'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
         ]);

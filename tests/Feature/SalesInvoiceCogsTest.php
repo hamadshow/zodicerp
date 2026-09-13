@@ -30,6 +30,7 @@ class SalesInvoiceCogsTest extends TestCase
         }
 
         $this->testUserId = DB::table('users')->first()->id ?? 1;
+        $this->actingAs(\App\Models\User::find($this->testUserId));
     }
 
     protected function tearDown(): void
@@ -55,7 +56,7 @@ class SalesInvoiceCogsTest extends TestCase
                     ->pluck('id');
                 if ($invoiceIds->isNotEmpty()) {
                     DB::table('sales_invoice_details')
-                        ->whereIn('sales_invoice_id', $invoiceIds)
+                        ->whereIn('invoice_id', $invoiceIds)
                         ->delete();
                     DB::table('sales_invoices')
                         ->whereIn('id', $invoiceIds)
@@ -99,6 +100,8 @@ class SalesInvoiceCogsTest extends TestCase
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 100.00, 'quantity' => 10]);
 
+        $this->seedInventory($productId, $warehouseId, '10', '100');
+
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
             'invoice_date' => now()->toDateString(),
@@ -117,7 +120,7 @@ class SalesInvoiceCogsTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            'sales_invoice_id' => $invoiceId,
+            'invoice_id' => $invoiceId,
             'product_id' => $productId,
             'quantity' => 5,
             'unit_id' => $unitId,
@@ -125,9 +128,8 @@ class SalesInvoiceCogsTest extends TestCase
             'warehouse_id' => $warehouseId,
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         $cogsAccountId = DB::table('accounts')->where('AccCode', '501')->value('AccID');
         $inventoryAccountId = DB::table('accounts')->where('AccCode', '11401')->value('AccID');
@@ -166,6 +168,7 @@ class SalesInvoiceCogsTest extends TestCase
         $this->testInvoiceNumbers[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 75.00, 'quantity' => 20]);
+        $this->seedInventory($productId, $warehouseId, '20', '75');
 
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
@@ -185,7 +188,7 @@ class SalesInvoiceCogsTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            'sales_invoice_id' => $invoiceId,
+            'invoice_id' => $invoiceId,
             'product_id' => $productId,
             'quantity' => 4,
             'unit_id' => $unitId,
@@ -193,9 +196,8 @@ class SalesInvoiceCogsTest extends TestCase
             'warehouse_id' => $warehouseId,
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         $journalEntry = DB::table('journal_entries')
             ->where('reference', $invoiceNumber)
@@ -230,6 +232,7 @@ class SalesInvoiceCogsTest extends TestCase
         $this->testInvoiceNumbers[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 50.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '50');
 
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
@@ -249,7 +252,7 @@ class SalesInvoiceCogsTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            'sales_invoice_id' => $invoiceId,
+            'invoice_id' => $invoiceId,
             'product_id' => $productId,
             'quantity' => 4,
             'unit_id' => $unitId,
@@ -257,12 +260,11 @@ class SalesInvoiceCogsTest extends TestCase
             'warehouse_id' => $warehouseId,
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
 
         // Post twice — idempotent
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         $journalCount = DB::table('journal_entries')
             ->where('reference', $invoiceNumber)
@@ -293,10 +295,42 @@ class SalesInvoiceCogsTest extends TestCase
         $this->testReturnNumbers[] = $returnNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 120.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '120');
 
+        // Step 1: Create a real sales invoice so the return can reference it
+        $saleNumber = 'SINV-FOR-RET-' . uniqid();
+        $this->testInvoiceNumbers[] = $saleNumber;
+        $saleId = DB::table('sales_invoices')->insertGetId([
+            'invoice_number' => $saleNumber,
+            'invoice_date' => now()->toDateString(),
+            'customer_id' => $customerId,
+            'currency_id' => 1,
+            'exchange_rate' => 1,
+            'invoice_type' => 'standard',
+            'payment_status' => 'unpaid',
+            'treasury_id' => $this->getTreasuryAccountId(),
+            'warehouse_id' => $warehouseId,
+            'total_amount' => 120.00,
+            'subtotal' => 120.00,
+            'is_posted' => true,
+            'created_by' => $this->testUserId,
+            'company_id' => $this->companyId,
+        ]);
+        $saleDetailId = DB::table('sales_invoice_details')->insertGetId([
+            'invoice_id' => $saleId,
+            'product_id' => $productId,
+            'quantity' => 1,
+            'unit_id' => $unitId,
+            'unit_price' => 120.00,
+            'warehouse_id' => $warehouseId,
+        ]);
+        $saleModel = \App\Models\Client_Sales\SalesInvoice::find($saleId);
+        $this->postSalesInvoiceJournal($saleModel);
+
+        // Step 2: Create the sales return referencing the invoice
         $returnId = DB::table('sales_returns')->insertGetId([
             'return_number' => $returnNumber,
-            'invoice_id' => null,
+            'invoice_id' => $saleId,
             'customer_id' => $customerId,
             'warehouse_id' => $warehouseId,
             'return_date' => now()->toDateString(),
@@ -314,6 +348,7 @@ class SalesInvoiceCogsTest extends TestCase
 
         DB::table('sales_return_details')->insert([
             'return_id' => $returnId,
+            'invoice_detail_id' => $saleDetailId,
             'product_id' => $productId,
             'quantity' => 1,
             'unit_id' => $unitId,
@@ -363,10 +398,41 @@ class SalesInvoiceCogsTest extends TestCase
         $this->testReturnNumbers[] = $returnNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 80.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '80');
+
+        // Create a real sales invoice so the return can reference it
+        $saleNumber = 'SINV-FOR-BAL-' . uniqid();
+        $this->testInvoiceNumbers[] = $saleNumber;
+        $saleId = DB::table('sales_invoices')->insertGetId([
+            'invoice_number' => $saleNumber,
+            'invoice_date' => now()->toDateString(),
+            'customer_id' => $customerId,
+            'currency_id' => 1,
+            'exchange_rate' => 1,
+            'invoice_type' => 'standard',
+            'payment_status' => 'unpaid',
+            'treasury_id' => $this->getTreasuryAccountId(),
+            'warehouse_id' => $warehouseId,
+            'total_amount' => 160.00,
+            'subtotal' => 160.00,
+            'is_posted' => true,
+            'created_by' => $this->testUserId,
+            'company_id' => $this->companyId,
+        ]);
+        $saleDetailId = DB::table('sales_invoice_details')->insertGetId([
+            'invoice_id' => $saleId,
+            'product_id' => $productId,
+            'quantity' => 2,
+            'unit_id' => $unitId,
+            'unit_price' => 80.00,
+            'warehouse_id' => $warehouseId,
+        ]);
+        $saleModel = \App\Models\Client_Sales\SalesInvoice::find($saleId);
+        $this->postSalesInvoiceJournal($saleModel);
 
         $returnId = DB::table('sales_returns')->insertGetId([
             'return_number' => $returnNumber,
-            'invoice_id' => null,
+            'invoice_id' => $saleId,
             'customer_id' => $customerId,
             'warehouse_id' => $warehouseId,
             'return_date' => now()->toDateString(),
@@ -384,6 +450,7 @@ class SalesInvoiceCogsTest extends TestCase
 
         DB::table('sales_return_details')->insert([
             'return_id' => $returnId,
+            'invoice_detail_id' => $saleDetailId,
             'product_id' => $productId,
             'quantity' => 2,
             'unit_id' => $unitId,
@@ -432,6 +499,7 @@ class SalesInvoiceCogsTest extends TestCase
         $this->testInvoiceNumbers[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 0, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '0');
 
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
@@ -451,7 +519,7 @@ class SalesInvoiceCogsTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            'sales_invoice_id' => $invoiceId,
+            'invoice_id' => $invoiceId,
             'product_id' => $productId,
             'quantity' => 3,
             'unit_id' => $unitId,
@@ -459,9 +527,8 @@ class SalesInvoiceCogsTest extends TestCase
             'warehouse_id' => $warehouseId,
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         $journalEntry = DB::table('journal_entries')
             ->where('reference', $invoiceNumber)
@@ -495,6 +562,8 @@ class SalesInvoiceCogsTest extends TestCase
 
         DB::table('products')->where('id', $productA)->update(['cost_per_item' => 50.00, 'quantity' => 10]);
         DB::table('products')->where('id', $productB)->update(['cost_per_item' => 80.00, 'quantity' => 10]);
+        $this->seedInventory($productA, $warehouseId, '10', '50');
+        $this->seedInventory($productB, $warehouseId, '10', '80');
 
         $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $invoiceNumber,
@@ -514,13 +583,12 @@ class SalesInvoiceCogsTest extends TestCase
         ]);
 
         DB::table('sales_invoice_details')->insert([
-            ['sales_invoice_id' => $invoiceId, 'product_id' => $productA, 'quantity' => 5, 'unit_id' => $unitId, 'unit_price' => 70.00, 'warehouse_id' => $warehouseId],
-            ['sales_invoice_id' => $invoiceId, 'product_id' => $productB, 'quantity' => 5, 'unit_id' => $unitId, 'unit_price' => 70.00, 'warehouse_id' => $warehouseId],
+            ['invoice_id' => $invoiceId, 'product_id' => $productA, 'quantity' => 5, 'unit_id' => $unitId, 'unit_price' => 70.00, 'warehouse_id' => $warehouseId],
+            ['invoice_id' => $invoiceId, 'product_id' => $productB, 'quantity' => 5, 'unit_id' => $unitId, 'unit_price' => 70.00, 'warehouse_id' => $warehouseId],
         ]);
 
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
         $invoiceModel = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($invoiceModel);
+        $this->postSalesInvoiceJournal($invoiceModel);
 
         // COGS = 5×50 + 5×80 = 250 + 400 = 650
         $cogsAccountId = DB::table('accounts')->where('AccCode', 'like', '5%')->where('AccType', 1)->orderBy('AccCode')->value('AccID');
@@ -555,11 +623,12 @@ class SalesInvoiceCogsTest extends TestCase
     private function createTestProduct(string $name, float $cost): int
     {
         $slug = str()->slug($name) . '-' . uniqid();
+        $code = 'PRD-' . strtoupper(substr($slug, 0, 6)) . '-' . substr(uniqid(), -6);
         return DB::table('products')->insertGetId([
-            'product_code' => 'PRD-' . strtoupper(substr($slug, 0, 10)),
+            'product_code' => $code,
             'name' => $name,
             'slug' => $slug,
-            'sku' => 'SKU-' . strtoupper(substr($slug, 0, 8)),
+            'sku' => 'SKU-' . strtoupper(substr($code, 4)),
             'status' => 'active',
             'quantity' => 0,
             'cost_per_item' => $cost,
@@ -577,6 +646,8 @@ class SalesInvoiceCogsTest extends TestCase
             'name_ar' => 'عميل تجريبي',
             'name_en' => 'Test Customer',
             'customer_code' => 'CUST-' . uniqid(),
+            'customer_group_id' => DB::table('customer_groups')->first()->id ?? 1,
+            'account_id' => DB::table('accounts')->where('AccCode', 1200)->value('AccID') ?? 61,
             'is_active' => true,
             'company_id' => $this->companyId,
             'created_at' => now(),
@@ -587,9 +658,11 @@ class SalesInvoiceCogsTest extends TestCase
     private function createTestWarehouse(): int
     {
         return DB::table('warehouses')->insertGetId([
-            'name' => 'Test Warehouse',
-            'name_ar' => 'مستودع تجريبي',
+            'warehouse_code' => 'WH-' . uniqid(),
+            'name' => 'Test Warehouse ' . uniqid(),
+            'branch_id' => DB::table('branches')->where('company_id', $this->companyId)->value('id') ?? DB::table('branches')->insertGetId(['company_id' => $this->companyId, 'branch_code' => 'BR-' . uniqid(), 'branch_name' => 'Test Branch', 'created_at' => now(), 'updated_at' => now()]),
             'company_id' => $this->companyId,
+            'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
         ]);

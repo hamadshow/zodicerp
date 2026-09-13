@@ -14,6 +14,8 @@ use App\Models\Client_Sales\SalesReturn;
 use App\Models\Client_Sales\SalesReturnDetail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use App\Services\Inventory\WeightedAverageCostService;
+use App\Services\CompanyContext;
 use Illuminate\Validation\ValidationException;
 
 class SalesReturnService
@@ -628,6 +630,13 @@ class SalesReturnService
      */
     private function createStockMovementsForReturn(SalesReturn $return): void
     {
+        if (DB::table('inventory_movement_headers')
+            ->where('reference_id', $return->id)
+            ->where('reference_type', 'sales_return')
+            ->exists()) {
+            return;
+        }
+
         $return->load('details');
         foreach ($return->details as $detail) {
             if (($detail->quantity ?? 0) <= 0) {
@@ -642,38 +651,22 @@ class SalesReturnService
                 'reference_type' => 'sales_return',
                 'voucher_num' => $return->return_number,
                 'warehouse_id' => $return->warehouse_id,
-                'company_id' => auth()->user()->company_id ?? 1,
+                'company_id' => app(CompanyContext::class)->id(),
                 'created_by' => auth()->id(),
                 'notes' => "Sales Return: {$return->return_number}",
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
-            // Recover historical cost from original sale's inventory movement
-            $costPrice = 0.0;
-            if ($return->invoice_id) {
-                $saleMovementHeader = DB::table('inventory_movement_headers')
-                    ->where('reference_id', $return->invoice_id)
-                    ->where('reference_type', 'SalesInvoice')
-                    ->first();
-
-                if ($saleMovementHeader) {
-                    $originalLine = DB::table('inventory_movement_lines')
-                        ->where('stock_movement_id', $saleMovementHeader->id)
-                        ->where('product_id', $detail->product_id)
-                        ->first();
-
-                    if ($originalLine && (float) $originalLine->cost_price > 0) {
-                        $costPrice = (float) $originalLine->cost_price;
-                    }
-                }
+            $costTransaction = DB::table('inventory_cost_transactions')
+                ->where('company_id', app(CompanyContext::class)->id())
+                ->where('source_type', 'sales_invoice_detail')
+                ->where('source_id', $detail->invoice_detail_id)
+                ->first();
+            if (! $costTransaction) {
+                throw new \RuntimeException('Original sales weighted-average cost transaction was not found.');
             }
-
-            // Fallback to current product cost if no historical movement found
-            if ($costPrice <= 0) {
-                $product = DB::table('products')->where('id', $detail->product_id)->first();
-                $costPrice = (float) ($product->cost_per_item ?? 0);
-            }
+            $costPrice = (string) $costTransaction->unit_cost;
 
             DB::table('inventory_movement_lines')->insert([
                 'stock_movement_id' => $movementHeaderId,
@@ -681,6 +674,8 @@ class SalesReturnService
                 'unit_id' => $detail->unit_id ?? null,
                 'quantity' => $detail->quantity,
                 'cost_price' => $costPrice,
+                'goods_receipt_detail_id' => null,
+                'purchase_invoice_detail_id' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
@@ -689,6 +684,18 @@ class SalesReturnService
             DB::table('products')
                 ->where('id', $detail->product_id)
                 ->increment('quantity', (float) $detail->quantity);
+
+            app(WeightedAverageCostService::class)->applyInbound(
+                (int) $detail->product_id,
+                (int) $return->warehouse_id,
+                (string) $detail->quantity,
+                $costPrice,
+                'sales_return_detail',
+                (int) $detail->id,
+                (string) $return->return_date,
+                $movementHeaderId,
+                DB::table('inventory_movement_lines')->where('stock_movement_id', $movementHeaderId)->latest('id')->value('id'),
+            );
         }
     }
 
@@ -772,23 +779,12 @@ class SalesReturnService
 
             $costPrice = 0.0;
 
-            // Try to recover historical cost from original sale's inventory movement
-            if ($saleMovementHeader) {
-                $originalLine = DB::table('inventory_movement_lines')
-                    ->where('stock_movement_id', $saleMovementHeader->id)
-                    ->where('product_id', $detail->product_id)
-                    ->first();
-
-                if ($originalLine && (float) $originalLine->cost_price > 0) {
-                    $costPrice = (float) $originalLine->cost_price;
-                }
-            }
-
-            // Fallback: use current products.cost_per_item if no historical movement exists
-            if ($costPrice <= 0) {
-                $product = DB::table('products')->where('id', $detail->product_id)->first();
-                $costPrice = (float) ($product->cost_per_item ?? 0);
-            }
+            $historicalCost = DB::table('inventory_cost_transactions')
+                ->where('company_id', app(CompanyContext::class)->id())
+                ->where('source_type', 'sales_invoice_detail')
+                ->where('source_id', $detail->invoice_detail_id)
+                ->value('unit_cost');
+            $costPrice = (float) ($historicalCost ?? 0);
 
             $totalCogs += $qty * $costPrice;
         }

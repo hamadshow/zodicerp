@@ -6,11 +6,15 @@ use App\Models\Vendor_Purchases\GoodsReceipt;
 use App\Models\Vendor_Purchases\GoodsReceiptDetail;
 use App\Models\Vendor_Purchases\PurchaseOrder;
 use App\Models\Vendor_Purchases\PurchaseOrderItem;
+use App\Models\Vendor_Purchases\PurchaseInvoiceDetail;
 use Illuminate\Support\Facades\DB;
 use App\Services\CompanyContext;
+use App\Services\Inventory\WeightedAverageCostService;
 
 class GoodsReceiptService
 {
+    public function __construct(private WeightedAverageCostService $weightedAverageCost) {}
+
     public function createGoodsReceipt(array $data): GoodsReceipt
     {
         return DB::transaction(function () use ($data) {
@@ -41,8 +45,17 @@ class GoodsReceiptService
                 $rejectedQty = (float) ($item['rejected_quantity'] ?? 0);
                 $receivedQty = $acceptedQty + $rejectedQty;
 
+                if (! empty($item['invoice_detail_id'])) {
+                    $invoiceDetail = PurchaseInvoiceDetail::findOrFail((int) $item['invoice_detail_id']);
+                    if ((int) $invoiceDetail->product_id !== (int) $item['product_id']
+                        || (int) $invoiceDetail->warehouse_id !== (int) $data['warehouse_id']) {
+                        throw new \RuntimeException('Goods Receipt detail does not match its Purchase Invoice Detail.');
+                    }
+                }
+
                 GoodsReceiptDetail::create([
                     'receipt_id' => $receipt->id,
+                    'invoice_detail_id' => $item['invoice_detail_id'] ?? null,
                     'product_id' => $item['product_id'],
                     'quantity_received' => $receivedQty,
                     'unit_id' => $item['unit_id'],
@@ -107,6 +120,7 @@ class GoodsReceiptService
 
             // Update purchase order received quantities
             $this->updatePurchaseOrderQuantities($receipt);
+            $this->updatePurchaseInvoiceQuantities($receipt);
 
             // NOTE: No GL journal entry is created here.
             //
@@ -197,15 +211,29 @@ class GoodsReceiptService
             'updated_at' => now(),
         ]);
 
-        DB::table('inventory_movement_lines')->insert([
+        $movementLineId = DB::table('inventory_movement_lines')->insertGetId([
             'stock_movement_id' => $movementHeaderId,
             'product_id' => $detail->product_id,
             'unit_id' => $detail->unit_id,
             'quantity' => $detail->accepted_quantity,
             'cost_price' => $detail->unit_cost,
+            'goods_receipt_detail_id' => $detail->id,
+            'purchase_invoice_detail_id' => $detail->invoice_detail_id,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        $this->weightedAverageCost->applyInbound(
+            (int) $detail->product_id,
+            (int) $receipt->warehouse_id,
+            (string) $detail->accepted_quantity,
+            (string) $detail->unit_cost,
+            'goods_receipt_detail',
+            (int) $detail->id,
+            (string) $receipt->receipt_date,
+            $movementHeaderId,
+            $movementLineId,
+        );
     }
 
     private function updatePurchaseOrderQuantities(GoodsReceipt $receipt): void
@@ -253,6 +281,34 @@ class GoodsReceiptService
             $order->update(['status' => 'fully_received']);
         } elseif ($totalReceived > 0) {
             $order->update(['status' => 'partially_received']);
+        }
+    }
+
+    private function updatePurchaseInvoiceQuantities(GoodsReceipt $receipt): void
+    {
+        $details = GoodsReceiptDetail::query()
+            ->where('receipt_id', $receipt->id)
+            ->whereNotNull('invoice_detail_id')
+            ->where('is_accepted', true)
+            ->select('invoice_detail_id', DB::raw('SUM(accepted_quantity) as accepted_total'))
+            ->groupBy('invoice_detail_id')
+            ->get();
+
+        foreach ($details as $detail) {
+            $invoiceDetail = PurchaseInvoiceDetail::lockForUpdate()->find($detail->invoice_detail_id);
+            if (! $invoiceDetail) {
+                continue;
+            }
+
+            $received = GoodsReceiptDetail::query()
+                ->where('invoice_detail_id', $invoiceDetail->id)
+                ->where('is_accepted', true)
+                ->whereHas('receipt', fn ($query) => $query->where('status', 'approved')->whereNull('deleted_at'))
+                ->sum('accepted_quantity');
+
+            $invoiceDetail->update([
+                'received_quantity' => min((float) $invoiceDetail->quantity, (float) $received),
+            ]);
         }
     }
 

@@ -108,4 +108,41 @@ abstract class TestCase extends BaseTestCase
             'updated_at' => now(),
         ]);
     }
+
+    /**
+     * Invoke the SalesInvoiceController journal-posting method via reflection.
+     *
+     * The method is intentionally protected in the controller (not part of the
+     * public routing contract); the project's accounting tests treat it as a
+     * directly-testable journal contract, so we reach it through reflection
+     * rather than changing production visibility.
+     */
+    protected function postSalesInvoiceJournal(\App\Models\Client_Sales\SalesInvoice $invoice): void
+    {
+        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
+        $method = (new \ReflectionClass($controller))->getMethod('upsertJournalEntryForInvoice');
+        $method->setAccessible(true);
+        $method->invoke($controller, $invoice);
+    }
+
+    /**
+     * Establish on-hand weighted-average inventory for a product/warehouse pair.
+     *
+     * The perpetual-inventory engine rejects sales out of stock, so tests that
+     * post a sale must first stock the product through the real WA service.
+     * Product/warehouse rows are created fresh per test, so each call applies
+     * exactly once to its own scope.
+     */
+    protected function seedInventory(int $productId, int $warehouseId, string $quantity, string $unitCost): void
+    {
+        app(\App\Services\Inventory\WeightedAverageCostService::class)->applyInbound(
+            $productId,
+            $warehouseId,
+            $quantity,
+            $unitCost,
+            'test_inventory_setup',
+            (int) (microtime(true) * 1000000),
+            now()->toDateString(),
+        );
+    }
 }

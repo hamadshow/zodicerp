@@ -21,6 +21,7 @@ use App\Services\TreasuryService;
 use App\Services\Accounting\PostingService;
 use App\Services\Accounting\JournalReversalService;
 use App\Services\CompanyContext;
+use App\Services\Inventory\WeightedAverageCostService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,11 @@ class SalesInvoiceController extends Controller
     protected string $journalCodePrefix = 'QID-';
 
     protected int $journalCodeStart = 10001;
+
+    protected function weightedAverageCost(): WeightedAverageCostService
+    {
+        return app(WeightedAverageCostService::class);
+    }
 
     public function index(Request $request)
     {
@@ -578,20 +584,26 @@ class SalesInvoiceController extends Controller
     protected function calculateCogsAmount(SalesInvoice $invoice): float
     {
         $invoice->load('details');
-        $totalCogs = 0.0;
+        $totalCogs = '0.000000';
 
         foreach ($invoice->details as $detail) {
-            $qty = (float) $detail->quantity;
-            if ($qty <= 0) {
+            $quantity = (string) $detail->quantity;
+            if (bccomp($quantity, '0', 6) <= 0) {
                 continue;
             }
 
-            $costPrice = $this->resolveHistoricalCostPrice($detail->product_id);
-
-            $totalCogs += $qty * $costPrice;
+            $costTransaction = $this->weightedAverageCost()->applyOutbound(
+                (int) $detail->product_id,
+                (int) ($detail->warehouse_id ?: $invoice->warehouse_id),
+                $quantity,
+                'sales_invoice_detail',
+                (int) $detail->id,
+                (string) $invoice->invoice_date,
+            );
+            $totalCogs = bcadd($totalCogs, bcsub('0', (string) $costTransaction->value_delta, 6), 6);
         }
 
-        return $totalCogs;
+        return (float) $totalCogs;
     }
 
     protected function generateNextEntryCode(): string
@@ -725,7 +737,13 @@ class SalesInvoiceController extends Controller
                 continue;
             }
 
-            $costPrice = $this->resolveHistoricalCostPrice($detail->product_id);
+            $costTransaction = \App\Models\InventoryCostTransaction::query()
+                ->where('company_id', app(CompanyContext::class)->id())
+                ->where('source_type', 'sales_invoice_detail')
+                ->where('source_id', $detail->id)
+                ->latest('id')
+                ->firstOrFail();
+            $costPrice = (string) $costTransaction->unit_cost;
 
             DB::table('inventory_movement_lines')->insert([
                 'stock_movement_id' => $movementHeaderId,
@@ -733,6 +751,7 @@ class SalesInvoiceController extends Controller
                 'unit_id' => $detail->unit_id,
                 'quantity' => $qty,
                 'cost_price' => $costPrice,
+                'purchase_invoice_detail_id' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

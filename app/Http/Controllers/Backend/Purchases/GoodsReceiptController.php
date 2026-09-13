@@ -60,6 +60,7 @@ class GoodsReceiptController extends Controller
     {
         $validated = $request->validate([
             'order_id' => 'required|exists:purchase_orders,id',
+            'invoice_id' => 'nullable|exists:purchase_invoices,id',
             'warehouse_id' => 'required|exists:warehouses,id',
             'receipt_date' => 'required|date',
             'receipt_time' => 'nullable|string',
@@ -67,6 +68,7 @@ class GoodsReceiptController extends Controller
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
+            'items.*.invoice_detail_id' => 'nullable|exists:purchase_invoice_details,id',
             'items.*.quantity_received' => 'required|numeric|min:0.001',
             'items.*.unit_id' => 'required|exists:item_units,id',
             'items.*.unit_cost' => 'required|numeric|min:0',

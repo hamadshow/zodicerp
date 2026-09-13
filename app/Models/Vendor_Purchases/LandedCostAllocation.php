@@ -12,7 +12,9 @@ class LandedCostAllocation extends Model
 
     protected $fillable = [
         'landed_cost_id',
+        'company_id',
         'purchase_invoice_detail_id',
+        'inventory_movement_line_id',
         'allocated_amount',
         'allocated_per_unit',
     ];
@@ -30,5 +32,10 @@ class LandedCostAllocation extends Model
     public function purchaseInvoiceDetail()
     {
         return $this->belongsTo(PurchaseInvoiceDetail::class, 'purchase_invoice_detail_id');
+    }
+
+    public function inventoryMovementLine()
+    {
+        return $this->belongsTo(\App\Models\InventoryMovementLine::class, 'inventory_movement_line_id');
     }
 }

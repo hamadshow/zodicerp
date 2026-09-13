@@ -171,22 +171,39 @@ class GrnAccountingTest extends TestCase
 
     protected function tearDown(): void
     {
-        // Clean up GRN test data
+        // Remove dependent costing and movement rows before their referenced GRN rows.
         $grnIds = DB::table('goods_receipts')
-            ->where('receipt_number', 'like', 'GRN-%')
+            ->where('order_id', $this->testPoId ?? 0)
             ->pluck('id');
+
         if ($grnIds->isNotEmpty()) {
+            $detailIds = DB::table('goods_receipt_details')
+                ->whereIn('receipt_id', $grnIds)
+                ->pluck('id');
+
+            if ($detailIds->isNotEmpty()) {
+                DB::table('inventory_cost_transactions')
+                    ->where('source_type', 'goods_receipt_detail')
+                    ->whereIn('source_id', $detailIds)
+                    ->delete();
+            }
+
+            $movementHeaders = DB::table('inventory_movement_headers')
+                ->where('reference_type', 'goods_receipt')
+                ->whereIn('reference_id', $grnIds)
+                ->pluck('id');
+
+            if ($movementHeaders->isNotEmpty()) {
+                DB::table('inventory_movement_lines')->whereIn('stock_movement_id', $movementHeaders)->delete();
+                DB::table('inventory_movement_headers')->whereIn('id', $movementHeaders)->delete();
+            }
+
+            DB::table('inventory_cost_balances')
+                ->where('product_id', $this->testProductId ?? 0)
+                ->where('warehouse_id', $this->testWarehouseId ?? 0)
+                ->delete();
             DB::table('goods_receipt_details')->whereIn('receipt_id', $grnIds)->delete();
             DB::table('goods_receipts')->whereIn('id', $grnIds)->delete();
-        }
-
-        // Clean up inventory movements for test product
-        $movementHeaders = DB::table('inventory_movement_lines')
-            ->where('product_id', $this->testProductId)
-            ->pluck('stock_movement_id');
-        if ($movementHeaders->isNotEmpty()) {
-            DB::table('inventory_movement_lines')->whereIn('stock_movement_id', $movementHeaders)->delete();
-            DB::table('inventory_movement_headers')->whereIn('id', $movementHeaders)->delete();
         }
 
         // Clean up PO items and PO
@@ -199,6 +216,11 @@ class GrnAccountingTest extends TestCase
         if ($this->testProductId) {
             DB::table('products')->where('id', $this->testProductId)->delete();
         }
+
+        DB::table('supplier_groups')->where('code', 'GRN-G')->delete();
+        DB::table('warehouses')->where('warehouse_code', 'GRN-TEST-WH')->delete();
+        DB::table('item_units')->where('name', 'GRN Test Unit')->delete();
+        DB::table('branches')->where('branch_code', 'GRN-TEST-BR')->delete();
 
         // Clean up supplier
         if ($this->testSupplierId) {
@@ -233,6 +255,19 @@ class GrnAccountingTest extends TestCase
             ->where('reference_type', 'goods_receipt')
             ->count();
         $this->assertEquals(1, $movements, 'GRN must create exactly one inventory movement');
+
+        $movementLine = DB::table('inventory_movement_lines')
+            ->join('inventory_movement_headers', 'inventory_movement_headers.id', '=', 'inventory_movement_lines.stock_movement_id')
+            ->where('inventory_movement_headers.voucher_num', $receipt->receipt_number)
+            ->first();
+        $this->assertNotNull($movementLine?->goods_receipt_detail_id, 'Movement line must reference the GRN detail.');
+
+        $costTransaction = DB::table('inventory_cost_transactions')
+            ->where('source_type', 'goods_receipt_detail')
+            ->where('source_id', $movementLine->goods_receipt_detail_id)
+            ->first();
+        $this->assertNotNull($costTransaction, 'GRN movement must create a weighted-average cost transaction.');
+        $this->assertEquals($movementLine->id, $costTransaction->movement_line_id, 'Cost transaction must reference the movement line.');
 
         // Verify NO journal entry was created
         $journals = DB::table('journal_entries')

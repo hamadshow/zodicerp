@@ -8,6 +8,8 @@ use Tests\TestCase;
 
 class ErpWorkflowTest extends TestCase
 {
+    private array $testFiscalYearIds = [];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -15,6 +17,16 @@ class ErpWorkflowTest extends TestCase
         if (DB::connection()->getDriverName() === 'sqlite') {
             $this->markTestSkipped('This test requires a MySQL database.');
         }
+    }
+
+    protected function tearDown(): void
+    {
+        if (! empty($this->testFiscalYearIds)) {
+            DB::table('accounting_periods')->whereIn('fiscal_year_id', $this->testFiscalYearIds)->delete();
+            DB::table('fiscal_years')->whereIn('id', $this->testFiscalYearIds)->delete();
+        }
+
+        parent::tearDown();
     }
 
     private function actingAsAdmin(): User
@@ -99,13 +111,14 @@ class ErpWorkflowTest extends TestCase
         $service = new \App\Services\Accounting\FiscalPeriodService();
 
         $year = $service->createFiscalYear([
-            'name' => 'FY 2026',
+            'name' => 'FY 2026-CreateMonthly',
             'start_date' => '2026-01-01',
             'end_date' => '2026-12-31',
         ]);
+        $this->testFiscalYearIds[] = $year->id;
 
         $this->assertNotNull($year);
-        $this->assertEquals('FY 2026', $year->name);
+        $this->assertEquals('FY 2026-CreateMonthly', $year->name);
         $this->assertEquals('draft', $year->status);
 
         $periods = DB::table('accounting_periods')
@@ -125,6 +138,7 @@ class ErpWorkflowTest extends TestCase
             'start_date' => '2026-01-01',
             'end_date' => '2026-12-31',
         ]);
+        $this->testFiscalYearIds[] = $year->id;
 
         $opened = $service->openFiscalYear($year->id);
         $this->assertEquals('open', $opened->status);

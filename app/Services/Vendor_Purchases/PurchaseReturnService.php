@@ -14,6 +14,8 @@ use App\Models\Vendor_Purchases\PurchaseReturnDetail;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Services\Inventory\WeightedAverageCostService;
+use App\Services\CompanyContext;
 
 class PurchaseReturnService
 {
@@ -290,6 +292,10 @@ class PurchaseReturnService
                 $purchaseReturn->details()->create($item);
             }
 
+            if (in_array($status, ['approved', 'completed'])) {
+                $this->createInventoryEffectsForReturn($purchaseReturn->fresh('details'));
+            }
+
             // Create journal entry if return is approved/completed
             if (in_array($status, ['approved', 'completed'])) {
                 $this->createJournalEntryForReturn($purchaseReturn, $totals);
@@ -376,6 +382,7 @@ class PurchaseReturnService
             $freshReturn = $purchaseReturn->fresh();
 
             if ($newStatusIsPosted && !$oldStatusWasPosted) {
+                $this->createInventoryEffectsForReturn($freshReturn);
                 $this->createJournalEntryForReturn($freshReturn, $totals);
             } elseif ($newStatusIsPosted && $oldStatusWasPosted) {
                 $this->reverseJournalEntryForReturn($freshReturn);
@@ -386,6 +393,62 @@ class PurchaseReturnService
 
             return $freshReturn;
         });
+    }
+
+    private function createInventoryEffectsForReturn(PurchaseReturn $return): void
+    {
+        $detailIds = $return->details->pluck('id')->all();
+        if (! empty($detailIds) && DB::table('inventory_cost_transactions')
+            ->where('source_type', 'purchase_return_detail')
+            ->whereIn('source_id', $detailIds)
+            ->exists()) {
+            return;
+        }
+
+        $companyId = app(CompanyContext::class)->id();
+        $costing = app(WeightedAverageCostService::class);
+        $headerId = DB::table('inventory_movement_headers')->insertGetId([
+            'movement_date' => $return->return_date,
+            'type' => 'purchase_return',
+            'direction' => 'out',
+            'reference_id' => $return->id,
+            'reference_type' => 'purchase_return',
+            'voucher_num' => $return->return_number,
+            'warehouse_id' => $return->warehouse_id,
+            'company_id' => $companyId,
+            'created_by' => Auth::id(),
+            'notes' => 'Purchase Return: '.$return->return_number,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        foreach ($return->details as $detail) {
+            $lineId = DB::table('inventory_movement_lines')->insertGetId([
+                'stock_movement_id' => $headerId,
+                'product_id' => $detail->product_id,
+                'unit_id' => $detail->unit_id,
+                'quantity' => $detail->quantity,
+                'cost_price' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $transaction = $costing->applyOutbound(
+                (int) $detail->product_id,
+                (int) $return->warehouse_id,
+                (string) $detail->quantity,
+                'purchase_return_detail',
+                (int) $detail->id,
+                (string) $return->return_date,
+                $headerId,
+                $lineId,
+            );
+
+            DB::table('inventory_movement_lines')->where('id', $lineId)->update([
+                'cost_price' => abs((float) $transaction->unit_cost),
+            ]);
+            DB::table('products')->where('id', $detail->product_id)->decrement('quantity', (float) $detail->quantity);
+        }
     }
 
     public function getInvoiceWithReturnableQuantities(int $invoiceId, ?int $excludeReturnId = null): array

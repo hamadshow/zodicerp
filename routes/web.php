@@ -419,9 +419,14 @@ Route::group([
             Route::get('expenses', function () {
                 return Inertia::render('Backend/ComingSoon', ['title' => 'Expense Management']);
             })->name('expenses.index');
-            Route::get('landed-costs', function () {
-                return Inertia::render('Backend/ComingSoon', ['title' => 'Landed Costs']);
-            })->name('landed-costs.index');
+            $lcc = \App\Http\Controllers\Backend\Purchases\LandedCostController::class;
+            Route::get('landed-costs', [$lcc, 'index'])->name('landed-costs.index');
+            Route::post('landed-costs', [$lcc, 'store'])->name('landed-costs.store');
+            Route::get('landed-costs/{landedCost}/preview', [$lcc, 'preview'])->name('landed-costs.preview');
+            Route::post('landed-costs/{landedCost}/allocate', [$lcc, 'allocate'])->name('landed-costs.allocate');
+            Route::post('landed-costs/{landedCost}/post', [$lcc, 'post'])->name('landed-costs.post');
+            Route::post('landed-costs/{landedCost}/cancel', [$lcc, 'cancel'])->name('landed-costs.cancel');
+            Route::post('landed-costs/{landedCost}/reverse', [$lcc, 'reverse'])->name('landed-costs.reverse');
             Route::get('cost-allocation', function () {
                 return Inertia::render('Backend/ComingSoon', ['title' => 'Cost Allocation']);
             })->name('cost-allocation.index');

@@ -33,6 +33,7 @@ class AccountingReversalIntegrityTest extends TestCase
         }
 
         $this->testUserId = DB::table('users')->first()->id ?? 1;
+        $this->actingAs(\App\Models\User::find($this->testUserId));
     }
 
     protected function tearDown(): void
@@ -51,7 +52,7 @@ class AccountingReversalIntegrityTest extends TestCase
                     ->whereIn('invoice_number', $this->cleanupRefs)
                     ->pluck('id');
                 if ($invoiceIds->isNotEmpty()) {
-                    DB::table('sales_invoice_details')->whereIn('sales_invoice_id', $invoiceIds)->delete();
+                    DB::table('sales_invoice_details')->whereIn('invoice_id', $invoiceIds)->delete();
                     DB::table('sales_invoices')->whereIn('id', $invoiceIds)->delete();
                 }
             }
@@ -73,6 +74,7 @@ class AccountingReversalIntegrityTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 100.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '100');
 
         $invoiceId = $this->createSalesInvoice($invoiceNumber, $customerId, $warehouseId, $productId, $unitId, 5, 100.00, 500.00);
         $this->postSalesInvoice($invoiceId, $invoiceNumber);
@@ -132,6 +134,7 @@ class AccountingReversalIntegrityTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 80.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '80');
 
         $invoiceId = $this->createSalesInvoice($invoiceNumber, $customerId, $warehouseId, $productId, $unitId, 5, 80.00, 400.00);
         $this->postSalesInvoice($invoiceId, $invoiceNumber);
@@ -174,6 +177,7 @@ class AccountingReversalIntegrityTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 120.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '120');
 
         $invoiceId = $this->createSalesInvoice($invoiceNumber, $customerId, $warehouseId, $productId, $unitId, 5, 120.00, 600.00);
         $this->postSalesInvoice($invoiceId, $invoiceNumber);
@@ -213,6 +217,7 @@ class AccountingReversalIntegrityTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 50.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '50');
 
         $invoiceId = $this->createSalesInvoice($invoiceNumber, $customerId, $warehouseId, $productId, $unitId, 5, 50.00, 250.00);
         $this->postSalesInvoice($invoiceId, $invoiceNumber);
@@ -255,6 +260,7 @@ class AccountingReversalIntegrityTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 90.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '90');
 
         $invoiceId = $this->createSalesInvoice($invoiceNumber, $customerId, $warehouseId, $productId, $unitId, 5, 90.00, 450.00);
         $this->postSalesInvoice($invoiceId, $invoiceNumber);
@@ -286,6 +292,7 @@ class AccountingReversalIntegrityTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 75.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '75');
 
         $invoiceId = $this->createSalesInvoice($invoiceNumber, $customerId, $warehouseId, $productId, $unitId, 5, 75.00, 375.00);
         $this->postSalesInvoice($invoiceId, $invoiceNumber);
@@ -349,6 +356,7 @@ class AccountingReversalIntegrityTest extends TestCase
         $this->cleanupRefs[] = $invoiceNumber;
 
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 50.00, 'quantity' => 10]);
+        $this->seedInventory($productId, $warehouseId, '10', '50');
 
         $invoiceId = $this->createSalesInvoice($invoiceNumber, $customerId, $warehouseId, $productId, $unitId, 5, 50.00, 250.00);
         $this->postSalesInvoice($invoiceId, $invoiceNumber);
@@ -363,6 +371,7 @@ class AccountingReversalIntegrityTest extends TestCase
 
         // Change product cost AFTER posting
         DB::table('products')->where('id', $productId)->update(['cost_per_item' => 200.00]);
+        // Note: cost change happens AFTER the sale — reversal must still use original WA cost.
 
         $service = new JournalReversalService();
         $reversal = $service->createReversal($originalEntryCode, 'Test original amounts');
@@ -396,9 +405,11 @@ class AccountingReversalIntegrityTest extends TestCase
             'status' => 'Post',
         ]);
 
+        $debitAccountId = DB::table('accounts')->where('AccCode', '11401')->value('AccID');
+        $creditAccountId = DB::table('accounts')->where('AccCode', '401')->value('AccID');
         DB::table('journal_entry_lines')->insert([
-            ['journal_entry_code' => $entryCode, 'account_id' => 1, 'debit' => 100, 'credit' => 0],
-            ['journal_entry_code' => $entryCode, 'account_id' => 2, 'debit' => 0, 'credit' => 100],
+            ['journal_entry_code' => $entryCode, 'account_id' => $debitAccountId, 'debit' => 100, 'credit' => 0],
+            ['journal_entry_code' => $entryCode, 'account_id' => $creditAccountId, 'debit' => 0, 'credit' => 100],
         ]);
 
         // Try to delete via controller logic (posted journals cannot be deleted)
@@ -469,7 +480,7 @@ class AccountingReversalIntegrityTest extends TestCase
 
     private function createSalesInvoice(string $number, int $customerId, int $warehouseId, int $productId, int $unitId, int $qty, float $unitPrice, float $total): int
     {
-        return DB::table('sales_invoices')->insertGetId([
+        $invoiceId = DB::table('sales_invoices')->insertGetId([
             'invoice_number' => $number,
             'invoice_date' => now()->toDateString(),
             'customer_id' => $customerId,
@@ -484,35 +495,32 @@ class AccountingReversalIntegrityTest extends TestCase
             'is_posted' => true,
             'created_by' => $this->testUserId,
             'company_id' => $this->companyId,
-        ]) + (function () use ($number, $productId, $unitId, $qty, $unitPrice, $warehouseId) {
-            $invoiceId = DB::table('sales_invoices')->where('invoice_number', $number)->value('id');
-            DB::table('sales_invoice_details')->insert([
-                'sales_invoice_id' => $invoiceId,
-                'product_id' => $productId,
-                'quantity' => $qty,
-                'unit_id' => $unitId,
-                'unit_price' => $unitPrice,
-                'warehouse_id' => $warehouseId,
-            ]);
-            return [$invoiceId];
-        })()[0];
+        ]);
+        DB::table('sales_invoice_details')->insert([
+            'invoice_id' => $invoiceId,
+            'product_id' => $productId,
+            'quantity' => $qty,
+            'unit_id' => $unitId,
+            'unit_price' => $unitPrice,
+            'warehouse_id' => $warehouseId,
+        ]);
+        return $invoiceId;
     }
 
     private function postSalesInvoice(int $invoiceId, string $number): void
     {
-        $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
-        $model = \App\Models\Client_Sales\SalesInvoice::find($invoiceId);
-        $controller->upsertJournalEntryForInvoice($model);
+        $this->postSalesInvoiceJournal(\App\Models\Client_Sales\SalesInvoice::find($invoiceId));
     }
 
     private function createTestProduct(string $name, float $cost): int
     {
         $slug = str()->slug($name) . '-' . uniqid();
+        $code = 'PRD-' . strtoupper(substr($slug, 0, 6)) . '-' . substr(uniqid(), -6);
         return DB::table('products')->insertGetId([
-            'product_code' => 'PRD-' . strtoupper(substr($slug, 0, 10)),
+            'product_code' => $code,
             'name' => $name,
             'slug' => $slug,
-            'sku' => 'SKU-' . strtoupper(substr($slug, 0, 8)),
+            'sku' => 'SKU-' . strtoupper(substr($code, 4)),
             'status' => 'active',
             'quantity' => 0,
             'cost_per_item' => $cost,
@@ -530,6 +538,8 @@ class AccountingReversalIntegrityTest extends TestCase
             'name_ar' => 'عميل تجريبي',
             'name_en' => 'Test Customer',
             'customer_code' => 'CUST-' . uniqid(),
+            'customer_group_id' => DB::table('customer_groups')->first()->id ?? 1,
+            'account_id' => DB::table('accounts')->where('AccCode', 1200)->value('AccID') ?? 61,
             'is_active' => true,
             'company_id' => $this->companyId,
             'created_at' => now(),
@@ -540,9 +550,11 @@ class AccountingReversalIntegrityTest extends TestCase
     private function createTestWarehouse(): int
     {
         return DB::table('warehouses')->insertGetId([
-            'name' => 'Test Warehouse',
-            'name_ar' => 'مستودع تجريبي',
+            'warehouse_code' => 'WH-' . uniqid(),
+            'name' => 'Test Warehouse ' . uniqid(),
+            'branch_id' => DB::table('branches')->where('company_id', $this->companyId)->value('id') ?? DB::table('branches')->insertGetId(['company_id' => $this->companyId, 'branch_code' => 'BR-' . uniqid(), 'branch_name' => 'Test Branch', 'created_at' => now(), 'updated_at' => now()]),
             'company_id' => $this->companyId,
+            'status' => 'active',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
