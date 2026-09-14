@@ -593,7 +593,7 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
               toolbarSearchPlaceholder={t('search_professions', 'Search professions...')}
               showAddButton={true}
               addButtonText={t('add_profession', 'Add Profession')}
-              onAdd={handleAddEdit}
+              onAdd={() => handleAddEdit()}
               showRefreshButton={true}
               onRefresh={() => {
                 fetchProfessions({ page: pagination.currentPage });

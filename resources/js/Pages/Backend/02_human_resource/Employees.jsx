@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import Table from '../components/Table';
@@ -29,14 +29,12 @@ const resolveMediaUrl = (value) => {
 };
 
 const EmployeesManagement = () => {
-  // Admin layout state - Removed redundant state
   const page = usePage();
   const { showSuccess, showError, showWarning } = useNotification();
   const { nationalities = [], professions: initialProfessions = [], roles = [] } = page.props;
   const localization = page?.props?.localization;
   const isArabic = localization?.current_locale === 'ar';
 
-  // State management
   const [employees, setEmployees] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -65,15 +63,19 @@ const EmployeesManagement = () => {
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage] = useState(10);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalRecords: 0,
+    recordsPerPage: 10,
+  });
   const [departments, setDepartments] = useState([]);
   const [professions, setProfessions] = useState(initialProfessions);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState('');
   const [salaryError, setSalaryError] = useState('');
   const [phoneError, setPhoneError] = useState('');
+  const requestSequence = useRef(0);
 
-  // Department and nationality mappings
   const departmentNames = {
     it: 'IT Department',
     hr: 'Human Resources',
@@ -97,7 +99,6 @@ const EmployeesManagement = () => {
       french: 'French',
     };
 
-    // Add nationalities from database to the mapping
     nationalities.forEach(nat => {
       names[nat.name] = nat.name;
     });
@@ -105,35 +106,54 @@ const EmployeesManagement = () => {
     return names;
   }, [nationalities]);
 
-  // Sample data (in production, this would come from an API)
-  const sampleEmployees = [];
-
-  // Menu items - Removed redundant configuration
-
-  // Fetch employees from API
-  const fetchEmployees = async (page = 1, search = '') => {
+  const fetchEmployees = async (
+    page = 1,
+    search = searchTerm,
+    per_page = pagination.recordsPerPage
+  ) => {
+    const sequence = ++requestSequence.current;
     try {
-      // loading indicator removed
       const response = await apiService.get('/employees', {
         page,
-        per_page: rowsPerPage,
+        per_page,
         search,
       });
       const data = response.data;
-      setEmployees(Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []));
-      // totalEmployees state removed
-      setCurrentPage(data.current_page || 1);
+
+      if (sequence !== requestSequence.current) return;
+
+      if (Array.isArray(data)) {
+        setEmployees(data);
+        setPagination((current) => ({
+          ...current,
+          currentPage: page,
+          totalPages: 1,
+          totalRecords: data.length,
+          recordsPerPage: per_page,
+        }));
+      } else {
+        setEmployees(Array.isArray(data.data) ? data.data : []);
+
+        setPagination({
+          currentPage: data.current_page || 1,
+          totalPages: data.last_page || 1,
+          totalRecords: data.total || 0,
+          recordsPerPage: data.per_page || per_page,
+        });
+      }
     } catch (error) {
+      if (sequence !== requestSequence.current) return;
       console.error('Error fetching employees:', error);
       showError('Failed to load employees.');
-      setEmployees(Array.isArray(sampleEmployees) ? sampleEmployees : []);
-      // totalEmployees state removed
-    } finally {
-      // loading indicator removed
+      setEmployees([]);
     }
   };
 
-  // Initialize component
+  useEffect(() => {
+    const timer = window.setTimeout(() => fetchEmployees(1, searchTerm), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchEmployees();
   }, []);
@@ -185,30 +205,23 @@ const EmployeesManagement = () => {
       setProfessions([]);
     }
   };
-  // Update submenu state initialization - Removed
 
-  // Reset current page when search term changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
+  const handlePageChange = (page) => {
+    fetchEmployees(page, searchTerm);
+  };
 
-  // Filter employees based on search term
-  const filteredEmployees = (employees || []).filter(
-    (emp) =>
-      emp.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.position?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleRecordsPerPageChange = (recordsPerPage) => {
+    setPagination((current) => ({
+      ...current,
+      recordsPerPage,
+    }));
+    fetchEmployees(1, searchTerm, recordsPerPage);
+  };
 
-  // Calculate pagination
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const endIndex = Math.min(startIndex + rowsPerPage, (filteredEmployees || []).length);
-  const paginatedEmployees = (filteredEmployees || []).slice(startIndex, endIndex);
+  const paginatedEmployees = employees;
 
-  // Calculate stats
   const stats = {
-    totalEmployees: (employees || []).length,
+    totalEmployees: pagination.totalRecords,
     activeEmployees: (employees || []).filter((e) => e.status === 'active').length,
     onLeaveEmployees: (employees || []).filter((e) => e.status === 'on-leave').length,
     totalDepartments: [...new Set((employees || []).map((e) => e.department))].length,
@@ -274,7 +287,6 @@ const EmployeesManagement = () => {
     setAvatarPreview(null);
   };
 
-  // Form handlers
   const handleInputChange = (e) => {
     const { id, value } = e.target;
     setFormData((prev) => ({
@@ -319,13 +331,11 @@ const EmployeesManagement = () => {
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type
       if (!file.type.match('image.*')) {
         showError('Please select an image file (JPG, PNG, GIF, etc.)');
         return;
       }
 
-      // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
         showError('Profile photo should be less than 5MB');
         return;
@@ -343,7 +353,6 @@ const EmployeesManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Basic validation
     if (
       !formData.first_name ||
       !formData.last_name ||
@@ -384,7 +393,6 @@ const EmployeesManagement = () => {
       if (formData.phone) submitData.append('phone', formData.phone);
       if (formData.role) submitData.append('role', formData.role);
       
-      // Add role_ids to submitData
       if (formData.role_ids && formData.role_ids.length > 0) {
         formData.role_ids.forEach(id => {
             submitData.append('role_ids[]', id);
@@ -415,7 +423,11 @@ const EmployeesManagement = () => {
       if (result.success) {
         showSuccess(result.message);
         handleCancel();
-        fetchEmployees(currentPage, searchTerm);
+        fetchEmployees(
+          editingEmployee ? pagination.currentPage : 1,
+          searchTerm,
+          pagination.recordsPerPage
+        );
       } else {
         showError('Error saving employee');
       }
@@ -448,7 +460,6 @@ const EmployeesManagement = () => {
     }
   };
 
-  // Employee operations
   const deleteEmployee = (employee) => {
     setDeleteItem(employee);
     setShowDeleteModal(true);
@@ -465,7 +476,11 @@ const EmployeesManagement = () => {
         showSuccess(result.message);
         setShowDeleteModal(false);
         setDeleteItem(null);
-        fetchEmployees(currentPage, searchTerm);
+        fetchEmployees(
+          pagination.currentPage,
+          searchTerm,
+          pagination.recordsPerPage
+        );
       } else {
         showError('Error deleting employee');
       }
@@ -490,7 +505,6 @@ const EmployeesManagement = () => {
     setViewingEmployee(null);
   };
 
-  // Bulk actions
   const handleSelectAll = () => {
     if (selectedIds.length === (paginatedEmployees || []).length && (paginatedEmployees || []).length > 0) {
       setSelectedIds([]);
@@ -624,7 +638,11 @@ const EmployeesManagement = () => {
           if (result.success) {
             showSuccess(result.message);
             setSelectedIds([]);
-            fetchEmployees(currentPage, searchTerm);
+            fetchEmployees(
+              pagination.currentPage,
+              searchTerm,
+              pagination.recordsPerPage
+            );
           } else {
             showError('Error deleting employees');
           }
@@ -647,7 +665,11 @@ const EmployeesManagement = () => {
       if (result.success) {
         showSuccess(result.message);
         setSelectedIds([]);
-        fetchEmployees(currentPage, searchTerm);
+        fetchEmployees(
+          pagination.currentPage,
+          searchTerm,
+          pagination.recordsPerPage
+        );
       } else {
         showError('Error updating employee status');
       }
@@ -658,8 +680,6 @@ const EmployeesManagement = () => {
       document.getElementById('bulkActions').value = '';
     }
   };
-
-  // Sidebar functions - Removed
 
   const breadcrumbs = [
     { label: isArabic ? 'لوحة التحكم' : 'Dashboard', href: '#' },
@@ -1205,7 +1225,14 @@ const EmployeesManagement = () => {
           addButtonText={isArabic ? 'إضافة موظف' : 'Add Employee'}
           onAdd={() => handleAddEdit()}
           showRefreshButton={true}
-          onRefresh={() => showSuccess('Employees list refreshed!')}
+          onRefresh={() => {
+            fetchEmployees(
+              pagination.currentPage,
+              searchTerm,
+              pagination.recordsPerPage
+            );
+            showSuccess('Employees list refreshed!');
+          }}
           toolbarActions={
             <select
               className="btn-toolbar btn-refresh"
@@ -1230,6 +1257,13 @@ const EmployeesManagement = () => {
           viewTitle={isArabic ? "عرض" : "View"}
           editTitle={isArabic ? "تعديل" : "Edit"}
           deleteTitle={isArabic ? "حذف" : "Delete"}
+          currentPage={pagination.currentPage}
+          totalPages={pagination.totalPages}
+          totalRecords={pagination.totalRecords}
+          recordsPerPage={pagination.recordsPerPage}
+          onPageChange={handlePageChange}
+          onRecordsPerPageChange={handleRecordsPerPageChange}
+          serverSide={true}
         />
       </div>
     </BlankPage>

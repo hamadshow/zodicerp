@@ -104,6 +104,31 @@ class ProfessionCrudTest extends TestCase
         $this->assertSame($sharedCode, $second->profession_code);
     }
 
+    public function test_store_persists_the_profession_and_returns_the_generated_id(): void
+    {
+        [$companyA] = $this->companyIds;
+        $user = $this->createAdmin($companyA);
+        $csrf = Str::random(40);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->withSession(['_token' => $csrf])
+            ->withHeader('X-CSRF-TOKEN', $csrf)
+            ->postJson('/api/professions', $this->payload('CREATE'));
+
+        $response->assertCreated();
+
+        $createdId = $response->json('data.id');
+        $this->assertIsNumeric($createdId);
+        $this->assertGreaterThan(0, (int) $createdId);
+        $this->professionIds[] = (int) $createdId;
+
+        $this->assertDatabaseHas('professions', [
+            'id' => $createdId,
+            'company_id' => $companyA,
+            'profession_code' => 'TEST-PROF-CREATE',
+        ]);
+    }
+
     public function test_index_is_paginated_and_scoped_to_the_authenticated_company(): void
     {
         [$companyA, $companyB] = $this->companyIds;
@@ -117,6 +142,8 @@ class ProfessionCrudTest extends TestCase
             ->assertJsonPath('per_page', 1)
             ->assertJsonFragment(['id' => $own->id])
             ->assertJsonMissing(['id' => $other->id]);
+
+        $this->assertNotNull($response->json('data.0.id'));
     }
 
     public function test_users_without_profession_permission_cannot_read_professions(): void

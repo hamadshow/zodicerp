@@ -36,7 +36,26 @@ class ProfessionController extends Controller
         $sortDirection = $request->string('sort_direction', 'asc')->toString() === 'desc' ? 'desc' : 'asc';
         $search = trim($request->string('search')->toString());
 
-        $query = Profession::query()->where('company_id', $companyId);
+        $query = Profession::query()
+            ->select([
+                'id',
+                'company_id',
+                'profession_name',
+                'profession_code',
+                'category',
+                'description',
+                'min_salary',
+                'max_salary',
+                'required_experience',
+                'education_level',
+                'key_skills',
+                'employees',
+                'status',
+                'sort_order',
+                'created_at',
+                'updated_at',
+            ])
+            ->where('company_id', $companyId);
 
         if ($search !== '') {
             $query->where(function ($searchQuery) use ($search): void {

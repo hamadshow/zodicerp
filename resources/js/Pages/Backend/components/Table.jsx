@@ -1,7 +1,7 @@
 import React from 'react';
 import { usePage } from '@inertiajs/react';
 
-const Table = ({
+export const Table = ({
     tableData = [],
     columns = [],
     currentPage = 1,
@@ -51,9 +51,6 @@ const Table = ({
     const { props } = usePage();
     const [showExportDropdown, setShowExportDropdown] = React.useState(false);
     const exportDropdownRef = React.useRef(null);
-
-    // Debug log
-    console.log('Table.jsx props:', { serverSide, sortKey, sortDirection });
 
     // Sorting state - internal for client-side, or use props for server-side
     const [internalSortConfig, setInternalSortConfig] = React.useState({
@@ -341,7 +338,7 @@ const Table = ({
                             <button
                                 type="button"
                                 className="btn-toolbar btn-primary"
-                                onClick={onAdd}
+                                onClick={() => onAdd?.()}
                             >
                                 <span className="material-icons-outlined">add</span>
                                 <span>{addButtonText}</span>
@@ -505,11 +502,7 @@ const Table = ({
                                                         type="button"
                                                         className="action-btn success"
                                                         title={editTitle}
-                                                        onClick={() =>
-                                                            onEdit(
-                                                                row
-                                                            )
-                                                        }
+                                                        onClick={() => onEdit(row)}
                                                         disabled={
                                                             disabled
                                                         }
@@ -527,11 +520,7 @@ const Table = ({
                                                         title={
                                                             deleteTitle
                                                         }
-                                                        onClick={() =>
-                                                            onDelete(
-                                                                row
-                                                            )
-                                                        }
+                                                        onClick={() => onDelete(row)}
                                                         disabled={
                                                             disabled
                                                         }

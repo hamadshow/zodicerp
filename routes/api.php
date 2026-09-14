@@ -234,6 +234,12 @@ Route::middleware([\App\Http\Middleware\ApiAuth::class])->group(function () {
         Route::apiResource('payroll-advances', App\Http\Controllers\Backend\HumanResource\PayrollAdvanceController::class);
         Route::apiResource('traffic-violations', App\Http\Controllers\Backend\HumanResource\TrafficViolationController::class);
         Route::apiResource('nationalities', App\Http\Controllers\Backend\HumanResource\NationalityController::class);
+        Route::post('salary-receipts/calculate', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'calculate']);
+        Route::get('salary-receipts', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'index']);
+        Route::post('salary-receipts', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'store']);
+        Route::get('salary-receipts/{id}', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'show']);
+        Route::put('salary-receipts/{id}', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'update']);
+        Route::delete('salary-receipts/{id}', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'destroy']);
     });
     Route::middleware(['api.admin:professions.view'])->group(function () {
         Route::get('professions', [App\Http\Controllers\Backend\HumanResource\ProfessionController::class, 'index'])->name('professions.index');
