@@ -45,7 +45,14 @@ class WeightedAverageConcurrencyTest extends TestCase
     protected function tearDown(): void
     {
         if (! empty($this->fixture)) {
-            $this->runWorker(['cleanup', ...array_values(array_intersect_key($this->fixture, array_flip(['userId', 'productId', 'warehouseId', 'branchId'])))]);
+            // The harness contract is: cleanup <userId> <productId> <warehouseId> <branchId>.
+            // Pass them explicitly — positional order matters.
+            $this->runWorker(['cleanup',
+                (string) $this->fixture['userId'],
+                (string) $this->fixture['productId'],
+                (string) $this->fixture['warehouseId'],
+                (string) $this->fixture['branchId'],
+            ]);
         }
         if (is_dir($this->markerDir)) {
             array_map('unlink', glob($this->markerDir.'/*') ?: []);

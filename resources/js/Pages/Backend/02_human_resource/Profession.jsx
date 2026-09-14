@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 import Table from '../components/Table';
@@ -13,6 +13,7 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
   const localization = props?.localization;
   const isArabic = localization?.current_locale === 'ar';
   const translations = localization?.translations || {};
+  const currencySymbol = props?.currency?.symbol || localization?.currency_symbol || props?.currency?.code || '';
 
   const t = useCallback(
     (key, fallback) => translations[`profession.${key}`] || translations[`common.${key}`] || fallback,
@@ -35,7 +36,20 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
   );
 
   // State management
-  const [professions, setProfessions] = useState(initialProfessions);
+  const initialPage = initialProfessions?.data ? initialProfessions : { data: initialProfessions, current_page: 1, last_page: 1, total: initialProfessions.length };
+  const [professions, setProfessions] = useState(initialPage.data || []);
+  const [pagination, setPagination] = useState({
+    currentPage: initialPage.current_page || 1,
+    totalPages: initialPage.last_page || 1,
+    totalRecords: initialPage.total || 0,
+    recordsPerPage: initialPage.per_page || 20,
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const requestSequence = useRef(0);
   const [showForm, setShowForm] = useState(false);
   const [editingProfession, setEditingProfession] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,7 +57,6 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
   const [currentFilterStatus, setCurrentFilterStatus] = useState('all');
   const [currentFilterCategory, setCurrentFilterCategory] = useState('all');
   const [formData, setFormData] = useState({
-    company_id: 1,
     profession_name: '',
     profession_code: '',
     category: '',
@@ -58,23 +71,45 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
   });
 
   // Fetch professions
-  const fetchProfessions = async (params = {}) => {
+  const fetchProfessions = useCallback(async (overrides = {}) => {
+    const sequence = ++requestSequence.current;
+    const params = {
+      page: overrides.page || 1,
+      per_page: overrides.per_page || pagination.recordsPerPage,
+      search: overrides.search ?? searchTerm,
+      status: overrides.status ?? (currentFilterStatus === 'all' ? '' : currentFilterStatus),
+      category: overrides.category ?? (currentFilterCategory === 'all' ? '' : currentFilterCategory),
+      sort_by: overrides.sort_by || 'sort_order',
+      sort_direction: overrides.sort_direction || 'asc',
+    };
+
+    setIsLoading(true);
     try {
       const response = await apiService.get('/professions', params);
       const data = response.data;
+      if (sequence !== requestSequence.current) return;
       setProfessions(Array.isArray(data) ? data : data.data || []);
+      if (!Array.isArray(data)) {
+        setPagination({
+          currentPage: data.current_page || 1,
+          totalPages: data.last_page || 1,
+          totalRecords: data.total || 0,
+          recordsPerPage: data.per_page || params.per_page,
+        });
+      }
     } catch (error) {
+      if (sequence !== requestSequence.current) return;
       console.error('Error fetching professions:', error);
       showError(t('error_loading', 'Error loading professions'));
+    } finally {
+      if (sequence === requestSequence.current) setIsLoading(false);
     }
-  };
+  }, [currentFilterCategory, currentFilterStatus, pagination.recordsPerPage, searchTerm, showError, t]);
 
-  // Initialize
   useEffect(() => {
-    if (initialProfessions.length === 0) {
-      fetchProfessions();
-    }
-  }, []);
+    const timer = window.setTimeout(() => fetchProfessions({ page: 1 }), 300);
+    return () => window.clearTimeout(timer);
+  }, [currentFilterCategory, currentFilterStatus, fetchProfessions, searchTerm]);
 
   const departmentNameById = useMemo(() => {
     const map = new Map();
@@ -95,29 +130,21 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
   // Filter handlers
   const handleStatusFilter = (status) => {
     setCurrentFilterStatus(status);
-    fetchProfessions({ 
-      status: status === 'all' ? '' : status,
-      department_id: currentFilterCategory === 'all' ? '' : currentFilterCategory 
-    });
   };
 
   const handleCategoryFilter = (e) => {
     const categoryId = e.target.value;
     setCurrentFilterCategory(categoryId);
-    fetchProfessions({ 
-      status: currentFilterStatus === 'all' ? '' : currentFilterStatus,
-      department_id: categoryId === 'all' ? '' : categoryId 
-    });
   };
 
-  const filteredProfessions = useMemo(() => {
-    const lowerSearch = searchTerm.toLowerCase();
-    return professions.filter((p) =>
-      (p.profession_name || '').toLowerCase().includes(lowerSearch) ||
-      (p.profession_code || '').toLowerCase().includes(lowerSearch) ||
-      getDepartmentName(p.category).toLowerCase().includes(lowerSearch)
-    );
-  }, [professions, searchTerm, getDepartmentName]);
+  const handlePageChange = (page) => fetchProfessions({ page });
+
+  const handleRecordsPerPageChange = (recordsPerPage) => {
+    setPagination((current) => ({ ...current, recordsPerPage }));
+    fetchProfessions({ page: 1, per_page: recordsPerPage });
+  };
+
+  const filteredProfessions = professions;
 
   // Stats calculation
   const stats = useMemo(() => {
@@ -130,10 +157,13 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
 
   // Form handlers
   const handleAddEdit = (profession = null) => {
+    if (profession && !profession.id) {
+      showError(t('invalid_record', 'This profession record is missing its ID. Please refresh the list.'));
+      return;
+    }
     setEditingProfession(profession);
     if (profession) {
       setFormData({
-        company_id: profession.company_id || 1,
         profession_name: profession.profession_name || '',
         profession_code: profession.profession_code || '',
         category: profession.category || '',
@@ -160,7 +190,6 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
 
   const resetForm = () => {
     setFormData({
-      company_id: 1,
       profession_name: '',
       profession_code: '',
       category: '',
@@ -187,6 +216,8 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
       return;
     }
 
+    setIsSaving(true);
+    setFieldErrors({});
     try {
       if (editingProfession) {
         await apiService.put(`/professions/${editingProfession.id}`, formData);
@@ -195,27 +226,38 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
         await apiService.post('/professions', formData);
         showSuccess(t('saved_success', 'Profession saved successfully'));
       }
-      fetchProfessions();
+      await fetchProfessions({ page: editingProfession ? pagination.currentPage : 1 });
       handleCancel();
     } catch (error) {
       console.error('Error saving profession:', error);
+      setFieldErrors(error.response?.data?.errors || {});
       const msg = error.response?.data?.message || t('error_saving', 'Error saving profession');
       showError(msg);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm(t('confirm_delete', 'Are you sure you want to delete this profession?'))) return;
-
+    if (!id) {
+      showError(t('invalid_record', 'This profession record is missing its ID. Please refresh the list.'));
+      return;
+    }
+    setDeletingId(id);
     try {
       await apiService.delete(`/professions/${id}`);
       showSuccess(t('deleted_success', 'Profession deleted successfully'));
-      fetchProfessions();
+      await fetchProfessions({ page: pagination.currentPage });
     } catch (error) {
       console.error('Error deleting profession:', error);
-      showError(t('error_deleting', 'Error deleting profession'));
+      showError(error.response?.data?.message || t('error_deleting', 'Error deleting profession'));
+    } finally {
+      setDeletingId(null);
+      setDeleteTarget(null);
     }
   };
+
+  const fieldError = (name) => fieldErrors[name]?.[0] || fieldErrors[name] || '';
 
   const handleSelectAll = () => {
     if (selectedIds.length === filteredProfessions.length && filteredProfessions.length > 0) {
@@ -276,7 +318,7 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
       key: 'salary_range', 
       render: (row) => (
         <div className="salary-display" style={{ fontSize: '0.85rem' }}>
-          ${parseFloat(row.min_salary || 0).toLocaleString()} - ${parseFloat(row.max_salary || 0).toLocaleString()}
+          {currencySymbol ? `${currencySymbol} ` : ''}{parseFloat(row.min_salary || 0).toLocaleString()} - {currencySymbol ? `${currencySymbol} ` : ''}{parseFloat(row.max_salary || 0).toLocaleString()}
         </div>
       )
     },
@@ -290,7 +332,7 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
         </span>
       )
     }
-  ], [getDepartmentName, t]);
+  ], [currencySymbol, getDepartmentName, t]);
 
   const breadcrumbs = [
     { label: t('dashboard', 'Dashboard'), href: getLocalizedRoute('admin.dashboard') },
@@ -389,7 +431,7 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
               </button>
             </div>
             <div className="card-body" style={{ padding: '20px' }}>
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit} aria-busy={isSaving}>
                 <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">{t('profession_name', 'Profession Name')} *</label>
@@ -401,7 +443,9 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
                       onChange={handleInputChange}
                       placeholder={t('enter_profession_name', 'Enter profession name')}
                       required
+                      aria-invalid={Boolean(fieldError('profession_name'))}
                     />
+                    {fieldError('profession_name') && <div className="form-error" role="alert">{fieldError('profession_name')}</div>}
                   </div>
                   <div className="form-group">
                     <label className="form-label">{t('profession_code', 'Profession Code')} *</label>
@@ -413,7 +457,9 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
                       onChange={(e) => setFormData(prev => ({ ...prev, profession_code: e.target.value.toUpperCase() }))}
                       placeholder={t('enter_profession_code', 'Enter profession code')}
                       required
+                      aria-invalid={Boolean(fieldError('profession_code'))}
                     />
+                    {fieldError('profession_code') && <div className="form-error" role="alert">{fieldError('profession_code')}</div>}
                   </div>
                 </div>
 
@@ -461,7 +507,9 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
                       value={formData.min_salary}
                       onChange={handleInputChange}
                       placeholder="0.00"
+                      aria-invalid={Boolean(fieldError('min_salary'))}
                     />
+                    {fieldError('min_salary') && <div className="form-error" role="alert">{fieldError('min_salary')}</div>}
                   </div>
                   <div className="form-group">
                     <label className="form-label">{t('max_salary', 'Maximum Salary')}</label>
@@ -472,7 +520,9 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
                       value={formData.max_salary}
                       onChange={handleInputChange}
                       placeholder="0.00"
+                      aria-invalid={Boolean(fieldError('max_salary'))}
                     />
+                    {fieldError('max_salary') && <div className="form-error" role="alert">{fieldError('max_salary')}</div>}
                   </div>
                 </div>
 
@@ -522,10 +572,10 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
                 </div>
 
                 <div className="form-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-                  <button type="submit" className="btn btn-primary">
+                  <button type="submit" className="btn btn-primary" disabled={isSaving}>
                     {editingProfession ? t('update_profession', 'Update Profession') : t('save_profession', 'Save Profession')}
                   </button>
-                  <button type="button" className="btn btn-outline" onClick={handleCancel}>
+                  <button type="button" className="btn btn-outline" onClick={handleCancel} disabled={isSaving}>
                     {t('cancel', 'Cancel')}
                   </button>
                 </div>
@@ -533,7 +583,8 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
             </div>
           </div>
         ) : (
-          <div className="employees-card fade-in">
+          <div className="employees-card fade-in" aria-busy={isLoading}>
+            {isLoading && <div className="table-loading" role="status">{t('loading', 'Loading professions...')}</div>}
             <Table
               showToolbar={true}
               toolbarSearch={true}
@@ -545,7 +596,7 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
               onAdd={handleAddEdit}
               showRefreshButton={true}
               onRefresh={() => {
-                fetchProfessions();
+                fetchProfessions({ page: pagination.currentPage });
                 showSuccess(t('refreshed', 'Professions list refreshed!'));
               }}
               tableData={filteredProfessions.map(p => ({ ...p, selected: selectedIds.includes(p.id) }))}
@@ -554,8 +605,31 @@ const Profession = ({ professions: initialProfessions = [], departments = [] }) 
               selectAll={selectedIds.length === filteredProfessions.length && filteredProfessions.length > 0}
               handleSelectAll={handleSelectAll}
               onEdit={(row) => handleAddEdit(row)}
-              onDelete={(row) => handleDelete(row.id)}
+              onDelete={(row) => setDeleteTarget(row)}
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalRecords={pagination.totalRecords}
+              recordsPerPage={pagination.recordsPerPage}
+              onPageChange={handlePageChange}
+              onRecordsPerPageChange={handleRecordsPerPageChange}
+              serverSide={true}
             />
+            {deleteTarget && (
+              <div className="modal-backdrop" role="presentation">
+                <div className="modal-content" role="dialog" aria-modal="true" aria-labelledby="delete-profession-title">
+                  <h2 id="delete-profession-title">{t('confirm_delete_title', 'Delete profession')}</h2>
+                  <p>{t('confirm_delete', 'Are you sure you want to delete this profession?')}</p>
+                  <div className="form-actions">
+                    <button type="button" className="btn btn-danger" onClick={() => handleDelete(deleteTarget?.id)} disabled={deletingId === deleteTarget?.id}>
+                      {deletingId === deleteTarget.id ? t('deleting', 'Deleting...') : t('delete', 'Delete')}
+                    </button>
+                    <button type="button" className="btn btn-outline" onClick={() => setDeleteTarget(null)} disabled={Boolean(deletingId)}>
+                      {t('cancel', 'Cancel')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </BlankPage>

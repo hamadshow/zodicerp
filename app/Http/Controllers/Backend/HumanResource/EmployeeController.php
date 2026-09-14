@@ -92,12 +92,12 @@ class EmployeeController extends Controller
 
         // Sync roles if provided
         if ($request->has('role_ids')) {
-            $employee->roles()->sync($request->role_ids);
+            $employee->roles()->sync($request->input('role_ids', []));
         }
 
         // Update profession employee count
         if ($employee->position) {
-            $this->updateProfessionEmployeeCount($employee->position);
+            $this->updateProfessionEmployeeCount($employee->position, $employee->company_id);
         }
 
         return response()->json([
@@ -137,16 +137,16 @@ class EmployeeController extends Controller
 
         // Sync roles if provided
         if ($request->has('role_ids')) {
-            $employee->roles()->sync($request->role_ids);
+            $employee->roles()->sync($request->input('role_ids', []));
         }
 
         // Update profession employee counts
         if ($oldPosition !== $employee->position) {
             if ($oldPosition) {
-                $this->updateProfessionEmployeeCount($oldPosition);
+                $this->updateProfessionEmployeeCount($oldPosition, $employee->company_id);
             }
             if ($employee->position) {
-                $this->updateProfessionEmployeeCount($employee->position);
+                $this->updateProfessionEmployeeCount($employee->position, $employee->company_id);
             }
         }
 
@@ -169,7 +169,7 @@ class EmployeeController extends Controller
 
         // Update profession employee count
         if ($position) {
-            $this->updateProfessionEmployeeCount($position);
+            $this->updateProfessionEmployeeCount($position, $employee->company_id);
         }
 
         return response()->json([
@@ -178,10 +178,12 @@ class EmployeeController extends Controller
         ]);
     }
 
-    private function updateProfessionEmployeeCount($professionName)
+    private function updateProfessionEmployeeCount($professionName, $companyId): void
     {
-        $count = Employee::where('position', $professionName)->count();
-        Profession::where('profession_name', $professionName)->update(['employees' => $count]);
+        $count = Employee::where('company_id', $companyId)->where('position', $professionName)->count();
+        Profession::where('company_id', $companyId)
+            ->where('profession_name', $professionName)
+            ->update(['employees' => $count]);
     }
 
     public function bulkUpdateStatus(Request $request)
@@ -209,7 +211,10 @@ class EmployeeController extends Controller
 
         // Delete avatars for employees being deleted
         $employees = Employee::whereIn('id', $validated['ids'])->get();
-        $positionsToUpdate = $employees->pluck('position')->unique()->filter();
+        $positionsToUpdate = $employees
+            ->filter(fn (Employee $employee): bool => filled($employee->position) && filled($employee->company_id))
+            ->map(fn (Employee $employee): string => $employee->company_id.':'.$employee->position)
+            ->unique();
 
         foreach ($employees as $employee) {
             if ($employee->avatar && Storage::disk('public')->exists($employee->avatar)) {
@@ -220,8 +225,9 @@ class EmployeeController extends Controller
         Employee::whereIn('id', $validated['ids'])->delete();
 
         // Update counts for all affected positions
-        foreach ($positionsToUpdate as $position) {
-            $this->updateProfessionEmployeeCount($position);
+        foreach ($positionsToUpdate as $positionKey) {
+            [$companyId, $position] = explode(':', $positionKey, 2);
+            $this->updateProfessionEmployeeCount($position, (int) $companyId);
         }
 
         return response()->json([

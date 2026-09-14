@@ -51,17 +51,15 @@ createInertiaApp({
     ];
     for (const key of candidates) {
       if (pages[key]) {
-        return pages[key]();
+        return pages[key]().then((module) => module.default ?? module);
       }
     }
     console.error(`Page not found: ./Pages/${name}.jsx`);
-    return Promise.resolve({
-      default: () => (
-        <div>
-          Page not found: {name}
-        </div>
-      ),
-    });
+    return Promise.resolve(() => (
+      <div>
+        Page not found: {name}
+      </div>
+    ));
   },
   // eslint-disable-next-line no-unused-vars
   setup({ el, App, props }) {

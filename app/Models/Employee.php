@@ -6,6 +6,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
+/**
+ * @property int $id
+ * @property int|null $company_id
+ * @property string|null $position
+ * @property string|null $avatar
+ */
+
 class Employee extends Authenticatable
 {
     use HasFactory, Notifiable;

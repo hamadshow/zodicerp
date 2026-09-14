@@ -5,6 +5,8 @@ namespace App\Providers;
 use App\Models\Scopes\CompanyScope;
 use App\Models\BankAccount;
 use App\Models\CashAccount;
+use App\Models\Backend\HumanResource\Profession;
+use App\Policies\ProfessionPolicy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Auth;
@@ -30,6 +32,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::policy(Profession::class, ProfessionPolicy::class);
+
         // Centralized Authorization Gate
         Gate::before(function ($user, $ability) {
             if (method_exists($user, 'hasPermission')) {

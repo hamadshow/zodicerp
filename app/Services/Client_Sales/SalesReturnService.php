@@ -206,7 +206,8 @@ class SalesReturnService
                 'unit_price' => $unitPrice,
                 'tax_percentage' => $taxPercentage,
                 'tax_amount' => $lineTax,
-                'line_total' => round($netAmount + $lineTax, 2),
+                // line_total is a DB-generated stored column (quantity * unit_price + tax_amount);
+                // writing it explicitly fails under strict mode.
                 'batch_number' => $batch,
                 'serial_number' => $serial,
                 'return_reason_details' => !empty($item['return_reason_details']) ? trim((string) $item['return_reason_details']) : null,
@@ -645,7 +646,8 @@ class SalesReturnService
 
             $movementHeaderId = DB::table('inventory_movement_headers')->insertGetId([
                 'movement_date' => $return->return_date,
-                'type' => 'sales_return',
+                // inventory_movement_headers.type enum value (parallel to 'purchase_return')
+                'type' => 'sale_return',
                 'direction' => 'in',
                 'reference_id' => $return->id,
                 'reference_type' => 'sales_return',

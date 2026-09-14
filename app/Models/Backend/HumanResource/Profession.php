@@ -2,8 +2,16 @@
 
 namespace App\Models\Backend\HumanResource;
 
+use App\Models\Company;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property string $profession_name
+ * @property string $profession_code
+ */
 
 class Profession extends Model
 {
@@ -40,10 +48,6 @@ class Profession extends Model
      */
     public function company()
     {
-        // Adjust model path based on codebase structure
-        if (class_exists('App\Models\Company')) {
-            return $this->belongsTo(\App\Models\Company::class);
-        }
-        return $this->belongsTo(\App\Models\Backend\Company::class, 'company_id');
+        return $this->belongsTo(Company::class, 'company_id');
     }
 }

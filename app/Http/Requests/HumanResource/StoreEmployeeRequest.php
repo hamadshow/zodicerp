@@ -28,6 +28,8 @@ class StoreEmployeeRequest extends FormRequest
             'email' => 'required|string|email|max:255|unique:employees,email',
             'password' => 'required|string|min:8',
             'role' => 'nullable|string|max:255',
+            'role_ids' => 'nullable|array',
+            'role_ids.*' => 'integer|exists:roles,id',
             'phone' => 'nullable|string|max:20|unique:employees,phone',
             'department' => 'required|string|max:255',
             'position' => 'required|string|max:255',

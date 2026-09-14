@@ -234,7 +234,28 @@ Route::middleware([\App\Http\Middleware\ApiAuth::class])->group(function () {
         Route::apiResource('payroll-advances', App\Http\Controllers\Backend\HumanResource\PayrollAdvanceController::class);
         Route::apiResource('traffic-violations', App\Http\Controllers\Backend\HumanResource\TrafficViolationController::class);
         Route::apiResource('nationalities', App\Http\Controllers\Backend\HumanResource\NationalityController::class);
-        Route::apiResource('professions', App\Http\Controllers\Backend\HumanResource\ProfessionController::class);
+    });
+    Route::middleware(['api.admin:professions.view'])->group(function () {
+        Route::get('professions', [App\Http\Controllers\Backend\HumanResource\ProfessionController::class, 'index'])->name('professions.index');
+        Route::get('professions/{professionId}', [App\Http\Controllers\Backend\HumanResource\ProfessionController::class, 'show'])->name('professions.show');
+    });
+    Route::middleware([
+        'api.admin:professions.create',
+        \App\Http\Middleware\EnsureProfessionCsrf::class,
+    ])->group(function () {
+        Route::post('professions', [App\Http\Controllers\Backend\HumanResource\ProfessionController::class, 'store']);
+    });
+    Route::middleware([
+        'api.admin:professions.update',
+        \App\Http\Middleware\EnsureProfessionCsrf::class,
+    ])->group(function () {
+        Route::match(['put', 'patch'], 'professions/{professionId}', [App\Http\Controllers\Backend\HumanResource\ProfessionController::class, 'update']);
+    });
+    Route::middleware([
+        'api.admin:professions.delete',
+        \App\Http\Middleware\EnsureProfessionCsrf::class,
+    ])->group(function () {
+        Route::delete('professions/{professionId}', [App\Http\Controllers\Backend\HumanResource\ProfessionController::class, 'destroy']);
     });
 
     // --- Task Management ---

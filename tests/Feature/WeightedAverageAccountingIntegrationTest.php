@@ -26,6 +26,8 @@ class WeightedAverageAccountingIntegrationTest extends TestCase
     private array $returnNumbers = [];
     private array $supplierIds = [];
     private array $branchIds = [];
+    private array $purchaseInvoiceIds = [];
+    private array $purchaseReturnIds = [];
 
     protected function setUp(): void
     {
@@ -51,10 +53,25 @@ class WeightedAverageAccountingIntegrationTest extends TestCase
                 DB::table('sales_return_details')->whereIn('return_id', $ids)->delete();
                 DB::table('sales_returns')->whereIn('id', $ids)->delete();
             }
+            if (! empty($this->purchaseReturnIds)) {
+                DB::table('purchase_return_details')->whereIn('return_id', $this->purchaseReturnIds)->delete();
+                DB::table('purchase_returns')->whereIn('id', $this->purchaseReturnIds)->delete();
+            }
+            if (! empty($this->purchaseInvoiceIds)) {
+                DB::table('purchase_invoice_details')->whereIn('invoice_id', $this->purchaseInvoiceIds)->delete();
+                DB::table('purchase_invoices')->whereIn('id', $this->purchaseInvoiceIds)->delete();
+            }
             foreach ($this->productIds as $pid) {
                 DB::table('inventory_cost_transactions')->where('product_id', $pid)->delete();
                 DB::table('inventory_cost_balances')->where('product_id', $pid)->delete();
+                DB::table('inventory_movement_lines')->where('product_id', $pid)->delete();
                 DB::table('products')->where('id', $pid)->delete();
+            }
+            foreach ($this->warehouseIds as $wid) {
+                // Movement headers (and any orphaned lines) created for this fixture warehouse.
+                $headerIds = DB::table('inventory_movement_headers')->where('warehouse_id', $wid)->pluck('id');
+                DB::table('inventory_movement_lines')->whereIn('stock_movement_id', $headerIds)->delete();
+                DB::table('inventory_movement_headers')->whereIn('id', $headerIds)->delete();
             }
             foreach ($this->warehouseIds as $wid) {
                 DB::table('warehouses')->where('id', $wid)->delete();
@@ -344,6 +361,7 @@ class WeightedAverageAccountingIntegrationTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        $this->purchaseInvoiceIds[] = (int) $invId;
         $detailId = DB::table('purchase_invoice_details')->insertGetId([
             'invoice_id' => $invId,
             'product_id' => $productId,
@@ -373,6 +391,7 @@ class WeightedAverageAccountingIntegrationTest extends TestCase
 
         // Real flow → return document persisted
         $this->assertNotNull($return->id);
+        $this->purchaseReturnIds[] = (int) $return->id;
         $this->assertSame('approved', $return->status);
 
         // WA balance: 30 → 20 units, 3450 → 2300 (10 × 115 out)

@@ -259,6 +259,9 @@ class GrnAccountingTest extends TestCase
         $movementLine = DB::table('inventory_movement_lines')
             ->join('inventory_movement_headers', 'inventory_movement_headers.id', '=', 'inventory_movement_lines.stock_movement_id')
             ->where('inventory_movement_headers.voucher_num', $receipt->receipt_number)
+            // Both tables have an `id` column; select the movement LINE explicitly so
+            // `$movementLine->id` cannot resolve to the header id (ambiguous `SELECT *`).
+            ->select('inventory_movement_lines.*')
             ->first();
         $this->assertNotNull($movementLine?->goods_receipt_detail_id, 'Movement line must reference the GRN detail.');
 
