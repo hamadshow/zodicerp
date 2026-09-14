@@ -13,6 +13,7 @@ class SalaryReceipt extends Model
 
     protected $fillable = [
         'employee_id',
+        'payroll_result_id',
         'receipt_no',
         'period',
         'gross_salary',
@@ -39,5 +40,10 @@ class SalaryReceipt extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function payrollResult(): BelongsTo
+    {
+        return $this->belongsTo(PayrollResult::class, 'payroll_result_id');
     }
 }

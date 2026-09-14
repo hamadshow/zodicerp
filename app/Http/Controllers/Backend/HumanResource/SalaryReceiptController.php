@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Backend\HumanResource;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\HumanResource\CreateSalaryReceiptRequest;
 use App\Models\SalaryReceipt;
+use App\Models\PayrollResult;
 use App\Models\Employee;
 use App\Models\Deduction;
 use App\Models\Reward;
@@ -12,6 +14,8 @@ use App\Models\TrafficViolation;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class SalaryReceiptController extends Controller
 {
@@ -109,30 +113,42 @@ class SalaryReceiptController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(CreateSalaryReceiptRequest $request)
     {
-        $validated = $request->validate([
-            'employee_id' => 'required|exists:employees,id',
-            'period' => 'required|string',
-            'receipt_no' => 'required|string|unique:salary_receipts,receipt_no',
-            'gross_salary' => 'required|numeric',
-            'total_deductions' => 'required|numeric',
-            'total_advances' => 'required|numeric',
-            'total_rewards' => 'required|numeric',
-            'net_salary' => 'required|numeric',
-            'payment_date' => 'required|date',
-            'payment_method' => 'required|string',
-            'bank_account' => 'nullable|string',
-            'status' => 'required|string',
-        ]);
+        $receipt = DB::transaction(function () use ($request): SalaryReceipt {
+            $result = PayrollResult::query()
+                ->with('period')
+                ->lockForUpdate()
+                ->findOrFail((int) $request->validated('payroll_result_id'));
+            if (! in_array($result->period->status, ['approved', 'posted', 'closed'], true)) {
+                throw ValidationException::withMessages(['payroll_result_id' => 'A salary receipt requires an approved payroll result.']);
+            }
+            if (SalaryReceipt::query()->where('payroll_result_id', $result->getKey())->exists()) {
+                throw ValidationException::withMessages(['payroll_result_id' => 'A salary receipt already exists for this payroll result.']);
+            }
 
-        $receipt = SalaryReceipt::create(array_merge($validated, ['company_id' => 1]));
+            return SalaryReceipt::create([
+                'employee_id' => $result->employee_id,
+                'payroll_result_id' => $result->getKey(),
+                'receipt_no' => 'PAY-'.strtoupper(Str::random(8)),
+                'period' => $result->period->start_date->format('Y-m'),
+                'gross_salary' => $result->gross_salary,
+                'total_deductions' => $result->total_deductions,
+                'total_advances' => $result->total_advances,
+                'total_rewards' => $result->total_rewards,
+                'net_salary' => $result->net_salary,
+                'payment_date' => $request->validated('payment_date'),
+                'payment_method' => $request->validated('payment_method'),
+                'bank_account' => $request->validated('bank_account'),
+                'status' => 'pending',
+            ]);
+        }, 3);
 
         return response()->json([
             'success' => true,
             'message' => 'Salary receipt created successfully!',
             'data' => $receipt
-        ]);
+        ], 201);
     }
 
     /**

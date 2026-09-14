@@ -234,12 +234,37 @@ Route::middleware([\App\Http\Middleware\ApiAuth::class])->group(function () {
         Route::apiResource('payroll-advances', App\Http\Controllers\Backend\HumanResource\PayrollAdvanceController::class);
         Route::apiResource('traffic-violations', App\Http\Controllers\Backend\HumanResource\TrafficViolationController::class);
         Route::apiResource('nationalities', App\Http\Controllers\Backend\HumanResource\NationalityController::class);
-        Route::post('salary-receipts/calculate', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'calculate']);
+    });
+
+    Route::middleware('api.admin:payroll.view')->group(function () {
+        Route::get('payroll-periods', [App\Http\Controllers\Backend\HumanResource\PayrollPeriodController::class, 'index']);
+        Route::get('payroll-periods/{payrollPeriod}', [App\Http\Controllers\Backend\HumanResource\PayrollPeriodController::class, 'show']);
+        Route::get('payroll-periods/{payrollPeriod}/results', [App\Http\Controllers\Backend\HumanResource\PayrollPeriodController::class, 'results']);
+        Route::get('payroll-results/{payrollResult}', [App\Http\Controllers\Backend\HumanResource\PayrollResultController::class, 'show']);
         Route::get('salary-receipts', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'index']);
-        Route::post('salary-receipts', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'store']);
         Route::get('salary-receipts/{id}', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'show']);
+    });
+    Route::middleware('api.admin:payroll.create')->group(function () {
+        Route::post('payroll-periods', [App\Http\Controllers\Backend\HumanResource\PayrollPeriodController::class, 'store']);
+        Route::post('payroll-results/{payrollResult}/receipt', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'store']);
+        Route::post('salary-receipts', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'store']);
         Route::put('salary-receipts/{id}', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'update']);
         Route::delete('salary-receipts/{id}', [App\Http\Controllers\Backend\HumanResource\SalaryReceiptController::class, 'destroy']);
+    });
+    Route::middleware('api.admin:payroll.calculate')->group(function () {
+        Route::post('payroll-periods/{payrollPeriod}/calculate', [App\Http\Controllers\Backend\HumanResource\PayrollPeriodController::class, 'calculate']);
+    });
+    Route::middleware('api.admin:payroll.review')->group(function () {
+        Route::post('payroll-periods/{payrollPeriod}/review', [App\Http\Controllers\Backend\HumanResource\PayrollPeriodController::class, 'review']);
+    });
+    Route::middleware('api.admin:payroll.approve')->group(function () {
+        Route::post('payroll-periods/{payrollPeriod}/approve', [App\Http\Controllers\Backend\HumanResource\PayrollPeriodController::class, 'approve']);
+    });
+    Route::middleware('api.admin:payroll.post')->group(function () {
+        Route::post('payroll-periods/{payrollPeriod}/post', [App\Http\Controllers\Backend\HumanResource\PayrollPeriodController::class, 'post']);
+    });
+    Route::middleware('api.admin:payroll.close')->group(function () {
+        Route::post('payroll-periods/{payrollPeriod}/close', [App\Http\Controllers\Backend\HumanResource\PayrollPeriodController::class, 'close']);
     });
     Route::middleware(['api.admin:professions.view'])->group(function () {
         Route::get('professions', [App\Http\Controllers\Backend\HumanResource\ProfessionController::class, 'index'])->name('professions.index');

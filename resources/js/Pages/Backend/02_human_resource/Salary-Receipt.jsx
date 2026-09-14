@@ -17,6 +17,9 @@ const SalaryReceipt = ({ employees: propEmployees }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [calculating, setCalculating] = useState(false);
+  const [payrollPeriodId, setPayrollPeriodId] = useState(null);
+  const [payrollResultId, setPayrollResultId] = useState(null);
+  const [payrollPeriodStatus, setPayrollPeriodStatus] = useState('draft');
   const [toast, setToast] = useState(null);
 
   const [formData, setFormData] = useState({
@@ -110,12 +113,34 @@ const SalaryReceipt = ({ employees: propEmployees }) => {
 
     setCalculating(true);
     try {
-      const response = await apiService.post('/salary-receipts/calculate', {
+      const [year, month] = formData.period.split('-');
+      const startDate = `${formData.period}-01`;
+      const endDate = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
+      const periodName = `Payroll ${formData.period}`;
+      const periodsResponse = await apiService.get('/payroll-periods');
+      const periods = Array.isArray(periodsResponse.data) ? periodsResponse.data : periodsResponse.data?.data || [];
+      let period = periods.find((item) => item.name === periodName);
+      if (!period) {
+        const created = await apiService.post('/payroll-periods', {
+          name: periodName,
+          start_date: startDate,
+          end_date: endDate,
+        });
+        period = created.data?.data || created.data;
+      }
+      if (!period?.id) throw new Error('Payroll period was not returned by the server.');
+      if (!['draft', 'calculated'].includes(period.status)) {
+        throw new Error(`Payroll period is ${period.status} and cannot be recalculated.`);
+      }
+      const response = await apiService.post(`/payroll-periods/${period.id}/calculate`, {
         employee_id: formData.employee_id,
-        period: formData.period
+        recalculate: period.status === 'calculated',
       });
       
-      const data = response.data;
+      const data = response.data?.data || response.data;
+      setPayrollPeriodId(period.id);
+      setPayrollResultId(data.id);
+      setPayrollPeriodStatus(data.period?.status || 'calculated');
       setFormData(prev => ({
         ...prev,
         gross_salary: data.gross_salary,
@@ -134,8 +159,24 @@ const SalaryReceipt = ({ employees: propEmployees }) => {
     }
   };
 
+  const transitionPayroll = async (transition) => {
+    if (!payrollPeriodId) return;
+    try {
+      const response = await apiService.post(`/payroll-periods/${payrollPeriodId}/${transition}`);
+      const period = response.data?.data || response.data;
+      setPayrollPeriodStatus(period.status);
+      showToast(`Payroll ${transition}d successfully`, 'success');
+    } catch (error) {
+      console.error(`Payroll ${transition} error:`, error);
+      showToast(`Error ${transition}ing payroll`, 'error');
+    }
+  };
+
   const handleAdd = () => {
     setEditingId(null);
+    setPayrollPeriodId(null);
+    setPayrollResultId(null);
+    setPayrollPeriodStatus('draft');
     setFormData({
       employee_id: '',
       period: new Date().toISOString().slice(0, 7),
@@ -155,6 +196,9 @@ const SalaryReceipt = ({ employees: propEmployees }) => {
 
   const handleEdit = (receipt) => {
     setEditingId(receipt.id);
+    setPayrollPeriodId(null);
+    setPayrollResultId(receipt.payroll_result_id || null);
+    setPayrollPeriodStatus(receipt.payroll_result_id ? 'approved' : 'draft');
     setFormData({
       employee_id: receipt.employee_id,
       period: receipt.period,
@@ -184,7 +228,16 @@ const SalaryReceipt = ({ employees: propEmployees }) => {
         await apiService.put(`/salary-receipts/${editingId}`, formData);
         showToast('Receipt updated successfully', 'success');
       } else {
-        await apiService.post('/salary-receipts', formData);
+        if (!payrollResultId || !['approved', 'posted', 'closed'].includes(payrollPeriodStatus)) {
+          showToast('Approve the payroll before creating a salary receipt', 'warning');
+          return;
+        }
+        await apiService.post('/salary-receipts', {
+          payroll_result_id: payrollResultId,
+          payment_date: formData.payment_date,
+          payment_method: formData.payment_method,
+          bank_account: formData.bank_account,
+        });
         showToast('Receipt generated successfully', 'success');
       }
       fetchReceipts();
@@ -457,8 +510,18 @@ const SalaryReceipt = ({ employees: propEmployees }) => {
                 </div>
 
                 <div className="form-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+                  {!editingId && payrollPeriodStatus === 'calculated' && (
+                    <button type="button" className="btn btn-secondary" onClick={() => transitionPayroll('review')}>
+                      Review Payroll
+                    </button>
+                  )}
+                  {!editingId && payrollPeriodStatus === 'reviewed' && (
+                    <button type="button" className="btn btn-secondary" onClick={() => transitionPayroll('approve')}>
+                      Approve Payroll
+                    </button>
+                  )}
                   <button type="submit" className="btn btn-primary">
-                    {editingId ? 'Update Receipt' : 'Save Receipt'}
+                    {editingId ? 'Update Receipt' : 'Generate Receipt'}
                   </button>
                   <button type="button" className="btn btn-outline" onClick={handleCancel}>
                     Cancel
