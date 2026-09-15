@@ -1043,3 +1043,28 @@
         padding: 0 20px;
     }
 }
+
+/* Product kind (simple / configurable parent / variant SKU) */
+.product-kind-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: $font-size-xs;
+    font-weight: 600;
+    white-space: nowrap;
+
+    &--simple {
+        background: #f1f5f9;
+        color: #475569;
+    }
+
+    &--parent {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    &--child {
+        background: #dcfce7;
+        color: #15803d;
+    }
+}

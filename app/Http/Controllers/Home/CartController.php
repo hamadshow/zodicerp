@@ -4,7 +4,12 @@ namespace App\Http\Controllers\Home;
 
 use App\Http\Controllers\Controller;
 use App\Models\Products;
+use App\Services\ProductSellingGuard;
+use App\Services\ProductPriceResolver;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class CartController extends Controller
 {
@@ -66,6 +71,14 @@ class CartController extends Controller
         ]);
 
         $product = Products::where('status', 'active')->findOrFail($validated['product_id']);
+
+        try {
+            ProductSellingGuard::assertSellable($product->id);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => $e->errors()['product_id'][0] ?? 'This product cannot be added to cart.',
+            ], 422);
+        }
 
         $quantity = (int) ($validated['quantity'] ?? 1);
         $variants = $this->normalizeVariants($validated['variants'] ?? []);
@@ -164,6 +177,14 @@ class CartController extends Controller
             return '/media-files/'.$normalized;
         };
 
+        $user = Auth::guard('customer')->user() ?: Auth::user();
+        $customer = null;
+        if ($user) {
+            $customer = $user instanceof \App\Models\Client_Sales\Customer
+                ? $user
+                : \App\Models\Client_Sales\Customer::where('email', $user->email)->first();
+        }
+
         foreach ($cart as $itemKey => $cartItem) {
             $productId = (int) ($cartItem['product_id'] ?? 0);
             $product = $products->get($productId);
@@ -176,7 +197,15 @@ class CartController extends Controller
                 continue;
             }
 
-            $unitPrice = (float) ($product->sale_price ?? $product->price ?? 0);
+            $unitId = (int) ($cartItem['unit_id'] ?? $product->unit_id);
+            $resolution = app(ProductPriceResolver::class)->resolve([
+                'product' => $product,
+                'customer' => $customer,
+                'quantity' => (string) $qty,
+                'unit_id' => $unitId,
+                'transaction_date' => Carbon::now(),
+            ]);
+            $unitPrice = (float) ($resolution['final_price'] ?? 0);
             $lineTotal = $unitPrice * $qty;
             $subTotal += $lineTotal;
 

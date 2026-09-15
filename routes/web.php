@@ -469,6 +469,16 @@ Route::group([
             Route::get('product-collections/get-products', [\App\Http\Controllers\Backend\Inventory\ProductCollectionController::class, 'getProducts'])->name('product-collections.get-products');
             Route::resource('product-collections', \App\Http\Controllers\Backend\Inventory\ProductCollectionController::class);
 
+            // Price Lists (قوائم الأسعار) - admin screen for the existing price_lists architecture
+            $plc = \App\Http\Controllers\Backend\Inventory\PriceListController::class;
+            Route::prefix('price-lists')->name('price-lists.')->group(function () use ($plc) {
+                Route::get('search-products', [$plc, 'searchProducts'])->name('search-products');
+                Route::post('{price_list}/items', [$plc, 'storeItem'])->name('items.store');
+                Route::put('{price_list}/items/{item}', [$plc, 'updateItem'])->name('items.update');
+                Route::delete('{price_list}/items/{item}', [$plc, 'destroyItem'])->name('items.destroy');
+            });
+            Route::resource('price-lists', $plc)->except([]);
+
             Route::resource('stock-transfers', \App\Http\Controllers\Backend\Inventory\StockTransferController::class);
 
             $sac = \App\Http\Controllers\Backend\Inventory\StockAdjustmentController::class;

@@ -13,7 +13,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
     const invoiceRef = useRef(null);
     const printRef = useRef(null);
     const { props } = usePage();
-    const { localization, errors } = props;
+    const { localization, errors, flash } = props;
     const translations = localization?.translations || {};
 
     const getLocalizedRoute = (name, params = {}) => {
@@ -250,7 +250,10 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
     const productOptions = useMemo(() => {
         return (products || []).map(p => ({
             value: String(p.id),
-            label: p.name_en || p.name_ar || ''
+            label: p.sku
+                ? `${p.name_en || p.name_ar || ''} — ${p.sku}`
+                : (p.name_en || p.name_ar || ''),
+            code: p.sku || ''
         }));
     }, [products]);
 
@@ -310,6 +313,33 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
     useEffect(() => {
         calculateTotals(data.items);
     }, [data.items, data.discount_amount, data.shipping_cost, data.other_charges, data.tax_amount, data.paid_amount]);
+
+    // The server-persisted invoice currently open in edit mode — source of the authoritative totals.
+    const savedInvoice = useMemo(() => {
+        if (mode !== 'edit' || !data.id) return null;
+        const rows = invoices?.data || (Array.isArray(invoices) ? invoices : []);
+        return rows.find(inv => String(inv.id) === String(data.id)) || null;
+    }, [invoices, mode, data.id]);
+
+    // Keys rendered next to their own input; everything else is surfaced in the banner.
+    const inlineErrorKeys = useMemo(() => ['invoice_date', 'customer_id', 'treasury_id'], []);
+
+    const serverErrorList = useMemo(() => {
+        const list = [];
+        Object.entries(errors || {}).forEach(([key, value]) => {
+            if (inlineErrorKeys.includes(key)) return;
+            const messages = Array.isArray(value) ? value : [value];
+            messages.filter(Boolean).forEach((message) => list.push({ key, message: String(message) }));
+        });
+        return list;
+    }, [errors, inlineErrorKeys]);
+
+    // Backend (ProductSellingGuard / price resolution / unit conversion) errors land on `items.*`.
+    const lineError = (index, field) => {
+        const value = errors?.[`items.${index}.${field}`];
+        if (Array.isArray(value)) return value[0] || null;
+        return value ? String(value) : null;
+    };
 
     const handleCreate = () => {
         reset();
@@ -416,22 +446,26 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
 
     const handleSubmit = (e) => {
         if (e) e.preventDefault();
+
+        // The server resolves the price and recomputes every document total. Validation errors
+        // arrive as a redirect with errors, so the form stays open until the server accepts it —
+        // otherwise the messages would be shown on a screen the user already left.
+        const options = {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                const pageErrors = page?.props?.errors || {};
+                if (Object.keys(pageErrors).length > 0) {
+                    return;
+                }
+                setMode('list');
+                reset();
+            },
+        };
+
         if (mode === 'create') {
-            post(getLocalizedRoute('admin.client-sales.invoices.store'), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setMode('list');
-                    reset();
-                },
-            });
+            post(getLocalizedRoute('admin.client-sales.invoices.store'), options);
         } else {
-            put(getLocalizedRoute('admin.client-sales.invoices.update', { invoice: data.id }), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    setMode('list');
-                    reset();
-                },
-            });
+            put(getLocalizedRoute('admin.client-sales.invoices.update', { invoice: data.id }), options);
         }
     };
 
@@ -583,6 +617,14 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
             <BlankPage breadcrumbs={breadcrumbs} stats={mode === 'list' ? statsContent : undefined}>
                 <div className="sales-invoices-module">
 
+                    {/* Server responses (persisted totals / rejection reasons) must be visible. */}
+                    {flash?.success && (
+                        <div className="alert alert-success">{flash.success}</div>
+                    )}
+                    {flash?.error && (
+                        <div className="alert alert-error">{flash.error}</div>
+                    )}
+
                     {mode === 'list' ? (
                         <div className="fade-in">
                             <Table
@@ -654,6 +696,19 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                 </div>
                                 <div className="card-body" style={{ padding: '20px 30px' }}>
                                     <form ref={invoiceRef} onSubmit={handleSubmit} className="invoice-container">
+
+                                        {serverErrorList.length > 0 && (
+                                            <div className="server-validation-summary" role="alert">
+                                                <div className="server-validation-summary__title">
+                                                    {t('server_rejected', 'The server rejected this invoice — please fix the following:')}
+                                                </div>
+                                                <ul>
+                                                    {serverErrorList.map((item, i) => (
+                                                        <li key={`${item.key}-${i}`}>{item.message}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
 
                                         <div className="invoice-header">
                                             <div className="company-info">
@@ -775,6 +830,9 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                         </div>
 
                                         <div className="invoice-items-section">
+                                            <p className="price-authority-note">
+                                                {t('price_authority_note', 'Prices in this grid are indicative only. The server resolves the final selling price (price list, customer group, quantity tier and unit) and recomputes every document total on save. Quantities are submitted in the selected unit; the server performs the unit conversion.')}
+                                            </p>
                                             <div className="items-table-wrapper">
                                                 <table>
                                                     <thead>
@@ -784,7 +842,7 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                                             <th style={{ width: '10%' }}>{t('unit', 'Unit')}</th>
                                                             <th style={{ width: '15%' }}>{t('warehouse', 'Warehouse')}</th>
                                                             <th style={{ width: '10%' }} className="text-center">{t('quantity', 'Qty')}</th>
-                                                            <th style={{ width: '15%' }} className="text-right">{t('price', 'Price')}</th>
+                                                            <th style={{ width: '15%' }} className="text-right">{t('price', 'Price')} <span className="th-hint">({t('indicative', 'indicative')})</span></th>
                                                             <th style={{ width: '10%' }} className="text-right">{t('discount', 'Disc')}</th>
                                                             <th style={{ width: '10%' }} className="text-right">{t('tax', 'Tax')}</th>
                                                             <th style={{ width: '15%' }} className="text-right">{t('total', 'Total')}</th>
@@ -810,17 +868,24 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                                                         value={item.item_name_ar}
                                                                         onChange={e => handleItemChange(index, 'item_name_ar', e.target.value)}
                                                                     />
+                                                                    {lineError(index, 'product_id') && (
+                                                                        <span className="error-msg">{lineError(index, 'product_id')}</span>
+                                                                    )}
                                                                 </td>
                                                                 <td>
                                                                     <select
                                                                         value={item.unit_id ? String(item.unit_id) : ''}
                                                                         onChange={e => handleItemChange(index, 'unit_id', e.target.value)}
+                                                                        className={lineError(index, 'unit_id') ? 'error' : ''}
                                                                     >
                                                                         <option value="">{t('select_unit', 'Select Unit')}</option>
                                                                         {unitOptions.map(unit => (
                                                                             <option key={unit.value} value={unit.value}>{unit.label}</option>
                                                                         ))}
                                                                     </select>
+                                                                    {lineError(index, 'unit_id') && (
+                                                                        <span className="error-msg">{lineError(index, 'unit_id')}</span>
+                                                                    )}
                                                                 </td>
                                                                 <td>
                                                                     <select
@@ -839,8 +904,11 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                                                         min="1"
                                                                         value={item.quantity}
                                                                         onChange={e => handleItemChange(index, 'quantity', e.target.value)}
-                                                                        className="text-center"
+                                                                        className={`text-center${lineError(index, 'quantity') ? ' error' : ''}`}
                                                                     />
+                                                                    {lineError(index, 'quantity') && (
+                                                                        <span className="error-msg">{lineError(index, 'quantity')}</span>
+                                                                    )}
                                                                 </td>
                                                                 <td>
                                                                     <input
@@ -848,8 +916,12 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                                                         step="0.01"
                                                                         value={item.unit_price}
                                                                         onChange={e => handleItemChange(index, 'unit_price', e.target.value)}
-                                                                        className="text-right"
+                                                                        className="text-right price-indicative"
+                                                                        title={t('indicative_price_hint', 'Indicative price. The server resolves the final selling price on save.')}
                                                                     />
+                                                                    {lineError(index, 'unit_price') && (
+                                                                        <span className="error-msg">{lineError(index, 'unit_price')}</span>
+                                                                    )}
                                                                 </td>
                                                                 <td>
                                                                     <input
@@ -926,6 +998,9 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                             </div>
 
                                             <div className="invoice-totals">
+                                                <div className="totals-mode-label totals-mode-label--preview">
+                                                    {t('preview_totals', 'Preview — calculated in this form, not final')}
+                                                </div>
                                                 <div className="total-row">
                                                     <span className="label">{t('subtotal', 'Subtotal')}</span>
                                                     <span>{Number(data.subtotal).toFixed(2)}</span>
@@ -978,6 +1053,38 @@ export default function SalesInvoice({ invoices, customers, orders, currencies, 
                                                     <span>{t('balance_due', 'Balance Due')}</span>
                                                     <span>{Number(data.balance_amount).toFixed(2)}</span>
                                                 </div>
+
+                                                {savedInvoice && (
+                                                    <div className="saved-totals-block">
+                                                        <div className="totals-mode-label totals-mode-label--saved">
+                                                            {t('saved_totals', 'Saved totals — authoritative values returned by the server')}
+                                                        </div>
+                                                        <div className="total-row">
+                                                            <span className="label">{t('subtotal', 'Subtotal')}</span>
+                                                            <span>{Number(savedInvoice.subtotal || 0).toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="total-row">
+                                                            <span className="label">{t('discount', 'Discount')}</span>
+                                                            <span>{Number(savedInvoice.discount_amount || 0).toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="total-row">
+                                                            <span className="label">{t('tax_total', 'Tax Total')}</span>
+                                                            <span>{Number(savedInvoice.tax_amount || 0).toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="total-row">
+                                                            <span className="label">{t('shipping', 'Shipping')}</span>
+                                                            <span>{Number(savedInvoice.shipping_cost || 0).toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="total-row">
+                                                            <span className="label">{t('extra_charges', 'Extra Charges')}</span>
+                                                            <span>{Number(savedInvoice.other_charges || 0).toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="total-row grand-total">
+                                                            <span>{t('grand_total', 'Total Amount')}</span>
+                                                            <span>{Number(savedInvoice.total_amount || 0).toFixed(2)}</span>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </form>

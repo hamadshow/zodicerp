@@ -80,7 +80,10 @@ export default function SalesOrders({
     const productOptions = useMemo(() => 
         products?.map(p => ({
             value: String(p.id),
-            label: p.name_en || p.name_ar || ''
+            label: p.sku
+                ? `${p.name_en || p.name_ar || ''} — ${p.sku}`
+                : (p.name_en || p.name_ar || ''),
+            code: p.sku || ''
         })) || [], 
     [products]);
 
@@ -138,6 +141,33 @@ export default function SalesOrders({
             label: q.quotation_number || ''
         })) || [], 
     [openQuotations]);
+
+    // Server-persisted document (authoritative) for the order currently open in edit mode.
+    const savedOrder = useMemo(() => {
+        if (mode !== 'edit' || !data.id) return null;
+        const rows = orders?.data || (Array.isArray(orders) ? orders : []);
+        return rows.find(o => String(o.id) === String(data.id)) || null;
+    }, [orders, mode, data.id]);
+
+    // Keys already rendered next to their own input; everything else is surfaced in the banner.
+    const inlineErrorKeys = useMemo(() => ['order_date', 'customer_id', 'warehouse_id', 'currency_id'], []);
+
+    const serverErrorList = useMemo(() => {
+        const list = [];
+        Object.entries(errors || {}).forEach(([key, value]) => {
+            if (inlineErrorKeys.includes(key)) return;
+            const messages = Array.isArray(value) ? value : [value];
+            messages.filter(Boolean).forEach((message) => list.push({ key, message: String(message) }));
+        });
+        return list;
+    }, [errors, inlineErrorKeys]);
+
+    // Backend (ProductSellingGuard / price resolution / unit validation) errors land on `items.*`.
+    const lineError = (index, field) => {
+        const value = errors?.[`items.${index}.${field}`];
+        if (Array.isArray(value)) return value[0] || null;
+        return value ? String(value) : null;
+    };
 
     const shippingAddressOptions = useMemo(() => 
         customerAddresses
@@ -228,16 +258,25 @@ export default function SalesOrders({
 
     const handleSubmit = (e) => {
         e.preventDefault();
+
+        // The server resolves the commercial price and recomputes all document totals.
+        // Validation failures come back as a redirect with errors, so the form must stay
+        // open until the server actually accepted the document.
+        const options = {
+            preserveScroll: true,
+            onSuccess: (page) => {
+                const pageErrors = page?.props?.errors || {};
+                if (Object.keys(pageErrors).length > 0) {
+                    return;
+                }
+                setMode('list');
+            },
+        };
+
         if (mode === 'create') {
-            post(getLocalizedRoute('admin.client-sales.orders.store'), {
-                preserveScroll: true,
-                onSuccess: () => setMode('list'),
-            });
+            post(getLocalizedRoute('admin.client-sales.orders.store'), options);
         } else {
-            put(getLocalizedRoute('admin.client-sales.orders.update', { order: data.id }), {
-                preserveScroll: true,
-                onSuccess: () => setMode('list'),
-            });
+            put(getLocalizedRoute('admin.client-sales.orders.update', { order: data.id }), options);
         }
     };
 
@@ -287,14 +326,17 @@ export default function SalesOrders({
         const newItems = [...data.items];
         newItems[index][field] = value;
 
-        // Auto-fill product details
+        // Auto-fill product details.
+        // NOTE: the product fallback (sale_price -> price) is only an indicative default.
+        // The authoritative selling price (price list, customer group discount, quantity
+        // tier, unit price, validity dates) is resolved by the server on save.
         if (field === 'product_id') {
             const product = products.find(p => p.id == value);
             if (product) {
                 newItems[index].item_name_ar = product.name_ar;
                 newItems[index].item_name_en = product.name_en;
                 newItems[index].unit_price = product.sale_price || product.price || 0;
-                newItems[index].unit_id = product.unit_id || '';
+                newItems[index].unit_id = product.unit_id || newItems[index].unit_id || '';
             }
         }
 
@@ -501,6 +543,19 @@ export default function SalesOrders({
                 ) : (
                     <>
                     <form ref={invoiceRef} onSubmit={handleSubmit} className="invoice-container">
+
+                        {serverErrorList.length > 0 && (
+                            <div className="server-validation-summary" role="alert">
+                                <div className="server-validation-summary__title">
+                                    The server rejected this order — please fix the following:
+                                </div>
+                                <ul>
+                                    {serverErrorList.map((item, i) => (
+                                        <li key={`${item.key}-${i}`}>{item.message}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
                         
                         {/* 1. Invoice Header */}
                         <div className="invoice-header">
@@ -641,6 +696,11 @@ export default function SalesOrders({
 
                         {/* 3. Items Table */}
                         <div className="invoice-items-section">
+                            <p className="price-authority-note">
+                                Prices in this grid are indicative only. The server resolves the final selling price
+                                (price list, customer group, quantity tier and unit) and recomputes every document total on save.
+                                Quantities are submitted in the selected unit; the server performs the unit conversion.
+                            </p>
                             <div className="items-table-wrapper">
                                 <table>
                                     <thead>
@@ -650,7 +710,7 @@ export default function SalesOrders({
                                             <th>Description</th>
                                             <th style={{width: '100px'}} className="text-center">Qty</th>
                                             <th style={{width: '100px'}}>Unit</th>
-                                            <th style={{width: '120px'}} className="text-right">Price</th>
+                                            <th style={{width: '120px'}} className="text-right">Price <span className="th-hint">(indicative)</span></th>
                                             <th style={{width: '100px'}} className="text-right">Discount</th>
                                             <th style={{width: '100px'}} className="text-right">Tax</th>
                                             <th style={{width: '120px'}} className="text-right">Total</th>
@@ -670,6 +730,9 @@ export default function SalesOrders({
                                                             placeholder="Select Product"
                                                         />
                                                     </div>
+                                                    {lineError(index, 'product_id') && (
+                                                        <span className="error-msg">{lineError(index, 'product_id')}</span>
+                                                    )}
                                                 </td>
                                                 <td>
                                                     <input 
@@ -685,8 +748,11 @@ export default function SalesOrders({
                                                         min="1"
                                                         value={item.quantity} 
                                                         onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                                                        className="text-center"
+                                                        className={`text-center${lineError(index, 'quantity') ? ' is-invalid' : ''}`}
                                                     />
+                                                    {lineError(index, 'quantity') && (
+                                                        <span className="error-msg">{lineError(index, 'quantity')}</span>
+                                                    )}
                                                 </td>
                                                 <td>
                                                     <SearchableComboBox
@@ -695,6 +761,9 @@ export default function SalesOrders({
                                                         onChange={(val) => handleItemChange(index, 'unit_id', val)}
                                                         placeholder="Unit"
                                                     />
+                                                    {lineError(index, 'unit_id') && (
+                                                        <span className="error-msg">{lineError(index, 'unit_id')}</span>
+                                                    )}
                                                 </td>
                                                 <td>
                                                     <input 
@@ -702,8 +771,12 @@ export default function SalesOrders({
                                                         step="0.01"
                                                         value={item.unit_price} 
                                                         onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)}
-                                                        className="text-right"
+                                                        className="text-right price-indicative"
+                                                        title="Indicative price. The server resolves the final selling price on save."
                                                     />
+                                                    {lineError(index, 'unit_price') && (
+                                                        <span className="error-msg">{lineError(index, 'unit_price')}</span>
+                                                    )}
                                                 </td>
                                                 <td>
                                                     <input 
@@ -785,6 +858,9 @@ export default function SalesOrders({
                             </div>
 
                             <div className="invoice-totals">
+                                <div className="totals-mode-label totals-mode-label--preview">
+                                    Preview — calculated in this form, not final
+                                </div>
                                 <div className="total-row">
                                     <span className="label">Subtotal</span>
                                     <span>{Number(data.subtotal).toFixed(2)}</span>
@@ -835,6 +911,34 @@ export default function SalesOrders({
                                     <span className="label">Balance Due</span>
                                     <span>{(Number(data.total_amount) - Number(data.advance_payment)).toFixed(2)}</span>
                                 </div>
+
+                                {savedOrder && (
+                                    <div className="saved-totals-block">
+                                        <div className="totals-mode-label totals-mode-label--saved">
+                                            Saved totals — authoritative values returned by the server
+                                        </div>
+                                        <div className="total-row">
+                                            <span className="label">Subtotal</span>
+                                            <span>{Number(savedOrder.subtotal || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div className="total-row">
+                                            <span className="label">Discount</span>
+                                            <span>{Number(savedOrder.discount_amount || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div className="total-row">
+                                            <span className="label">Tax</span>
+                                            <span>{Number(savedOrder.tax_amount || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div className="total-row">
+                                            <span className="label">Shipping</span>
+                                            <span>{Number(savedOrder.shipping_cost || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div className="total-row grand-total">
+                                            <span className="label">Total</span>
+                                            <span>{Number(savedOrder.total_amount || 0).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

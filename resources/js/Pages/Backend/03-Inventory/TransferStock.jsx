@@ -42,14 +42,35 @@ export default function TransferStock({
         from_warehouse_id: transfer?.from_warehouse_id || '',
         to_warehouse_id: transfer?.to_warehouse_id || '',
         notes: transfer?.notes?.replace('TransferStock | ', '')?.replace('TransferStock', '') || '',
+        // `quantity` on a stored line is the BASE quantity. The quantity the user typed is kept in
+        // `original_quantity`, so editing/viewing must use that value with the original unit.
         items: transfer?.items?.map(item => ({
             product_id: item.product_id,
             unit_id: item.unit_id,
-            quantity: item.quantity
+            quantity: item.original_quantity ?? item.quantity
         })) || [
             { product_id: '', unit_id: '', quantity: 1 }
         ]
     });
+
+    // Conversion details of a stored line (base quantity + the factor actually used at posting time).
+    const lineConversion = (index) => {
+        const serverLine = transfer?.items?.[index];
+        if (!serverLine) return null;
+
+        const base = Number.parseFloat(serverLine.quantity);
+        const original = Number.parseFloat(serverLine.original_quantity ?? serverLine.quantity);
+        const factor = Number.parseFloat(serverLine.conversion_factor_snapshot ?? 1);
+
+        if (!Number.isFinite(base)) return null;
+
+        return {
+            base,
+            original: Number.isFinite(original) ? original : base,
+            factor: Number.isFinite(factor) ? factor : 1,
+            unitName: serverLine.unit?.name || serverLine.unit?.name_ar || ''
+        };
+    };
 
     useEffect(() => {
         transform((payload) => ({
@@ -325,12 +346,19 @@ export default function TransferStock({
                 </div>
 
                 <div className="items-table-container" style={{ marginTop: '20px' }}>
+                    <p className="price-authority-note">
+                        {t(
+                            'هذا مستند تحويل مخزني واحد: عند الحفظ يُسجَّل صادر من المستودع المصدر ووارد مطابق إلى المستودع الهدف تلقائيًا. الكمية تُدخل بالوحدة المختارة، والخادم هو من يحوّلها إلى الوحدة الأساسية.',
+                            'This is one stock transfer document: saving records the outbound movement from the source warehouse and the matching inbound movement to the destination warehouse. Quantities are entered in the selected unit — the server normalizes them to the base unit.'
+                        )}
+                    </p>
                     <table>
                         <thead>
                             <tr>
-                                <th style={{ width: '40%' }}>{t('المنتج', 'Product')}</th>
-                                <th style={{ width: '25%' }}>{t('الوحدة', 'Unit')}</th>
-                                <th style={{ width: '25%' }}>{t('الكمية', 'Quantity')}</th>
+                                <th style={{ width: transfer ? '30%' : '40%' }}>{t('المنتج', 'Product')}</th>
+                                <th style={{ width: '20%' }}>{t('الوحدة', 'Unit')}</th>
+                                <th style={{ width: '20%' }}>{t('الكمية (بالوحدة المختارة)', 'Quantity (selected unit)')}</th>
+                                {transfer && <th style={{ width: '30%' }}>{t('الكمية الأساسية (من الخادم)', 'Base quantity (server)')}</th>}
                                 {!viewing && <th className="action-column">{t('حذف', 'Remove')}</th>}
                             </tr>
                         </thead>
@@ -386,7 +414,30 @@ export default function TransferStock({
                                         {errors[`items.${index}.quantity`] &&
                                             <div className="error-message">{errors[`items.${index}.quantity`]}</div>
                                         }
+                                        {!transfer && !viewing && (
+                                            <div className="field-hint">
+                                                {t('تُحوَّل الكمية إلى الوحدة الأساسية عند الحفظ.', 'Converted to the base unit by the server on save.')}
+                                            </div>
+                                        )}
                                     </td>
+                                    {transfer && (
+                                        <td>
+                                            {(() => {
+                                                const conv = lineConversion(index);
+                                                if (!conv) return <span style={{ color: '#94a3b8' }}>—</span>;
+                                                return (
+                                                    <div className="conversion-cell">
+                                                        <div className="conversion-cell__base">{conv.base}</div>
+                                                        {(conv.factor !== 1 || conv.original !== conv.base) && (
+                                                            <div className="conversion-note">
+                                                                {conv.original}{conv.unitName ? ` ${conv.unitName}` : ''} × {conv.factor} = {conv.base}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })()}
+                                        </td>
+                                    )}
                                     {!viewing && (
                                         <td className="action-column">
                                             {data.items.length > 1 && (
@@ -413,6 +464,14 @@ export default function TransferStock({
                     </div>
                     {!viewing && (
                         <>
+                            {transfer && (
+                                <span className="field-hint" style={{ alignSelf: 'center' }}>
+                                    {t(
+                                        'التحويلات التي أثّرت على التكلفة لا يمكن تعديلها أو حذفها.',
+                                        'Transfers that already affected costing cannot be edited or deleted (the server will reject the change).'
+                                    )}
+                                </span>
+                            )}
                             <button type="button" className="btn btn-secondary" onClick={addItem}>
                                 {t('+ إضافة صنف', '+ Add line')}
                             </button>

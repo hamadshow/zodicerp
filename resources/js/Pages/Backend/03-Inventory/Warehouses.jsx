@@ -227,7 +227,7 @@ const ViewSection = ({ warehouses, onEdit, onCreate, onDelete }) => {
 };
 
 // --- Form Section Component ---
-const FormSection = ({ mode, initialData, branches, glAccounts, onBack, onSubmit }) => {
+const FormSection = ({ mode, initialData, branches, glAccounts, employees, onBack, onSubmit }) => {
     const { props } = usePage();
     const { localization } = props;
     const translations = localization?.translations || {};
@@ -240,6 +240,9 @@ const FormSection = ({ mode, initialData, branches, glAccounts, onBack, onSubmit
     const { errors } = usePage().props;
     const [selectedIcon, setSelectedIcon] = useState(initialData?.icon || 'warehouse');
     const [selectedColor, setSelectedColor] = useState(initialData?.color || '#3b82f6');
+    const managerValue = employees.find(employee =>
+        String(employee.id) === String(initialData?.manager) || employee.name === initialData?.manager
+    )?.id || '';
 
     const icons = [
         { icon: 'warehouse', name: __('warehouse') },
@@ -335,13 +338,18 @@ const FormSection = ({ mode, initialData, branches, glAccounts, onBack, onSubmit
                         <div className="form-row">
                             <div className="form-group">
                                 <label>{__('manager')}</label>
-                                <input
-                                    type="text"
+                                <select
                                     name="manager"
                                     className="form-control"
-                                    defaultValue={initialData?.manager}
-                                    placeholder={__('manager')}
-                                />
+                                    defaultValue={managerValue}
+                                >
+                                    <option value="">{__('select_manager')}</option>
+                                    {employees.map(employee => (
+                                        <option key={employee.id} value={employee.id}>
+                                            {employee.name}
+                                        </option>
+                                    ))}
+                                </select>
                                 {errors.manager && <div className="error-message">{errors.manager}</div>}
                             </div>
                             <div className="form-group">
@@ -456,7 +464,7 @@ const FormSection = ({ mode, initialData, branches, glAccounts, onBack, onSubmit
 };
 
 // --- Main Container Component ---
-const Warehouses = ({ warehouses = [], branches = [], glAccounts = [] }) => {
+const Warehouses = ({ warehouses = [], branches = [], glAccounts = [], employees = [] }) => {
     const { props } = usePage();
     const { localization } = props;
     const translations = localization?.translations || {};
@@ -552,6 +560,7 @@ const Warehouses = ({ warehouses = [], branches = [], glAccounts = [] }) => {
                     initialData={selectedWarehouse}
                     branches={branches}
                     glAccounts={glAccounts}
+                    employees={employees}
                     onBack={handleBackClick}
                     onSubmit={handleFormSubmit}
                 />

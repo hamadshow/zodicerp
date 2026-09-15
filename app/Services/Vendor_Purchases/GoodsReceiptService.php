@@ -10,6 +10,7 @@ use App\Models\Vendor_Purchases\PurchaseInvoiceDetail;
 use Illuminate\Support\Facades\DB;
 use App\Services\CompanyContext;
 use App\Services\Inventory\WeightedAverageCostService;
+use App\Services\UnitConversionService;
 
 class GoodsReceiptService
 {
@@ -107,14 +108,21 @@ class GoodsReceiptService
             ]);
 
             // Create inventory movements and update product quantities for accepted items
+            $unitConversionService = app(UnitConversionService::class);
             foreach ($receipt->details as $detail) {
                 if ($detail->is_accepted && $detail->accepted_quantity > 0) {
-                    $this->createStockMovement($receipt, $detail);
+                    $conversion = $unitConversionService->toBase(
+                        (int) $detail->product_id,
+                        (int) $detail->unit_id,
+                        (string) $detail->accepted_quantity
+                    );
+
+                    $this->createStockMovement($receipt, $detail, $conversion);
 
                     // Update product quantity
                     DB::table('products')
                         ->where('id', $detail->product_id)
-                        ->increment('quantity', (float) $detail->accepted_quantity);
+                        ->increment('quantity', (float) bcadd($conversion['base_quantity'], '0', 6));
                 }
             }
 
@@ -194,7 +202,7 @@ class GoodsReceiptService
         });
     }
 
-    private function createStockMovement(GoodsReceipt $receipt, GoodsReceiptDetail $detail): void
+    private function createStockMovement(GoodsReceipt $receipt, GoodsReceiptDetail $detail, ?array $conversion = null): void
     {
         $movementHeaderId = DB::table('inventory_movement_headers')->insertGetId([
             'movement_date' => $receipt->receipt_date,
@@ -211,12 +219,17 @@ class GoodsReceiptService
             'updated_at' => now(),
         ]);
 
+        $quantity = $conversion !== null ? $conversion['base_quantity'] : (string) $detail->accepted_quantity;
+        $conversionFactorSnapshot = $conversion['conversion_factor'] ?? '1.000000';
+
         $movementLineId = DB::table('inventory_movement_lines')->insertGetId([
             'stock_movement_id' => $movementHeaderId,
             'product_id' => $detail->product_id,
             'unit_id' => $detail->unit_id,
-            'quantity' => $detail->accepted_quantity,
+            'quantity' => $quantity,
             'cost_price' => $detail->unit_cost,
+            'conversion_factor_snapshot' => $conversionFactorSnapshot,
+            'original_quantity' => $detail->accepted_quantity,
             'goods_receipt_detail_id' => $detail->id,
             'purchase_invoice_detail_id' => $detail->invoice_detail_id,
             'created_at' => now(),
@@ -226,7 +239,7 @@ class GoodsReceiptService
         $this->weightedAverageCost->applyInbound(
             (int) $detail->product_id,
             (int) $receipt->warehouse_id,
-            (string) $detail->accepted_quantity,
+            $quantity,
             (string) $detail->unit_cost,
             'goods_receipt_detail',
             (int) $detail->id,

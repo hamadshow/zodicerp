@@ -470,3 +470,71 @@ body:has(.main-wrapper.collapsed) .form-actions-bar {
     }
   }
 }
+
+/* Server-authoritative pricing & totals feedback */
+.sales-orders-module {
+  .server-validation-summary {
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+
+    &__title {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 1.25rem;
+      list-style: disc;
+    }
+
+    li { font-size: 0.85rem; }
+  }
+
+  .price-authority-note {
+    background: #eff6ff;
+    border-left: 3px solid var(--primary-color);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-md);
+    margin: 0 0 0.75rem;
+  }
+
+  .th-hint {
+    font-weight: 400;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+  }
+
+  .price-indicative { background: #fffbeb; }
+
+  .error-msg {
+    color: var(--danger-color);
+    font-size: 0.75rem;
+    display: block;
+    margin-top: 0.25rem;
+  }
+
+  .totals-mode-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+
+    &--preview { color: var(--text-secondary); }
+    &--saved { color: var(--success-color); }
+  }
+
+  .saved-totals-block {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px dashed var(--border-color);
+  }
+}

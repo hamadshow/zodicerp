@@ -19,6 +19,7 @@
 /.vs
 /.continue
 /.freebuff
+/.trae
 /auth.json
 /node_modules
 /public/build

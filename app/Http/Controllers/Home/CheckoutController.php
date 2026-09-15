@@ -12,10 +12,14 @@ use App\Models\Currency;
 use App\Models\ItemUnit;
 use App\Models\Products;
 use App\Models\Warehouses;
+use App\Services\ProductPriceResolver;
+use App\Services\ProductSellingGuard;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class CheckoutController extends Controller
@@ -136,15 +140,32 @@ class CheckoutController extends Controller
                     continue;
                 }
 
+                ProductSellingGuard::assertSellable($product->id);
+
                 $qty = (int) ($cartItem['quantity'] ?? 1);
-                $price = (float) ($product->sale_price ?? $product->price ?? 0);
+                $unitId = (int) ($cartItem['unit_id'] ?? $product->unit_id);
+                $resolution = app(ProductPriceResolver::class)->resolve([
+                    'product' => $product,
+                    'customer' => $customer,
+                    'quantity' => (string) $qty,
+                    'unit_id' => $unitId,
+                    'transaction_date' => Carbon::now(),
+                ]);
+
+                if ($resolution['final_price'] === null) {
+                    throw new \RuntimeException('No price available');
+                }
+
+                $price = (float) $resolution['final_price'];
                 $subtotal += $price * $qty;
 
                 $itemsData[] = [
                     'product_id' => $product->id,
                     'quantity' => $qty,
-                    'unit_id' => $product->unit_id ?: ($defaultUnit->id ?? 1),
+                    'unit_id' => $unitId ?: ($defaultUnit->id ?? 1),
                     'unit_price' => $price,
+                    'discount_percentage' => $resolution['discount_percentage'] ?? null,
+                    'discount_amount' => $resolution['discount_amount'] ?? null,
                     'attribute_data' => $cartItem['variants'] ?? null,
                 ];
             }
@@ -195,6 +216,8 @@ class CheckoutController extends Controller
                     'delivered_quantity' => $item['quantity'],
                     'unit_id' => $item['unit_id'],
                     'unit_price' => $item['unit_price'],
+                    'discount_percentage' => $item['discount_percentage'] ?? null,
+                    'discount_amount' => $item['discount_amount'] ?? null,
                     'base_line_total' => $item['unit_price'] * $item['quantity'] * ($currency->exchange_rate ?? 1),
                     'attribute_data' => $item['attribute_data'],
                 ]);

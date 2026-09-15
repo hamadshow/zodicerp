@@ -60,6 +60,7 @@ class RoleController extends Controller
         ],
         'Inventory' => [
             'Inventory' => ['view', 'create', 'edit', 'delete'],
+            'Price Lists' => ['view', 'create', 'edit', 'delete'],
         ],
         'Reports' => [
             'Reports' => ['view', 'export'],

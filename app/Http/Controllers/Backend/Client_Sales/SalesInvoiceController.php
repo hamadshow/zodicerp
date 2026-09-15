@@ -22,6 +22,10 @@ use App\Services\Accounting\PostingService;
 use App\Services\Accounting\JournalReversalService;
 use App\Services\CompanyContext;
 use App\Services\Inventory\WeightedAverageCostService;
+use App\Services\ProductPriceResolver;
+use App\Services\ProductSellingGuard;
+use App\Services\UnitConversionService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -137,21 +141,91 @@ class SalesInvoiceController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.001',
             'items.*.unit_id' => 'required|exists:item_units,id',
-            'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.warehouse_id' => 'nullable|exists:warehouses,id',
             'items.*.discount_amount' => 'nullable|numeric|min:0',
             'items.*.tax_amount' => 'nullable|numeric|min:0',
-            'subtotal' => 'nullable|numeric|min:0',
-            'discount_amount' => 'nullable|numeric|min:0',
-            'tax_amount' => 'nullable|numeric|min:0',
             'shipping_cost' => 'nullable|numeric|min:0',
             'other_charges' => 'nullable|numeric|min:0',
-            'total_amount' => 'nullable|numeric|min:0',
             'paid_amount' => 'nullable|numeric|min:0',
         ]);
 
         try {
-            DB::transaction(function () use ($request, $validated) {
+            $priceResolver = app(ProductPriceResolver::class);
+            $customer = Customer::findOrFail($validated['customer_id']);
+            $transactionDate = Carbon::parse($validated['invoice_date']);
+
+            $processedItems = [];
+            $headerSubtotal = '0.000000';
+            $headerDiscount = '0.000000';
+            $headerTax = '0.000000';
+
+            foreach ($validated['items'] as $index => $item) {
+                $productId = (int) $item['product_id'];
+
+                ProductSellingGuard::assertSellable($productId);
+
+                $product = Products::findOrFail($productId);
+
+                $resolved = $priceResolver->resolve([
+                    'product' => $product,
+                    'customer' => $customer,
+                    'unit_id' => (int) $item['unit_id'],
+                    'quantity' => (string) $item['quantity'],
+                    'transaction_date' => $transactionDate,
+                ]);
+
+                if ($resolved['final_price'] === null) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        "items.{$index}.unit_price" => [
+                            "No selling price could be resolved for {$product->name} (SKU: {$product->sku}). No price list, customer group discount, or product sale price override gate was found in audit."
+                        ],
+                    ], 422);
+                }
+
+                $unitPrice = $resolved['final_price'];
+                $quantity = bcadd((string) $item['quantity'], '0', 6);
+                $lineDiscount = bcadd((string) ($item['discount_amount'] ?? '0'), '0', 6);
+                $lineTax = bcadd((string) ($item['tax_amount'] ?? '0'), '0', 6);
+
+                $lineGross = bcmul($quantity, $unitPrice, 6);
+                $lineNet = bcsub($lineGross, $lineDiscount, 6);
+                if (bccomp($lineNet, '0', 6) < 0) {
+                    $lineNet = '0.000000';
+                }
+                $lineTotal = bcadd($lineNet, $lineTax, 6);
+
+                $headerSubtotal = bcadd($headerSubtotal, $lineGross, 6);
+                $headerDiscount = bcadd($headerDiscount, $lineDiscount, 6);
+                $headerTax = bcadd($headerTax, $lineTax, 6);
+
+                $processedItems[] = [
+                    'product_id' => $productId,
+                    'warehouse_id' => $item['warehouse_id'] ?? null,
+                    'quantity' => $quantity,
+                    'unit_id' => (int) $item['unit_id'],
+                    'unit_price' => $unitPrice,
+                    'discount_amount' => $lineDiscount,
+                    'tax_amount' => $lineTax,
+                    'line_total' => $lineTotal,
+                    'price_source' => $resolved['source'],
+                    'price_list_id' => $resolved['price_list_id'],
+                    'price_list_item_id' => $resolved['price_list_item_id'],
+                ];
+            }
+
+            $shippingCost = bcadd((string) ($validated['shipping_cost'] ?? '0'), '0', 6);
+            $otherCharges = bcadd((string) ($validated['other_charges'] ?? '0'), '0', 6);
+            $paidAmount = bcadd((string) ($validated['paid_amount'] ?? '0'), '0', 6);
+
+            $netAfterDiscount = bcsub($headerSubtotal, $headerDiscount, 6);
+            if (bccomp($netAfterDiscount, '0', 6) < 0) {
+                $netAfterDiscount = '0.000000';
+            }
+            $headerTotal = bcadd($netAfterDiscount, $headerTax, 6);
+            $headerTotal = bcadd($headerTotal, $shippingCost, 6);
+            $headerTotal = bcadd($headerTotal, $otherCharges, 6);
+
+            DB::transaction(function () use ($request, $validated, $processedItems, $headerSubtotal, $headerDiscount, $headerTax, $shippingCost, $otherCharges, $headerTotal, $paidAmount) {
                 $number = $request->invoice_number ?? 'SINV-'.date('Ymd').'-'.rand(1000, 9999);
 
                 $defaultWarehouseId = Warehouses::query()->value('id') ?? 1;
@@ -176,26 +250,26 @@ class SalesInvoiceController extends Controller
                     'created_by' => Auth::id(),
                     'warehouse_id' => $warehouseId,
 
-                    'subtotal' => $request->subtotal ?? 0,
-                    'tax_amount' => $request->tax_amount ?? 0,
-                    'discount_amount' => $request->discount_amount ?? 0,
-                    'shipping_cost' => $request->shipping_cost ?? 0,
-                    'other_charges' => $request->other_charges ?? 0,
-                    'total_amount' => $request->total_amount ?? 0,
-                    'paid_amount' => $request->paid_amount ?? 0,
+                    'subtotal' => $headerSubtotal,
+                    'tax_amount' => $headerTax,
+                    'discount_amount' => $headerDiscount,
+                    'shipping_cost' => $shippingCost,
+                    'other_charges' => $otherCharges,
+                    'total_amount' => $headerTotal,
+                    'paid_amount' => $paidAmount,
 
                     'payment_terms' => $request->payment_terms,
                 ]);
 
-                foreach ($validated['items'] as $item) {
+                foreach ($processedItems as $pItem) {
                     $invoice->details()->create([
-                        'product_id' => $item['product_id'],
-                        'warehouse_id' => $item['warehouse_id'] ?? $warehouseId,
-                        'quantity' => $item['quantity'],
-                        'unit_id' => $item['unit_id'],
-                        'unit_price' => $item['unit_price'],
-                        'discount_amount' => $item['discount_amount'] ?? 0,
-                        'tax_amount' => $item['tax_amount'] ?? 0,
+                        'product_id' => $pItem['product_id'],
+                        'warehouse_id' => $pItem['warehouse_id'] ?? $warehouseId,
+                        'quantity' => $pItem['quantity'],
+                        'unit_id' => $pItem['unit_id'],
+                        'unit_price' => $pItem['unit_price'],
+                        'discount_amount' => $pItem['discount_amount'],
+                        'tax_amount' => $pItem['tax_amount'],
                     ]);
                 }
 
@@ -208,6 +282,8 @@ class SalesInvoiceController extends Controller
 
             return redirect()->back()->with('success', 'Sales Invoice created successfully.');
 
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
             return redirect()->back()->with('error', 'Error creating invoice: '.$e->getMessage());
         }
@@ -250,7 +326,47 @@ class SalesInvoiceController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($request, $validated, $invoice) {
+            $priceResolver = app(ProductPriceResolver::class);
+            $customer = Customer::findOrFail($validated['customer_id']);
+            $transactionDate = Carbon::parse($validated['invoice_date']);
+            $processedItems = [];
+            foreach ($validated['items'] as $item) {
+                ProductSellingGuard::assertSellable((int) $item['product_id']);
+                $product = Products::findOrFail((int) $item['product_id']);
+                $resolved = $priceResolver->resolve([
+                    'product' => $product,
+                    'customer' => $customer,
+                    'unit_id' => (int) $item['unit_id'],
+                    'quantity' => (string) $item['quantity'],
+                    'transaction_date' => $transactionDate,
+                ]);
+                if ($resolved['final_price'] === null) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'items' => ["No selling price could be resolved for {$product->name}."],
+                    ]);
+                }
+                $processedItems[] = [
+                    ...$item,
+                    'unit_price' => $resolved['final_price'],
+                    'discount_amount' => $item['discount_amount'] ?? 0,
+                    'tax_amount' => $item['tax_amount'] ?? 0,
+                ];
+            }
+
+            $subtotal = '0.000000';
+            $lineDiscount = '0.000000';
+            $lineTax = '0.000000';
+            foreach ($processedItems as $item) {
+                $subtotal = bcadd($subtotal, bcmul((string) $item['quantity'], (string) $item['unit_price'], 6), 6);
+                $lineDiscount = bcadd($lineDiscount, (string) ($item['discount_amount'] ?? '0'), 6);
+                $lineTax = bcadd($lineTax, (string) ($item['tax_amount'] ?? '0'), 6);
+            }
+            $shippingCost = bcadd((string) ($request->shipping_cost ?? '0'), '0', 6);
+            $otherCharges = bcadd((string) ($request->other_charges ?? '0'), '0', 6);
+            $totalAmount = bcadd(bcsub(bcadd($subtotal, $lineTax, 6), $lineDiscount, 6), $shippingCost, 6);
+            $totalAmount = bcadd($totalAmount, $otherCharges, 6);
+
+            DB::transaction(function () use ($request, $validated, $invoice, $processedItems, $subtotal, $lineDiscount, $lineTax, $shippingCost, $otherCharges, $totalAmount) {
                 $defaultWarehouseId = Warehouses::query()->value('id') ?? 1;
                 $warehouseId = $request->warehouse_id ?? $invoice->warehouse_id ?? $defaultWarehouseId;
 
@@ -271,19 +387,19 @@ class SalesInvoiceController extends Controller
                     'internal_notes' => $request->internal_notes,
 
                     'warehouse_id' => $warehouseId,
-                    'subtotal' => $request->subtotal,
-                    'tax_amount' => $request->tax_amount,
-                    'discount_amount' => $request->discount_amount,
-                    'shipping_cost' => $request->shipping_cost,
-                    'other_charges' => $request->other_charges,
-                    'total_amount' => $request->total_amount,
+                    'subtotal' => $subtotal,
+                    'tax_amount' => $lineTax,
+                    'discount_amount' => $lineDiscount,
+                    'shipping_cost' => $shippingCost,
+                    'other_charges' => $otherCharges,
+                    'total_amount' => $totalAmount,
                     'paid_amount' => $request->paid_amount,
                     'payment_terms' => $request->payment_terms,
                 ]);
 
                 $invoice->details()->withTrashed()->forceDelete();
 
-                foreach ($validated['items'] as $item) {
+                foreach ($processedItems as $item) {
                     $invoice->details()->create([
                         'product_id' => $item['product_id'],
                         'warehouse_id' => $item['warehouse_id'] ?? $warehouseId,
@@ -585,9 +701,15 @@ class SalesInvoiceController extends Controller
     {
         $invoice->load('details');
         $totalCogs = '0.000000';
+        $unitConversion = app(UnitConversionService::class);
 
         foreach ($invoice->details as $detail) {
-            $quantity = (string) $detail->quantity;
+            $conversion = $unitConversion->toBase(
+                (int) $detail->product_id,
+                (int) $detail->unit_id,
+                (string) $detail->quantity
+            );
+            $quantity = $conversion['base_quantity'];
             if (bccomp($quantity, '0', 6) <= 0) {
                 continue;
             }
@@ -715,6 +837,7 @@ class SalesInvoiceController extends Controller
 
         $invoice->load('details');
         $warehouseId = $invoice->warehouse_id;
+        $unitConversion = app(UnitConversionService::class);
 
         $movementHeaderId = DB::table('inventory_movement_headers')->insertGetId([
             'movement_date' => $invoice->invoice_date,
@@ -732,8 +855,13 @@ class SalesInvoiceController extends Controller
         ]);
 
         foreach ($invoice->details as $detail) {
-            $qty = (float) $detail->quantity;
-            if ($qty <= 0) {
+            $conversion = $unitConversion->toBase(
+                (int) $detail->product_id,
+                (int) $detail->unit_id,
+                (string) $detail->quantity
+            );
+            $baseQuantity = $conversion['base_quantity'];
+            if (bccomp($baseQuantity, '0', 6) <= 0) {
                 continue;
             }
 
@@ -749,7 +877,9 @@ class SalesInvoiceController extends Controller
                 'stock_movement_id' => $movementHeaderId,
                 'product_id' => $detail->product_id,
                 'unit_id' => $detail->unit_id,
-                'quantity' => $qty,
+                'quantity' => $baseQuantity,
+                'original_quantity' => $detail->quantity,
+                'conversion_factor_snapshot' => $conversion['conversion_factor'],
                 'cost_price' => $costPrice,
                 'purchase_invoice_detail_id' => null,
                 'created_at' => now(),
@@ -759,7 +889,7 @@ class SalesInvoiceController extends Controller
             // Deduct product quantity
             DB::table('products')
                 ->where('id', $detail->product_id)
-                ->decrement('quantity', $qty);
+                ->decrement('quantity', $baseQuantity);
         }
     }
 

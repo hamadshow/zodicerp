@@ -168,6 +168,39 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
             )
         },
         { header: t('sku', 'SKU'), key: 'sku', sortable: true },
+        {
+            header: t('product_kind', 'Type'),
+            key: 'product_kind',
+            render: (product) => {
+                const isChild = Boolean(product.is_variation) || (Boolean(product.parent_id) && product.product_type !== 'variable');
+                const isVariableParent = product.product_type === 'variable' || Number(product.variations_count || 0) > 0;
+
+                if (isChild) {
+                    return (
+                        <span
+                            className="product-kind-badge product-kind-badge--child"
+                            title={t('child_sku_hint', 'Variant / child SKU of a configurable product — sellable on its own.')}
+                        >
+                            {t('variant_sku', 'Variant SKU')}
+                        </span>
+                    );
+                }
+
+                if (isVariableParent) {
+                    return (
+                        <span
+                            className="product-kind-badge product-kind-badge--parent"
+                            title={t('variable_parent_hint', 'Configurable parent product — not directly sellable. Sell one of its variant SKUs.')}
+                        >
+                            {t('variable_parent', 'Variable (parent)')}
+                            {Number(product.variations_count || 0) > 0 ? ` · ${product.variations_count}` : ''}
+                        </span>
+                    );
+                }
+
+                return <span className="product-kind-badge product-kind-badge--simple">{t('simple_product', 'Simple')}</span>;
+            }
+        },
         { 
             header: t('category', 'Category'), 
             key: 'category', 
@@ -758,6 +791,19 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                         viewTitle={t('view', 'View')}
                         editTitle={t('edit', 'Edit')}
                         deleteTitle={t('delete', 'Delete')}
+                        currentPage={safeProducts.current_page || 1}
+                        totalPages={safeProducts.last_page || 1}
+                        totalRecords={safeProducts.total || 0}
+                        recordsPerPage={safeProducts.per_page || 20}
+                        onPageChange={(page) => router.get(getLocalizedRoute('admin.inventory.products.index'), {
+                            ...filterParams,
+                            page,
+                        }, { preserveState: true, preserveScroll: true, replace: true })}
+                        onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.inventory.products.index'), {
+                            ...filterParams,
+                            page: 1,
+                            per_page: perPage,
+                        }, { preserveState: true, preserveScroll: true, replace: true })}
                     />
 
                 </div>

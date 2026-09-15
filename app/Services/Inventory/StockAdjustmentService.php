@@ -2,6 +2,7 @@
 
 namespace App\Services\Inventory;
 
+use App\Services\UnitConversionService;
 use App\Traits\EnsuresFiscalPeriod;
 use App\Models\Account;
 use App\Models\Accounting\JournalEntry;
@@ -19,6 +20,7 @@ class StockAdjustmentService
     public function createAdjustment(array $data): object
     {
         return DB::transaction(function () use ($data) {
+            $unitConversion = app(UnitConversionService::class);
             $adjustmentNumber = $this->generateAdjustmentNumber();
 
             $adjustmentId = DB::table('stock_adjustments')->insertGetId([
@@ -40,7 +42,12 @@ class StockAdjustmentService
                     $data['warehouse_id']
                 );
 
-                $adjustmentQty = (float) $item['adjustment_quantity'];
+                $conversion = $unitConversion->toBase(
+                    (int) $item['product_id'],
+                    (int) $item['unit_id'],
+                    (string) $item['adjustment_quantity']
+                );
+                $adjustmentQty = (float) $conversion['base_quantity'];
                 $quantityAfter = $quantityBefore + $adjustmentQty;
 
                 DB::table('stock_adjustment_items')->insert([
@@ -67,6 +74,7 @@ class StockAdjustmentService
     public function approveAdjustment(int $adjustmentId): object
     {
         return DB::transaction(function () use ($adjustmentId) {
+            $unitConversion = app(UnitConversionService::class);
             $adjustment = DB::table('stock_adjustments')->where('id', $adjustmentId)->first();
 
             if (!$adjustment) {
@@ -95,8 +103,13 @@ class StockAdjustmentService
             $productQuantities = [];
 
             foreach ($items as $item) {
-                $adjQty = (float) $item->adjustment_quantity;
-                if ($adjQty == 0) {
+                $conversion = $unitConversion->toBase(
+                    (int) $item->product_id,
+                    (int) $item->unit_id,
+                    (string) $item->adjustment_quantity
+                );
+                $adjQty = (float) $conversion['base_quantity'];
+                if ($adjQty == 0.0) {
                     continue;
                 }
 
@@ -128,8 +141,13 @@ class StockAdjustmentService
             ]);
 
             foreach ($items as $item) {
-                $adjQty = (float) $item->adjustment_quantity;
-                if ($adjQty == 0) {
+                $conversion = $unitConversion->toBase(
+                    (int) $item->product_id,
+                    (int) $item->unit_id,
+                    (string) $item->adjustment_quantity
+                );
+                $adjQty = (float) $conversion['base_quantity'];
+                if ($adjQty == 0.0) {
                     continue;
                 }
 
@@ -138,6 +156,8 @@ class StockAdjustmentService
                     'product_id' => $item->product_id,
                     'unit_id' => $item->unit_id,
                     'quantity' => abs($adjQty),
+                    'original_quantity' => abs((float) $item->adjustment_quantity),
+                    'conversion_factor_snapshot' => $conversion['conversion_factor'],
                     'cost_price' => $item->unit_cost ?? 0,
                     'created_at' => now(),
                     'updated_at' => now(),

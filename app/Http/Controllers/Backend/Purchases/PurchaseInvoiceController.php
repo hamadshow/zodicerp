@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use App\Services\CompanyContext;
 use App\Services\Inventory\WeightedAverageCostService;
+use App\Services\UnitConversionService;
 
 class PurchaseInvoiceController extends Controller
 {
@@ -31,18 +32,29 @@ class PurchaseInvoiceController extends Controller
     protected function reconcileWeightedAverage(PurchaseInvoice $invoice): void
     {
         $costing = app(WeightedAverageCostService::class);
+        $conversionService = app(UnitConversionService::class);
         $companyId = app(CompanyContext::class)->id();
 
         foreach ($invoice->items as $detail) {
-            $received = DB::table('goods_receipt_details as grd')
+            $receivedDetails = DB::table('goods_receipt_details as grd')
                 ->join('goods_receipts as gr', 'gr.id', '=', 'grd.receipt_id')
                 ->where('grd.invoice_detail_id', $detail->id)
                 ->where('gr.status', 'approved')
                 ->where('grd.is_accepted', true)
                 ->whereNull('gr.deleted_at')
-                ->sum('grd.accepted_quantity');
+                ->get(['grd.accepted_quantity', 'grd.unit_id']);
 
-            $received = (string) $received;
+            $received = '0.000000';
+            $baseCost = null;
+            foreach ($receivedDetails as $receivedDetail) {
+                $conversion = $conversionService->toBase(
+                    (int) $detail->product_id,
+                    (int) $receivedDetail->unit_id,
+                    (string) $receivedDetail->accepted_quantity
+                );
+                $received = bcadd($received, $conversion['base_quantity'], 6);
+                $baseCost ??= bcdiv($this->netUnitCost($detail), $conversion['conversion_factor'], 6);
+            }
             if (bccomp($received, '0', 6) <= 0) {
                 continue;
             }
@@ -61,7 +73,7 @@ class PurchaseInvoiceController extends Controller
                 })
                 ->sum('value_delta');
 
-            $invoiceValue = bcmul($received, $this->netUnitCost($detail), 6);
+            $invoiceValue = bcmul($received, $baseCost ?? $this->netUnitCost($detail), 6);
             $adjustment = bcsub($invoiceValue, (string) $provisional, 6);
             if (bccomp($adjustment, '0', 6) === 0) {
                 continue;
@@ -71,7 +83,7 @@ class PurchaseInvoiceController extends Controller
                 (int) $detail->product_id,
                 (int) $detail->warehouse_id,
                 $adjustment,
-                $this->netUnitCost($detail),
+                $baseCost ?? $this->netUnitCost($detail),
                 'purchase_invoice_reconciliation',
                 (int) $detail->id,
                 (string) $invoice->invoice_date,

@@ -7,6 +7,7 @@ use App\Http\Requests\Inventory\StoreWarehouseRequest;
 use App\Http\Requests\Inventory\UpdateWarehouseRequest;
 use App\Models\Account;
 use App\Models\Branch;
+use App\Models\Employee;
 use App\Models\Warehouses;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -43,11 +44,17 @@ class WarehousesController extends Controller
             ->orderBy('AccCode', 'asc')
             ->get();
 
+        $employees = Employee::query()
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
         if ($request->wantsJson()) {
             return response()->json([
                 'warehouses' => $warehouses,
                 'branches' => $branches,
                 'glAccounts' => $glAccounts,
+                'employees' => $employees,
             ]);
         }
 
@@ -55,6 +62,7 @@ class WarehousesController extends Controller
             'warehouses' => $warehouses,
             'branches' => $branches,
             'glAccounts' => $glAccounts,
+            'employees' => $employees,
         ]);
     }
 

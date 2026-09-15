@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Services\Inventory\WeightedAverageCostService;
 use App\Services\CompanyContext;
+use App\Services\UnitConversionService;
 use Illuminate\Validation\ValidationException;
 
 class SalesReturnService
@@ -639,14 +640,22 @@ class SalesReturnService
         }
 
         $return->load('details');
+        $unitConversionService = app(UnitConversionService::class);
         foreach ($return->details as $detail) {
             if (($detail->quantity ?? 0) <= 0) {
                 continue;
             }
 
+            $conversion = $unitConversionService->toBase(
+                (int) $detail->product_id,
+                (int) $detail->unit_id,
+                (string) $detail->quantity
+            );
+            $baseQuantity = $conversion['base_quantity'];
+            $conversionFactorSnapshot = $conversion['conversion_factor'];
+
             $movementHeaderId = DB::table('inventory_movement_headers')->insertGetId([
                 'movement_date' => $return->return_date,
-                // inventory_movement_headers.type enum value (parallel to 'purchase_return')
                 'type' => 'sale_return',
                 'direction' => 'in',
                 'reference_id' => $return->id,
@@ -674,7 +683,9 @@ class SalesReturnService
                 'stock_movement_id' => $movementHeaderId,
                 'product_id' => $detail->product_id,
                 'unit_id' => $detail->unit_id ?? null,
-                'quantity' => $detail->quantity,
+                'quantity' => $baseQuantity,
+                'conversion_factor_snapshot' => $conversionFactorSnapshot,
+                'original_quantity' => $detail->quantity,
                 'cost_price' => $costPrice,
                 'goods_receipt_detail_id' => null,
                 'purchase_invoice_detail_id' => null,
@@ -682,15 +693,14 @@ class SalesReturnService
                 'updated_at' => now(),
             ]);
 
-            // Update product quantity
             DB::table('products')
                 ->where('id', $detail->product_id)
-                ->increment('quantity', (float) $detail->quantity);
+                ->increment('quantity', (float) $baseQuantity);
 
             app(WeightedAverageCostService::class)->applyInbound(
                 (int) $detail->product_id,
                 (int) $return->warehouse_id,
-                (string) $detail->quantity,
+                $baseQuantity,
                 $costPrice,
                 'sales_return_detail',
                 (int) $detail->id,
@@ -836,19 +846,23 @@ class SalesReturnService
      */
     private function reverseStockMovementsForReturn(SalesReturn $return): void
     {
-        // Find and delete existing movements for this return
         $headers = DB::table('inventory_movement_headers')
             ->where('reference_id', $return->id)
             ->where('reference_type', 'sales_return')
             ->get();
 
         foreach ($headers as $header) {
-            // Reverse product quantities
             $lines = DB::table('inventory_movement_lines')
                 ->where('stock_movement_id', $header->id)
                 ->get();
 
             foreach ($lines as $line) {
+                // NOTE: line->quantity is stored in base-normalized units
+                // (written via UnitConversionService->toBase in createStockMovementsForReturn),
+                // so decrementing directly by line->quantity correctly reverses the
+                // base-quantity increment that was applied on return creation.
+                // conversion_factor_snapshot on the line is available if the original
+                // document-unit quantity ever needs to be reconstructed.
                 DB::table('products')
                     ->where('id', $line->product_id)
                     ->decrement('quantity', (float) $line->quantity);

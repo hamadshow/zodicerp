@@ -18,7 +18,7 @@ const DM_TYPES = [
 ];
 
 const NATURE_OPTIONS = [
-  'asset', 'Inventory','Accounts Receivable','cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income'
+  'asset', 'Inventory','Accounts Receivable','Accounts Payable','cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income'
 ];
 
 const getAccountTypeLabel = (value) => {
@@ -106,7 +106,7 @@ export default function ChartOfAccounts() {
   ];
 
   const NATURE_OPTIONS = [
-    'asset', 'Inventory','Accounts Receivable','cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income'
+    'asset', 'Inventory','Accounts Receivable','Accounts Payable','cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income'
   ];
 
   const [tree, setTree] = useState([]);

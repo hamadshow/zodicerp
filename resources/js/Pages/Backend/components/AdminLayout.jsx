@@ -212,6 +212,7 @@ const AdminLayout = ({
         { icon: 'category', label: translations['sidebar.categories'] || 'Categories', href: getLocalizedRoute('admin.inventory.categories.index'), permission: 'product_categories.view' },
         { icon: 'branding_watermark', label: translations['sidebar.brands'] || 'Brands', href: getLocalizedRoute('admin.inventory.brands.index'), permission: 'brands.view' },
         { icon: 'inventory', label: translations['sidebar.products'] || 'Products', href: getLocalizedRoute('admin.inventory.products.index'), permission: 'products.view' },
+        { icon: 'sell', label: translations['sidebar.price_lists'] || 'Price Lists', href: getLocalizedRoute('admin.inventory.price-lists.index'), permission: 'price_lists.view' },
         { icon: 'playlist_add', label: translations['sidebar.opening_stock'] || 'Opening Stock', href: getLocalizedRoute('admin.inventory.opening-stock.index'), permission: 'inventory.view' },
         { icon: 'swap_horiz', label: translations['sidebar.transfer_stock'] || 'Transfer Stock', href: getLocalizedRoute('admin.inventory.stock-transfers.index'), permission: 'inventory.view' },
         { icon: 'assignment', label: translations['sidebar.stock_adjustments'] || 'Stock Adjustments', href: getLocalizedRoute('admin.inventory.stock-adjustments.index'), permission: 'inventory.view' },

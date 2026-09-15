@@ -17,6 +17,8 @@ class TransferStockItem extends Model
         'product_id',
         'unit_id',
         'quantity',
+        'original_quantity',
+        'conversion_factor_snapshot',
         'cost_price',
     ];
 

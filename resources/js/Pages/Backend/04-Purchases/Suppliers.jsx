@@ -5,8 +5,8 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AdminLayout from '../components/AdminLayout';
 import BlankPage from '@/Components/BlankPage';
+import Table from '../components/Table';
 import '../../../../css/backend/main.scss';
-import Pagination from '../components/Pagination';
 
 export default function Suppliers({ suppliers, groups, cities, currencies, accounts, filters }) {
     const [mode, setMode] = useState('list'); // list, create, edit
@@ -672,6 +672,59 @@ export default function Suppliers({ suppliers, groups, cities, currencies, accou
         </div>
     );
 
+    const supplierColumns = [
+        { key: 'supplier_code', header: t('supplier_code', 'Code'), sortable: true },
+        { key: 'name_ar', header: t('name', 'Name'), sortable: true },
+        { key: 'group', header: t('group', 'Group'), render: (supplier) => supplier.group?.name_en || '-' },
+        { key: 'primary_phone', header: t('phone', 'Phone') },
+        { key: 'email', header: t('email', 'Email'), render: (supplier) => supplier.email || '-' },
+        {
+            key: 'contacts',
+            header: t('telegram', 'Telegram'),
+            render: (supplier) => {
+                const contact = supplier.contacts?.find(c => c.is_primary && c.telegram) || supplier.contacts?.find(c => c.telegram);
+                if (!contact) return '-';
+                let link = contact.telegram;
+                if (!link.startsWith('http') && !link.startsWith('t.me')) {
+                    link = `https://t.me/${link.replace('@', '')}`;
+                } else if (link.startsWith('t.me')) {
+                    link = `https://${link}`;
+                }
+                return (
+                    <a href={link} target="_blank" rel="noopener noreferrer" title="Open Telegram">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512" width="20" height="20" fill="#229ED9">
+                            <path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm121.8 169.9l-40.7 191.8c-3 13.6-11.1 16.9-22.4 10.5l-62-45.7-29.9 28.8c-3.3 3.3-6.1 6.1-12.5 6.1l4.4-63.1 114.9-103.8c5-4.4-1.1-6.9-7.7-2.5l-142 89.4-61.2-19.1c-13.3-4.2-13.6-13.3 2.8-19.7l239.1-92.2c11-4 20.8 2.7 17.2 19.5z" />
+                        </svg>
+                    </a>
+                );
+            }
+        },
+        {
+            key: 'is_active',
+            header: t('status', 'Status'),
+            render: (supplier) => (
+                <span className={`supplier-status ${supplier.is_active ? 'status-active' : 'status-inactive'}`}>
+                    {supplier.is_active ? t('active', 'Active') : t('inactive', 'Inactive')}
+                </span>
+            )
+        },
+        {
+            key: 'actions',
+            header: t('actions', 'Actions'),
+            render: (supplier) => (
+                <button
+                    className={`btn-favorite ${supplier.favorite ? 'active' : ''}`}
+                    onClick={() => handleToggleFavorite(supplier)}
+                    title={supplier.favorite ? t('unfavorite', 'Unfavorite') : t('favorite', 'Favorite')}
+                >
+                    <span className="material-icons-outlined">
+                        {supplier.favorite ? 'star' : 'star_border'}
+                    </span>
+                </button>
+            )
+        }
+    ];
+
     return (
         <AdminLayout>
             <Head title={`${t('suppliers', 'Suppliers Management')} - ZodicERP`} />
@@ -699,88 +752,21 @@ export default function Suppliers({ suppliers, groups, cities, currencies, accou
                     {mode === 'list' ? (
                         <div className="suppliers-card">
                             <div className="table-responsive">
-                                <table className="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>{t('supplier_code', 'Code')}</th>
-                                        <th>{t('name', 'Name')}</th>
-                                        <th>{t('group', 'Group')}</th>
-                                        <th>{t('phone', 'Phone')}</th>
-                                        <th>{t('email', 'Email')}</th>
-                                        <th>{t('telegram', 'Telegram')}</th>
-                                        <th>{t('status', 'Status')}</th>
-                                        <th>{t('actions', 'Actions')}</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {suppliers.data.map((supplier) => (
-                                        <tr key={supplier.id}>
-                                            <td>{supplier.supplier_code}</td>
-                                            <td>{supplier.name_ar}</td>
-                                            <td>{supplier.group?.name_en || '-'}</td>
-                                            <td>{supplier.primary_phone}</td>
-                                            <td>{supplier.email || '-'}</td>
-                                            <td>
-                                                {(() => {
-                                                    const contact = supplier.contacts?.find(c => c.is_primary && c.telegram) || supplier.contacts?.find(c => c.telegram);
-                                                    if (!contact) return '-';
-                                                    let link = contact.telegram;
-                                                    if (!link.startsWith('http') && !link.startsWith('t.me')) {
-                                                        link = `https://t.me/${link.replace('@', '')}`;
-                                                    } else if (link.startsWith('t.me')) {
-                                                        link = `https://${link}`;
-                                                    }
-                                                    return (
-                                                        <a href={link} target="_blank" rel="noopener noreferrer" title="Open Telegram">
-                                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512" width="20" height="20" fill="#229ED9">
-                                                                <path d="M248 8C111 8 0 119 0 256s111 248 248 248 248-111 248-248S385 8 248 8zm121.8 169.9l-40.7 191.8c-3 13.6-11.1 16.9-22.4 10.5l-62-45.7-29.9 28.8c-3.3 3.3-6.1 6.1-12.5 6.1l4.4-63.1 114.9-103.8c5-4.4-1.1-6.9-7.7-2.5l-142 89.4-61.2-19.1c-13.3-4.2-13.6-13.3 2.8-19.7l239.1-92.2c11.1-4 20.8 2.7 17.2 19.5z"/>
-                                                            </svg>
-                                                        </a>
-                                                    );
-                                                })()}
-                                            </td>
-                                            <td>
-                                                <span className={`supplier-status ${supplier.is_active ? 'status-active' : 'status-inactive'}`}>
-                                                    {supplier.is_active ? t('active', 'Active') : t('inactive', 'Inactive')}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <div className="action-buttons">
-                                                    <button 
-                                                    className={`btn-favorite ${supplier.favorite ? 'active' : ''}`}
-                                                    onClick={() => handleToggleFavorite(supplier)}
-                                                    title={supplier.favorite ? t('unfavorite', "Unfavorite") : t('favorite', "Favorite")}
-                                                >
-                                                    <span className="material-icons-outlined">
-                                                        {supplier.favorite ? 'star' : 'star_border'}
-                                                    </span>
-                                                </button>
-                                                <button className="btn-icon edit" onClick={() => handleEdit(supplier)} title={t('edit', 'Edit')}>
-                                                    <span className="material-icons-outlined">edit</span>
-                                                </button>
-                                                <button className="btn-icon delete" onClick={() => handleDelete(supplier.id)} title={t('delete', 'Delete')}>
-                                                    <span className="material-icons-outlined">delete</span>
-                                                </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    {suppliers.data.length === 0 && (
-                                        <tr>
-                                            <td colSpan="8" className="empty-state">{t('no_suppliers_found', 'No suppliers found.')}</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                            <Pagination
-                                currentPage={suppliers.current_page}
-                                totalPages={suppliers.last_page}
-                                totalRecords={suppliers.total}
-                                recordsPerPage={suppliers.per_page}
-                                onPageChange={(page) => router.get(getLocalizedRoute('admin.purchases.suppliers.index'), { search, page, per_page: suppliers.per_page }, { preserveState: true })}
-                                onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.purchases.suppliers.index'), { search, page: 1, per_page: perPage }, { preserveState: true })}
-                            />
+                                <Table
+                                    tableData={suppliers.data}
+                                    columns={supplierColumns}
+                                    currentPage={suppliers.current_page}
+                                    totalPages={suppliers.last_page}
+                                    totalRecords={suppliers.total}
+                                    recordsPerPage={suppliers.per_page}
+                                    onEdit={handleEdit}
+                                    onDelete={(supplier) => handleDelete(supplier.id)}
+                                    editTitle={t('edit', 'Edit')}
+                                    deleteTitle={t('delete', 'Delete')}
+                                    onPageChange={(page) => router.get(getLocalizedRoute('admin.purchases.suppliers.index'), { search, page, per_page: suppliers.per_page }, { preserveState: true })}
+                                    onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.purchases.suppliers.index'), { search, page: 1, per_page: perPage }, { preserveState: true })}
+                                />
+                            </div>
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} className="suppliers-card">

@@ -138,3 +138,36 @@
     margin-top: 30px;
   }
 }
+
+/* Conversion transparency for a single logical transfer document */
+.transfer-stock-container {
+  .price-authority-note {
+    background: #eff6ff;
+    border-left: 3px solid #3b82f6;
+    color: #64748b;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin: 0 0 12px;
+  }
+
+  .field-hint {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 4px;
+  }
+
+  .conversion-cell {
+    &__base {
+      font-weight: 600;
+      color: #111827;
+    }
+  }
+
+  .conversion-note {
+    font-size: 0.72rem;
+    color: #64748b;
+    margin-top: 2px;
+  }
+}
