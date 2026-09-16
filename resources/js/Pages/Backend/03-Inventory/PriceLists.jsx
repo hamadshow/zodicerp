@@ -150,8 +150,6 @@ const PriceListFormPage = ({
     getRoute,
     __,
 }) => {
-    usePage();
-
     const isEdit = mode === 'edit';
 
     const form = useForm({
@@ -170,6 +168,7 @@ const PriceListFormPage = ({
     });
 
     const { data, setData, errors, processing } = form;
+    const hasErrors = Object.keys(errors).length > 0;
 
     const goBack = () => router.get(getRoute('admin.inventory.price-lists.index'));
 
@@ -196,24 +195,32 @@ const PriceListFormPage = ({
         <BlankPage breadcrumbs={breadcrumbs}>
             <div className="price-lists-form-page">
                 <div className="price-lists-form-page__header">
-                    <div>
-                        <h2 className="price-lists-form-page__title">
+                    <div className="price-lists-form-page__identity">
+                        <div className="price-lists-form-page__eyebrow">{__('title')}</div>
+                        <h1 className="price-lists-form-page__title">
                             {isEdit ? __('edit_list') : __('create_list')}
-                        </h2>
-                        <div className="price-lists-form-page__subtitle">
-                            {isEdit
-                                ? __('edit_list_hint', 'Edit the price list header details below.')
-                                : __('create_list_hint', 'Create a new price list header below.')}
-                        </div>
+                        </h1>
+                        <p className="price-lists-form-page__subtitle">
+                            {isEdit ? __('edit_list_hint') : __('create_list_hint')}
+                        </p>
                     </div>
                     <button type="button" className="price-lists-btn price-lists-btn--ghost" onClick={goBack}>
                         <span className="material-icons-outlined">arrow_back</span>
-                        {__('back_to_list', 'Back to Price Lists')}
+                        {__('back_to_list')}
                     </button>
                 </div>
 
                 <div className="price-lists-form-page__card">
                     <form onSubmit={submit} className="price-lists-form">
+                        {hasErrors && (
+                            <div className="price-lists-alert" role="alert">
+                                <span className="material-icons-outlined">error_outline</span>
+                                <span>{__('validation_summary')}</span>
+                            </div>
+                        )}
+
+                        <div className="price-lists-form__section">{__('section_information')}</div>
+
                         <div className="price-lists-form__row">
                             <div className="form-group">
                                 <label className="form-label" htmlFor="pl_code">
@@ -287,6 +294,8 @@ const PriceListFormPage = ({
                             </div>
                         </div>
 
+                        <div className="price-lists-form__section">{__('section_pricing')}</div>
+
                         <div className="price-lists-form__row">
                             <div className="form-group">
                                 <label className="form-label" htmlFor="pl_currency_id">
@@ -344,6 +353,8 @@ const PriceListFormPage = ({
                             </div>
                         </div>
 
+                        <div className="price-lists-form__section">{__('section_validity')}</div>
+
                         <div className="price-lists-form__row">
                             <div className="form-group">
                                 <label className="form-label" htmlFor="pl_valid_from">
@@ -396,6 +407,8 @@ const PriceListFormPage = ({
                             </label>
                         </div>
 
+                        <div className="price-lists-form__section">{__('section_notes')}</div>
+
                         <div className="form-group">
                             <label className="form-label" htmlFor="pl_notes">
                                 {__('notes')}
@@ -419,11 +432,7 @@ const PriceListFormPage = ({
                                 className="price-lists-btn price-lists-btn--primary"
                                 disabled={processing}
                             >
-                                {processing
-                                    ? __('saving')
-                                    : isEdit
-                                    ? __('update_list', 'Update Price List')
-                                    : __('save_list', 'Save Price List')}
+                                {processing ? __('saving') : isEdit ? __('update_list') : __('save_list')}
                             </button>
                         </div>
                     </form>
@@ -482,11 +491,34 @@ const PriceItemFormModal = ({
     const [searching, setSearching] = useState(false);
     const searchTimer = useRef(null);
 
-    const unitOptions = useMemo(() => units || [], [units]);
+    // Existing item_units semantics (source of truth):
+    //   base_unit         -> the unit's parent (null for a main unit)
+    //   conversion_factor -> how many base units one of this unit equals
+    // The dialog scopes units to the selected product's own unit family —
+    // its base unit (products.unit_id) plus the valid children of that base
+    // unit — and derives Min Qty from the selected unit's conversion_factor
+    // instead of letting the user type a tier start.
+    const productUnits = useMemo(() => {
+        const list = units || [];
+        const baseId = selectedProduct?.unit_id ?? selectedProduct?.unit?.id ?? null;
+        if (!baseId) return [];
+        const base = list.find((unit) => String(unit.id) === String(baseId));
+        if (!base) return [];
+        return [
+            base,
+            ...list.filter(
+                (unit) =>
+                    unit.base_unit !== null &&
+                    unit.base_unit !== undefined &&
+                    String(unit.base_unit) === String(baseId) &&
+                    (unit.active === undefined || unit.active)
+            ),
+        ];
+    }, [units, selectedProduct]);
 
     const selectedUnit = useMemo(
-        () => unitOptions.find((unit) => String(unit.id) === String(data.unit_id)) || null,
-        [unitOptions, data.unit_id]
+        () => productUnits.find((unit) => String(unit.id) === String(data.unit_id)) || null,
+        [productUnits, data.unit_id]
     );
 
     const handleProductSearch = (term) => {
@@ -520,15 +552,35 @@ const PriceItemFormModal = ({
         }, 350);
     };
 
+    const handleUnitChange = (value) => {
+        // Min Qty mirrors the selected unit's existing conversion quantity
+        // (1 for the base unit itself); it is not a free-form input.
+        const factor = trimNumber(
+            productUnits.find((unit) => String(unit.id) === String(value))?.conversion_factor
+        );
+        setData('unit_id', value);
+        setData('min_quantity', value === '' ? 1 : factor || 1);
+    };
+
     const handleProductChange = (value) => {
-        setData('product_id', value);
+        setData((current) => ({
+            ...current,
+            product_id: value,
+            // A product change invalidates the previous product's unit family
+            // and its derived Min Qty.
+            unit_id: '',
+            min_quantity: 1,
+        }));
 
         const option = productOptions.find((entry) => String(entry.value) === String(value));
         const product = option?.product || null;
         setSelectedProduct(product);
 
-        if (product?.unit_id && unitOptions.some((unit) => String(unit.id) === String(product.unit_id))) {
+        if (product?.unit_id) {
+            // Pre-select the product's base unit (from the existing search
+            // response) and derive its Min Qty from its conversion data.
             setData('unit_id', product.unit_id);
+            setData('min_quantity', trimNumber(product.unit?.conversion_factor) || 1);
         }
     };
 
@@ -634,10 +686,11 @@ const PriceItemFormModal = ({
                                 name="unit_id"
                                 className={`form-control ${errors.unit_id ? 'is-invalid' : ''}`}
                                 value={data.unit_id}
-                                onChange={(event) => setData('unit_id', event.target.value)}
+                                onChange={(event) => handleUnitChange(event.target.value)}
+                                disabled={!selectedProduct}
                             >
-                                <option value="">{__('select_unit', 'Select a unit')}</option>
-                                {unitOptions.map((unit) => (
+                                <option value="">{selectedProduct ? __('select_unit', 'Select a unit') : __('select_product', 'Select a product')}</option>
+                                {productUnits.map((unit) => (
                                     <option key={unit.id} value={unit.id}>
                                         {unit.name}
                                     </option>
@@ -663,17 +716,21 @@ const PriceItemFormModal = ({
                             </label>
                             <input
                                 id="pli_min_quantity"
-                                type="number"
-                                step="0.0001"
-                                min="0"
-                                className={`form-control ${errors.min_quantity ? 'is-invalid' : ''}`}
-                                value={data.min_quantity}
-                                onChange={(event) => setData('min_quantity', event.target.value)}
+                                type="text"
+                                inputMode="decimal"
+                                className={`price-lists-readonly ${errors.min_quantity ? 'is-invalid' : ''}`}
+                                value={selectedUnit ? trimNumber(data.min_quantity) : ''}
+                                placeholder="—"
+                                readOnly
+                                aria-readonly="true"
+                                tabIndex={-1}
                             />
                             <div className="price-lists-form__hint">
-                                {interpolate(__('tier_label', ':quantity+'), {
-                                    quantity: trimNumber(data.min_quantity) || '—',
-                                })}
+                                {selectedUnit
+                                    ? interpolate(__('tier_label', ':quantity+'), {
+                                          quantity: trimNumber(data.min_quantity) || '—',
+                                      })
+                                    : __('min_quantity_derived_hint')}
                             </div>
                             <FormError message={errors.min_quantity} />
                         </div>
@@ -942,6 +999,12 @@ const PriceListsList = ({
         }
     };
 
+    const hasActiveFilters = Boolean(
+        filters.search || filters.status || filters.price_type || filters.currency_id || filters.validity
+    );
+
+    const goToCreate = () => router.get(getRoute('admin.inventory.price-lists.create'));
+
     return (
         <>
             <BlankPage
@@ -982,6 +1045,13 @@ const PriceListsList = ({
                 }
             >
                 <div className="price-lists-module">
+                    <div className="price-lists-module__header">
+                        <div>
+                            <h1 className="price-lists-module__title">{__('title')}</h1>
+                            <p className="price-lists-module__subtitle">{__('subtitle')}</p>
+                        </div>
+                    </div>
+
                     <ServerNote __={__} />
 
                     {pageErrors.price_list && (
@@ -1110,7 +1180,21 @@ const PriceListsList = ({
                         onRefresh={() => router.reload({ only: ['priceLists', 'stats', 'filters'] })}
                         showAddButton={true}
                         addButtonText={__('create_list')}
-                        onAdd={() => router.get(getRoute('admin.inventory.price-lists.create'))}
+                        onAdd={goToCreate}
+                        emptyIcon="sell"
+                        emptyMessage={hasActiveFilters ? __('empty_filtered') : __('empty')}
+                        emptyAction={
+                            <div className="price-lists-empty-action">
+                                <button
+                                    type="button"
+                                    className="price-lists-btn price-lists-btn--primary"
+                                    onClick={goToCreate}
+                                >
+                                    <span className="material-icons-outlined">add</span>
+                                    {__('create_list')}
+                                </button>
+                            </div>
+                        }
                         onView={(row) =>
                             router.get(getRoute('admin.inventory.price-lists.show', { price_list: row.id }))
                         }
@@ -1120,7 +1204,7 @@ const PriceListsList = ({
                         onDelete={(row) => deleteRow(row)}
                         viewTitle={__('view_items')}
                         editTitle={__('edit_list')}
-                        deleteTitle={__('delete_confirm')}
+                        deleteTitle={__('delete_list')}
                     />
                 </div>
             </BlankPage>
@@ -1287,11 +1371,24 @@ const PriceListDetail = ({
         );
 
         if (window.confirm(message)) {
-            router.delete(getRoute('admin.inventory.price-lists.destroy', { price_list: priceList.id }));
+            // The record stops existing after this call, so the user must not be
+            // left on its (now stale) detail URL - go back to the list instead.
+            router.delete(getRoute('admin.inventory.price-lists.destroy', { price_list: priceList.id }), {
+                onSuccess: () =>
+                    router.get(getRoute('admin.inventory.price-lists.index')),
+            });
         }
     };
 
     const listName = priceList?.name_en || priceList?.name_ar;
+
+    // Display-only summary of the rounding configuration stored on the record
+    // (the sales pricing engine remains the only authority on price values).
+    const roundingMethod = priceList?.rounding_method || 'none';
+    const roundingSummary =
+        roundingMethod === 'none'
+            ? __('rounding_none')
+            : `${__(`rounding_${roundingMethod}`, roundingMethod)} · ${trimNumber(priceList?.rounding_factor)}`;
 
     return (
         <>
@@ -1340,7 +1437,7 @@ const PriceListDetail = ({
                     <div className="price-lists-detail-header">
                         <div className="price-lists-detail-header__main">
                             <div className="price-lists-detail-header__title">
-                                <h2>{listName}</h2>
+                                <h1>{listName}</h1>
                                 <span className="price-lists-code__value">{priceList?.code}</span>
                                 <StatusBadge
                                     status={priceList?.is_active ? 'active' : 'inactive'}
@@ -1351,30 +1448,6 @@ const PriceListDetail = ({
                                         {__('default_list')}
                                     </span>
                                 )}
-                            </div>
-
-                            <div className="price-lists-detail-header__meta">
-                                <span>
-                                    <span className="material-icons-outlined">sell</span>
-                                    {__(priceList?.price_type, priceList?.price_type)}
-                                </span>
-                                <span>
-                                    <span className="material-icons-outlined">payments</span>
-                                    {priceList?.currency?.code || '—'}
-                                </span>
-                                <span>
-                                    <span className="material-icons-outlined">event</span>
-                                    {__('validity_period')}: {formatDate(priceList?.valid_from)} —{' '}
-                                    {formatDate(priceList?.valid_to)}
-                                </span>
-                                <span>
-                                    <span className="material-icons-outlined">person</span>
-                                    {__('assigned_customers')}: {assigned.customers ?? 0}
-                                </span>
-                                <span>
-                                    <span className="material-icons-outlined">groups</span>
-                                    {__('assigned_groups')}: {assigned.groups ?? 0}
-                                </span>
                             </div>
 
                             <div className="price-lists-detail-header__hint">
@@ -1395,6 +1468,20 @@ const PriceListDetail = ({
                             <button
                                 type="button"
                                 className="price-lists-btn"
+                                onClick={() =>
+                                    router.get(
+                                        getRoute('admin.inventory.price-lists.edit', {
+                                            price_list: priceList.id,
+                                        })
+                                    )
+                                }
+                            >
+                                <span className="material-icons-outlined">edit</span>
+                                {__('edit_list')}
+                            </button>
+                            <button
+                                type="button"
+                                className="price-lists-btn"
                                 onClick={() => router.get(getRoute('admin.inventory.price-lists.index'))}
                             >
                                 <span className="material-icons-outlined">arrow_back</span>
@@ -1402,10 +1489,49 @@ const PriceListDetail = ({
                             </button>
                             <button type="button" className="price-lists-btn price-lists-btn--danger" onClick={deleteList}>
                                 <span className="material-icons-outlined">delete</span>
-                                {__('delete_confirm', 'Delete')}
+                                {__('delete_list')}
                             </button>
                         </div>
                     </div>
+
+                    <section className="price-lists-info">
+                        <div className="price-lists-section__header">
+                            <h2 className="price-lists-section__title">{__('section_information')}</h2>
+                        </div>
+
+                        <dl className="price-lists-info__grid">
+                            <div className="price-lists-info__item">
+                                <dt>{__('price_type')}</dt>
+                                <dd>{__(priceList?.price_type, priceList?.price_type)}</dd>
+                            </div>
+                            <div className="price-lists-info__item">
+                                <dt>{__('currency')}</dt>
+                                <dd>{priceList?.currency?.code || '—'}</dd>
+                            </div>
+                            <div className="price-lists-info__item">
+                                <dt>{__('validity_period')}</dt>
+                                <dd>
+                                    {formatDate(priceList?.valid_from)} — {formatDate(priceList?.valid_to)}
+                                </dd>
+                            </div>
+                            <div className="price-lists-info__item">
+                                <dt>{__('rounding')}</dt>
+                                <dd>{roundingSummary}</dd>
+                            </div>
+                            <div className="price-lists-info__item">
+                                <dt>{__('assigned_customers')}</dt>
+                                <dd>{assigned.customers ?? 0}</dd>
+                            </div>
+                            <div className="price-lists-info__item">
+                                <dt>{__('assigned_groups')}</dt>
+                                <dd>{assigned.groups ?? 0}</dd>
+                            </div>
+                            <div className="price-lists-info__item price-lists-info__item--wide">
+                                <dt>{__('notes')}</dt>
+                                <dd>{priceList?.notes || '—'}</dd>
+                            </div>
+                        </dl>
+                    </section>
 
                     {!priceList?.is_active && (
                         <div className="price-lists-alert price-lists-alert--warning" role="alert">
@@ -1526,6 +1652,10 @@ const PriceListDetail = ({
                         </div>
                     )}
 
+                    <div className="price-lists-section__header price-lists-section__header--standalone">
+                        <h2 className="price-lists-section__title">{__('manage_items')}</h2>
+                    </div>
+
                     <Table
                         tableData={items?.data || []}
                         columns={columns}
@@ -1559,6 +1689,8 @@ const PriceListDetail = ({
                         onDelete={(row) => deleteItem(row)}
                         editTitle={__('edit_item')}
                         deleteTitle={__('delete_item_confirm')}
+                        emptyIcon="list_alt"
+                        emptyMessage={__('no_items')}
                     />
                 </div>
             </BlankPage>
@@ -1654,9 +1786,7 @@ const PriceLists = ({
                     priceLists={priceLists}
                     currencies={currencies}
                     priceTypes={priceTypes}
-                    roundingMethods={roundingMethods}
                     stats={stats}
-                    nextCode={nextCode}
                     filters={filters}
                     getRoute={getRoute}
                     __={__}

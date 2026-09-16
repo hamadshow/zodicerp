@@ -51,6 +51,7 @@ return [
     'product_type' => 'نوع المنتج',
     'simple' => 'بسيط',
     'variable' => 'متغير',
+    'service' => 'خدمة',
     'barcode' => 'باركود',
     'stock_status' => 'حالة المخزون',
     'in_stock' => 'متوفر',

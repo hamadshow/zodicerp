@@ -45,7 +45,10 @@
   border: 1px solid #e2e8f0;
   border-radius: 4px;
   box-shadow: 0 4px 8px rgba(15, 23, 42, 0.08);
-  z-index: $z-index-dropdown;
+  // Portaled to <body>, so it must stack above the shared modal overlay
+  // (z-index 1001). Use the popover layer, not $z-index-dropdown (1000),
+  // otherwise the options list renders behind any open dialog.
+  z-index: $z-index-popover;
 }
 
 .searchable-combobox-option {

@@ -13,6 +13,53 @@
     animation: fadeIn 0.3s ease;
 }
 
+/*
+ * Headless UI modal contract (resources/js/Components/Modal.jsx).
+ *
+ * Modal.jsx is styled with Tailwind utility classes, but the backend SCSS
+ * pipeline does not compile Tailwind utilities, so without these rules the
+ * dialog renders as static page content instead of a floating overlay
+ * (e.g. the Add Pricing Item dialog on the Price List detail screen).
+ * Kept in sync with .modal-overlay: same fixed positioning and z-index,
+ * scoped to the Headless UI markup so regular .modal-overlay screens are
+ * unaffected.
+ */
+div#modal {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1001;
+    display: flex;
+    align-items: center;
+    overflow-y: auto;
+    padding: 24px 16px;
+
+    /* Backdrop child rendered by Modal.jsx (Tailwind bg-gray-500/75). */
+    > div:first-child {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    /* DialogPanel child: replaces the Tailwind sm:max-w-2xl white card. */
+    > div:last-child {
+        position: relative;
+        margin: auto;
+        width: 100%;
+        max-width: 672px; /* sm:max-w-2xl equivalent */
+        max-height: calc(100vh - 48px);
+        overflow-y: auto;
+        border-radius: 10px;
+        background-color: #ffffff;
+        box-shadow: var(--shadow-lg, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1));
+    }
+}
+
 .modal {
     background-color: white;
     border-radius: 10px;

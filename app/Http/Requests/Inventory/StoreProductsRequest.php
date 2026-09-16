@@ -81,7 +81,7 @@ class StoreProductsRequest extends FormRequest
             // Other
             'order' => ['nullable', 'integer', 'min:0'],
             'is_featured' => ['boolean'],
-            'product_type' => ['required', 'in:simple,variable'],
+            'product_type' => ['required', 'in:simple,variable,Service'],
 
             // Variations (for variable products)
             'variations' => ['nullable', 'array'],

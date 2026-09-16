@@ -26,6 +26,11 @@ export const Table = ({
 
     disabled = false,
 
+    // Empty state props (optional; defaults keep the generic message)
+    emptyIcon = 'inventory_2',
+    emptyMessage = null,
+    emptyAction = null,
+
     // Toolbar Props
     showToolbar = false,
     toolbarSearch = false,
@@ -550,12 +555,15 @@ export const Table = ({
                                     className="empty-state-row"
                                 >
                                     <span className="material-icons-outlined empty-icon">
-                                        inventory_2
+                                        {emptyIcon}
                                     </span>
 
                                     <div>
-                                        {t('no_data', isArabic ? 'لا توجد بيانات متاحة' : 'No data available')}
+                                        {emptyMessage ||
+                                            t('no_data', isArabic ? 'لا توجد بيانات متاحة' : 'No data available')}
                                     </div>
+
+                                    {emptyAction}
                                 </td>
                             </tr>
                         )}

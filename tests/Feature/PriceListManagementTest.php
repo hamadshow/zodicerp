@@ -83,6 +83,69 @@ class PriceListManagementTest extends TestCase
             );
     }
 
+    public function test_create_and_edit_render_dedicated_pages_with_the_header_form_props(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->get(route('admin.inventory.price-lists.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Backend/03-Inventory/PriceLists')
+                ->where('mode', 'create')
+                ->has('currencies')
+                ->has('priceTypes')
+                ->has('roundingMethods')
+                ->has('nextCode')
+            );
+
+        $this->guardWritablePriceListTables();
+        $priceListId = $this->fixturePriceList();
+
+        $this->get(route('admin.inventory.price-lists.edit', ['price_list' => $priceListId]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Backend/03-Inventory/PriceLists')
+                ->where('mode', 'edit')
+                ->where('priceList.id', $priceListId)
+                ->has('currencies')
+                ->has('priceTypes')
+                ->has('roundingMethods')
+            );
+    }
+
+    public function test_price_list_header_can_be_updated_and_returns_to_the_list(): void
+    {
+        $this->guardWritablePriceListTables();
+        $priceListId = $this->fixturePriceList();
+
+        $this->actingAs($this->admin());
+
+        $response = $this->put(route('admin.inventory.price-lists.update', ['price_list' => $priceListId]), [
+            'code' => 'TPL-UPDATED',
+            'name_ar' => 'قائمة محدثة',
+            'name_en' => 'Updated Price List',
+            'currency_id' => (int) Currency::query()->value('id'),
+            'price_type' => 'contract',
+            'valid_from' => '2026-02-01',
+            'valid_to' => '2026-12-31',
+            'rounding_method' => 'up',
+            'rounding_factor' => 0.5,
+            'is_default' => false,
+            'is_active' => false,
+            'notes' => 'Updated from the dedicated edit page',
+        ]);
+
+        $response->assertRedirect(route('admin.inventory.price-lists.index'));
+
+        $updated = DB::table('price_lists')->where('id', $priceListId)->first();
+
+        $this->assertSame('TPL-UPDATED', $updated->code);
+        $this->assertSame('Updated Price List', $updated->name_en);
+        $this->assertSame('contract', $updated->price_type);
+        $this->assertSame(0, (int) $updated->is_active);
+        $this->assertSame('Updated from the dedicated edit page', $updated->notes);
+    }
+
     public function test_server_validation_errors_are_returned_for_invalid_price_lists(): void
     {
         $this->actingAs($this->admin());

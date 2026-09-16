@@ -2155,6 +2155,19 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                     </div>
                                     <div className="products-section-content">
                                         <div className="form-group">
+                                            <label className="form-label">{t('product_type', 'Product Type')} *</label>
+                                            <select
+                                                className="form-control"
+                                                value={data.product_type || 'simple'}
+                                                onChange={e => setData('product_type', e.target.value)}
+                                            >
+                                                <option value="simple">{t('simple', 'Simple')}</option>
+                                                <option value="variable">{t('variable', 'Variable')}</option>
+                                                <option value="Service">{t('service', 'Service')}</option>
+                                            </select>
+                                            {errors.product_type && <div className="error-msg">{errors.product_type}</div>}
+                                        </div>
+                                        <div className="form-group">
                                             <label className="form-label">Status</label>
                                             <select
                                                 className="form-control"

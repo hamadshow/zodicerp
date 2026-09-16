@@ -51,6 +51,7 @@ return [
     'product_type' => 'Product Type',
     'simple' => 'Simple',
     'variable' => 'Variable',
+    'service' => 'Service',
     'barcode' => 'Barcode',
     'stock_status' => 'Stock Status',
     'in_stock' => 'In Stock',

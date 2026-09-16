@@ -1,63 +1,67 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import Table from '../components/Table';
 import BlankPage from '@/Components/BlankPage';
+import '../../../../css/backend/main.scss';
+
 
 // --- View Section Component ---
 const ViewSection = ({ groups, onEdit, onDelete }) => {
+    const columns = useMemo(() => [
+        {
+            header: 'Code',
+            key: 'code',
+            sortable: true,
+            render: (group) => group.code,
+        },
+        {
+            header: 'Name (AR)',
+            key: 'name_ar',
+            sortable: true,
+            render: (group) => group.name_ar,
+        },
+        {
+            header: 'Name (EN)',
+            key: 'name_en',
+            sortable: true,
+            render: (group) => group.name_en || '-',
+        },
+        {
+            header: 'Parent Group',
+            key: 'parent_id',
+            sortable: true,
+            render: (group) => group.parent?.name_ar || '-',
+        },
+        {
+            header: 'Discount %',
+            key: 'discount_percentage',
+            sortable: true,
+            render: (group) => (group.discount_percentage ? `${group.discount_percentage}%` : '-'),
+        },
+        {
+            header: 'Status',
+            key: 'is_active',
+            sortable: true,
+            render: (group) => (
+                <span className={`status-badge ${group.is_active ? 'active' : 'inactive'}`}>
+                    {group.is_active ? 'Active' : 'Inactive'}
+                </span>
+            ),
+        },
+    ], []);
+
     return (
         <div className="animate-fade-slide">
-            {/* Content Card */}
             <div className="content-card">
-                <div className="table-responsive">
-                    <table className="professional-table">
-                        <thead>
-                            <tr>
-                                <th>Code</th>
-                                <th>Name (AR)</th>
-                                <th>Name (EN)</th>
-                                <th>Parent Group</th>
-                                <th>Discount %</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {groups.length > 0 ? (
-                                groups.map(group => (
-                                    <tr key={group.id}>
-                                        <td>{group.code}</td>
-                                        <td>{group.name_ar}</td>
-                                        <td>{group.name_en || '-'}</td>
-                                        <td>{group.parent?.name_ar || '-'}</td>
-                                        <td>{group.discount_percentage ? `${group.discount_percentage}%` : '-'}</td>
-                                        <td>
-                                            <span className={`status-badge ${group.is_active ? 'active' : 'inactive'}`}>
-                                                {group.is_active ? 'Active' : 'Inactive'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <div className="action-buttons">
-                                                <button onClick={() => onEdit(group)} title="Edit">
-                                                    <span className="material-icons-outlined">edit</span>
-                                                </button>
-                                                <button className="delete-btn" onClick={() => onDelete(group.id)} title="Delete">
-                                                    <span className="material-icons-outlined">delete</span>
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>
-                                        No customer groups found.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <Table
+                    tableData={groups}
+                    columns={columns}
+                    onEdit={(group) => onEdit(group)}
+                    onDelete={(group) => onDelete(group.id)}
+                    editTitle="Edit"
+                    deleteTitle="Delete"
+                />
             </div>
         </div>
     );

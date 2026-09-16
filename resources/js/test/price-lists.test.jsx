@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 /**
@@ -100,6 +100,7 @@ const translations = {
     'PriceLists.search_lists': 'Search price lists',
     'PriceLists.create_list': 'Create Price List',
     'PriceLists.edit_list': 'Edit Price List',
+    'PriceLists.manage_items': 'Pricing Items',
     'PriceLists.add_item': 'Add Pricing Item',
     'PriceLists.save': 'Save',
     'PriceLists.saving': 'Saving...',
@@ -111,6 +112,17 @@ const translations = {
     'PriceLists.rounding_method': 'Rounding Method',
     'PriceLists.rounding_factor': 'Rounding Factor',
     'PriceLists.rounding_none': 'None',
+    'PriceLists.rounding_up': 'Up',
+    'PriceLists.rounding': 'Rounding',
+    'PriceLists.subtitle': 'Define quantity-tier pricing per product, unit and validity period.',
+    'PriceLists.empty': 'No price lists found. Create the first one to define quantity-tier pricing.',
+    'PriceLists.empty_filtered': 'No price lists match the current filters.',
+    'PriceLists.section_information': 'Price List Information',
+    'PriceLists.save_list': 'Save Price List',
+    'PriceLists.update_list': 'Update Price List',
+    'PriceLists.back_to_list': 'Back to Price Lists',
+    'PriceLists.delete_list': 'Delete',
+    'PriceLists.validation_summary': 'Please correct the highlighted fields and try again.',
     'PriceLists.is_active': 'Active',
     'PriceLists.is_default': 'Default price list',
     'PriceLists.notes': 'Notes',
@@ -265,23 +277,87 @@ describe('Price Lists screen (Inventory)', () => {
         expect(getSpy.mock.calls[0][1]).toMatchObject({ status: 'active', page: 1 });
     });
 
-    it('creates a price list through the shared modal and posts the entered values', async () => {
+    it('opens a dedicated create page instead of a modal from the list', async () => {
         const user = userEvent.setup();
         renderPage(baseProps());
 
-        await user.click(screen.getByRole('button', { name: /create price list/i }));
+        await user.click(screen.getAllByRole('button', { name: /create price list/i })[0]);
 
-        expect(await screen.findByRole('heading', { name: 'Create Price List' })).toBeInTheDocument();
+        expect(getSpy).toHaveBeenCalledTimes(1);
+        expect(getSpy.mock.calls[0][0]).toContain('/admin.inventory.price-lists.create');
+    });
+
+    it('opens the dedicated edit page from the list row action', async () => {
+        const user = userEvent.setup();
+        renderPage(baseProps());
+
+        await user.click(screen.getByTitle('Edit Price List'));
+
+        expect(getSpy.mock.calls[0][0]).toContain('/admin.inventory.price-lists.edit');
+        expect(getSpy.mock.calls[0][0]).toContain('price_list=7');
+    });
+
+    it('renders the dedicated create page and posts the entered values to the store endpoint', async () => {
+        const user = userEvent.setup();
+        renderPage(baseProps({ mode: 'create', nextCode: 'PL-0008' }));
+
+        expect(screen.getByRole('heading', { name: 'Create Price List' })).toBeInTheDocument();
 
         await user.type(document.querySelector('#pl_name_ar'), 'قائمة تجزئة');
         await user.type(document.querySelector('#pl_name_en'), 'Retail List');
-        await user.click(screen.getByRole('button', { name: /^save$/i }));
+        await user.click(screen.getByRole('button', { name: /save price list/i }));
 
         await waitFor(() => expect(postSpy).toHaveBeenCalled());
-        const [url] = postSpy.mock.calls[0];
-        expect(url).toContain('/admin.inventory.price-lists.store');
+        expect(postSpy.mock.calls[0][0]).toContain('/admin.inventory.price-lists.store');
+    });
 
-        expect(postSpy.mock.calls[0][1]?.onSuccess).toBeTypeOf('function');
+    it('renders the dedicated edit page pre-filled and updates through the update endpoint', async () => {
+        const user = userEvent.setup();
+        renderPage(baseProps({ mode: 'edit', priceList: priceListRow }));
+
+        expect(screen.getByRole('heading', { name: 'Edit Price List' })).toBeInTheDocument();
+        expect(document.querySelector('#pl_code').value).toBe('PL-0007');
+
+        await user.click(screen.getByRole('button', { name: /update price list/i }));
+
+        await waitFor(() => expect(putSpy).toHaveBeenCalled());
+        const [url] = putSpy.mock.calls[0];
+        expect(url).toContain('/admin.inventory.price-lists.update');
+        expect(url).toContain('price_list=7');
+    });
+
+    it('keeps server validation feedback on the dedicated create page', () => {
+        formErrors = { name_ar: 'The name (Arabic) field is required.' };
+
+        renderPage(baseProps({ mode: 'create' }));
+
+        expect(screen.getByText('The name (Arabic) field is required.')).toBeInTheDocument();
+        expect(
+            screen.getByText('Please correct the highlighted fields and try again.')
+        ).toBeInTheDocument();
+        expect(document.querySelector('#pl_name_ar').className).toContain('is-invalid');
+    });
+
+    it('shows the module empty state with the supported create action', async () => {
+        const user = userEvent.setup();
+
+        renderPage(
+            baseProps({
+                priceLists: { data: [], current_page: 1, last_page: 1, total: 0, per_page: 10 },
+                stats: { total: 0, active: 0, scheduled: 0, expired: 0, items: 0 },
+            })
+        );
+
+        expect(
+            screen.getByText('No price lists found. Create the first one to define quantity-tier pricing.')
+        ).toBeInTheDocument();
+
+        const emptyAction = document.querySelector('.price-lists-empty-action');
+        expect(emptyAction).not.toBeNull();
+
+        await user.click(within(emptyAction).getByRole('button', { name: /create price list/i }));
+
+        expect(getSpy.mock.calls[0][0]).toContain('/admin.inventory.price-lists.create');
     });
 
     it('shows backend validation errors coming from the server response', async () => {
@@ -336,6 +412,38 @@ describe('Price Lists screen (Inventory)', () => {
         expect(screen.getByText('Quantity Tiers')).toBeInTheDocument();
     });
 
+    it('shows the price list information separately from the items and links to the edit page', async () => {
+        const user = userEvent.setup();
+
+        renderPage(
+            baseProps({
+                mode: 'detail',
+                priceList: {
+                    ...priceListRow,
+                    rounding_method: 'up',
+                    rounding_factor: '0.05',
+                    notes: 'Q1 wholesale contract',
+                },
+                items: { data: [itemRow], current_page: 1, last_page: 1, total: 1, per_page: 10 },
+                units: [],
+                tierProducts: [],
+                assigned: { customers: 2, groups: 1 },
+                stats: { tiers: 1, products: 1, active: 1, expired: 0 },
+                filters: { search: '', product_id: '', unit_id: '', item_status: '', sort_by: '', sort_dir: '', per_page: 10 },
+            })
+        );
+
+        expect(screen.getByRole('heading', { name: 'Price List Information' })).toBeInTheDocument();
+        expect(screen.getByText('Q1 wholesale contract')).toBeInTheDocument();
+        expect(screen.getByText('Up · 0.05')).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'Pricing Items' })).toBeInTheDocument();
+
+        await user.click(screen.getByRole('button', { name: /edit price list/i }));
+
+        expect(getSpy.mock.calls[0][0]).toContain('/admin.inventory.price-lists.edit');
+        expect(getSpy.mock.calls[0][0]).toContain('price_list=7');
+    });
+
     it('deletes a pricing item with the confirmation flow and its own id', async () => {
         const user = userEvent.setup();
 
@@ -360,6 +468,35 @@ describe('Price Lists screen (Inventory)', () => {
         expect(deleteUrl).toContain('item=42');
     });
 
+    it('opens the existing pricing item dialog in #modal and closes it with cancel', async () => {
+        const user = userEvent.setup();
+
+        renderPage(
+            baseProps({
+                mode: 'detail',
+                priceList: priceListRow,
+                items: { data: [], current_page: 1, last_page: 1, total: 0, per_page: 10 },
+                units: [{ id: 9, name: 'Box', unit_type: 2, base_unit: null, conversion_factor: '1.0000', active: true }],
+                tierProducts: [],
+                filters: { search: '', product_id: '', unit_id: '', item_status: '', sort_by: '', sort_dir: '', per_page: 10 },
+            })
+        );
+
+        // User-visible contract: before the click there is no dialog in the DOM.
+        expect(document.querySelector('#modal')).toBeNull();
+
+        await user.click(screen.getAllByRole('button', { name: /add pricing item/i })[0]);
+
+        // The shared Modal renders through the Headless UI #modal container.
+        const modal = await screen.findByRole('dialog');
+        expect(modal.closest('#modal')).not.toBeNull();
+        expect(within(modal).getByRole('heading', { name: 'Add Pricing Item' })).toBeInTheDocument();
+
+        // Cancel closes the dialog again.
+        await user.click(within(modal).getByRole('button', { name: /^cancel$/i }));
+        expect(document.querySelector('#modal')).toBeNull();
+    });
+
     it('adds a pricing item using the products.id identity and the tier inputs', async () => {
         const user = userEvent.setup();
 
@@ -372,6 +509,7 @@ describe('Price Lists screen (Inventory)', () => {
                             name: 'Test Product',
                             sku: 'SKU-5',
                             unit_id: 9,
+                            unit: { id: 9, name: 'Box', base_unit: 8, conversion_factor: '10.0000' },
                             price: '120.00',
                             sale_price: null,
                             children_count: 0,
@@ -408,8 +546,10 @@ describe('Price Lists screen (Inventory)', () => {
 
         await waitFor(() => expect(document.querySelector('#pli_unit').value).toBe('9'));
 
-        await user.clear(document.querySelector('#pli_min_quantity'));
-        await user.type(document.querySelector('#pli_min_quantity'), '10');
+        // Min Qty is derived read-only from the selected unit's conversion factor.
+        await waitFor(() => expect(document.querySelector('#pli_min_quantity').value).toBe('10'));
+        expect(document.querySelector('#pli_min_quantity')).toHaveAttribute('readonly');
+
         await user.type(document.querySelector('#pli_unit_price'), '95');
         await user.click(screen.getByRole('button', { name: /^save$/i }));
 
@@ -417,6 +557,95 @@ describe('Price Lists screen (Inventory)', () => {
         const storeUrl = postSpy.mock.calls[0][0];
         expect(storeUrl).toContain('/admin.inventory.price-lists.items.store');
         expect(storeUrl).toContain('price_list=7');
+    });
+
+    it('scopes unit options to the selected product family, derives Min Qty read-only, and resets on product change', async () => {
+        const user = userEvent.setup();
+
+        window.axios = {
+            get: vi.fn().mockResolvedValue({
+                data: {
+                    products: [
+                        {
+                            id: 5,
+                            name: 'Test Product',
+                            sku: 'SKU-5',
+                            unit_id: 9,
+                            unit: { id: 9, name: 'Box', base_unit: 8, conversion_factor: '10.0000' },
+                            price: '120.00',
+                            sale_price: null,
+                            children_count: 0,
+                        },
+                        {
+                            id: 6,
+                            name: 'Second Product',
+                            sku: 'SKU-6',
+                            unit_id: 8,
+                            unit: { id: 8, name: 'Piece', base_unit: null, conversion_factor: '1.0000' },
+                            price: '50.00',
+                            sale_price: null,
+                            children_count: 0,
+                        },
+                    ],
+                },
+            }),
+        };
+
+        renderPage(
+            baseProps({
+                mode: 'detail',
+                priceList: priceListRow,
+                items: { data: [], current_page: 1, last_page: 1, total: 0, per_page: 10 },
+                units: [
+                    { id: 8, name: 'Piece', unit_type: 1, base_unit: null, conversion_factor: '1.0000', active: true, parent: null },
+                    { id: 9, name: 'Box', unit_type: 2, base_unit: 8, conversion_factor: '10.0000', active: true, parent: { id: 8, name: 'Piece', conversion_factor: '1.0000' } },
+                    { id: 21, name: 'Carton', unit_type: 2, base_unit: 9, conversion_factor: '12.0000', active: true, parent: { id: 9, name: 'Box', conversion_factor: '10.0000' } },
+                ],
+                tierProducts: [],
+                filters: { search: '', product_id: '', unit_id: '', item_status: '', sort_by: '', sort_dir: '', per_page: 10 },
+            })
+        );
+
+        await user.click(screen.getAllByRole('button', { name: /add pricing item/i })[0]);
+        await user.type(screen.getByPlaceholderText('Search product'), 'Test');
+        await screen.findAllByText('Test Product (SKU-5)');
+
+        // Before a product is selected the unit select is disabled with a
+        // "Select a product" placeholder and exposes no unit options.
+        const unitSelect = document.querySelector('#pli_unit');
+        expect(unitSelect).toBeDisabled();
+        expect([...unitSelect.options].map((o) => o.textContent)).toEqual(['Select a product']);
+
+        // Selecting the product pre-selects its base unit (Box) and derives Min Qty.
+        fireEvent.mouseDown(document.querySelector('.searchable-combobox-option'));
+        await waitFor(() => expect(unitSelect.value).toBe('9'));
+        await waitFor(() => expect(document.querySelector('#pli_min_quantity').value).toBe('10'));
+        expect(document.querySelector('#pli_min_quantity')).toHaveAttribute('readonly');
+
+        // Unit options are scoped to the product's own unit family:
+        // its base unit (Box) plus the children of that base unit (Carton).
+        // The parent unit (Piece) and unrelated units are never offered.
+        const optionNames = [...unitSelect.options].map((o) => o.textContent);
+        expect(optionNames).toContain('Box');
+        expect(optionNames).toContain('Carton');
+        expect(optionNames).not.toContain('Piece');
+
+        // Switching the unit re-derives Min Qty from that unit's factor.
+        await user.selectOptions(unitSelect, '21');
+        await waitFor(() => expect(document.querySelector('#pli_min_quantity').value).toBe('12'));
+
+        // Changing the product resets the previous product's unit state.
+        const comboInput = screen.getByPlaceholderText('Search product');
+        await user.clear(comboInput);
+        await user.type(comboInput, 'Second');
+        await screen.findAllByText('Second Product (SKU-6)');
+        const secondOption = [...document.querySelectorAll('.searchable-combobox-option')].find((o) =>
+            o.textContent.includes('Second Product (SKU-6)')
+        );
+        fireEvent.mouseDown(secondOption);
+
+        await waitFor(() => expect(unitSelect.value).toBe('8'));
+        await waitFor(() => expect(document.querySelector('#pli_min_quantity').value).toBe('1'));
     });
 
     it('shows duplicate-tier validation returned by the server inside the item form', async () => {
