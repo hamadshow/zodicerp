@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Inventory;
 
+use App\Models\Products;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreProductsRequest extends FormRequest
 {
@@ -48,7 +50,19 @@ class StoreProductsRequest extends FormRequest
             'barcode' => ['nullable', 'string', 'max:100', 'unique:products,barcode'],
 
             // Relations
-            'parent_id' => ['nullable', 'exists:products,id'],
+            'parent_id' => [
+                'nullable',
+                Rule::exists('products', 'id')->where(function ($query) {
+                    // A variation may only hang under a variable parent (domain rule).
+                    $query->where('product_type', 'variable');
+                }),
+                function ($attribute, $value, $fail) {
+                    // Product Domain (Phase 1): only simple products can be variations.
+                    if ($value !== null && $this->input('product_type') !== 'simple') {
+                        $fail('Only simple products can be a variation of a variable parent.');
+                    }
+                },
+            ],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'unit_id' => ['nullable', 'exists:item_units,id'],
             'category_ids' => ['nullable', 'array'],
@@ -81,10 +95,17 @@ class StoreProductsRequest extends FormRequest
             // Other
             'order' => ['nullable', 'integer', 'min:0'],
             'is_featured' => ['boolean'],
-            'product_type' => ['required', 'in:simple,variable,Service'],
+            'product_type' => ['required', Rule::in(Products::PRODUCT_TYPES)],
 
-            // Variations (for variable products)
-            'variations' => ['nullable', 'array'],
+            // Product Domain (Phase 1):
+            // - parent_id set  => the row is a variation child (attribute combos in payload).
+            // - parent_id null => a standalone product; only a variable parent carries variations.
+            'variations' => [
+                'nullable',
+                'array',
+                Rule::requiredIf(fn () => $this->input('product_type') === 'variable' && ! $this->filled('parent_id')),
+                Rule::prohibitedIf(fn () => in_array($this->input('product_type'), ['simple', 'service'], true) && ! $this->filled('parent_id')),
+            ],
             'variations.*.sku' => ['nullable', 'string', 'max:150'],
             'variations.*.price' => ['nullable', 'numeric', 'min:0'],
             'variations.*.stock' => ['nullable', 'integer', 'min:0'],

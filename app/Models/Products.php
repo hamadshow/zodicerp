@@ -11,6 +11,38 @@ class Products extends Model
 {
     use HasFactory, HasTranslations, SoftDeletes, \App\Models\Traits\BelongsToCompany;
 
+    /**
+     * -----------------------------------------------------------------
+     * Product Domain (Phase 1) — single source of truth.
+     * -----------------------------------------------------------------
+     * Product: a catalog entity.
+     * SKU: a directly identifiable sellable item.
+     * Simple Product: a product that is itself the SKU (directly sellable, stockable).
+     * Variable Product: a parent/template containing multiple SKU variations
+     *                   (NOT sellable directly, NOT stockable).
+     * Variation: a child SKU belonging to a variable parent
+     *            (identified by parent_id != null; sellable, stockable).
+     * Service: a non-stockable, non-physical sellable offering
+     *          (no warehouse quantities, no stock movements, no valuation).
+     *
+     * Authoritative variation marker: parent_id != null.
+     * is_variation is kept as a legacy mirror of that marker for backward
+     * compatibility with existing queries/filters — it is written by this
+     * model so it can never contradict parent_id.
+     * -----------------------------------------------------------------
+     */
+    public const PRODUCT_TYPE_SIMPLE = 'simple';
+
+    public const PRODUCT_TYPE_VARIABLE = 'variable';
+
+    public const PRODUCT_TYPE_SERVICE = 'service';
+
+    public const PRODUCT_TYPES = [
+        self::PRODUCT_TYPE_SIMPLE,
+        self::PRODUCT_TYPE_VARIABLE,
+        self::PRODUCT_TYPE_SERVICE,
+    ];
+
     protected $fillable = [
         'product_code',
         'name',
@@ -98,6 +130,49 @@ class Products extends Model
     public function getConvertedPriceAttribute()
     {
         return \App\Services\CurrencyConverter::convert($this->price);
+    }
+
+    /**
+     * Authoritative check: is this row a variation (child SKU) of a variable parent?
+     * Derived from parent_id — never trust is_variation for new logic.
+     */
+    public function isVariation(): bool
+    {
+        return $this->parent_id !== null;
+    }
+
+    public function isService(): bool
+    {
+        return $this->product_type === self::PRODUCT_TYPE_SERVICE;
+    }
+
+    public function isVariable(): bool
+    {
+        return $this->product_type === self::PRODUCT_TYPE_VARIABLE;
+    }
+
+    public function isSimple(): bool
+    {
+        return $this->product_type === self::PRODUCT_TYPE_SIMPLE;
+    }
+
+    /**
+     * Services never participate in physical inventory.
+     */
+    public function managesStock(): bool
+    {
+        return ! $this->isService();
+    }
+
+    protected static function booted(): void
+    {
+        // Keep the legacy is_variation flag consistent with parent_id so that
+        // "parent_id != null => is_variation = true" always holds.
+        static::saving(function (Products $product) {
+            if ($product->parent_id !== null) {
+                $product->is_variation = true;
+            }
+        });
     }
 
     public function productCollections()

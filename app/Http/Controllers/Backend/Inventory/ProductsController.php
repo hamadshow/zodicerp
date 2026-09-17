@@ -358,6 +358,12 @@ class ProductsController extends Controller
             // But with Inertia form helper, it should be sent as 0 or 1.
             $data['is_featured'] = $request->boolean('is_featured');
 
+            // Phase 1 domain: services never participate in physical inventory.
+            if (($data['product_type'] ?? null) === Products::PRODUCT_TYPE_SERVICE) {
+                $data['with_storehouse_management'] = false;
+                $data['quantity'] = 0;
+            }
+
             $categoryIds = $request->input('category_ids', []);
 
             $data['product_code'] = $productCode;
@@ -479,8 +485,10 @@ class ProductsController extends Controller
                     );
 
                     $childProductData['parent_id'] = $product->id;
-                    $childProductData['product_type'] = 'simple';
-                    $childProductData['is_variation'] = false;
+                    $childProductData['product_type'] = Products::PRODUCT_TYPE_SIMPLE;
+                    // Phase 1 domain: a child SKU row is a variation — parent_id != null
+                    // is authoritative, and is_variation mirrors it (see Products model).
+                    $childProductData['is_variation'] = true;
                     $childProductData['barcode'] = $var['barcode'] ?? null;
                     $childProductData['product_code'] = $productCode.'-'.($index + 1);
                     $childProductData['slug'] = $slug.'-'.($index + 1);
@@ -496,7 +504,7 @@ class ProductsController extends Controller
                         : null;
                     $childProductData['quantity'] = (array_key_exists('stock', $var) && $var['stock'] !== null)
                         ? $var['stock']
-                        : $product->quantity;
+                        : ($product->quantity ?? 0);
                     $childProductData['stock_status'] = $var['stock_status'] ?? 'in_stock';
                     $childProductData['weight'] = (array_key_exists('weight', $var) && $var['weight'] !== null)
                         ? $var['weight']
@@ -657,6 +665,12 @@ class ProductsController extends Controller
 
             // Explicitly handle is_featured to ensure it captures 1/0/"1"/"0"/true/false
             $data['is_featured'] = $request->boolean('is_featured');
+
+            // Phase 1 domain: services never participate in physical inventory.
+            if (($data['product_type'] ?? null) === Products::PRODUCT_TYPE_SERVICE) {
+                $data['with_storehouse_management'] = false;
+                $data['quantity'] = 0;
+            }
 
             $categoryIds = $request->input('category_ids', []);
             // $data['updated_by_id'] = $user->id;
@@ -822,8 +836,10 @@ class ProductsController extends Controller
                     );
 
                     $childProductData['parent_id'] = $product->id;
-                    $childProductData['product_type'] = 'simple';
-                    $childProductData['is_variation'] = false;
+                    $childProductData['product_type'] = Products::PRODUCT_TYPE_SIMPLE;
+                    // Phase 1 domain: a child SKU row is a variation — parent_id != null
+                    // is authoritative, and is_variation mirrors it (see Products model).
+                    $childProductData['is_variation'] = true;
                     $childProductData['barcode'] = $var['barcode'] ?? null;
                     $childProductData['product_code'] = $product->product_code.'-'.($index + 1);
                     $childProductData['slug'] = $product->slug.'-'.($index + 1);
@@ -839,7 +855,7 @@ class ProductsController extends Controller
                         : null;
                     $childProductData['quantity'] = (array_key_exists('stock', $var) && $var['stock'] !== null)
                         ? $var['stock']
-                        : $product->quantity;
+                        : ($product->quantity ?? 0);
                     $childProductData['stock_status'] = $var['stock_status'] ?? 'in_stock';
                     $childProductData['weight'] = (array_key_exists('weight', $var) && $var['weight'] !== null)
                         ? $var['weight']

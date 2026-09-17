@@ -195,6 +195,12 @@ class SupplierController extends Controller
 
             $data = $request->validated();
             $data['is_featured'] = $request->boolean('is_featured');
+
+            // Phase 1 domain: services never participate in physical inventory.
+            if (($data['product_type'] ?? null) === Products::PRODUCT_TYPE_SERVICE) {
+                $data['with_storehouse_management'] = false;
+                $data['quantity'] = 0;
+            }
             $data['product_code'] = $productCode;
             $data['slug'] = $slug;
             $data['created_by_id'] = $supplier->id;
@@ -300,6 +306,12 @@ class SupplierController extends Controller
 
             $data = $request->validated();
             $data['is_featured'] = $request->boolean('is_featured');
+
+            // Phase 1 domain: services never participate in physical inventory.
+            if (($data['product_type'] ?? null) === Products::PRODUCT_TYPE_SERVICE) {
+                $data['with_storehouse_management'] = false;
+                $data['quantity'] = 0;
+            }
 
             // Handle Main Image
             if ($request->boolean('delete_image')) {
@@ -497,8 +509,10 @@ class SupplierController extends Controller
                 );
 
                 $childProductData['parent_id'] = $product->id;
-                $childProductData['product_type'] = 'simple';
-                $childProductData['is_variation'] = false;
+                $childProductData['product_type'] = Products::PRODUCT_TYPE_SIMPLE;
+                // Phase 1 domain: a child SKU row is a variation — parent_id != null
+                // is authoritative, and is_variation mirrors it (see Products model).
+                $childProductData['is_variation'] = true;
                 $childProductData['barcode'] = $var['barcode'] ?? null;
                 $childProductData['product_code'] = $product->product_code.'-'.($index + 1);
                 $childProductData['slug'] = $product->slug.'-'.($index + 1);

@@ -332,7 +332,9 @@ const ProductsForm = ({ product, brands, categories, itemAttributes }) => {
         sale_price: product?.sale_price || '',
         cost_per_item: product?.cost_per_item || '',
         barcode: product?.barcode || '',
-        with_storehouse_management: product?.with_storehouse_management ? true : false,
+        with_storehouse_management:
+            // Phase 1 domain: services are never stock-tracked.
+            (product?.product_type || '').toLowerCase() !== 'service' && (product?.with_storehouse_management ? true : false),
         quantity: product?.quantity || '',
         stock_status: product?.stock_status || 'in_stock',
         allow_checkout_when_out_of_stock: product?.allow_checkout_when_out_of_stock ? true : false,
@@ -340,7 +342,7 @@ const ProductsForm = ({ product, brands, categories, itemAttributes }) => {
         length: product?.length || '',
         wide: product?.wide || '',
         height: product?.height || '',
-        product_type: product?.product_type || 'simple',
+        product_type: (product?.product_type || 'simple').toLowerCase(),
         
         // Relations
         category_ids: product?.categories?.map(c => String(c.id)) || [],
@@ -856,6 +858,7 @@ const ProductsForm = ({ product, brands, categories, itemAttributes }) => {
                                             >
                                                 <option value="simple">Simple Product</option>
                                                 <option value="variable">Variable Product</option>
+                                                <option value="service">Service</option>
                                             </select>
                                         </div>
                                         <div className="form-group mt-3">
@@ -863,6 +866,7 @@ const ProductsForm = ({ product, brands, categories, itemAttributes }) => {
                                                 <input 
                                                     type="checkbox" 
                                                     checked={data.with_storehouse_management}
+                                                    disabled={data.product_type === 'service'}
                                                     onChange={e => setData('with_storehouse_management', e.target.checked)}
                                                 />
                                                 <span>With Storehouse Management</span>

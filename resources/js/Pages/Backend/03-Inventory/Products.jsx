@@ -198,6 +198,10 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                     );
                 }
 
+                if (String(product.product_type).toLowerCase() === 'service') {
+                    return <span className="product-kind-badge product-kind-badge--service">{t('service_product', 'Service')}</span>;
+                }
+
                 return <span className="product-kind-badge product-kind-badge--simple">{t('simple_product', 'Simple')}</span>;
             }
         },
@@ -1350,7 +1354,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                 barcode: product.barcode || '',
                 status: product.status || 'active',
                 stock_status: product.stock_status || 'in_stock',
-                product_type: product.product_type || 'simple',
+                product_type: (product.product_type || 'simple').toLowerCase(),
                 is_variation: Boolean(product.is_variation),
                 quantity: Number.isFinite(Number(product.quantity)) ? Number(product.quantity) : 0,
                 minimum_order_quantity: Number.isFinite(Number(product.minimum_order_quantity)) ? Number(product.minimum_order_quantity) : 1,
@@ -1362,7 +1366,9 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                 tax_id: product.tax_id || '',
                 price_includes_tax: Boolean(product.price_includes_tax),
                 allow_checkout_when_out_of_stock: Boolean(product.allow_checkout_when_out_of_stock),
-                with_storehouse_management: Boolean(product.with_storehouse_management),
+                with_storehouse_management:
+                    // Phase 1 domain: services are never stock-tracked.
+                    (product.product_type || '').toLowerCase() !== 'service' && Boolean(product.with_storehouse_management),
                 weight: product.weight || '',
                 length: product.length || '',
                 wide: product.wide || '',
@@ -1657,10 +1663,9 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                                     setSelectedVariationOptions({});
                                                                     setVariationAttributeValues({});
                                                                     setData(curr => ({
-                                                                        ...curr,
-                                                                        product_type: 'simple',
-                                                                        is_variation: false,
-                                                                        variations: [],
+                                                                        ...curr,        product_type: 'simple',
+        is_variation: false,
+        variations: [],
                                                                     }));
                                                                 } else {
                                                                     setData(curr => ({
@@ -2065,6 +2070,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                 <input
                                                     type="checkbox"
                                                     checked={data.with_storehouse_management}
+                                                    disabled={data.product_type === 'service'}
                                                     onChange={e => setData('with_storehouse_management', e.target.checked)}
                                                 />
                                                 <span>Track inventory</span>
@@ -2161,9 +2167,9 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                 value={data.product_type || 'simple'}
                                                 onChange={e => setData('product_type', e.target.value)}
                                             >
-                                                <option value="simple">{t('simple', 'Simple')}</option>
-                                                <option value="variable">{t('variable', 'Variable')}</option>
-                                                <option value="Service">{t('service', 'Service')}</option>
+                                                <option value="simple">{t('simple_product', 'Simple Product')}</option>
+                                                <option value="variable">{t('variable_product', 'Variable Product')}</option>
+                                                <option value="service">{t('service_product', 'Service')}</option>
                                             </select>
                                             {errors.product_type && <div className="error-msg">{errors.product_type}</div>}
                                         </div>

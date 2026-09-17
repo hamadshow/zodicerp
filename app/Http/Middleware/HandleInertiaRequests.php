@@ -19,7 +19,7 @@ class HandleInertiaRequests extends Middleware
         $locale = App::getLocale();
         $fallbackLocale = config('app.fallback_locale', 'en');
 
-        return Cache::remember("inertia.translations.{$locale}.v3", 3600, function () use ($locale, $fallbackLocale) {
+        return Cache::remember("inertia.translations.{$locale}.v4", 3600, function () use ($locale, $fallbackLocale) {
             $safeLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $locale);
             $safeFallbackLocale = preg_replace('/[^a-zA-Z0-9_]/', '', (string) $fallbackLocale);
 
