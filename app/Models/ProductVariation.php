@@ -32,4 +32,14 @@ class ProductVariation extends Model
     {
         return $this->hasMany(ProductVariationItem::class, 'variation_id');
     }
+
+    protected static function booted(): void
+    {
+        // Product Domain (Phase 1): product_variations rows are link records for
+        // child SKUs. When the child SKU is soft- or force-deleted, the link and
+        // its attribute items must not survive as orphans.
+        static::deleting(function (ProductVariation $variation) {
+            $variation->items()->delete();
+        });
+    }
 }

@@ -358,11 +358,8 @@ class ProductsController extends Controller
             // But with Inertia form helper, it should be sent as 0 or 1.
             $data['is_featured'] = $request->boolean('is_featured');
 
-            // Phase 1 domain: services never participate in physical inventory.
-            if (($data['product_type'] ?? null) === Products::PRODUCT_TYPE_SERVICE) {
-                $data['with_storehouse_management'] = false;
-                $data['quantity'] = 0;
-            }
+            // NOTE: Service non-stock semantics are enforced in the Products model
+            // (booted saving hook) so every write path is covered.
 
             $categoryIds = $request->input('category_ids', []);
 
@@ -417,7 +414,7 @@ class ProductsController extends Controller
             $product->categories()->sync(is_array($categoryIds) ? $categoryIds : []);
 
             // Variable product handling
-            if (($data['product_type'] ?? 'simple') === 'variable') {
+            if (($data['product_type'] ?? 'simple') === Products::PRODUCT_TYPE_VARIABLE) {
                 $variations = $request->input('variations', []);
                 $variationFiles = $request->file('variations', []);
 
@@ -486,9 +483,8 @@ class ProductsController extends Controller
 
                     $childProductData['parent_id'] = $product->id;
                     $childProductData['product_type'] = Products::PRODUCT_TYPE_SIMPLE;
-                    // Phase 1 domain: a child SKU row is a variation — parent_id != null
-                    // is authoritative, and is_variation mirrors it (see Products model).
-                    $childProductData['is_variation'] = true;
+                    // NOTE: is_variation is written by the Products model hook
+                    // (parent_id != null => true).
                     $childProductData['barcode'] = $var['barcode'] ?? null;
                     $childProductData['product_code'] = $productCode.'-'.($index + 1);
                     $childProductData['slug'] = $slug.'-'.($index + 1);
@@ -561,12 +557,10 @@ class ProductsController extends Controller
                 }
 
                 $product->update([
-                    'is_variation' => true,
                     'variations_count' => $total,
                 ]);
             } else {
                 $product->update([
-                    'is_variation' => false,
                     'variations_count' => 0,
                 ]);
             }
@@ -666,11 +660,8 @@ class ProductsController extends Controller
             // Explicitly handle is_featured to ensure it captures 1/0/"1"/"0"/true/false
             $data['is_featured'] = $request->boolean('is_featured');
 
-            // Phase 1 domain: services never participate in physical inventory.
-            if (($data['product_type'] ?? null) === Products::PRODUCT_TYPE_SERVICE) {
-                $data['with_storehouse_management'] = false;
-                $data['quantity'] = 0;
-            }
+            // NOTE: Service non-stock semantics are enforced in the Products model
+            // (booted saving hook) so every write path is covered.
 
             $categoryIds = $request->input('category_ids', []);
             // $data['updated_by_id'] = $user->id;
@@ -757,7 +748,7 @@ class ProductsController extends Controller
             $product->categories()->sync(is_array($categoryIds) ? $categoryIds : []);
 
             // Variable product handling
-            if (($data['product_type'] ?? $product->product_type) === 'variable') {
+            if (($data['product_type'] ?? $product->product_type) === Products::PRODUCT_TYPE_VARIABLE) {
                 $variations = $request->input('variations', []);
                 $variationFiles = $request->file('variations', []);
 
@@ -837,9 +828,8 @@ class ProductsController extends Controller
 
                     $childProductData['parent_id'] = $product->id;
                     $childProductData['product_type'] = Products::PRODUCT_TYPE_SIMPLE;
-                    // Phase 1 domain: a child SKU row is a variation — parent_id != null
-                    // is authoritative, and is_variation mirrors it (see Products model).
-                    $childProductData['is_variation'] = true;
+                    // NOTE: is_variation is written by the Products model hook
+                    // (parent_id != null => true).
                     $childProductData['barcode'] = $var['barcode'] ?? null;
                     $childProductData['product_code'] = $product->product_code.'-'.($index + 1);
                     $childProductData['slug'] = $product->slug.'-'.($index + 1);
@@ -912,7 +902,6 @@ class ProductsController extends Controller
                 }
 
                 $product->update([
-                    'is_variation' => true,
                     'variations_count' => $total,
                 ]);
             } else {
@@ -921,8 +910,9 @@ class ProductsController extends Controller
                 if (! empty($existingVariationProductIds)) {
                     \App\Models\Products::whereIn('id', $existingVariationProductIds)->delete();
                 }
+                // NOTE: is_variation is written by the Products model hook
+                // (parent_id === null => false).
                 $product->update([
-                    'is_variation' => false,
                     'variations_count' => 0,
                 ]);
             }

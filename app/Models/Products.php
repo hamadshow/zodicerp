@@ -26,9 +26,10 @@ class Products extends Model
      *          (no warehouse quantities, no stock movements, no valuation).
      *
      * Authoritative variation marker: parent_id != null.
-     * is_variation is kept as a legacy mirror of that marker for backward
-     * compatibility with existing queries/filters — it is written by this
-     * model so it can never contradict parent_id.
+     * is_variation is a LEGACY COMPATIBILITY FIELD derived from parent_id in
+     * BOTH directions (parent_id != null => true, parent_id == null => false).
+     * It is written exclusively by this model's saving hook so it can never
+     * contradict parent_id — no writer elsewhere may set it independently.
      * -----------------------------------------------------------------
      */
     public const PRODUCT_TYPE_SIMPLE = 'simple';
@@ -164,14 +165,68 @@ class Products extends Model
         return ! $this->isService();
     }
 
+    /**
+     * Keep the denormalized variations_count consistent on every child
+     * create/delete/restore (verified against children() — the source of
+     * truth — never incremented blindly).
+ */
+    protected static function syncVariationsCount(?int $parentId): void
+    {
+        if ($parentId && Products::find($parentId)) {
+            Products::where('id', $parentId)->update([
+                'variations_count' => Products::where('parent_id', $parentId)->count(),
+            ]);
+        }
+    }
+
     protected static function booted(): void
     {
-        // Keep the legacy is_variation flag consistent with parent_id so that
-        // "parent_id != null => is_variation = true" always holds.
         static::saving(function (Products $product) {
-            if ($product->parent_id !== null) {
-                $product->is_variation = true;
+            // ── Variation flag mirror (two-way) ─────────────────────────────
+            // parent_id is the single authority: every persisted row must
+            // satisfy  is_variation === (parent_id !== null).  This also
+            // repairs legacy writer code that still sets is_variation=true
+            // on variable PARENT rows (parent_id === null).
+            $product->is_variation = $product->parent_id !== null;
+
+            // ── Service inventory guard ─────────────────────────────────
+            // Services never participate in physical inventory: no warehouse
+            // stock, no quantities. Enforced at the model layer so EVERY
+            // write path (web, API, import, service layer) is covered.
+            if ($product->product_type === self::PRODUCT_TYPE_SERVICE) {
+                $product->with_storehouse_management = false;
+                $product->quantity = 0;
             }
+        });
+
+        static::saved(function (Products $product) {
+            if ($product->wasChanged('parent_id')) {
+                // Re-sync both sides of a parent_id move.
+                self::syncVariationsCount($product->getOriginal('parent_id'));
+                self::syncVariationsCount($product->parent_id);
+            }
+        });
+
+        static::deleted(function (Products $product) {
+            if ($product->parent_id) {
+                self::syncVariationsCount($product->parent_id);
+            }
+            // Detach link rows for this SKU so they cannot outlive it (soft delete).
+            ProductVariation::where('product_id', $product->id)->get()->each->delete();
+        });
+
+        static::restored(function (Products $product) {
+            if ($product->parent_id) {
+                self::syncVariationsCount($product->parent_id);
+            }
+        });
+
+        static::forceDeleted(function (Products $product) {
+            if ($product->parent_id) {
+                self::syncVariationsCount($product->parent_id);
+            }
+            // Hard detach: link rows must never outlive the SKU row itself.
+            ProductVariation::where('product_id', $product->id)->forceDelete();
         });
     }
 

@@ -196,11 +196,9 @@ class SupplierController extends Controller
             $data = $request->validated();
             $data['is_featured'] = $request->boolean('is_featured');
 
-            // Phase 1 domain: services never participate in physical inventory.
-            if (($data['product_type'] ?? null) === Products::PRODUCT_TYPE_SERVICE) {
-                $data['with_storehouse_management'] = false;
-                $data['quantity'] = 0;
-            }
+            // NOTE: Service non-stock semantics are enforced in the Products model
+            // (booted saving hook) so every write path is covered.
+
             $data['product_code'] = $productCode;
             $data['slug'] = $slug;
             $data['created_by_id'] = $supplier->id;
@@ -238,7 +236,7 @@ class SupplierController extends Controller
             }
 
             // Handle Variations
-            if ($request->product_type === 'variable') {
+            if ($request->product_type === Products::PRODUCT_TYPE_VARIABLE) {
                 $this->handleVariations($product, $request);
             }
 
@@ -307,11 +305,8 @@ class SupplierController extends Controller
             $data = $request->validated();
             $data['is_featured'] = $request->boolean('is_featured');
 
-            // Phase 1 domain: services never participate in physical inventory.
-            if (($data['product_type'] ?? null) === Products::PRODUCT_TYPE_SERVICE) {
-                $data['with_storehouse_management'] = false;
-                $data['quantity'] = 0;
-            }
+            // NOTE: Service non-stock semantics are enforced in the Products model
+            // (booted saving hook) so every write path is covered.
 
             // Handle Main Image
             if ($request->boolean('delete_image')) {
@@ -422,7 +417,7 @@ class SupplierController extends Controller
         $data = $request->all();
 
         // If switching to variable or updating variable product
-        if (($data['product_type'] ?? $product->product_type) === 'variable') {
+        if (($data['product_type'] ?? $product->product_type) === Products::PRODUCT_TYPE_VARIABLE) {
             $variations = $request->input('variations', []);
             $variationFiles = $request->file('variations', []);
 
@@ -510,9 +505,8 @@ class SupplierController extends Controller
 
                 $childProductData['parent_id'] = $product->id;
                 $childProductData['product_type'] = Products::PRODUCT_TYPE_SIMPLE;
-                // Phase 1 domain: a child SKU row is a variation — parent_id != null
-                // is authoritative, and is_variation mirrors it (see Products model).
-                $childProductData['is_variation'] = true;
+                // NOTE: is_variation is written by the Products model hook
+                // (parent_id != null => true).
                 $childProductData['barcode'] = $var['barcode'] ?? null;
                 $childProductData['product_code'] = $product->product_code.'-'.($index + 1);
                 $childProductData['slug'] = $product->slug.'-'.($index + 1);
@@ -573,8 +567,9 @@ class SupplierController extends Controller
                 }
             }
 
+            // NOTE: is_variation is written by the Products model hook
+            // (parent_id === null => false).
             $product->update([
-                'is_variation' => true,
                 'variations_count' => $total,
             ]);
         } else {
@@ -584,8 +579,9 @@ class SupplierController extends Controller
             if (! empty($existingVariationProductIds) && is_array($existingVariationProductIds)) {
                 Products::whereIn('id', $existingVariationProductIds)->forceDelete();
             }
+            // NOTE: is_variation is written by the Products model hook
+            // (parent_id === null => false).
             $product->update([
-                'is_variation' => false,
                 'variations_count' => 0,
             ]);
         }

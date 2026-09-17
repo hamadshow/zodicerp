@@ -121,6 +121,13 @@ class ProductService extends BaseService
     {
         $product = $this->findOrFail($id);
 
+        // Product Domain (Phase 1): services never hold stock quantities.
+        // increment()/decrement() below bypass model events, so the guard
+        // cannot live in the Products saving hook alone.
+        if (! $product->managesStock()) {
+            return $product->fresh();
+        }
+
         switch ($operation) {
             case 'add':
                 $product->increment('quantity', $quantity);

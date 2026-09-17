@@ -54,11 +54,11 @@ class StoreProductsRequest extends FormRequest
                 'nullable',
                 Rule::exists('products', 'id')->where(function ($query) {
                     // A variation may only hang under a variable parent (domain rule).
-                    $query->where('product_type', 'variable');
+                    $query->where('product_type', Products::PRODUCT_TYPE_VARIABLE);
                 }),
                 function ($attribute, $value, $fail) {
                     // Product Domain (Phase 1): only simple products can be variations.
-                    if ($value !== null && $this->input('product_type') !== 'simple') {
+                    if ($value !== null && $this->input('product_type') !== Products::PRODUCT_TYPE_SIMPLE) {
                         $fail('Only simple products can be a variation of a variable parent.');
                     }
                 },
@@ -103,8 +103,8 @@ class StoreProductsRequest extends FormRequest
             'variations' => [
                 'nullable',
                 'array',
-                Rule::requiredIf(fn () => $this->input('product_type') === 'variable' && ! $this->filled('parent_id')),
-                Rule::prohibitedIf(fn () => in_array($this->input('product_type'), ['simple', 'service'], true) && ! $this->filled('parent_id')),
+                Rule::requiredIf(fn () => $this->input('product_type') === Products::PRODUCT_TYPE_VARIABLE && ! $this->filled('parent_id')),
+                Rule::prohibitedIf(fn () => in_array($this->input('product_type'), [Products::PRODUCT_TYPE_SIMPLE, Products::PRODUCT_TYPE_SERVICE], true) && ! $this->filled('parent_id')),
             ],
             'variations.*.sku' => ['nullable', 'string', 'max:150'],
             'variations.*.price' => ['nullable', 'numeric', 'min:0'],

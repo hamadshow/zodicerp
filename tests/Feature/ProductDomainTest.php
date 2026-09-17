@@ -288,6 +288,146 @@ class ProductDomainTest extends TestCase
     }
 
     // ------------------------------------------------------------------
+    // 7. is_variation compatibility — both directions of the mirror
+    // ------------------------------------------------------------------
+
+    public function test_parent_rows_are_never_flagged_as_variation(): void
+    {
+        // Legacy writer code still sets is_variation=true on variable PARENT
+        // rows; the model must normalize it back to false on save.
+        [$parentId] = $this->createVariableFamily('PDOM-flag');
+
+        $parent = Products::find($parentId);
+        $parent->is_variation = true; // simulate legacy writer
+        $parent->save();
+
+        $this->assertFalse((bool) $parent->fresh()->is_variation, 'parent_id = NULL must always imply is_variation = false.');
+    }
+
+    // ------------------------------------------------------------------
+    // 8. variations_count stays consistent on delete / restore
+    // ------------------------------------------------------------------
+
+    public function test_deleting_a_child_resyncs_variations_count_and_detaches_link(): void
+    {
+        [$parentId, $childId] = $this->createVariableFamily('PDOM-del');
+        $this->assertSame(1, (int) Products::find($parentId)->variations_count);
+        $this->assertSame(1, DB::table('product_variations')->where('product_id', $childId)->count());
+
+        Products::find($childId)->delete(); // soft delete through the model
+
+        $this->assertSame(0, (int) Products::find($parentId)->variations_count, 'variations_count must re-sync when a child is deleted.');
+        $this->assertSame(0, DB::table('product_variations')->where('product_id', $childId)->count(), 'product_variations link must not outlive the child.');
+    }
+
+    public function test_restoring_a_child_resyncs_variations_count(): void
+    {
+        [$parentId, $childId] = $this->createVariableFamily('PDOM-rest');
+
+        Products::find($childId)->delete();
+        $this->assertSame(0, (int) Products::find($parentId)->variations_count);
+
+        Products::withTrashed()->find($childId)->restore();
+
+        $this->assertSame(1, (int) Products::find($parentId)->variations_count, 'variations_count must re-sync when a child is restored.');
+    }
+
+    public function test_parent_cannot_be_deleted_while_children_exist(): void
+    {
+        [$parentId] = $this->createVariableFamily('PDOM-guard');
+
+        $response = $this->deleteJson(route('admin.inventory.products.destroy', $parentId));
+
+        $response->assertStatus(400);
+        $this->assertNotNull(Products::find($parentId), 'Parent must survive a blocked delete.');
+    }
+
+    // ------------------------------------------------------------------
+    // 9. Real edit flows through the update endpoint
+    // ------------------------------------------------------------------
+
+    public function test_edit_simple_product_updates_fields_without_domain_drift(): void
+    {
+        $id = $this->createProduct('PDOM-edit-simple-'.uniqid(), ['product_type' => 'simple']);
+
+        $response = $this->putJson(route('admin.inventory.products.update', $id), [
+            'name' => 'PDOM-edit-simple-renamed-'.uniqid(),
+            'status' => 'active',
+            'product_type' => 'simple',
+            'stock_status' => 'in_stock',
+        ]);
+        $response->assertStatus(200);
+
+        $product = Products::find($id);
+        $this->assertSame('simple', $product->product_type);
+        $this->assertNull($product->parent_id);
+        $this->assertFalse((bool) $product->is_variation);
+    }
+
+    public function test_edit_service_cannot_sneak_stock_back_in(): void
+    {
+        $id = $this->createProduct('PDOM-edit-service-'.uniqid(), ['product_type' => 'service']);
+
+        $response = $this->putJson(route('admin.inventory.products.update', $id), [
+            'name' => 'PDOM-edit-service-'.uniqid(),
+            'status' => 'active',
+            'product_type' => 'service',
+            'stock_status' => 'in_stock',
+            'with_storehouse_management' => 1,
+            'quantity' => 55,
+        ]);
+        $response->assertStatus(200);
+
+        $service = Products::find($id);
+        $this->assertFalse((bool) $service->with_storehouse_management, 'Edit path must not re-enable stock management on a service.');
+        $this->assertSame(0, (int) $service->quantity, 'Edit path must not set a quantity on a service.');
+    }
+
+    public function test_edit_variable_product_resyncs_family(): void
+    {
+        [$parentId] = $this->createVariableFamily('PDOM-edit-var');
+
+        // Replace the variation set with two SKUs through the real update flow.
+        $response = $this->putJson(route('admin.inventory.products.update', $parentId), [
+            'name' => 'PDOM-edit-var-parent-'.uniqid(),
+            'status' => 'active',
+            'product_type' => 'variable',
+            'stock_status' => 'in_stock',
+            'variations' => [
+                ['sku' => self::FIXTURE_PREFIX.'EV-A-'.strtoupper(uniqid()), 'price' => 11],
+                ['sku' => self::FIXTURE_PREFIX.'EV-B-'.strtoupper(uniqid()), 'price' => 22],
+            ],
+        ]);
+        $response->assertStatus(200);
+
+        $parent = Products::find($parentId);
+        $children = Products::where('parent_id', $parentId)->get();
+
+        $this->assertSame(2, $children->count());
+        $this->assertSame(2, (int) $parent->variations_count, 'variations_count must match the recreated variation set.');
+        $this->assertSame(2, DB::table('product_variations')->where('configurable_product_id', $parentId)->count(), 'product_variations links must match the recreated set.');
+
+        foreach ($children as $child) {
+            $this->assertSame('simple', $child->product_type);
+            $this->assertTrue((bool) $child->is_variation);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // 10. Generic stock service cannot push stock onto a service
+    // ------------------------------------------------------------------
+
+    public function test_product_service_update_stock_ignores_services(): void
+    {
+        $serviceId = $this->createProduct('PDOM-svc-stock-api-'.uniqid(), ['product_type' => 'service']);
+
+        $service = app(\App\Services\ProductService::class)->updateStock($serviceId, 42, 'set');
+
+        $this->assertSame(0, (int) $service->quantity, 'updateStock() must never modify a service quantity.');
+        $this->assertFalse((bool) $service->with_storehouse_management);
+    }
+
+    // ------------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------------
 
