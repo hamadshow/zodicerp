@@ -166,6 +166,68 @@ class Products extends Model
     }
 
     /**
+     * THE shared Product Domain validation contract (Phase 1).
+     *
+     * Consumed by StoreProductsRequest, UpdateProductsRequest and the API
+     * ProductController so web + API cannot drift apart:
+     *
+     *   simple   : parent_id must be null (standalone SKU)
+     *   variable : parent_id must be null (parent/template)
+     *   service  : parent_id must be null (non-stock sellable)
+     *   variation: product_type = simple AND parent_id = variable product id
+     *
+     * $productTypeMode: 'required' for full create/update payloads,
+     * 'sometimes' for partial (PATCH-style) updates.
+     */
+    public static function domainRules(string $productTypeMode = 'required'): array
+    {
+        $productTypeRule = $productTypeMode === 'sometimes'
+            ? ['sometimes', 'nullable', \Illuminate\Validation\Rule::in(self::PRODUCT_TYPES)]
+            : ['required', \Illuminate\Validation\Rule::in(self::PRODUCT_TYPES)];
+
+        return [
+            'product_type' => $productTypeRule,
+
+            'parent_id' => [
+                'nullable',
+                // The parent must exist AND be a variable product.
+                \Illuminate\Validation\Rule::exists('products', 'id')->where(function ($query) {
+                    $query->where('product_type', self::PRODUCT_TYPE_VARIABLE);
+                }),
+                function ($attribute, $value, $fail) {
+                    if ($value === null) {
+                        return;
+                    }
+
+                    // Effective product type: the request payload wins; on
+                    // partial (PATCH-style) updates the existing row's type
+                    // is inherited when the payload omits product_type.
+                    $type = request()->input('product_type');
+                    $routeParam = request()->route('product') ?? request()->route('id');
+                    $selfId = is_object($routeParam) ? ($routeParam->id ?? null) : $routeParam;
+
+                    if ($type === null && $selfId !== null) {
+                        $type = self::whereKey($selfId)->value('product_type');
+                    }
+
+                    // Only simple products can be variations of a variable parent.
+                    if ($type !== self::PRODUCT_TYPE_SIMPLE) {
+                        $fail('Only simple products can be a variation of a variable parent.');
+
+                        return;
+                    }
+
+                    // A product can never be its own parent (web route binds the
+                    // model as {product}; the API binds the id as {id}).
+                    if ($selfId !== null && (int) $value === (int) $selfId) {
+                        $fail('A product cannot be its own parent.');
+                    }
+                },
+            ],
+        ];
+    }
+
+    /**
      * Keep the denormalized variations_count consistent on every child
      * create/delete/restore (verified against children() — the source of
      * truth — never incremented blindly).
@@ -226,7 +288,13 @@ class Products extends Model
                 self::syncVariationsCount($product->parent_id);
             }
             // Hard detach: link rows must never outlive the SKU row itself.
-            ProductVariation::where('product_id', $product->id)->forceDelete();
+            // Items are removed explicitly because a query-builder forceDelete
+            // bypasses the ProductVariation::deleting hook.
+            $variationIds = ProductVariation::where('product_id', $product->id)->pluck('id');
+            if ($variationIds->isNotEmpty()) {
+                ProductVariationItem::whereIn('variation_id', $variationIds)->delete();
+                ProductVariation::whereIn('id', $variationIds)->forceDelete();
+            }
         });
     }
 

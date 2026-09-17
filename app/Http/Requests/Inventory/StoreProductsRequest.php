@@ -50,19 +50,6 @@ class StoreProductsRequest extends FormRequest
             'barcode' => ['nullable', 'string', 'max:100', 'unique:products,barcode'],
 
             // Relations
-            'parent_id' => [
-                'nullable',
-                Rule::exists('products', 'id')->where(function ($query) {
-                    // A variation may only hang under a variable parent (domain rule).
-                    $query->where('product_type', Products::PRODUCT_TYPE_VARIABLE);
-                }),
-                function ($attribute, $value, $fail) {
-                    // Product Domain (Phase 1): only simple products can be variations.
-                    if ($value !== null && $this->input('product_type') !== Products::PRODUCT_TYPE_SIMPLE) {
-                        $fail('Only simple products can be a variation of a variable parent.');
-                    }
-                },
-            ],
             'brand_id' => ['nullable', 'exists:brands,id'],
             'unit_id' => ['nullable', 'exists:item_units,id'],
             'category_ids' => ['nullable', 'array'],
@@ -95,7 +82,10 @@ class StoreProductsRequest extends FormRequest
             // Other
             'order' => ['nullable', 'integer', 'min:0'],
             'is_featured' => ['boolean'],
-            'product_type' => ['required', Rule::in(Products::PRODUCT_TYPES)],
+
+            // Shared Product Domain contract — the ONE authoritative source for
+            // product_type + parent_id semantics (web and API both consume it).
+            ...Products::domainRules(),
 
             // Product Domain (Phase 1):
             // - parent_id set  => the row is a variation child (attribute combos in payload).

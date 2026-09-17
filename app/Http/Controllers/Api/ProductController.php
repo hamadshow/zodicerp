@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Products;
 use App\Services\ProductService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class ProductController extends BaseApiController
 {
@@ -38,33 +40,22 @@ class ProductController extends BaseApiController
 
     /**
      * Store a newly created product.
+     *
+     * Uses the shared Product Domain contract (Products::domainRules) so the
+     * API cannot drift from the web Inventory flow: canonical product types
+     * only, variation = simple child of a variable parent, services handled
+     * by the model's non-stock enforcement.
      */
     public function store(Request $request): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'sku' => 'required|string|unique:products,sku',
-            'price' => 'required|numeric|min:0',
-            'cost_price' => 'nullable|numeric|min:0',
-            'stock_quantity' => 'required|integer|min:0',
-            'min_stock_level' => 'nullable|integer|min:0',
-            'category_id' => 'nullable|exists:categories,id',
-            'brand_id' => 'nullable|exists:brands,id',
-            'status' => 'required|in:active,inactive,draft',
-            'weight' => 'nullable|numeric|min:0',
-            'dimensions' => 'nullable|json',
-            'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
-            'attributes' => 'nullable|json',
-        ]);
+        $validator = Validator::make($request->all(), $this->productRules());
 
         if ($validator->fails()) {
-            return $this->validationErrorResponse($validator->errors());
+            return $this->validationFailure($validator);
         }
 
         try {
-            $product = $this->productService->create($request->all());
+            $product = $this->productService->create($this->preparePayload($request));
             return $this->successResponse($product, 'Product created successfully', 201);
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to create product', 500);
@@ -94,30 +85,14 @@ class ProductController extends BaseApiController
      */
     public function update(Request $request, int $id): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|required|string|max:255',
-            'description' => 'nullable|string',
-            'sku' => 'sometimes|required|string|unique:products,sku,' . $id,
-            'price' => 'sometimes|required|numeric|min:0',
-            'cost_price' => 'nullable|numeric|min:0',
-            'stock_quantity' => 'sometimes|required|integer|min:0',
-            'min_stock_level' => 'nullable|integer|min:0',
-            'category_id' => 'nullable|exists:categories,id',
-            'brand_id' => 'nullable|exists:brands,id',
-            'status' => 'sometimes|required|in:active,inactive,draft',
-            'weight' => 'nullable|numeric|min:0',
-            'dimensions' => 'nullable|json',
-            'images' => 'nullable|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
-            'attributes' => 'nullable|json',
-        ]);
+        $validator = Validator::make($request->all(), $this->productRules(true));
 
         if ($validator->fails()) {
-            return $this->validationErrorResponse($validator->errors());
+            return $this->validationFailure($validator);
         }
 
         try {
-            $product = $this->productService->update($id, $request->all());
+            $product = $this->productService->update($id, $this->preparePayload($request, true));
 
             if (!$product) {
                 return $this->notFoundResponse('Product not found');
@@ -149,6 +124,10 @@ class ProductController extends BaseApiController
 
     /**
      * Bulk delete products.
+     *
+     * ProductService::bulkDelete() is Product-specific and lifecycle-safe
+     * (model events run; variations_count resync; no orphaned
+     * product_variations / product_variation_items) and fully transactional.
      */
     public function bulkDelete(Request $request): JsonResponse
     {
@@ -158,7 +137,7 @@ class ProductController extends BaseApiController
         ]);
 
         if ($validator->fails()) {
-            return $this->validationErrorResponse($validator->errors());
+            return $this->validationFailure($validator);
         }
 
         try {
@@ -181,7 +160,7 @@ class ProductController extends BaseApiController
         ]);
 
         if ($validator->fails()) {
-            return $this->validationErrorResponse($validator->errors());
+            return $this->validationFailure($validator);
         }
 
         try {
@@ -194,6 +173,9 @@ class ProductController extends BaseApiController
 
     /**
      * Update product stock.
+     *
+     * ProductService::updateStock() refuses services (increment/decrement
+     * bypass model events, so the guard lives in the service).
      */
     public function updateStock(Request $request, int $id): JsonResponse
     {
@@ -203,7 +185,7 @@ class ProductController extends BaseApiController
         ]);
 
         if ($validator->fails()) {
-            return $this->validationErrorResponse($validator->errors());
+            return $this->validationFailure($validator);
         }
 
         try {
@@ -217,5 +199,82 @@ class ProductController extends BaseApiController
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to update product stock', 500);
         }
+    }
+
+    /**
+     * Prepare an API payload for the Product service layer.
+     *
+     * Bridges the API contract onto the Product schema without changing either:
+     *  - product_code / slug are NOT NULL without defaults, so the API
+     *    generates them when absent (the legacy API path could never insert
+     *    rows against the current schema without this).
+     *  - the API-contract field stock_quantity maps onto products.quantity
+     *    (previously validated but silently dropped by mass assignment).
+     */
+    private function preparePayload(Request $request, bool $partial = false): array
+    {
+        $data = $request->all();
+
+        // API contract field -> schema column.
+        if (array_key_exists('stock_quantity', $data)) {
+            $data['quantity'] = $data['stock_quantity'];
+        }
+
+        if (!$partial) {
+            $data['product_code'] = $data['product_code'] ?? ('API-'.strtoupper(Str::random(8)));
+            $data['slug'] = $data['slug'] ?? Str::slug($data['name'] ?? 'product').'-'.strtolower(Str::random(6));
+            $data['status'] = $data['status'] ?? 'active';
+        }
+
+        return $data;
+    }
+
+    /**
+     * Validation failure response.
+     *
+     * NOTE: BaseApiController::validationErrorResponse() expects a Validator
+     * but callers historically passed $validator->errors() (a MessageBag),
+     * which crashed with a 500 on every API validation failure. This local
+     * helper returns the correct 422 + errors payload without changing the
+     * shared base class (other modules are out of scope here).
+     */
+    private function validationFailure($validator): JsonResponse
+    {
+        return $this->errorResponse('Validation failed', 422, $validator->errors());
+    }
+
+    /**
+     * Shared Product Domain rules for the API.
+     *
+     * Delegates the product_type / parent_id semantics to the ONE authoritative
+     * contract (Products::domainRules) so web and API validation cannot drift.
+     * $partial = true switches to PATCH-style "sometimes" rules.
+     */
+    private function productRules(bool $partial = false): array
+    {
+        $mode = $partial ? 'sometimes' : 'required';
+
+        return array_merge(
+            Products::domainRules($mode),
+            [
+                'name' => $partial ? 'sometimes|required|string|max:255' : 'required|string|max:255',
+                'description' => 'nullable|string',
+                'sku' => $partial
+                    ? 'sometimes|required|string|unique:products,sku,' . request()->route('id')
+                    : 'required|string|unique:products,sku',
+                'price' => $partial ? 'sometimes|required|numeric|min:0' : 'required|numeric|min:0',
+                'cost_price' => 'nullable|numeric|min:0',
+                'stock_quantity' => $partial ? 'sometimes|required|integer|min:0' : 'required|integer|min:0',
+                'min_stock_level' => 'nullable|integer|min:0',
+                'category_id' => 'nullable|exists:categories,id',
+                'brand_id' => 'nullable|exists:brands,id',
+                'status' => $partial ? 'sometimes|required|in:active,inactive,draft' : 'required|in:active,inactive,draft',
+                'weight' => 'nullable|numeric|min:0',
+                'dimensions' => 'nullable|json',
+                'images' => 'nullable|array',
+                'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+                'attributes' => 'nullable|json',
+            ]
+        );
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Products;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Model;
@@ -148,5 +149,51 @@ class ProductService extends BaseService
     public function bulkUpdateStatus(array $ids, string $status): int
     {
         return $this->model->whereIn('id', $ids)->update(['status' => $status]);
+    }
+
+    /**
+     * Bulk delete with full Product lifecycle integrity (Phase 1).
+     *
+     * The generic BaseService::bulkDelete() runs a query-level delete which
+     * bypasses the Products model events that keep the domain consistent
+     * (variations_count resync, product_variations / product_variation_items
+     * cleanup). This override deletes each Product through Eloquent so the
+     * model lifecycle runs, inside one transaction: every delete succeeds or
+     * nothing changes.
+     *
+     * Deletion order is irrelevant for correctness — the model events resync
+     * the parent counter against children() on every delete — but children
+     * are deleted before their parents so the parent-delete guard in
+     * ProductsController::destroy() semantics stay coherent when a family is
+     * bulk-deleted together.
+     */
+    public function bulkDelete(array $ids): int
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+
+        if ($ids === []) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($ids) {
+            $products = Products::withTrashed()->whereIn('id', $ids)->get();
+
+            // Children first, then parents: a parent whose children are in the
+            // same request is only deleted once its variation SKUs are gone.
+            $children = $products->filter(fn ($p) => $p->parent_id !== null)->values();
+            $standalone = $products->filter(fn ($p) => $p->parent_id === null)->values();
+
+            $count = 0;
+            foreach ($children->merge($standalone) as $product) {
+                if ($product->trashed()) {
+                    continue; // already deleted — not counted as a new deletion
+                }
+
+                $product->delete(); // fires Products::deleted lifecycle
+                $count++;
+            }
+
+            return $count;
+        });
     }
 }
