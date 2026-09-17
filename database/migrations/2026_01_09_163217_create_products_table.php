@@ -58,7 +58,7 @@ return new class extends Migration
             $table->unsignedBigInteger('tax_id')->nullable();
 
             // Product Details
-            $table->enum('product_type', ['simple', 'variable', 'Service'])->default('simple');
+            $table->enum('product_type', ['simple', 'variable', 'service'])->default('simple');
             $table->boolean('is_featured')->default(false);
             $table->boolean('is_variation')->default(false);
             $table->integer('variations_count')->default(0);

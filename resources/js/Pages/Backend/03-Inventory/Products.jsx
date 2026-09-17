@@ -935,7 +935,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
     const [store, setStore] = useState('');
     const [categorySearch, setCategorySearch] = useState('');
     const [taxOption, setTaxOption] = useState('none');
-    const [isAttributesExpanded, setIsAttributesExpanded] = useState(false);
+    const [isAttributesModalOpen, setIsAttributesModalOpen] = useState(false);
     const [localCategories, setLocalCategories] = useState(categories || []);
 
     // Fallback: Load categories from API if props are empty
@@ -1633,65 +1633,6 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                     </div>
                                 </div>
 
-                                <div className="products-section-card">
-                                    <div 
-                                        className="products-section-header d-flex justify-between align-items-center" 
-                                        onClick={() => setIsAttributesExpanded(!isAttributesExpanded)}
-                                        style={{ cursor: 'pointer' }}
-                                    >
-                                        <h4 className="products-section-title">Product Attributes (Optional)</h4>
-                                        <span className="material-icons-outlined toggle-icon-attributes">
-                                            {isAttributesExpanded ? 'expand_less' : 'expand_more'}
-                                        </span>
-                                    </div>
-                                    {isAttributesExpanded && (
-                                        <div className="products-section-content">
-                                            <div className="attributes-selection-grid">
-                                                {itemAttributes.map(attr => (
-                                                    <label
-                                                        key={attr.id}
-                                                        className={`checkbox-option attribute-checkbox ${selectedAttributeIds.includes(attr.id) ? 'selected' : ''}`}
-                                                    >
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={selectedAttributeIds.includes(attr.id)}
-                                                            onChange={() => {
-                                                                toggleAttributeSelection(attr.id);
-                                                                // Auto-update product type: selecting attributes
-                                                                // means the product becomes a configurable
-                                                                // (variable) parent; clearing them reverts it.
-                                                                // Never stomps an explicit service/simple choice.
-                                                                const willBeSelected = !selectedAttributeIds.includes(attr.id);
-                                                                const anySelected = willBeSelected || selectedAttributeIds.some(id => id !== attr.id);
-
-                                                                if (!anySelected) {
-                                                                    setSelectedVariationOptions({});
-                                                                    setVariationAttributeValues({});
-                                                                    setData(curr => (
-                                                                        curr.product_type === 'variable'
-                                                                            ? { ...curr, product_type: 'simple', variations: [] }
-                                                                            : curr
-                                                                    ));
-                                                                } else {
-                                                                    setData(curr => (
-                                                                        curr.product_type === 'service' || curr.product_type === 'variable'
-                                                                            ? curr
-                                                                            : { ...curr, product_type: 'variable' }
-                                                                    ));
-                                                                }
-                                                            }}
-                                                        />
-                                                        <span className="checkbox-custom-mark"></span>
-                                                        <span className="attribute-title">{attr.title}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                            {itemAttributes.length === 0 && (
-                                                <div className="empty-attributes-msg">No attributes available.</div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
 
                                 <div className="products-section-card">
                                     <div className="products-section-header">
@@ -1722,112 +1663,179 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                     </div>
                                 </div>
 
-                                <div className="products-section-card">
+                                <div className="products-section-card product-images-section">
                                     <div className="products-section-header">
-                                        <h4 className="products-section-title">Images</h4>
+                                        <h4 className="products-section-title">Product Images</h4>
                                     </div>
                                     <div className="products-section-content">
-                                        <div className="form-group">
-                                            <div
-                                                className="image-upload-area"
-                                                onClick={() => openMediaPicker('single')}
-                                            >
+
+                                        {/* ── A. Main Product Image ── */}
+                                        <div className="product-image-card">
+                                            <div className="product-image-card-header">
+                                                <span className="material-icons-outlined product-image-card-icon">image</span>
+                                                <div>
+                                                    <h5 className="product-image-card-title">Main Product Image</h5>
+                                                    <p className="product-image-card-desc">Primary image used to represent this product.</p>
+                                                </div>
+                                            </div>
+                                            <div className="product-image-card-body">
                                                 {getMainImageUrl() ? (
-                                                    <div className="image-preview-full-container" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                                                        <img
-                                                            src={getMainImageUrl()}
-                                                            alt="Main Product"
-                                                            style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }}
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            className="gallery-remove-btn"
-                                                            style={{ top: '10px', right: '10px' }}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setData(d => ({ ...d, image: null, delete_image: true }));
-                                                            }}
-                                                            title="Remove Image"
-                                                        >
-                                                            &times;
-                                                        </button>
-                                                    </div>
-                                                ) : (
                                                     <>
-                                                        <span className="material-icons-outlined image-upload-icon">add_photo_alternate</span>
-                                                        <div>
-                                                            <div className="image-upload-title">Click to set Main Image</div>
-                                                            <div className="image-upload-subtitle">Drag & drop or choose from media.</div>
+                                                        <div className="product-main-image-preview">
+                                                            <img
+                                                                src={getMainImageUrl()}
+                                                                alt="Main Product"
+                                                            />
+                                                        </div>
+                                                        <div className="product-image-actions">
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-outline"
+                                                                onClick={() => openMediaPicker('single')}
+                                                            >
+                                                                <span className="material-icons-outlined">swap_horiz</span>
+                                                                Change Image
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-danger"
+                                                                onClick={() => setData(d => ({ ...d, image: null, delete_image: true }))}
+                                                                title="Remove Image"
+                                                            >
+                                                                <span className="material-icons-outlined">delete_outline</span>
+                                                                Remove
+                                                            </button>
                                                         </div>
                                                     </>
+                                                ) : (
+                                                    <div
+                                                        className="image-upload-area product-main-image-empty"
+                                                        onClick={() => openMediaPicker('single')}
+                                                        role="button"
+                                                        tabIndex={0}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                                e.preventDefault();
+                                                                openMediaPicker('single');
+                                                            }
+                                                        }}
+                                                    >
+                                                        <span className="material-icons-outlined image-upload-icon">add_photo_alternate</span>
+                                                        <div className="image-upload-title">No main image selected</div>
+                                                        <div className="image-upload-subtitle">Click to upload or choose from the Media Library.</div>
+                                                        <div className="product-image-actions product-image-actions--empty">
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-outline"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    openMediaPicker('single');
+                                                                }}
+                                                            >
+                                                                Add Image
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                className="btn btn-outline"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    openMediaPicker('single');
+                                                                }}
+                                                            >
+                                                                Choose from Media Library
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
 
-                                        <div className="form-group">
-                                            <label className="form-label">Gallery Images</label>
-                                            <div className="d-flex gap-2 mb-4">
-                                                <button type="button" className="btn btn-outline" onClick={() => openMediaPicker('multiple')}>
-                                                    Add from Media
-                                                </button>
-                                                <div className="relative overflow-hidden inline-block">
-                                                    <button type="button" className="btn btn-outline">Upload New</button>
-                                                    <input
-                                                        type="file"
-                                                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
-                                                        multiple
-                                                        onChange={(e) => {
-                                                            const files = Array.from(e.target.files);
-                                                            setData('gallery', [...data.gallery, ...files]);
-                                                        }}
-                                                    />
+                                        {/* ── B. Product Gallery ── */}
+                                        <div className="product-image-card">
+                                            <div className="product-image-card-header">
+                                                <span className="material-icons-outlined product-image-card-icon">collections</span>
+                                                <div>
+                                                    <h5 className="product-image-card-title">Product Gallery</h5>
+                                                    <p className="product-image-card-desc">Additional images for this product.</p>
                                                 </div>
                                             </div>
-                                            <div className="gallery-grid">
-                                                {/* Display Existing Gallery Images */}
-                                                {data.existing_images && data.existing_images.map((img, index) => (
-                                                    <div key={`existing-${index}`} className="gallery-item">
-                                                        <img src={`/media-files/${img}`} alt={`Gallery ${index}`} />
-                                                        <button
-                                                            type="button"
-                                                            className="gallery-remove-btn"
-                                                            onClick={() => {
-                                                                const newExisting = data.existing_images.filter((_, i) => i !== index);
-                                                                setData('existing_images', newExisting);
+                                            <div className="product-image-card-body">
+                                                <div className="product-gallery-actions">
+                                                    <button type="button" className="btn btn-outline" onClick={() => openMediaPicker('multiple')}>
+                                                        <span className="material-icons-outlined">photo_library</span>
+                                                        Choose from Media Library
+                                                    </button>
+                                                    <div className="relative overflow-hidden inline-block">
+                                                        <button type="button" className="btn btn-outline">Upload New</button>
+                                                        <input
+                                                            type="file"
+                                                            className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                                            multiple
+                                                            onChange={(e) => {
+                                                                const files = Array.from(e.target.files);
+                                                                setData('gallery', [...data.gallery, ...files]);
                                                             }}
-                                                        >
-                                                            &times;
-                                                        </button>
+                                                        />
                                                     </div>
-                                                ))}
-                                                
-                                                {/* Display New Gallery Images/Paths */}
-                                                {data.gallery && data.gallery.map((item, index) => {
-                                                    let src = '';
-                                                    if (typeof item === 'string') {
-                                                        src = `/media-files/${item}`;
-                                                    } else if (item instanceof File) {
-                                                        src = URL.createObjectURL(item);
-                                                    }
-                                                    
-                                                    return (
-                                                        <div key={`new-${index}`} className="gallery-item">
-                                                            <img src={src} alt={`New Gallery ${index}`} />
-                                                            <button
-                                                                type="button"
-                                                                className="gallery-remove-btn"
-                                                                onClick={() => {
-                                                                    const newGallery = data.gallery.filter((_, i) => i !== index);
-                                                                    setData('gallery', newGallery);
-                                                                }}
-                                                            >
-                                                                &times;
-                                                            </button>
-                                                        </div>
-                                                    );
-                                                })}
+                                                </div>
+
+                                                {(!data.existing_images || data.existing_images.length === 0) && (!data.gallery || data.gallery.length === 0) ? (
+                                                    <div className="product-gallery-empty">
+                                                        <span className="material-icons-outlined">collections</span>
+                                                        <div className="product-gallery-empty-title">No gallery images yet</div>
+                                                        <div className="product-gallery-empty-subtitle">Add images from the Media Library or upload new ones.</div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="gallery-grid">
+                                                        {/* Display Existing Gallery Images */}
+                                                        {data.existing_images && data.existing_images.map((img, index) => (
+                                                            <div key={`existing-${index}`} className="gallery-item gallery-item--existing">
+                                                                <span className="gallery-item-tag">Existing</span>
+                                                                <img src={`/media-files/${img}`} alt={`Gallery ${index}`} />
+                                                                <button
+                                                                    type="button"
+                                                                    className="gallery-remove-btn"
+                                                                    onClick={() => {
+                                                                        const newExisting = data.existing_images.filter((_, i) => i !== index);
+                                                                        setData('existing_images', newExisting);
+                                                                    }}
+                                                                >
+                                                                    &times;
+                                                                </button>
+                                                            </div>
+                                                        ))}
+
+                                                        {/* Display New Gallery Images/Paths */}
+                                                        {data.gallery && data.gallery.map((item, index) => {
+                                                            let src = '';
+                                                            if (typeof item === 'string') {
+                                                                src = `/media-files/${item}`;
+                                                            } else if (item instanceof File) {
+                                                                src = URL.createObjectURL(item);
+                                                            }
+
+                                                            return (
+                                                                <div key={`new-${index}`} className="gallery-item gallery-item--new">
+                                                                    <span className="gallery-item-tag gallery-item-tag--new">New</span>
+                                                                    <img src={src} alt={`New Gallery ${index}`} />
+                                                                    <button
+                                                                        type="button"
+                                                                        className="gallery-remove-btn"
+                                                                        onClick={() => {
+                                                                            const newGallery = data.gallery.filter((_, i) => i !== index);
+                                                                            setData('gallery', newGallery);
+                                                                        }}
+                                                                    >
+                                                                        &times;
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
+
                                     </div>
                                 </div>
 
@@ -1838,11 +1846,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                             <button
                                                 type="button"
                                                 className="btn btn-outline"
-                                                onClick={() => {
-                                                    setIsAttributesExpanded(true);
-                                                    // scroll to attributes section if needed
-                                                    document.querySelector('.attributes-selection-grid')?.scrollIntoView({ behavior: 'smooth' });
-                                                }}
+                                                onClick={() => setIsAttributesModalOpen(true)}
                                             >
                                                 Select attribute
                                             </button>
@@ -3092,6 +3096,77 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                             disabled={!hasSelectedVariationValues}
                                         >
                                             Continue
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {isAttributesModalOpen && (
+                            <div className="modal-overlay active" onClick={() => setIsAttributesModalOpen(false)}>
+                                <div className="modal attributes-modal" onClick={e => e.stopPropagation()}>
+                                    <div className="modal-header">
+                                        <h3 className="modal-title">Select Product Attributes</h3>
+                                        <button
+                                            type="button"
+                                            className="modal-close"
+                                            onClick={() => setIsAttributesModalOpen(false)}
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
+                                    <div className="modal-body">
+                                        <div className="attributes-selection-grid">
+                                            {itemAttributes.map(attr => (
+                                                <label
+                                                    key={attr.id}
+                                                    className={`checkbox-option attribute-checkbox ${selectedAttributeIds.includes(attr.id) ? 'selected' : ''}`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedAttributeIds.includes(attr.id)}
+                                                        onChange={() => {
+                                                            toggleAttributeSelection(attr.id);
+                                                            // Auto-update product type: selecting attributes
+                                                            // means the product becomes a configurable
+                                                            // (variable) parent; clearing them reverts it.
+                                                            // Never stomps an explicit service/simple choice.
+                                                            const willBeSelected = !selectedAttributeIds.includes(attr.id);
+                                                            const anySelected = willBeSelected || selectedAttributeIds.some(id => id !== attr.id);
+
+                                                            if (!anySelected) {
+                                                                setSelectedVariationOptions({});
+                                                                setVariationAttributeValues({});
+                                                                setData(curr => (
+                                                                    curr.product_type === 'variable'
+                                                                        ? { ...curr, product_type: 'simple', variations: [] }
+                                                                        : curr
+                                                                ));
+                                                            } else {
+                                                                setData(curr => (
+                                                                    curr.product_type === 'service' || curr.product_type === 'variable'
+                                                                        ? curr
+                                                                        : { ...curr, product_type: 'variable' }
+                                                                ));
+                                                            }
+                                                        }}
+                                                    />
+                                                    <span className="checkbox-custom-mark"></span>
+                                                    <span className="attribute-title">{attr.title}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        {itemAttributes.length === 0 && (
+                                            <div className="empty-attributes-msg">No attributes available.</div>
+                                        )}
+                                    </div>
+                                    <div className="modal-actions">
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline"
+                                            onClick={() => setIsAttributesModalOpen(false)}
+                                        >
+                                            Close
                                         </button>
                                     </div>
                                 </div>

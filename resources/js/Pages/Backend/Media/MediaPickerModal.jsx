@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { usePage } from '@inertiajs/react';
 import axios from 'axios';
 import MediaSidebar from './MediaSidebar';
 import MediaGrid from './MediaGrid';
@@ -27,6 +28,17 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, multiple =
     const fileInputRef = useRef(null);
     const [uploadProgress, setUploadProgress] = useState(null);
 
+    // Localized routes: media routes require {country}/{lang} segments.
+    // Mirrors the getLocalizedRoute helper used across backend pages.
+    const { localization } = usePage().props;
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     useEffect(() => {
         if (isOpen) {
             fetchMedia();
@@ -50,7 +62,7 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, multiple =
                 queryParams.type = 'images';
             }
 
-            const response = await axios.get(route('admin.media.index'), {
+            const response = await axios.get(getLocalizedRoute('admin.media.index'), {
                 params: queryParams,
                 headers: { 'Accept': 'application/json' }
             });
@@ -143,7 +155,7 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, multiple =
 
         try {
             setUploadProgress(0);
-            await axios.post(route('admin.media.store'), formData, {
+            await axios.post(getLocalizedRoute('admin.media.store'), formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
                 },
