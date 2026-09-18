@@ -374,7 +374,9 @@ class ProductsController extends Controller
 
                 // Validate image file
                 if (! $this->validateImageFile($image)) {
-                    throw new Exception('Invalid image file provided.');
+                    throw ValidationException::withMessages([
+                        'image' => ['The main image must be an image file (jpg, jpeg, png, gif, webp) up to 5MB.'],
+                    ]);
                 }
 
                 $data['image'] = $image->store('products/images', 'public');
@@ -391,7 +393,9 @@ class ProductsController extends Controller
                     if ($this->validateImageFile($file)) {
                         $galleryImages[] = $file->store('products/gallery', 'public');
                     } else {
-                        throw new Exception('One or more gallery images are invalid.');
+                        throw ValidationException::withMessages([
+                            'gallery' => ['Each gallery image must be an image file (jpg, jpeg, png, gif, webp) up to 5MB.'],
+                        ]);
                     }
                 }
             }
@@ -685,11 +689,16 @@ class ProductsController extends Controller
 
                 // Validate image file
                 if (! $this->validateImageFile($image)) {
-                    throw new Exception('Invalid image file provided.');
+                    throw ValidationException::withMessages([
+                        'image' => ['The main image must be an image file (jpg, jpeg, png, gif, webp) up to 5MB.'],
+                    ]);
                 }
 
-                // Delete old image
-                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                // Delete old image, but only if it was uploaded for this product
+                // (never delete shared Media Library files under media/*).
+                if ($product->image
+                    && ! str_starts_with($product->image, 'media/')
+                    && Storage::disk('public')->exists($product->image)) {
                     Storage::disk('public')->delete($product->image);
                 }
                 $data['image'] = $image->store('products/images', 'public');
@@ -699,7 +708,10 @@ class ProductsController extends Controller
                 // unless we implement strict ownership checks.
                 $data['image'] = $request->input('image');
             } elseif (isset($data['delete_image']) && $data['delete_image']) {
-                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                // Same guard: only remove product-owned uploads, keep media/* files.
+                if ($product->image
+                    && ! str_starts_with($product->image, 'media/')
+                    && Storage::disk('public')->exists($product->image)) {
                     Storage::disk('public')->delete($product->image);
                 }
                 $data['image'] = null;
@@ -715,7 +727,7 @@ class ProductsController extends Controller
             // Only delete if it was in 'products/gallery' (uploaded for this product).
             $deletedImages = array_diff($currentImages, $keptImages);
             foreach ($deletedImages as $img) {
-                if (str_starts_with($img, 'products/gallery') && Storage::disk('public')->exists($img)) {
+                if (str_starts_with($img, 'products/') && Storage::disk('public')->exists($img)) {
                     Storage::disk('public')->delete($img);
                 }
             }
@@ -727,7 +739,9 @@ class ProductsController extends Controller
                     if ($this->validateImageFile($file)) {
                         $newImages[] = $file->store('products/gallery', 'public');
                     } else {
-                        throw new Exception('One or more gallery images are invalid.');
+                        throw ValidationException::withMessages([
+                            'gallery' => ['Each gallery image must be an image file (jpg, jpeg, png, gif, webp) up to 5MB.'],
+                        ]);
                     }
                 }
             }

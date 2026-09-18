@@ -901,6 +901,14 @@
         }
     }
 
+    /* Graceful placeholder for missing/broken product images (SafeImage) */
+    .product-thumb-placeholder {
+        background: #f1f5f9;
+        color: $gray-color;
+
+        .material-icons-outlined { font-size: 28px; }
+    }
+
     /* ── Product Images redesign ── */
         .product-image-card {
             border: 1px solid $border-color;

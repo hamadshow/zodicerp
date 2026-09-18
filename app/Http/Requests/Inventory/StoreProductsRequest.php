@@ -40,10 +40,9 @@ class StoreProductsRequest extends FormRequest
             'content' => ['nullable', 'string'],
             'status' => ['required', 'in:published,draft,pending,active,inactive'],
 
-            // Media
-            'image' => ['nullable'], // Allow string (path) or file
-            'gallery' => ['nullable', 'array'],
-            'gallery.*' => ['nullable'], // Allow string (path) or file
+            // Media rules live in Products::domainRules() (shared with Update
+            // and the API): files validated by extension/size, persisted
+            // strings constrained to products/*, suppliers/*, media/*.
 
             // ID
             'sku' => ['nullable', 'string', 'max:100', 'unique:products,sku'],

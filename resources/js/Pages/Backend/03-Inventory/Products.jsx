@@ -10,6 +10,61 @@ import '../../../../css/backend/main.scss';
 import MediaPickerModal from '../Media/MediaPickerModal';
 
 // ==========================================
+// Image path / URL helpers (single source of truth
+// for the Product page; matches the media-files route
+// contract: DB stores disk-relative paths such as
+// 'products/images/x.jpg' or 'media/y.jpg').
+// ==========================================
+
+/** Normalize any persisted path/URL to the disk-relative form stored in the DB. */
+const normalizeMediaPath = (path) => {
+    if (!path) return '';
+    const withoutProtocol = String(path).replace(/^https?:\/\/[^/]+/, '');
+    return withoutProtocol.replace(/^\/?(files|storage|media-files)\//, '');
+};
+
+/** Build a browser URL for a persisted product-image path (never for File objects). */
+const buildMediaUrl = (path) => {
+    const rel = normalizeMediaPath(path);
+    return rel ? `/media-files/${rel}` : '';
+};
+
+/**
+ * Stable preview URLs for local File objects (new uploads): one objectURL
+ * per File for the component lifetime instead of a new leak on every render.
+ */
+const objectUrlCache = new WeakMap();
+const getObjectUrl = (file) => {
+    if (!objectUrlCache.has(file)) {
+        objectUrlCache.set(file, URL.createObjectURL(file));
+    }
+    return objectUrlCache.get(file);
+};
+
+/**
+ * Shared <img> for persisted product images: renders a graceful icon
+ * placeholder instead of a broken-image glyph if the file is missing (404).
+ */
+const SafeImage = ({ src, alt, className, onClick }) => {
+    const [failed, setFailed] = useState(false);
+
+    if (!src || failed) {
+        return (
+            <div
+                className={`product-thumb-placeholder ${className || ''}`}
+                title={alt}
+                onClick={onClick}
+                style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+                <span className="material-icons-outlined text-gray-light">image_not_supported</span>
+            </div>
+        );
+    }
+
+    return <img src={src} alt={alt} className={className} onClick={onClick} loading="lazy" onError={() => setFailed(true)} />;
+};
+
+// ==========================================
 // Helper Components
 // ==========================================
 
@@ -154,7 +209,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
             render: (product) => (
                 <div className="product-cell">
                     {product.image ? (
-                        <img src={`/media-files/${product.image}`} alt={product.name} className="product-thumb" />
+                        <SafeImage src={buildMediaUrl(product.image)} alt={product.name} className="product-thumb" />
                     ) : (
                         <div className="product-thumb-placeholder">
                             <span className="material-icons-outlined text-gray-light">image</span>
@@ -1419,15 +1474,9 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         }
     }, [product, makeAttributesKey]);
 
-    const normalizeMediaPath = (path) => {
-        if (!path) return '';
-        const withoutProtocol = path.replace(/^https?:\/\/[^/]+/, '');
-        return withoutProtocol.replace(/^\/?(files|storage|media-files)\//, '');
-    };
-
     const getMainImageUrl = () => {
         if (data.image instanceof File) {
-            return URL.createObjectURL(data.image);
+            return getObjectUrl(data.image);
         }
 
         const basePath =
@@ -1435,12 +1484,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
             (!data.delete_image && product && product.image) ||
             '';
 
-        if (!basePath) {
-            return '';
-        }
-
-        const relativePath = normalizeMediaPath(basePath);
-        return `/media-files/${relativePath}`;
+        return basePath ? buildMediaUrl(basePath) : '';
     };
 
     const openMediaPicker = (mode) => {
@@ -1682,7 +1726,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                 {getMainImageUrl() ? (
                                                     <>
                                                         <div className="product-main-image-preview">
-                                                            <img
+                                                            <SafeImage
                                                                 src={getMainImageUrl()}
                                                                 alt="Main Product"
                                                             />
@@ -1791,7 +1835,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                         {data.existing_images && data.existing_images.map((img, index) => (
                                                             <div key={`existing-${index}`} className="gallery-item gallery-item--existing">
                                                                 <span className="gallery-item-tag">Existing</span>
-                                                                <img src={`/media-files/${img}`} alt={`Gallery ${index}`} />
+                                                                <SafeImage src={buildMediaUrl(img)} alt={`Gallery ${index}`} />
                                                                 <button
                                                                     type="button"
                                                                     className="gallery-remove-btn"
@@ -1807,17 +1851,14 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
 
                                                         {/* Display New Gallery Images/Paths */}
                                                         {data.gallery && data.gallery.map((item, index) => {
-                                                            let src = '';
-                                                            if (typeof item === 'string') {
-                                                                src = `/media-files/${item}`;
-                                                            } else if (item instanceof File) {
-                                                                src = URL.createObjectURL(item);
-                                                            }
+                                                            const src = typeof item === 'string'
+                                                                ? buildMediaUrl(item)
+                                                                : (item instanceof File ? getObjectUrl(item) : '');
 
                                                             return (
                                                                 <div key={`new-${index}`} className="gallery-item gallery-item--new">
                                                                     <span className="gallery-item-tag gallery-item-tag--new">New</span>
-                                                                    <img src={src} alt={`New Gallery ${index}`} />
+                                                                    <SafeImage src={src} alt={`New Gallery ${index}`} />
                                                                     <button
                                                                         type="button"
                                                                         className="gallery-remove-btn"
@@ -1849,14 +1890,6 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                 onClick={() => setIsAttributesModalOpen(true)}
                                             >
                                                 Select attribute
-                                            </button>
-                                            <button
-                                                type="button"
-                                                className="btn btn-outline"
-                                                onClick={openGenerateModal}
-                                                disabled={!hasSelectedAttributes}
-                                            >
-                                                Generate variations
                                             </button>
                                             <button
                                                 type="button"
@@ -1904,19 +1937,15 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                                     {(() => {
                                                                         const imgToShow = v.image || (Array.isArray(v.images) && v.images.length > 0 ? v.images[0] : null);
                                                                         if (imgToShow) {
-                                                                            let src = '';
-                                                                            if (imgToShow instanceof File) {
-                                                                                src = URL.createObjectURL(imgToShow);
-                                                                            } else if (typeof imgToShow === 'string') {
-                                                                                 src = `/media-files/${imgToShow.replace(/^\/?(files|storage|media-files)\//, '')}`;
-                                                                            }
+                                                                            const src = imgToShow instanceof File
+                                                                                ? getObjectUrl(imgToShow)
+                                                                                : buildMediaUrl(imgToShow);
                                                                             return (
-                                                                                <img
+                                                                                <SafeImage
                                                                                     src={src}
                                                                                     alt="Variation"
                                                                                     className="variation-image-thumb"
                                                                                     onClick={() => openVariationImagePickerForRow(v.tempId)}
-                                                                                    style={{ cursor: 'pointer' }}
                                                                                 />
                                                                             );
                                                                         } else {
@@ -2623,15 +2652,12 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                     {Array.isArray(newVariationImages) && newVariationImages.length > 0 ? (
                                                         <div className="gallery-grid">
                                                             {newVariationImages.map((img, idx) => {
-                                                                let src = '';
-                                                                if (img instanceof File) {
-                                                                    src = URL.createObjectURL(img);
-                                                                } else {
-                                                                    src = `/media-files/${img}`;
-                                                                }
+                                                                const src = img instanceof File
+                                                                    ? getObjectUrl(img)
+                                                                    : buildMediaUrl(img);
                                                                 return (
                                                                 <div key={`nvimg-${idx}`} className="gallery-item">
-                                                                    <img src={src} alt={`Variation ${idx+1}`} />
+                                                                    <SafeImage src={src} alt={`Variation ${idx+1}`} />
                                                                     <button
                                                                         type="button"
                                                                         className="gallery-remove-btn"
@@ -2932,15 +2958,12 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                                 ? currentEditingVariation.images
                                                                 : [currentEditingVariation.image]
                                                             ).map((img, idx) => {
-                                                                let src = '';
-                                                                if (img instanceof File) {
-                                                                    src = URL.createObjectURL(img);
-                                                                } else if (typeof img === 'string') {
-                                                                    src = `/media-files/${img.replace(/^\/?(files|storage|media-files)\//, '')}`;
-                                                                }
+                                                                const src = img instanceof File
+                                                                    ? getObjectUrl(img)
+                                                                    : buildMediaUrl(img);
                                                                 return (
                                                                 <div key={`edit-vimg-${idx}`} className="gallery-item">
-                                                                    <img src={src} alt={`Variation ${idx+1}`} />
+                                                                    <SafeImage src={src} alt={`Variation ${idx+1}`} />
                                                                     <button
                                                                         type="button"
                                                                         className="gallery-remove-btn"
@@ -3029,6 +3052,14 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                         <h3 className="modal-title">Generate variations</h3>
                                         <button
                                             type="button"
+                                            className="btn btn-outline"
+                                            onClick={openGenerateModal}
+                                            disabled={!hasSelectedAttributes}
+                                        >
+                                            Generate variations
+                                        </button>
+                                        <button
+                                            type="button"
                                             className="modal-close"
                                             onClick={() => setIsGenerateModalOpen(false)}
                                         >
@@ -3107,6 +3138,21 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                 <div className="modal attributes-modal" onClick={e => e.stopPropagation()}>
                                     <div className="modal-header">
                                         <h3 className="modal-title">Select Product Attributes</h3>
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline"
+                                            onClick={() => {
+                                                // Handoff: close this modal first so the generate
+                                                // modal is not mounted hidden behind it (both use
+                                                // the same overlay stacking — DOM order puts this
+                                                // one on top).
+                                                setIsAttributesModalOpen(false);
+                                                openGenerateModal();
+                                            }}
+                                            disabled={!hasSelectedAttributes}
+                                        >
+                                            Generate variations
+                                        </button>
                                         <button
                                             type="button"
                                             className="modal-close"

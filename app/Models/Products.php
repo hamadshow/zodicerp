@@ -188,6 +188,58 @@ class Products extends Model
         return [
             'product_type' => $productTypeRule,
 
+            // Product Images contract:
+            //   * Uploaded files must be real image files up to 5MB.
+            //   * Persisted path strings must live under an owned prefix
+            //     (products/*, suppliers/*) or the Media Library (media/*).
+            //     This doubles as path-traversal protection for the
+            //     delete-file logic in the controllers.
+            'image' => [
+                'nullable',
+                'max:5120',
+                function ($attribute, $value, $fail) {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+                    if ($value instanceof \Illuminate\Http\UploadedFile) {
+                        if (! in_array(strtolower($value->getClientOriginalExtension()), ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                            $fail('The image must be a file of type: jpg, jpeg, png, gif, webp.');
+                        }
+
+                        return;
+                    }
+                    if (is_string($value)
+                        && ! str_starts_with($value, 'products/')
+                        && ! str_starts_with($value, 'suppliers/')
+                        && ! str_starts_with($value, 'media/')) {
+                        $fail('The image path is invalid.');
+                    }
+                },
+            ],
+            'gallery' => ['nullable', 'array', 'max:20'],
+            'gallery.*' => [
+                'nullable',
+                'max:5120',
+                function ($attribute, $value, $fail) {
+                    if ($value === null || $value === '') {
+                        return;
+                    }
+                    if ($value instanceof \Illuminate\Http\UploadedFile) {
+                        if (! in_array(strtolower($value->getClientOriginalExtension()), ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
+                            $fail('Each gallery image must be a file of type: jpg, jpeg, png, gif, webp.');
+                        }
+
+                        return;
+                    }
+                    if (is_string($value)
+                        && ! str_starts_with($value, 'products/')
+                        && ! str_starts_with($value, 'suppliers/')
+                        && ! str_starts_with($value, 'media/')) {
+                        $fail('The gallery image path is invalid.');
+                    }
+                },
+            ],
+
             'parent_id' => [
                 'nullable',
                 // The parent must exist AND be a variable product.

@@ -309,19 +309,25 @@ class SupplierController extends Controller
             // (booted saving hook) so every write path is covered.
 
             // Handle Main Image
+            // Never delete shared Media Library files (media/*) from disk.
             if ($request->boolean('delete_image')) {
-                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                if ($product->image
+                    && ! str_starts_with($product->image, 'media/')
+                    && Storage::disk('public')->exists($product->image)) {
                     Storage::disk('public')->delete($product->image);
                 }
                 $data['image'] = null;
             }
             if ($request->hasFile('image')) {
-                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                if ($product->image
+                    && ! str_starts_with($product->image, 'media/')
+                    && Storage::disk('public')->exists($product->image)) {
                     Storage::disk('public')->delete($product->image);
                 }
                 $image = $request->file('image');
                 $data['image'] = $image->store('suppliers/'.$supplier->supplier_code.'/products', 'public');
             }
+            // (A Media Library selection persists via validated()['image'] as a string.)
 
             // Handle Gallery
             $currentImages = array_values(array_filter((array) $request->input('existing_images', []), function ($value) {
@@ -343,7 +349,10 @@ class SupplierController extends Controller
             }));
             $deletedImages = array_diff($previousImages, $currentImages);
             foreach ($deletedImages as $path) {
-                if (Storage::disk('public')->exists($path)) {
+                // Guard: only remove supplier-owned uploads (suppliers/* or products/*);
+                // shared Media Library files (media/*) must survive.
+                if (! str_starts_with($path, 'media/')
+                    && Storage::disk('public')->exists($path)) {
                     Storage::disk('public')->delete($path);
                 }
             }

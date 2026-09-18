@@ -43,9 +43,11 @@ class UpdateProductsRequest extends FormRequest
             'status' => ['required', 'in:published,draft,pending,active,inactive'],
 
             // Media
-            'image' => ['nullable'], // Allow string (path) or file
-            'gallery' => ['nullable', 'array'],
-            'gallery.*' => ['nullable'], // Allow string (path) or file
+            // String = persisted path (products/* or media/*), file = direct upload.
+            // mimes validates files by real MIME; strings by extension.
+            // Media rules live in Products::domainRules() (shared with Store
+            // and the API): files validated by extension/size, persisted
+            // strings constrained to products/*, suppliers/*, media/*.
             'existing_images' => ['nullable', 'array'],
             'existing_images.*' => ['string'],
             'delete_image' => ['nullable', 'boolean'],
