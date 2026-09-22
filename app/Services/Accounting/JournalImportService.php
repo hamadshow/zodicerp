@@ -128,10 +128,15 @@ class JournalImportService
 
         return DB::transaction(function () use ($code, $header, $lines, $totalDebit, $formattedDate) {
             // Update or Create Header
+            // Canonical entry_type semantics: an explicit value in the file
+            // is preserved (opening-balance imports keep 'Opening'); empty
+            // cells default to 'Regular' (normal in-year entry).
+            $explicitEntryType = trim((string) ($header['entry_type'] ?? ''));
+
             $journal = JournalEntry::updateOrCreate(
                 ['entry_code' => $code],
                 [
-                    'entry_type'   => $header['entry_type'] ?? 'Manual',
+                    'entry_type'   => $explicitEntryType !== '' ? $explicitEntryType : 'Regular',
                     'reference'    => $header['reference'] ?? null,
                     'date'         => $formattedDate,
                     'description'  => $header['header_description'] ?? $header['description'] ?? null,

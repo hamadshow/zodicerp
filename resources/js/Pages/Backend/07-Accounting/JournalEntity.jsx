@@ -185,7 +185,7 @@ export default function JournalEntity() {
       ['reference', 'No', 'External reference or document number.', 'REF-001'],
       ['header_description', 'No', 'Overall description for the journal entry.', 'Monthly Payroll'],
       ['status', 'No', 'Entry status: UnPost or Post (Default: UnPost).', 'UnPost'],
-      ['entry_type', 'No', 'Type of entry: Manual, System, etc. (Default: Manual).', 'Manual'],
+      ['entry_type', 'No', 'Type of entry: Opening = opening balance, Regular = normal in-year entry (Default: Regular).', 'Regular'],
       ['account_id', 'Yes', 'Account ID, Code, or Name.', '1001 or Cash'],
       ['debit', 'Yes', 'Debit amount (Numeric).', '1500.00'],
       ['credit', 'Yes', 'Credit amount (Numeric).', '0.00'],
@@ -200,11 +200,11 @@ export default function JournalEntity() {
     ];
 
     const sample = [
-      'QID-10001', '2024-03-30', 'REF-001', 'Sample Balanced Entry', 'UnPost', 'Manual',
+      'QID-10001', '2024-03-30', 'REF-001', 'Sample Balanced Entry', 'UnPost', 'Regular',
       '1', '100', '0', 'Line 1 Description', 'Supplier-01', 'CC-01'
     ];
     const sample2 = [
-      'QID-10001', '2024-03-30', 'REF-001', 'Sample Balanced Entry', 'UnPost', 'Manual',
+      'QID-10001', '2024-03-30', 'REF-001', 'Sample Balanced Entry', 'UnPost', 'Regular',
       '2', '0', '100', 'Line 2 Description', '', 'CC-01'
     ];
 
@@ -256,7 +256,7 @@ export default function JournalEntity() {
             reference: row.reference || '',
             header_description: row.header_description || '',
             status: row.status || 'UnPost',
-            entry_type: row.entry_type || 'Manual',
+            entry_type: row.entry_type || 'Regular',
             account_id: row.account_id || '',
             debit: row.debit || 0,
             credit: row.credit || 0,
@@ -445,7 +445,7 @@ export default function JournalEntity() {
               'Reference': journal.reference || '',
               'Header Description': journal.description || '',
               'Status': journal.status,
-              'Entry Type': journal.entry_type || 'Manual',
+              'Entry Type': journal.entry_type || 'Regular',
               'Account ID': line.account_id,
               'Account Code': line.account?.AccCode || '',
               'Account Name': line.account?.AccName || '',

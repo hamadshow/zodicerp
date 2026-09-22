@@ -400,7 +400,15 @@ class FinancialReportController extends Controller
             $code = $account->AccCode;
             $id = $account->AccID;
 
-            $act = $activityById->get($id) ?? $activityById->get($code);
+        // journal_entry_lines.account_id references accounts.AccID — the ONLY
+        // correct lookup key. The previous `$activityById->get($id)
+        // ?? $activityById->get($code)` fallback collided with it: when a
+        // tree node's AccCode (e.g. equity root '3') equals some OTHER
+        // account's AccID (AccID=3 = cash 1001), the fallback attached that
+        // foreign activity to the node — inflating Assets and deflating
+        // Equity. Verified: zero orphan lines reference a non-AccID value,
+        // so the fallback was dead code that only ever corrupted results.
+        $act = $activityById->get($id);
 
             $debit = (float)($act?->total_debit ?? 0);
             $credit = (float)($act?->total_credit ?? 0);
@@ -449,6 +457,28 @@ class FinancialReportController extends Controller
                 $result['total_equity'] += $node['balance'];
             }
         }
+
+        // 6. Fiscal result not yet closed into equity: P&L accounts (4/5/6)
+        // stay open in this system (there is no year-end closing entry), so
+        // the Balance Sheet must add net income (income − cogs − expenses)
+        // to Equity — otherwise Assets can never equal Liabilities + Equity.
+        // Aggregated from leaf journal lines by account-code family, using
+        // AccID joins only (same collision-free lookup as above).
+        $pl = DB::table('journal_entry_lines as l')
+            ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
+            ->join('accounts as a', 'a.AccID', '=', 'l.account_id')
+            ->where('e.company_id', $companyId)
+            ->where('a.company_id', $companyId)
+            ->whereIn('e.status', self::POSTED_STATUSES)
+            ->where('e.date', '<=', $date)
+            ->selectRaw("SUM(CASE WHEN a.AccCode LIKE '4%' THEN l.credit - l.debit ELSE 0 END) as income")
+            ->selectRaw("SUM(CASE WHEN a.AccCode LIKE '5%' THEN l.debit - l.credit ELSE 0 END) as cogs")
+            ->selectRaw("SUM(CASE WHEN a.AccCode LIKE '6%' THEN l.debit - l.credit ELSE 0 END) as expenses")
+            ->first();
+
+        $netIncome = (float) ($pl->income ?? 0) - (float) ($pl->cogs ?? 0) - (float) ($pl->expenses ?? 0);
+        $result['total_equity'] += $netIncome;
+        $result['net_income'] = $netIncome;
 
         return $result;
     }
@@ -919,8 +949,33 @@ class FinancialReportController extends Controller
             ->where('company_id', $companyId)
             ->get(['AccID', 'AccCode', 'AccName', 'AccType', 'AccParent', 'AccDmType']);
 
-        // 2. Get balances from account_postings table (Summary table)
-        $asOfDate = $request->query('as_of_date', $request->query('date', now()->toDateString()));
+        // 2. Get balances from journal activity (authoritative source).
+        //    Classification follows journal_entries.entry_type:
+        //      - Beginning: ONLY 'Opening' entries (opening balances), up to as_of_date.
+        //        Note: the date-window split (date < startDate) deliberately does NOT
+        //        apply here — an opening entry dated exactly at the fiscal-period
+        //        start must still land in BEGINNING, not be dropped.
+        //      - CURRENT: every non-Opening entry (Regular + domain types like
+        //        SalesInvoice, PurchaseInvoice, SupplierPayment, CustomerReceipt,
+        //        SalesReturn, PurchaseReturn, StockAdjustment, Bnk*, Depreciation,
+        //        AssetDisposal, LandedCost, ...) dated within the selected period.
+        //    Both buckets stay bound by the existing filters: company, posted
+        //    status, date <= as_of_date.
+        $asOfDate = $request->query('as_of_date', $request->query('date'));
+        if (! $asOfDate) {
+            // Default to the latest POSTED activity date instead of "today":
+            // with the canonical Opening/Regular classification the report
+            // window must cover the fiscal year that actually has movements,
+            // otherwise CURRENT renders empty for datasets whose activity
+            // precedes the current calendar year. Explicit query params win.
+            $latestPosted = DB::table('journal_entries')
+                ->where('company_id', $companyId)
+                ->whereIn('status', self::POSTED_STATUSES)
+                ->max('date');
+            $asOfDate = $latestPosted
+                ? date('Y-m-d', strtotime($latestPosted))
+                : now()->toDateString();
+        }
         $startDate = $request->query('start_date', date('Y-01-01', strtotime($asOfDate)));
 
         $activity = DB::table('journal_entry_lines as l')
@@ -928,8 +983,8 @@ class FinancialReportController extends Controller
             ->where('e.company_id', $companyId)
             ->whereIn('e.status', self::POSTED_STATUSES)
             ->where('e.date', '<=', $asOfDate)
-            ->select('l.account_id', DB::raw('SUM(CASE WHEN e.date < ? THEN l.debit ELSE 0 END) as beginning_debit'), DB::raw('SUM(CASE WHEN e.date < ? THEN l.credit ELSE 0 END) as beginning_credit'), DB::raw('SUM(CASE WHEN e.date >= ? THEN l.debit ELSE 0 END) as current_debit'), DB::raw('SUM(CASE WHEN e.date >= ? THEN l.credit ELSE 0 END) as current_credit'))
-            ->addBinding([$startDate, $startDate, $startDate, $startDate], 'select')
+            ->select('l.account_id', DB::raw("SUM(CASE WHEN e.entry_type = 'Opening' THEN l.debit ELSE 0 END) as beginning_debit"), DB::raw("SUM(CASE WHEN e.entry_type = 'Opening' THEN l.credit ELSE 0 END) as beginning_credit"), DB::raw("SUM(CASE WHEN (e.entry_type IS NULL OR e.entry_type <> 'Opening') AND e.date >= ? THEN l.debit ELSE 0 END) as current_debit"), DB::raw("SUM(CASE WHEN (e.entry_type IS NULL OR e.entry_type <> 'Opening') AND e.date >= ? THEN l.credit ELSE 0 END) as current_credit"))
+            ->addBinding([$startDate, $startDate], 'select')
             ->groupBy('l.account_id')
             ->get()
             ->keyBy('account_id');

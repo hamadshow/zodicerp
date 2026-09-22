@@ -145,7 +145,12 @@ class JournalController extends Controller
 
             $journalEntry = JournalEntry::create([
                 'entry_code' => $code,
-                'entry_type' => $data['entry_type'] ?? 'Manual', // Default type
+                // Canonical entry_type semantics: 'Opening' is reserved for
+                // opening-balance entries only. Normal in-year entries are
+                // classified 'Regular'. The API contract does not carry an
+                // explicit entry_type today (dropped by StoreJournalRequest
+                // validation), so every manual/API entry defaults to Regular.
+                'entry_type' => $data['entry_type'] ?? 'Regular',
                 'reference' => $data['reference'] ?? null,
                 'date' => $data['date'],
                 'description' => $data['description'] ?? null,

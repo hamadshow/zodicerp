@@ -1125,6 +1125,10 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         );
     }, [data.variations, data.product_type, hasSelectedAttributes]);
 
+    // Product Type is the authoritative UI condition: variable-only controls
+    // (attributes/variations) render exclusively for variable products.
+    const isVariableProduct = data.product_type === 'variable';
+
     const toggleOption = (attributeId, detailId) => {
         setSelectedVariationOptions(prev => {
             const current = prev[attributeId] || [];
@@ -1880,6 +1884,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                     </div>
                                 </div>
 
+                                {isVariableProduct && (
                                 <div className="products-section-card">
                                     <div className="products-section-header products-variations-header">
                                         <h4 className="products-section-title">Product has variations</h4>
@@ -2031,6 +2036,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                         </div>
                                     </div>
                                 </div>
+                                )}
 
                                 {!shouldHideGlobalSections && (
                                 <div className="products-section-card">
@@ -2203,7 +2209,25 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                             <select
                                                 className="form-control"
                                                 value={data.product_type || 'simple'}
-                                                onChange={e => setData('product_type', e.target.value)}
+                                                onChange={e => {
+                                                    const nextType = e.target.value;
+                                                    // Leaving variable: the backend contract
+                                                    // prohibits variations for simple/service
+                                                    // (422), so drop client-side variation
+                                                    // state to keep payload and UI consistent.
+                                                    // DB records are untouched until save.
+                                                    if (data.product_type === 'variable' && nextType !== 'variable') {
+                                                        setData(curr => ({ ...curr, product_type: nextType, variations: [] }));
+                                                        setSelectedAttributeIds([]);
+                                                        setSelectedVariationOptions({});
+                                                        setVariationAttributeValues({});
+                                                        setIsAttributesModalOpen(false);
+                                                        setIsGenerateModalOpen(false);
+                                                        setIsVariationModalOpen(false);
+                                                        return;
+                                                    }
+                                                    setData('product_type', nextType);
+                                                }}
                                             >
                                                 <option value="simple">{t('simple_product', 'Simple Product')}</option>
                                                 <option value="variable">{t('variable_product', 'Variable Product')}</option>

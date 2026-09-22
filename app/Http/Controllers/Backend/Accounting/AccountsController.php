@@ -96,7 +96,11 @@ class AccountsController extends Controller
                     'AccType' => $account->AccType,
                     'AccParent' => $account->AccParent,
                     'Nature' => $account->Nature,
-                    'AccDmType' => (int) $account->AccType === 1 ? $account->AccDmType : null,
+                    // AccDmType must always be the stored value: null here made
+                    // Edit hydrate a fake "Credit" for main accounts (AccType=0)
+                    // via the frontend `?? 1` fallback, so switching Credit→Debit
+                    // was saved as Credit on the next update.
+                    'AccDmType' => $account->AccDmType,
                     'AccFinal' => $account->AccFinal,
                     'AccMaxLimt' => $account->AccMaxLimt,
                     'AccMaxDuration' => $account->AccMaxDuration,
