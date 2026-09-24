@@ -507,6 +507,7 @@ Route::group([
         $fpc = \App\Http\Controllers\Backend\Accounting\FiscalPeriodController::class;
         Route::get('fiscal-periods', [$fpc, 'index'])->name('fiscal-periods.index');
         Route::post('fiscal-periods', [$fpc, 'store'])->name('fiscal-periods.store');
+        Route::put('fiscal-periods/{id}', [$fpc, 'update'])->name('fiscal-periods.update');
         Route::post('fiscal-periods/{id}/open', [$fpc, 'open'])->name('fiscal-periods.open');
         Route::post('fiscal-periods/{id}/close', [$fpc, 'close'])->name('fiscal-periods.close');
         Route::post('fiscal-periods/period/{id}/close', [$fpc, 'closePeriod'])->name('fiscal-periods.period.close');

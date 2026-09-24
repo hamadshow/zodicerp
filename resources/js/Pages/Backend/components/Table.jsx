@@ -11,6 +11,7 @@ export const Table = ({
 
     handleRowSelect,
     selectAll,
+    someSelected = false,
     handleSelectAll,
 
     onPageChange,
@@ -382,6 +383,9 @@ export const Table = ({
                                     <input
                                         type="checkbox"
                                         checked={selectAll}
+                                        ref={(el) => {
+                                            if (el) el.indeterminate = someSelected && !selectAll;
+                                        }}
                                         onChange={handleSelectAll}
                                     />
                                 </th>

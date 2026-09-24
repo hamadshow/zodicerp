@@ -91,6 +91,39 @@ export default function JournalEntity() {
   const [perPage, setPerPage] = useState(10);
   const [totalRecords, setTotalRecords] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  // Authoritative server-side sort state (key = whitelisted column on the backend).
+  const [sortState, setSortState] = useState({ key: null, direction: null }); // direction: 'asc' | 'desc' | null
+
+  // Row selection (checkboxes): stores real journal_entries.id primary keys only.
+  const [selectedIds, setSelectedIds] = useState([]);
+
+  const handleRowSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const handleSelectAll = () => {
+    // Toggle ONLY the rows of the current server-paginated page; selections made
+    // on other pages are preserved in the union.
+    setSelectedIds((prev) => {
+      const pageIds = journals.map((j) => j.id);
+      if (pageIds.length > 0 && pageIds.every((id) => prev.includes(id))) {
+        return prev.filter((id) => !pageIds.includes(id)); // deselect this page
+      }
+      return Array.from(new Set([...prev, ...pageIds])); // select this page
+    });
+  };
+
+  const allPageSelected =
+    journals.length > 0 && journals.every((j) => selectedIds.includes(j.id));
+  const somePageSelected =
+    !allPageSelected && journals.some((j) => selectedIds.includes(j.id));
+
+  const journalsWithSelection = useMemo(
+    () => journals.map((j) => ({ ...j, selected: selectedIds.includes(j.id) })),
+    [journals, selectedIds],
+  );
   const readOnly = mode === 'list' ? false : mode === 'view';
 
   // Table Columns Configuration
@@ -394,12 +427,19 @@ export default function JournalEntity() {
     setLoading(true);
     setShowPostDropdown(false);
     try {
-      const response = await apiService.post('/reports/post-journal');
+      // With a checkbox selection: post ONLY the selected entries (ids contract).
+      // Empty selection preserves the historical "post all unposted" behavior.
+      const response = await apiService.post(
+        '/reports/post-journal',
+        selectedIds.length > 0 ? { ids: selectedIds } : {},
+      );
       if (response.data) {
         toast.success(response.data.message || 'Data posted successfully');
+        setSelectedIds([]);
         loadJournals(currentPage, perPage); // Refresh to see updated status
       }
     } catch (err) {
+      // On failure keep the selection so the user can retry the same rows.
       toast.error(err.response?.data?.message || 'Post failed');
     } finally {
       setLoading(false);
@@ -411,12 +451,18 @@ export default function JournalEntity() {
     setLoading(true);
     setShowPostDropdown(false);
     try {
-      const response = await apiService.post('/reports/unpost-journal');
+      // Same selection contract as Post: ids => only selected, empty => all.
+      const response = await apiService.post(
+        '/reports/unpost-journal',
+        selectedIds.length > 0 ? { ids: selectedIds } : {},
+      );
       if (response.data) {
         toast.success(response.data.message || 'Data unposted successfully');
+        setSelectedIds([]);
         loadJournals(currentPage, perPage); // Refresh to see updated status
       }
     } catch (err) {
+      // On failure keep the selection so the user can retry the same rows.
       toast.error(err.response?.data?.message || 'Unpost failed');
     } finally {
       setLoading(false);
@@ -518,7 +564,7 @@ export default function JournalEntity() {
     return new Date(normalized);
   };
 
-  const loadJournals = async (page = currentPage, recordsPerPage = perPage) => {
+  const loadJournals = async (page = currentPage, recordsPerPage = perPage, sort = sortState) => {
     setLoading(true);
     setError('');
     try {
@@ -526,6 +572,9 @@ export default function JournalEntity() {
         search,
         page,
         per_page: recordsPerPage,
+        ...(sort.key && sort.direction
+          ? { sort_column: sort.key, sort_direction: sort.direction }
+          : {}),
       });
       
       const responseData = response.data || {};
@@ -552,6 +601,15 @@ export default function JournalEntity() {
     setPerPage(newPerPage);
     setCurrentPage(1);
     loadJournals(1, newPerPage);
+  };
+
+  // Server-side sorting: send the sort to the backend and reset to page 1,
+  // since the previous page position is meaningless under a new global order.
+  const handleServerSort = (key, direction) => {
+    const next = { key: direction ? key : null, direction: direction || null };
+    setSortState(next);
+    setCurrentPage(1);
+    loadJournals(1, perPage, next);
   };
 
   useEffect(() => {
@@ -1079,12 +1137,20 @@ export default function JournalEntity() {
 
             <div className="journal-table-card fade-in">
               <Table
-                tableData={journals}
+                tableData={journalsWithSelection}
                 columns={columns}
+                handleRowSelect={handleRowSelect}
+                selectAll={allPageSelected}
+                someSelected={somePageSelected}
+                handleSelectAll={handleSelectAll}
                 currentPage={currentPage}
                 totalPages={totalPages}
                 totalRecords={totalRecords}
                 recordsPerPage={perPage}
+                serverSide={true}
+                onSort={handleServerSort}
+                sortKey={sortState.key}
+                sortDirection={sortState.direction}
                 onPageChange={handlePageChange}
                 onRecordsPerPageChange={handleRecordsPerPageChange}
                 onView={(row) => {

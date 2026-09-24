@@ -55,6 +55,22 @@ class FiscalPeriodController extends Controller
         }
     }
 
+    public function update(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after:start_date',
+        ]);
+
+        try {
+            $year = $this->periodService->updateFiscalYear((int) $id, $validated);
+            return redirect()->back()->with('success', "Fiscal year {$year->name} updated.");
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage())->withInput();
+        }
+    }
+
     public function open($id)
     {
         try {

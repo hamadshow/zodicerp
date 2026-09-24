@@ -90,16 +90,28 @@ class JournalController extends Controller
             });
         }
 
-        if ($request->filled('sort_column') && $request->filled('sort_direction')) {
-            $column = $request->string('sort_column')->toString();
-            $direction = $request->string('sort_direction')->toString() === 'asc' ? 'asc' : 'desc';
-            
-            // Handle virtual columns or renamed columns if necessary
-            if ($column === 'total_amount') {
-                $query->orderBy('total_amount', $direction);
-            } else {
-                $query->orderBy($column, $direction);
-            }
+        // Server-side sorting: the client sends a sort KEY, never a raw column name.
+        // Only whitelisted columns may reach ORDER BY (SQL-injection guard), and ordering
+        // is applied BEFORE paginate() so the entire dataset is sorted, not just the
+        // records of the current page.
+        $allowedSorts = [
+            'entry_code'   => 'entry_code',
+            'entry_type'   => 'entry_type',
+            'description'  => 'description',
+            'date'         => 'date',
+            'total_amount' => 'total_amount',
+            'status'       => 'status',
+            'reference'    => 'reference',
+            'created_at'   => 'created_at',
+        ];
+
+        $requestedSort = $request->string('sort_column')->toString();
+        $direction = $request->string('sort_direction')->toString() === 'asc' ? 'asc' : 'desc';
+
+        if ($requestedSort !== '' && isset($allowedSorts[$requestedSort])) {
+            $query->orderBy($allowedSorts[$requestedSort], $direction)
+                // Deterministic tiebreaker so pagination stays stable across pages.
+                ->orderByDesc('id');
         } else {
             $query->orderByDesc('date')->orderByDesc('id');
         }
@@ -514,9 +526,22 @@ class JournalController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        return DB::transaction(function () use ($companyId) {
+        // Optional row-selection support: when the UI sends specific journal ids,
+        // ONLY those ids are posted (company scope still applies). Without ids the
+        // historical "post everything unposted" behavior is preserved untouched.
+        $ids = collect((array) $request->input('ids', []))
+            ->map(fn ($v) => (int) $v)
+            ->filter(fn ($v) => $v > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        return DB::transaction(function () use ($companyId, $ids) {
+            $selected = fn ($q) => $ids ? $q->whereIn('id', $ids) : $q;
+
             // 1. Validate fiscal periods for all journals about to be posted
             $unpostedJournals = JournalEntry::where('company_id', $companyId)
+                ->where($selected)
                 ->where(function ($q) {
                     $q->where('status', 'UnPost')
                       ->orWhere('status', 'unposted')
@@ -537,8 +562,9 @@ class JournalController extends Controller
                 }
             }
 
-            // 2. Update status of all unposted journals for this company
+            // 2. Update status of the selected (or all) unposted journals for this company
             JournalEntry::where('company_id', $companyId)
+                ->where($selected)
                 ->where(function ($q) {
                     $q->where('status', 'UnPost')
                       ->orWhere('status', 'unposted')
@@ -564,9 +590,20 @@ class JournalController extends Controller
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        return DB::transaction(function () use ($companyId) {
-            // 1. Update status of all posted journals for this company
+        // Optional row-selection support: same contract as postAll().
+        $ids = collect((array) $request->input('ids', []))
+            ->map(fn ($v) => (int) $v)
+            ->filter(fn ($v) => $v > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        return DB::transaction(function () use ($companyId, $ids) {
+            $selected = fn ($q) => $ids ? $q->whereIn('id', $ids) : $q;
+
+            // 1. Update status of the selected (or all) posted journals for this company
             JournalEntry::where('company_id', $companyId)
+                ->where($selected)
                 ->where(function ($q) {
                     $q->where('status', 'Post')
                       ->orWhere('status', 'posted');
