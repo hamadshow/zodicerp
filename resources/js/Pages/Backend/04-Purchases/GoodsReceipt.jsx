@@ -53,6 +53,12 @@ export default function GoodsReceipt({ receipts, purchaseOrders, warehouses }) {
         }
     };
 
+    const reverseReceipt = (id) => {
+        if (confirm('Reverse this approved receipt? The received stock, product quantity and PO received figures are restored exactly. This fails if the stock was already consumed downstream.')) {
+            router.post(route('admin.purchases.goods-receipts.reverse', id));
+        }
+    };
+
     const statusColor = (status) => {
         const colors = {
             draft: 'bg-gray-100 text-gray-800',
@@ -242,6 +248,10 @@ export default function GoodsReceipt({ receipts, purchaseOrders, warehouses }) {
                                         {(receipt.status === 'received' || receipt.status === 'draft') && (
                                             <button onClick={() => approveReceipt(receipt.id)}
                                                 className="text-green-600 hover:text-green-800 text-xs px-2 py-1 bg-green-50 rounded">Approve</button>
+                                        )}
+                                        {receipt.status === 'approved' && (
+                                            <button onClick={() => reverseReceipt(receipt.id)}
+                                                className="text-orange-600 hover:text-orange-800 text-xs px-2 py-1 bg-orange-50 rounded">Reverse</button>
                                         )}
                                     </div>
                                 </td>

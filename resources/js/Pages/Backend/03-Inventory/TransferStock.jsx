@@ -1,543 +1,549 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useForm, Head, usePage, Link, router } from '@inertiajs/react';
+import { Head, useForm, usePage, router } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import SearchableComboBox from '../components/SearchableComboBox';
+import Table from '../components/Table';
+import { formatDate } from '@/utils/date';
 
+/**
+ * Stock Transfers (Phase 5 rebuild).
+ *
+ * Follows the StockAdjustment page conventions: AdminLayout shell, shared
+ * serverSide Table, useForm (Inertia handles CSRF), localized labels, BEM
+ * module classes. The view modal is an Inertia partial reload
+ * (only=['transferView']) — no raw fetch. One transfer document records the
+ * outbound and the matching inbound; quantities are entered in the selected
+ * unit and normalized to the base unit by the server.
+ */
 export default function TransferStock({
-    transferStocks = [],
-    pagination = [],
+    transfers,
     warehouses = [],
     products = [],
     units = [],
-    initialShowForm = false,
-    viewing = false,
-    transfer = null
+    filters = {},
+    transferView = null,
 }) {
-    const page = usePage();
-    const { errors: pageErrors, auth, localization } = page.props;
+    const [mode, setMode] = useState('list'); // 'list' | 'create' | 'edit'
+    const [editing, setEditing] = useState(null); // transfer object when mode==='edit'
+    const [viewOpen, setViewOpen] = useState(false);
+    const [viewLoading, setViewLoading] = useState(false);
+    const [viewError, setViewError] = useState('');
+    const [viewIntent, setViewIntent] = useState('view'); // 'view' | 'edit'
 
-    const getLocalizedRoute = (name, params = {}) => {
-        return route(name, {
+    const { props } = usePage();
+    const { localization, errors: pageErrors = {} } = props;
+    const translations = localization?.translations || {};
+
+    const t = (key, fallback) =>
+        translations[key] || translations[`stock_transfer.${key}`] || translations[`common.${key}`] || fallback;
+
+    const getLocalizedRoute = (name, params = {}) =>
+        route(name, {
             country: localization?.country_code || 'sa',
             lang: localization?.current_locale || 'ar',
-            ...params
+            ...params,
         });
+
+    const safeTransfers = transfers || {
+        data: [], total: 0, per_page: 15, current_page: 1,
     };
+    const rows = safeTransfers.data || [];
 
-    const isRtl = localization?.current_locale === 'ar';
-    const lang = localization?.current_locale || 'ar';
-
-    const [showForm, setShowForm] = useState(initialShowForm);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [isSaving, setIsSaving] = useState(false);
-
-    const t = (ar, en) => isRtl ? ar : en;
-
-    // Using localized route helper
-    const storeUrl = getLocalizedRoute('admin.inventory.stock-transfers.store');
-    const updateUrl = transfer ? getLocalizedRoute('admin.inventory.stock-transfers.update', { stock_transfer: transfer.id }) : null;
-    const indexUrl = getLocalizedRoute('admin.inventory.stock-transfers.index');
-
-    const { data, setData, post, put, processing, errors, reset, transform } = useForm({
-        movement_date: transfer?.movement_date || new Date().toISOString().split('T')[0],
-        from_warehouse_id: transfer?.from_warehouse_id || '',
-        to_warehouse_id: transfer?.to_warehouse_id || '',
-        notes: transfer?.notes?.replace('TransferStock | ', '')?.replace('TransferStock', '') || '',
-        // `quantity` on a stored line is the BASE quantity. The quantity the user typed is kept in
-        // `original_quantity`, so editing/viewing must use that value with the original unit.
-        items: transfer?.items?.map(item => ({
-            product_id: item.product_id,
-            unit_id: item.unit_id,
-            quantity: item.original_quantity ?? item.quantity
-        })) || [
-            { product_id: '', unit_id: '', quantity: 1 }
-        ]
+    const { data, setData, post, put, processing, reset, errors: formErrors } = useForm({
+        movement_date: new Date().toISOString().split('T')[0],
+        from_warehouse_id: '',
+        to_warehouse_id: '',
+        notes: '',
+        items: [{ product_id: '', unit_id: '', quantity: 1 }],
     });
 
-    // Conversion details of a stored line (base quantity + the factor actually used at posting time).
-    const lineConversion = (index) => {
-        const serverLine = transfer?.items?.[index];
-        if (!serverLine) return null;
-
-        const base = Number.parseFloat(serverLine.quantity);
-        const original = Number.parseFloat(serverLine.original_quantity ?? serverLine.quantity);
-        const factor = Number.parseFloat(serverLine.conversion_factor_snapshot ?? 1);
-
-        if (!Number.isFinite(base)) return null;
-
-        return {
-            base,
-            original: Number.isFinite(original) ? original : base,
-            factor: Number.isFinite(factor) ? factor : 1,
-            unitName: serverLine.unit?.name || serverLine.unit?.name_ar || ''
-        };
-    };
+    const mergedErrors = { ...pageErrors, ...formErrors };
 
     useEffect(() => {
-        transform((payload) => ({
-            ...payload,
-            from_warehouse_id: payload.from_warehouse_id === '' ? '' : Number(payload.from_warehouse_id),
-            to_warehouse_id: payload.to_warehouse_id === '' ? '' : Number(payload.to_warehouse_id),
-            items: payload.items.map((item) => ({
-                ...item,
-                product_id: item.product_id === '' ? '' : Number(item.product_id),
-                unit_id: item.unit_id === '' ? '' : Number(item.unit_id),
-                quantity: item.quantity === '' ? '' : Number(item.quantity),
-            })),
-        }));
-    }, [transform]);
+        if (!transferView) return;
+        setViewLoading(false);
 
-    const addItem = () => {
-        if (viewing) return;
-        setData('items', [
-            ...data.items,
-            { product_id: '', unit_id: '', quantity: 1 }
-        ]);
-    };
+        if (viewIntent === 'edit') {
+            const tv = transferView.transfer;
+            setEditing(tv);
+            setData({
+                movement_date: tv.movement_date || new Date().toISOString().split('T')[0],
+                from_warehouse_id: tv.from_warehouse_id ? String(tv.from_warehouse_id) : '',
+                to_warehouse_id: tv.to_warehouse_id ? String(tv.to_warehouse_id) : '',
+                notes: (tv.notes || '').replace('TransferStock | ', '').replace('TransferStock', ''),
+                items: (transferView.lines || []).length
+                    ? transferView.lines.map((l) => ({
+                        product_id: String(l.product_id),
+                        unit_id: String(l.unit_id),
+                        quantity: l.original_quantity ?? l.quantity,
+                    }))
+                    : [{ product_id: '', unit_id: '', quantity: 1 }],
+            });
+            setMode('edit');
+            setViewOpen(false);
+        }
+    }, [transferView, viewIntent, setData]);
+
+    const addItem = () =>
+        setData('items', [...data.items, { product_id: '', unit_id: '', quantity: 1 }]);
 
     const removeItem = (index) => {
-        if (viewing) return;
-        const newItems = [...data.items];
-        if (newItems.length > 1) {
-            newItems.splice(index, 1);
-            setData('items', newItems);
-        }
+        const items = data.items.filter((_, i) => i !== index);
+        setData('items', items.length ? items : [{ product_id: '', unit_id: '', quantity: 1 }]);
     };
 
     const updateItem = (index, field, value) => {
-        if (viewing) return;
-        const newItems = [...data.items];
-        newItems[index][field] = value;
-        setData('items', newItems);
+        const items = data.items.map((item, i) => {
+            if (i !== index) return item;
+            const next = { ...item, [field]: value };
+            if (field === 'product_id') {
+                const product = products.find((p) => String(p.id) === String(value));
+                if (product) {
+                    next.unit_id = product.unit_id || '';
+                }
+            }
+            return next;
+        });
+        setData('items', items);
+    };
+
+    const startCreate = () => {
+        setEditing(null);
+        reset();
+        setMode('create');
+    };
+
+    /**
+     * View modal + edit both go through the same partial reload: the index
+     * rows do not carry lines, so the form is filled when transferView lands.
+     */
+    const loadTransferView = (id, intent = 'view') => {
+        setViewIntent(intent);
+        setViewOpen(intent === 'view');
+        setViewError('');
+        setViewLoading(true);
+        router.get(
+            getLocalizedRoute('admin.inventory.stock-transfers.index'),
+            { transfer_view_id: id },
+            {
+                only: ['transferView'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onFinish: () => setViewLoading(false),
+                onError: () => setViewError(t('transfer_view_error', 'Failed to load the transfer.')),
+            }
+        );
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (viewing || isSaving) return;
-
-        if (data.from_warehouse_id === data.to_warehouse_id) {
-            alert(t('لا يمكن التحويل لنفس المستودع.', 'You cannot transfer to the same warehouse.'));
+        if (mode === 'edit' && editing) {
+            put(getLocalizedRoute('admin.inventory.stock-transfers.update', { stock_transfer: editing.id }), {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setMode('list');
+                    setEditing(null);
+                    reset();
+                },
+            });
             return;
         }
-
-        setIsSaving(true);
-
-        const options = {
+        post(getLocalizedRoute('admin.inventory.stock-transfers.store'), {
             preserveScroll: true,
             onSuccess: () => {
+                setMode('list');
                 reset();
-                setShowForm(false);
-                setIsSaving(false);
             },
-            onError: () => {
-                setIsSaving(false);
+        });
+    };
+
+    const cancelTransfer = (id) => {
+        if (window.confirm(t('confirm_cancel_transfer', 'Cancel this transfer? The stock returns to the source warehouse and the cost entries are reversed exactly.'))) {
+            router.post(getLocalizedRoute('admin.inventory.stock-transfers.cancel', { id }), {}, { preserveScroll: true });
+        }
+    };
+
+    const deleteTransfer = (id) => {
+        if (window.confirm(t('confirm_delete_transfer', 'Delete this unposted draft transfer?'))) {
+            router.delete(getLocalizedRoute('admin.inventory.stock-transfers.destroy', { stock_transfer: id }), { preserveScroll: true });
+        }
+    };
+
+    const openView = (id) => loadTransferView(id, 'view');
+
+    const isCancelled = (row) => (row.notes || '').includes('[CANCELLED');
+
+    const columns = useMemo(() => [
+        {
+            header: t('voucher', 'Voucher #'),
+            key: 'voucher_num',
+            render: (row) => <span className="stock-transfer-module__number">{row.voucher_num}</span>,
+        },
+        {
+            header: t('date', 'Date'),
+            key: 'movement_date',
+            render: (row) => (row.movement_date ? formatDate(row.movement_date) : '-'),
+        },
+        {
+            header: t('from_warehouse', 'From'),
+            key: 'from_warehouse_id',
+            render: (row) => row.from_warehouse?.name || '-',
+        },
+        {
+            header: t('to_warehouse', 'To'),
+            key: 'to_warehouse_id',
+            render: (row) => row.to_warehouse?.name || '-',
+        },
+        {
+            header: t('notes', 'Notes'),
+            key: 'notes',
+            render: (row) => (row.notes || '').replace('TransferStock | ', '').replace('[CANCELLED', '').trim() || '-',
+        },
+        {
+            header: t('status', 'Status'),
+            key: 'status',
+            render: (row) => (
+                isCancelled(row)
+                    ? <span className="badge badge-danger">{t('cancelled', 'Cancelled')}</span>
+                    : <span className="badge badge-success">{t('applied', 'Applied')}</span>
+            ),
+        },
+        {
+            header: t('actions', 'Actions'),
+            key: 'actions',
+            sortable: false,
+            render: (row) => {
+                const viewable = !isCancelled(row);
+                const editable = viewable && !row.posted;
+                return (
+                    <div className="stock-transfer-module__row-actions">
+                        {viewable && (
+                            <button
+                                type="button"
+                                className="action-btn"
+                                title={t('view', 'View')}
+                                onClick={() => openView(row.id)}
+                            >
+                                <span className="material-icons-outlined">visibility</span>
+                            </button>
+                        )}
+                        {viewable && (
+                            <button
+                                type="button"
+                                className="action-btn success"
+                                title={t('cancel_transfer', 'Cancel (reverse)')}
+                                onClick={() => cancelTransfer(row.id)}
+                            >
+                                <span className="material-icons-outlined">undo</span>
+                            </button>
+                        )}
+                        {editable && (
+                            <button
+                                type="button"
+                                className="action-btn"
+                                title={t('edit', 'Edit')}
+                                onClick={() => loadTransferView(row.id, 'edit')}
+                            >
+                                <span className="material-icons-outlined">edit</span>
+                            </button>
+                        )}
+                        {editable && (
+                            <button
+                                type="button"
+                                className="action-btn delete"
+                                title={t('delete', 'Delete')}
+                                onClick={() => deleteTransfer(row.id)}
+                            >
+                                <span className="material-icons-outlined">delete</span>
+                            </button>
+                        )}
+                    </div>
+                );
             },
-            onFinish: () => setIsSaving(false)
-        };
+        },
+    ], [rows, products, translations, pageErrors, formErrors]);
 
-        if (transfer) {
-            put(updateUrl, options);
-        } else {
-            post(storeUrl, options);
-        }
+    const warehouseOptions = (warehouses || []).map((w) => ({
+        value: String(w.id),
+        label: w.name || '',
+    }));
+    const productOptions = (products || []).map((p) => ({
+        value: String(p.id),
+        label: p.name || '',
+    }));
+
+    const handleToolbarSearch = (searchText) => {
+        router.get(getLocalizedRoute('admin.inventory.stock-transfers.index'), {
+            search: searchText, page: 1,
+        }, { preserveState: true, preserveScroll: true, replace: true });
     };
 
-    const handleDelete = (id) => {
-        if (confirm(t('هل أنت متأكد من حذف هذا التحويل؟', 'Are you sure you want to delete this transfer?'))) {
-            router.delete(getLocalizedRoute('admin.inventory.stock-transfers.destroy', { stock_transfer: id }), {
-                preserveScroll: true
-            });
-        }
+    const handlePageChange = (page) => {
+        router.get(getLocalizedRoute('admin.inventory.stock-transfers.index'), { ...filters, page }, {
+            preserveState: true, preserveScroll: true, replace: true,
+        });
     };
 
-    const filteredTransfers = useMemo(() => {
-        if (!searchTerm) return transferStocks;
-        const s = searchTerm.toLowerCase();
-        return transferStocks.filter(t =>
-            String(t.id).includes(s) ||
-            (t.from_warehouse?.name || '').toLowerCase().includes(s) ||
-            (t.to_warehouse?.name || '').toLowerCase().includes(s) ||
-            (t.notes || '').toLowerCase().includes(s)
-        );
-    }, [searchTerm, transferStocks]);
-
-    const handleBackToList = () => {
-        if (viewing) {
-            router.visit(indexUrl);
-        } else {
-            setShowForm(false);
-        }
+    const handlePerPageChange = (perPage) => {
+        router.get(getLocalizedRoute('admin.inventory.stock-transfers.index'), { ...filters, page: 1, per_page: perPage }, {
+            preserveState: true, preserveScroll: true, replace: true,
+        });
     };
-
-    const ListView = () => (
-        <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center' }}>
-                <div style={{ position: 'relative', width: '300px' }}>
-                    <input
-                        type="text"
-                        placeholder={t("البحث عن تحويل...", "Search transfers...")}
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="form-control"
-                        style={{ paddingLeft: '35px' }}
-                    />
-                    <span className="material-icons-outlined" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>search</span>
-                </div>
-                <button
-                    className="btn btn-primary"
-                    onClick={() => {
-                        reset();
-                        setShowForm(true);
-                    }}
-                >
-                    <span className="material-icons-outlined" style={{ verticalAlign: 'middle', marginRight: '5px' }}>add</span>
-                    {t('إضافة تحويل جديد', 'Add New Transfer')}
-                </button>
-            </div>
-
-            <div className="items-table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>{t('رقم', 'ID')}</th>
-                            <th>{t('التاريخ', 'Date')}</th>
-                            <th>{t('من مستودع', 'From Warehouse')}</th>
-                            <th>{t('إلى مستودع', 'To Warehouse')}</th>
-                            <th>{t('ملاحظات', 'Notes')}</th>
-                            <th>{t('بواسطة', 'By')}</th>
-                            <th className="action-column">{t('إجراءات', 'Actions')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {filteredTransfers.length > 0 ? (
-                            filteredTransfers.map((stock) => (
-                                <tr key={stock.id}>
-                                    <td>#{stock.id}</td>
-                                    <td>{stock.movement_date}</td>
-                                    <td>{stock.from_warehouse?.name || stock.from_warehouse?.name_ar || '-'}</td>
-                                    <td>{stock.to_warehouse?.name || stock.to_warehouse?.name_ar || '-'}</td>
-                                    <td>{stock.notes?.replace('TransferStock | ', '')?.replace('TransferStock', '') || '-'}</td>
-                                    <td>{stock.creator?.name || '-'}</td>
-                                    <td>
-                                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                                            <Link
-                                                href={getLocalizedRoute('admin.inventory.stock-transfers.show', { stock_transfer: stock.id })}
-                                                style={{ color: '#3b82f6' }}
-                                                title={t("عرض", "View")}
-                                            >
-                                                <span className="material-icons-outlined">visibility</span>
-                                            </Link>
-                                            <button
-                                                onClick={() => {
-                                                    router.get(getLocalizedRoute('admin.inventory.stock-transfers.show', { stock_transfer: stock.id }), {
-                                                        edit: true
-                                                    });
-                                                }}
-                                                style={{ color: '#10b981', border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
-                                                title={t("تعديل", "Edit")}
-                                            >
-                                                <span className="material-icons-outlined">edit</span>
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(stock.id)}
-                                                style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
-                                                title={t("حذف", "Delete")}
-                                            >
-                                                <span className="material-icons-outlined">delete</span>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))
-                        ) : (
-                            <tr>
-                                <td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-                                    {t('لم يتم العثور على سجلات.', 'No records found.')}
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </table>
-            </div>
-
-            {pagination && pagination.length > 3 && (
-                <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'center', gap: '5px' }}>
-                    {pagination.map((link, i) => (
-                        <Link
-                            key={i}
-                            href={link.url || '#'}
-                            className={`btn ${link.active ? 'btn-primary' : 'btn-secondary'} ${!link.url ? 'disabled' : ''}`}
-                            style={{ padding: '5px 12px', fontSize: '14px' }}
-                            dangerouslySetInnerHTML={{ __html: link.label }}
-                            preserveScroll
-                        />
-                    ))}
-                </div>
-            )}
-        </div>
-    );
-
-    const FormView = () => (
-        <form onSubmit={handleSubmit}>
-            <div className="card">
-                <div className="form-grid">
-                    <div className="form-group">
-                        <label>{t('تاريخ التحويل', 'Transfer date')} <span className="text-red-500">*</span></label>
-                        <input
-                            type="date"
-                            className={errors.movement_date ? 'is-invalid' : ''}
-                            value={data.movement_date}
-                            onChange={e => setData('movement_date', e.target.value)}
-                            required
-                            disabled={viewing}
-                        />
-                        {errors.movement_date && <div className="error-message">{errors.movement_date}</div>}
-                    </div>
-
-                    <div className="form-group">
-                        <label>{t('من مستودع', 'From warehouse')} <span className="text-red-500">*</span></label>
-                        <select
-                            className={errors.from_warehouse_id ? 'is-invalid' : ''}
-                            value={data.from_warehouse_id}
-                            onChange={e => setData('from_warehouse_id', e.target.value)}
-                            required
-                            disabled={viewing}
-                        >
-                            <option value="">{t('اختر المستودع', 'Select warehouse')}</option>
-                            {warehouses.map(w => (
-                                <option key={w.id} value={w.id}>{w.name || w.name_ar}</option>
-                            ))}
-                        </select>
-                        {errors.from_warehouse_id && <div className="error-message">{errors.from_warehouse_id}</div>}
-                    </div>
-
-                    <div className="form-group">
-                        <label>{t('إلى مستودع', 'To warehouse')} <span className="text-red-500">*</span></label>
-                        <select
-                            className={errors.to_warehouse_id ? 'is-invalid' : ''}
-                            value={data.to_warehouse_id}
-                            onChange={e => setData('to_warehouse_id', e.target.value)}
-                            required
-                            disabled={viewing}
-                        >
-                            <option value="">{t('اختر المستودع', 'Select warehouse')}</option>
-                            {warehouses.map(w => (
-                                <option
-                                    key={w.id}
-                                    value={w.id}
-                                    disabled={w.id == data.from_warehouse_id}
-                                >
-                                    {w.name || w.name_ar}
-                                </option>
-                            ))}
-                        </select>
-                        {errors.to_warehouse_id && <div className="error-message">{errors.to_warehouse_id}</div>}
-                    </div>
-
-                    <div className="form-group">
-                        <label>{t('ملاحظات', 'Notes')}</label>
-                        <input
-                            type="text"
-                            value={data.notes}
-                            onChange={e => setData('notes', e.target.value)}
-                            placeholder={t("أي ملاحظات إضافية...", "Any additional notes...")}
-                            disabled={viewing}
-                        />
-                    </div>
-                </div>
-
-                <div className="items-table-container" style={{ marginTop: '20px' }}>
-                    <p className="price-authority-note">
-                        {t(
-                            'هذا مستند تحويل مخزني واحد: عند الحفظ يُسجَّل صادر من المستودع المصدر ووارد مطابق إلى المستودع الهدف تلقائيًا. الكمية تُدخل بالوحدة المختارة، والخادم هو من يحوّلها إلى الوحدة الأساسية.',
-                            'This is one stock transfer document: saving records the outbound movement from the source warehouse and the matching inbound movement to the destination warehouse. Quantities are entered in the selected unit — the server normalizes them to the base unit.'
-                        )}
-                    </p>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style={{ width: transfer ? '30%' : '40%' }}>{t('المنتج', 'Product')}</th>
-                                <th style={{ width: '20%' }}>{t('الوحدة', 'Unit')}</th>
-                                <th style={{ width: '20%' }}>{t('الكمية (بالوحدة المختارة)', 'Quantity (selected unit)')}</th>
-                                {transfer && <th style={{ width: '30%' }}>{t('الكمية الأساسية (من الخادم)', 'Base quantity (server)')}</th>}
-                                {!viewing && <th className="action-column">{t('حذف', 'Remove')}</th>}
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {data.items.map((item, index) => (
-                                <tr key={index}>
-                                    <td>
-                                        <select
-                                            className={errors[`items.${index}.product_id`] ? 'is-invalid' : ''}
-                                            value={item.product_id}
-                                            onChange={e => updateItem(index, 'product_id', e.target.value)}
-                                            required
-                                            disabled={viewing}
-                                            style={{ width: '100%' }}
-                                        >
-                                            <option value="">{t('اختر المنتج', 'Select product')}</option>
-                                            {products.map(p => (
-                                                <option key={p.id} value={p.id}>
-                                                    {p.name || p.name_ar} ({p.sku || p.barcode})
-                                                </option>
-                                            ))}
-                                        </select>
-                                        {errors[`items.${index}.product_id`] &&
-                                            <div className="error-message">{errors[`items.${index}.product_id`]}</div>
-                                        }
-                                    </td>
-                                    <td>
-                                        <select
-                                            value={item.unit_id}
-                                            onChange={e => updateItem(index, 'unit_id', e.target.value)}
-                                            required
-                                            disabled={viewing}
-                                            style={{ width: '100%' }}
-                                        >
-                                            <option value="">{t('اختر الوحدة', 'Select unit')}</option>
-                                            {units.map(u => (
-                                                <option key={u.id} value={u.id}>{u.name || u.name_ar}</option>
-                                            ))}
-                                        </select>
-                                    </td>
-                                    <td>
-                                        <input
-                                            type="number"
-                                            min="0.001"
-                                            step="any"
-                                            className={errors[`items.${index}.quantity`] ? 'is-invalid' : ''}
-                                            value={item.quantity}
-                                            onChange={e => updateItem(index, 'quantity', e.target.value)}
-                                            required
-                                            disabled={viewing}
-                                            style={{ width: '100%' }}
-                                        />
-                                        {errors[`items.${index}.quantity`] &&
-                                            <div className="error-message">{errors[`items.${index}.quantity`]}</div>
-                                        }
-                                        {!transfer && !viewing && (
-                                            <div className="field-hint">
-                                                {t('تُحوَّل الكمية إلى الوحدة الأساسية عند الحفظ.', 'Converted to the base unit by the server on save.')}
-                                            </div>
-                                        )}
-                                    </td>
-                                    {transfer && (
-                                        <td>
-                                            {(() => {
-                                                const conv = lineConversion(index);
-                                                if (!conv) return <span style={{ color: '#94a3b8' }}>—</span>;
-                                                return (
-                                                    <div className="conversion-cell">
-                                                        <div className="conversion-cell__base">{conv.base}</div>
-                                                        {(conv.factor !== 1 || conv.original !== conv.base) && (
-                                                            <div className="conversion-note">
-                                                                {conv.original}{conv.unitName ? ` ${conv.unitName}` : ''} × {conv.factor} = {conv.base}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })()}
-                                        </td>
-                                    )}
-                                    {!viewing && (
-                                        <td className="action-column">
-                                            {data.items.length > 1 && (
-                                                <button
-                                                    type="button"
-                                                    style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}
-                                                    onClick={() => removeItem(index)}
-                                                    title={t("حذف", "Remove")}
-                                                >
-                                                    <span className="material-icons-outlined">delete</span>
-                                                </button>
-                                            )}
-                                        </td>
-                                    )}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-
-                <div className="form-actions">
-                    <div style={{ marginRight: 'auto', color: '#64748b', fontSize: '14px' }}>
-                        {t("إجمالي الأصناف:", "Total items:")} {data.items.length} | {t("المستخدم:", "User:")} {auth?.user?.name || 'Admin'}
-                    </div>
-                    {!viewing && (
-                        <>
-                            {transfer && (
-                                <span className="field-hint" style={{ alignSelf: 'center' }}>
-                                    {t(
-                                        'التحويلات التي أثّرت على التكلفة لا يمكن تعديلها أو حذفها.',
-                                        'Transfers that already affected costing cannot be edited or deleted (the server will reject the change).'
-                                    )}
-                                </span>
-                            )}
-                            <button type="button" className="btn btn-secondary" onClick={addItem}>
-                                {t('+ إضافة صنف', '+ Add line')}
-                            </button>
-                            <button type="submit" className="btn btn-primary" disabled={processing}>
-                                {processing ? t('جاري الحفظ...', 'Saving...') : t('حفظ التحويل', 'Save Transfer')}
-                            </button>
-                        </>
-                    )}
-                </div>
-            </div>
-        </form>
-    );
 
     return (
-        <AdminLayout activeMenu="Inventory">
-            <Head title={showForm ? (viewing ? t("عرض تحويل مخزني", "View Stock Transfer") : t("إضافة تحويل مخزني", "Add Stock Transfer")) : t("قائمة التحويلات المخزنية", "Stock Transfers List")} />
+        <AdminLayout activeMenu={t('stock_transfers', 'Stock Transfers')}>
+            <Head title={t('stock_transfers', 'Stock Transfers')} />
 
-            <div className="transfer-stock-container" dir={isRtl ? 'rtl' : 'ltr'} lang={lang}>
-                <div className="page-header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#64748b', marginBottom: '10px' }}>
-                        <Link href={getLocalizedRoute('admin.inventory.products.index')} style={{ color: '#3b82f6' }}>{t("المخزن", "Inventory")}</Link>
-                        <span>/</span>
-                        {showForm ? (
-                            <>
-                                <button
-                                    onClick={handleBackToList}
-                                    style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: 0, fontSize: '14px' }}
-                                >
-                                    {t("التحويلات المخزنية", "Stock Transfers")}
-                                </button>
-                                <span>/</span>
-                                <span style={{ color: '#111827', fontWeight: '600' }}>{viewing ? t("عرض", "View") : t("إضافة جديد", "Add New")}</span>
-                            </>
-                        ) : (
-                            <span style={{ color: '#111827', fontWeight: '600' }}>{t("التحويلات المخزنية", "Stock Transfers")}</span>
-                        )}
+            <div className="stock-transfer-module">
+                <div className="stock-transfer-module__header">
+                    <div>
+                        <h1>{t('stock_transfers', 'Stock Transfers')}</h1>
+                        <p className="stock-transfer-module__subtitle">
+                            {t('stock_transfers_subtitle', 'Move stock between warehouses — costs travel with the stock')}
+                        </p>
                     </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                            <h1>
-                                {showForm ? (viewing ? t(`تحويل مخزني #${transfer.id}`, `Stock Transfer #${transfer.id}`) : t("إضافة تحويل مخزني", "Add Stock Transfer")) : t("قائمة التحويلات المخزنية", "Stock Transfers List")}
-                            </h1>
-                            <div style={{ color: '#64748b', fontSize: '14px' }}>
-                                {showForm
-                                    ? (viewing ? t("مراجعة تفاصيل التحويل المخزني", "Review stock transfer details") : t("أدخل بيانات التحويل المخزني بين المستودعات", "Enter stock transfer details between warehouses"))
-                                    : t("عرض وإدارة عمليات التحويل المخزني المحفوظة", "View and manage saved stock transfer operations")}
-                            </div>
-                        </div>
-
-                        {showForm && (
-                            <button type="button" className="btn btn-secondary" onClick={handleBackToList}>
-                                <span className="material-icons-outlined" style={{ verticalAlign: 'middle', marginRight: '5px' }}>arrow_back</span>
-                                {t("العودة للقائمة", "Back to List")}
+                    <div className="stock-transfer-module__actions">
+                        {mode !== 'create' && (
+                            <button type="button" className="btn btn--primary" onClick={startCreate}>
+                                + {t('new_transfer', 'New Transfer')}
                             </button>
                         )}
                     </div>
                 </div>
 
-                {(pageErrors?.general || errors?.general) && (
-                    <div style={{ backgroundColor: '#fef2f2', color: '#dc2626', padding: '12px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #fecaca' }}>
-                        {pageErrors?.general || errors?.general}
+                {(mergedErrors.general || mergedErrors['items']) && (
+                    <div className="stock-transfer-module__alert stock-transfer-module__alert--error">
+                        {mergedErrors.general || mergedErrors['items']}
                     </div>
                 )}
 
-                {showForm ? <FormView /> : <ListView />}
+                {mode === 'list' ? (
+                    <div className="stock-transfer-module__table-container">
+                        <Table
+                            tableData={rows}
+                            columns={columns}
+
+                            currentPage={safeTransfers.current_page || 1}
+                            totalPages={Math.max(1, Math.ceil((safeTransfers.total || 0) / (safeTransfers.per_page || 15)))}
+                            totalRecords={safeTransfers.total || 0}
+                            recordsPerPage={safeTransfers.per_page || 15}
+
+                            onPageChange={handlePageChange}
+                            onRecordsPerPageChange={handlePerPageChange}
+
+                            serverSide={true}
+                            showToolbar={true}
+                            toolbarSearch={true}
+                            toolbarSearchPlaceholder={t('search_transfers', 'Search transfers...')}
+                            toolbarSearchValue={filters?.search || ''}
+                            onToolbarSearch={handleToolbarSearch}
+                        />
+                    </div>
+                ) : (
+                    <form onSubmit={handleSubmit} className="stock-transfer-module__form">
+                        <div className="stock-transfer-module__section">
+                            <h3>{t('transfer_details', 'Transfer Details')}</h3>
+                            <div className="stock-transfer-module__grid stock-transfer-module__grid--three">
+                                <div className="form-group">
+                                    <label>{t('date', 'Date')} <span className="required">*</span></label>
+                                    <input
+                                        type="date"
+                                        value={data.movement_date}
+                                        onChange={(e) => setData('movement_date', e.target.value)}
+                                        className={mergedErrors.movement_date ? 'error' : ''}
+                                    />
+                                    {mergedErrors.movement_date && <span className="error-msg">{mergedErrors.movement_date}</span>}
+                                </div>
+                                <div className="form-group">
+                                    <label>{t('from_warehouse', 'From Warehouse')} <span className="required">*</span></label>
+                                    <SearchableComboBox
+                                        options={warehouseOptions}
+                                        value={data.from_warehouse_id ? String(data.from_warehouse_id) : ''}
+                                        onChange={(val) => setData('from_warehouse_id', val)}
+                                        placeholder={t('select_warehouse', 'Select source warehouse')}
+                                    />
+                                    {mergedErrors.from_warehouse_id && <span className="error-msg">{mergedErrors.from_warehouse_id}</span>}
+                                </div>
+                                <div className="form-group">
+                                    <label>{t('to_warehouse', 'To Warehouse')} <span className="required">*</span></label>
+                                    <SearchableComboBox
+                                        options={warehouseOptions.filter((w) => String(w.value) !== String(data.from_warehouse_id))}
+                                        value={data.to_warehouse_id ? String(data.to_warehouse_id) : ''}
+                                        onChange={(val) => setData('to_warehouse_id', val)}
+                                        placeholder={t('select_warehouse', 'Select destination warehouse')}
+                                    />
+                                    {mergedErrors.to_warehouse_id && <span className="error-msg">{mergedErrors.to_warehouse_id}</span>}
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <label>{t('notes', 'Notes')}</label>
+                                <textarea
+                                    rows={2}
+                                    value={data.notes}
+                                    onChange={(e) => setData('notes', e.target.value)}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="stock-transfer-module__section">
+                            <div className="stock-transfer-module__section-header">
+                                <h3>{t('items', 'Items')}</h3>
+                                <button type="button" className="btn btn--secondary btn--sm" onClick={addItem}>
+                                    + {t('add_item', 'Add Item')}
+                                </button>
+                            </div>
+
+                            <p className="stock-transfer-module__hint">
+                                {t('transfer_hint', 'Quantities are entered in the selected unit and converted to the base unit on save. Saving applies the ledger immediately — edit/delete is only possible while the transfer has not touched costing.')}
+                            </p>
+
+                            {data.items.map((item, index) => (
+                                <div key={index} className="stock-transfer-module__item-row">
+                                    <div className="form-group">
+                                        <label>{t('product', 'Product')} <span className="required">*</span></label>
+                                        <SearchableComboBox
+                                            options={productOptions}
+                                            value={item.product_id ? String(item.product_id) : ''}
+                                            onChange={(val) => updateItem(index, 'product_id', val)}
+                                            placeholder={t('select_product', 'Select product')}
+                                        />
+                                        {mergedErrors[`items.${index}.product_id`] && (
+                                            <span className="error-msg">{mergedErrors[`items.${index}.product_id`]}</span>
+                                        )}
+                                    </div>
+                                    <div className="form-group">
+                                        <label>{t('unit', 'Unit')} <span className="required">*</span></label>
+                                        <select
+                                            value={item.unit_id}
+                                            onChange={(e) => updateItem(index, 'unit_id', e.target.value)}
+                                        >
+                                            <option value="">{t('select_unit', 'Select unit')}</option>
+                                            {units.map((u) => (
+                                                <option key={u.id} value={u.id}>{u.name}</option>
+                                            ))}
+                                        </select>
+                                        {mergedErrors[`items.${index}.unit_id`] && (
+                                            <span className="error-msg">{mergedErrors[`items.${index}.unit_id`]}</span>
+                                        )}
+                                    </div>
+                                    <div className="form-group">
+                                        <label>{t('quantity', 'Quantity')} <span className="required">*</span></label>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            min="0.001"
+                                            value={item.quantity}
+                                            onChange={(e) => updateItem(index, 'quantity', e.target.value)}
+                                            className={mergedErrors[`items.${index}.quantity`] ? 'error' : ''}
+                                        />
+                                        {mergedErrors[`items.${index}.quantity`] && (
+                                            <span className="error-msg">{mergedErrors[`items.${index}.quantity`]}</span>
+                                        )}
+                                    </div>
+                                    <button type="button" className="btn btn--danger btn--sm" onClick={() => removeItem(index)}>
+                                        {t('remove', 'Remove')}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="stock-transfer-module__form-actions">
+                            <button type="button" className="btn btn--secondary" onClick={() => { setMode('list'); setEditing(null); }}>
+                                {t('cancel', 'Back')}
+                            </button>
+                            <button type="submit" className="btn btn--primary" disabled={processing}>
+                                {processing
+                                    ? t('saving', 'Saving...')
+                                    : (mode === 'edit' ? t('update_transfer', 'Update Transfer') : t('save_transfer', 'Save Transfer'))}
+                            </button>
+                        </div>
+                    </form>
+                )}
+
+                {viewOpen && (
+                    <div className="stock-transfer-module__modal-overlay" onClick={() => setViewOpen(false)}>
+                        <div className="stock-transfer-module__modal" onClick={(e) => e.stopPropagation()}>
+                            <div className="stock-transfer-module__modal-header">
+                                <h2>
+                                    {t('transfer', 'Transfer')}
+                                    {' '}
+                                    {transferView?.transfer?.voucher_num || ''}
+                                </h2>
+                                <button type="button" className="stock-transfer-module__modal-close" onClick={() => setViewOpen(false)}>×</button>
+                            </div>
+
+                            {viewError && (
+                                <div className="stock-transfer-module__alert stock-transfer-module__alert--error">{viewError}</div>
+                            )}
+
+                            {viewLoading && (
+                                <div className="stock-transfer-module__loading">{t('loading', 'Loading...')}</div>
+                            )}
+
+                            {!viewLoading && transferView && (
+                                <>
+                                    <div className="stock-transfer-module__modal-meta">
+                                        <div>
+                                            <strong>{t('date', 'Date')}:</strong> {formatDate(transferView.transfer.movement_date)}
+                                        </div>
+                                        <div>
+                                            <strong>{t('from_warehouse', 'From')}:</strong> {transferView.transfer.from_warehouse?.name || '-'}
+                                        </div>
+                                        <div>
+                                            <strong>{t('to_warehouse', 'To')}:</strong> {transferView.transfer.to_warehouse?.name || '-'}
+                                        </div>
+                                        <div>
+                                            <strong>{t('status', 'Status')}:</strong>{' '}
+                                            {transferView.cancelled
+                                                ? <span className="badge badge-danger">{t('cancelled', 'Cancelled')}</span>
+                                                : <span className="badge badge-success">{t('applied', 'Applied')}</span>}
+                                        </div>
+                                    </div>
+
+                                    <table className="stock-transfer-module__table">
+                                        <thead>
+                                            <tr>
+                                                <th>{t('product', 'Product')}</th>
+                                                <th className="text-end">{t('quantity', 'Quantity (base)')}</th>
+                                                <th className="text-end">{t('original_quantity', 'Entered')}</th>
+                                                <th className="text-end">{t('unit_cost', 'Unit Cost')}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(transferView.lines || []).map((line) => (
+                                                <tr key={line.id}>
+                                                    <td>
+                                                        {products.find((p) => String(p.id) === String(line.product_id))?.name
+                                                            || `#${line.product_id}`}
+                                                    </td>
+                                                    <td className="text-end">{Number(line.quantity).toLocaleString()}</td>
+                                                    <td className="text-end">
+                                                        {line.original_quantity != null ? Number(line.original_quantity).toLocaleString() : '-'}
+                                                    </td>
+                                                    <td className="text-end">{Number(line.cost_price || 0).toFixed(3)}</td>
+                                                </tr>
+                                            ))}
+                                            {(transferView.lines || []).length === 0 && (
+                                                <tr>
+                                                    <td colSpan={4} className="text-center">
+                                                        {t('no_lines', 'No lines recorded.')}
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </>
+                            )}
+
+                            {!viewLoading && !transferView && !viewError && (
+                                <div className="stock-transfer-module__empty">
+                                    {t('select_transfer_prompt', 'Select a transfer to view its details.')}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </AdminLayout>
     );

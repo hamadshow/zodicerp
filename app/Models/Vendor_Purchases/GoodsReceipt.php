@@ -31,6 +31,7 @@ class GoodsReceipt extends Model
         'notes',
         'inspection_notes',
         'created_by',
+        'company_id',
     ];
 
     protected $casts = [

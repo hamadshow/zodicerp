@@ -3,17 +3,74 @@
 namespace App\Http\Controllers\Backend\Inventory;
 
 use App\Models\OpeningStock;
-use App\Models\OpeningStockItem;
 use App\Http\Controllers\Controller;
 use App\Models\ItemUnit;
 use App\Models\Products;
 use App\Models\Warehouses;
+use App\Services\CompanyContext;
+use App\Services\Inventory\OpeningStockService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class OpeningStockController extends Controller
 {
+    public function __construct(
+        private CompanyContext $companyContext,
+        private OpeningStockService $openingStockService,
+    ) {}
+
+    /**
+     * Company-scoped option lists shared by index/show. Master-data tables
+     * keep the established "company_id = active OR NULL" convention
+     * (same as UnitConversionService); transactional reads are strict.
+     */
+    private function scopedOptionLists(int $companyId): array
+    {
+        return [
+            'warehouses' => Warehouses::query()
+                ->where('company_id', $companyId)
+                ->select(['id', 'name'])
+                ->orderBy('id')
+                ->get(),
+            'products' => Products::query()
+                ->where('company_id', $companyId)
+                ->select(['id', 'name', 'sku', 'barcode'])
+                ->orderBy('id', 'desc')
+                ->limit(2000)
+                ->get(),
+            'units' => ItemUnit::query()
+                ->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->select(['id', 'name'])
+                ->where('active', true)
+                ->where('unit_type', 1)
+                ->orderBy('id')
+                ->get(),
+        ];
+    }
+
+    /**
+     * Referenced warehouse/product must belong to the active company.
+     * (Validation `exists:` rules alone would accept any company's rows.)
+     */
+    private function assertOwned(array $validated, int $companyId): void
+    {
+        $warehouseOwner = Warehouses::query()->whereKey($validated['warehouse_id'])->value('company_id');
+        abort_unless((int) $warehouseOwner === $companyId, 404, 'Warehouse not found.');
+
+        $productOwners = Products::query()
+            ->whereIn('id', array_map('intval', array_column($validated['items'], 'product_id')))
+            ->pluck('company_id', 'id');
+        foreach ($validated['items'] as $item) {
+            abort_unless(
+                (int) ($productOwners[$item['product_id']] ?? 0) === $companyId,
+                404,
+                'Product not found.'
+            );
+        }
+    }
     /**
      * Display a listing of opening stocks.
      */
@@ -44,7 +101,8 @@ class OpeningStockController extends Controller
         }
 
         $query = OpeningStock::with(['warehouse', 'company', 'creator', 'items.product', 'items.unit'])
-            ->where('type', 'opening');
+            ->where('type', 'opening')
+            ->where('company_id', $this->companyContext->id());
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -81,18 +139,26 @@ class OpeningStockController extends Controller
 
         $openingStocks = $query->paginate($perPage)->withQueryString();
 
-        $warehouses = Warehouses::query()
-            ->select(['id', 'name'])
-            ->orderBy('id')
-            ->get();
-
+        // Products list deduped: a product family shares the parent's name;
+        // variations must not flood the picker (behavior-preserving cap).
         $products = Products::query()
+            ->where('company_id', $this->companyContext->id())
+            ->whereNull('parent_id')
             ->select(['id', 'name', 'sku', 'barcode'])
             ->orderBy('id', 'desc')
             ->limit(2000)
             ->get();
 
+        $warehouses = Warehouses::query()
+            ->where('company_id', $this->companyContext->id())
+            ->select(['id', 'name'])
+            ->orderBy('id')
+            ->get();
+
         $units = ItemUnit::query()
+            ->where(function ($q) {
+                $q->where('company_id', $this->companyContext->id())->orWhereNull('company_id');
+            })
             ->select(['id', 'name'])
             ->where('active', true)
             ->where('unit_type', 1)
@@ -128,12 +194,12 @@ class OpeningStockController extends Controller
 
     /**
      * Store a newly created opening stock in storage.
+     *
+     * Phase 3: delegates to OpeningStockService (unit conversion, D1 WAC
+     * seeding, derived quantity, full rollback on any failure).
      */
     public function store(Request $request)
     {
-        $user = $request->user();
-        $companyId = $user?->company_id;
-
         $validated = $request->validate([
             'movement_date' => ['nullable', 'date'],
             'warehouse_id' => ['required', 'integer', 'exists:warehouses,id'],
@@ -146,38 +212,11 @@ class OpeningStockController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($validated, $companyId, $user) {
-                // Generate voucher number for opening stock
-                $voucherNum = 'OS-'.date('Ymd').'-'.strtoupper(substr(uniqid(), -4));
-
-                $openingStock = OpeningStock::create([
-                    'movement_date' => $validated['movement_date'] ?? null,
-                    'type' => 'opening',
-                    'direction' => 'in',
-                    'voucher_num' => $voucherNum,
-                    'warehouse_id' => $validated['warehouse_id'],
-                    'company_id' => $companyId,
-                    'created_by' => $user->id,
-                    'notes' => $validated['notes'] ?? 'OpeningStock',
-                ]);
-
-                foreach ($validated['items'] as $item) {
-                    OpeningStockItem::create([
-                        'stock_movement_id' => $openingStock->id,
-                        'product_id' => (int) $item['product_id'],
-                        'unit_id' => (int) $item['unit_id'],
-                        'quantity' => $item['quantity'],
-                        'cost_price' => $item['cost_price'] ?? 0,
-                    ]);
-
-                    // Update product quantity (opening stock sets initial stock level)
-                    DB::table('products')
-                        ->where('id', (int) $item['product_id'])
-                        ->increment('quantity', (float) $item['quantity']);
-                }
-            });
+            $this->openingStockService->create($validated);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
-            return back()->withErrors(['general' => 'An error occurred while saving: '.$e->getMessage()]);
+            return back()->withErrors(['general' => 'An error occurred while saving: '.$e->getMessage()])->withInput();
         }
 
         return redirect()
@@ -190,20 +229,28 @@ class OpeningStockController extends Controller
 
     public function show(OpeningStock $openingStock)
     {
+        // Cross-company records must not be viewable (404, as Nationality/Profession).
+        abort_unless((int) $openingStock->company_id === $this->companyContext->id(), 404);
+
         $openingStock->load(['warehouse', 'items.product', 'creator']);
-        
-        $warehouses = \App\Models\Warehouses::query()
+
+        $warehouses = Warehouses::query()
+            ->where('company_id', $this->companyContext->id())
             ->select(['id', 'name'])
             ->orderBy('id')
             ->get();
 
-        $products = \App\Models\Products::query()
+        $products = Products::query()
+            ->where('company_id', $this->companyContext->id())
             ->select(['id', 'name', 'sku', 'barcode'])
             ->orderBy('id', 'desc')
             ->limit(2000)
             ->get();
 
-        $units = \App\Models\ItemUnit::query()
+        $units = ItemUnit::query()
+            ->where(function ($q) {
+                $q->where('company_id', $this->companyContext->id())->orWhereNull('company_id');
+            })
             ->select(['id', 'name'])
             ->where('active', true)
             ->where('unit_type', 1)
@@ -223,13 +270,11 @@ class OpeningStockController extends Controller
     }
 
     /**
-     * Update the specified opening stock in storage.
+     * Replace an opening stock document's items (D4: reversal-and-replacement
+     * via OpeningStockService). Routed since Phase 3.
      */
     public function update(Request $request, $id)
     {
-        $user = $request->user();
-        $companyId = $user?->company_id;
-
         $validated = $request->validate([
             'movement_date' => ['nullable', 'date'],
             'warehouse_id' => ['required', 'integer', 'exists:warehouses,id'],
@@ -242,43 +287,13 @@ class OpeningStockController extends Controller
         ]);
 
         try {
-            DB::transaction(function () use ($validated, $id) {
-                $openingStock = OpeningStock::where('id', $id)
-                    ->firstOrFail();
-
-                // Reverse old quantities before deleting old items
-                $oldItems = $openingStock->items()->get();
-                foreach ($oldItems as $oldItem) {
-                    DB::table('products')
-                        ->where('id', $oldItem->product_id)
-                        ->decrement('quantity', (float) $oldItem->quantity);
-                }
-
-                $openingStock->update([
-                    'movement_date' => $validated['movement_date'] ?? null,
-                    'warehouse_id' => $validated['warehouse_id'],
-                    'notes' => $validated['notes'] ?? 'OpeningStock',
-                ]);
-
-                // Update items: delete old and insert new
-                $openingStock->items()->delete();
-
-                foreach ($validated['items'] as $item) {
-                    $openingStock->items()->create([
-                        'product_id' => (int) $item['product_id'],
-                        'unit_id' => (int) $item['unit_id'],
-                        'quantity' => $item['quantity'],
-                        'cost_price' => $item['cost_price'] ?? 0,
-                    ]);
-
-                    // Apply new quantities
-                    DB::table('products')
-                        ->where('id', (int) $item['product_id'])
-                        ->increment('quantity', (float) $item['quantity']);
-                }
-            });
+            $this->openingStockService->update((int) $id, $validated);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            abort(404);
         } catch (\Exception $e) {
-            return back()->withErrors(['general' => 'An error occurred while updating: '.$e->getMessage()]);
+            return back()->withErrors(['general' => 'An error occurred while updating: '.$e->getMessage()])->withInput();
         }
 
         return redirect()
@@ -289,31 +304,21 @@ class OpeningStockController extends Controller
             ->with('success', 'Opening stock updated successfully');
     }
 
+    /**
+     * Reverse an opening stock record (D4). Lines and WAC effects are negated
+     * exactly; the header stays as an audit row (direction flipped to 'out').
+     */
     public function destroy(OpeningStock $openingStock)
     {
+        // Cross-company records must not be deletable.
+        abort_unless((int) $openingStock->company_id === $this->companyContext->id(), 404);
+
         try {
-            DB::beginTransaction();
-
-            // 1. Reverse quantities for each item
-            $items = $openingStock->items()->get();
-            foreach ($items as $item) {
-                DB::table('products')
-                    ->where('id', $item->product_id)
-                    ->decrement('quantity', (float) $item->quantity);
-            }
-
-            // 2. Delete items first
-            $openingStock->items()->delete();
-
-            // 3. Delete the header
-            $openingStock->delete();
-
-            DB::commit();
-
-            return redirect()->back()->with('success', 'Opening stock record deleted successfully');
+            $this->openingStockService->delete((int) $openingStock->id);
         } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->back()->with('error', 'Error deleting opening stock: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error deleting opening stock: '.$e->getMessage());
         }
+
+        return redirect()->back()->with('success', 'Opening stock record reversed successfully');
     }
 }

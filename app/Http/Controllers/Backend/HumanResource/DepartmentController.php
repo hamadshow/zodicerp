@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Backend\HumanResource;
 use App\Http\Controllers\Controller;
 use App\Models\Assets\Department;
 use App\Models\Employee;
+use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
@@ -13,10 +14,23 @@ use Illuminate\Support\Facades\Log;
 
 class DepartmentController extends Controller
 {
+    public function __construct(private readonly CompanyContext $companyContext)
+    {
+    }
+
     public function index()
     {
-        $departments = Department::with('manager:id,name')->get();
-        $employees = Employee::select('id', 'name')->get();
+        $companyId = $this->companyContext->id();
+        $departments = Department::query()
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->with('manager:id,name')
+            ->get();
+        $employees = Employee::query()
+            ->where('company_id', $companyId)
+            ->select('id', 'name')
+            ->get();
 
         return Inertia::render('Backend/02_human_resource/Departments', [
             'departments' => $departments,
@@ -32,11 +46,10 @@ class DepartmentController extends Controller
             'description' => 'nullable|string',
             'manager_id' => 'nullable|exists:employees,id',
             'is_active' => 'boolean',
-            'company_id' => 'nullable|integer',
         ]);
 
         try {
-            Department::create($validated);
+            Department::create($validated + ['company_id' => $this->companyContext->id()]);
             return redirect()->back()->with('success', 'Department created successfully');
         } catch (Exception $e) {
             Log::error('Error creating department: ' . $e->getMessage());
@@ -52,10 +65,11 @@ class DepartmentController extends Controller
             'description' => 'nullable|string',
             'manager_id' => 'nullable|exists:employees,id',
             'is_active' => 'boolean',
-            'company_id' => 'nullable|integer',
         ]);
 
         try {
+            // Ownership never changes on update; never trust client company_id.
+            unset($validated['company_id']);
             $department->update($validated);
             return redirect()->back()->with('success', 'Department updated successfully');
         } catch (Exception $e) {

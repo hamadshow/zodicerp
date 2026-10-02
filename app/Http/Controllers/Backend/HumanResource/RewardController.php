@@ -5,15 +5,28 @@ namespace App\Http\Controllers\Backend\HumanResource;
 use App\Http\Controllers\Controller;
 use App\Models\Reward;
 use App\Models\Employee;
+use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class RewardController extends Controller
 {
+    public function __construct(private readonly CompanyContext $companyContext)
+    {
+    }
+
     public function index()
     {
-        $rewards = Reward::with('employee:id,name,position')->latest()->get();
-        $employees = Employee::select('id', 'name', 'position', 'department')->get();
+        $companyId = $this->companyContext->id();
+        $rewards = Reward::query()
+            ->where('company_id', $companyId)
+            ->with('employee:id,name,position')
+            ->latest()
+            ->get();
+        $employees = Employee::query()
+            ->where('company_id', $companyId)
+            ->select('id', 'name', 'position', 'department')
+            ->get();
 
         return Inertia::render('Backend/02_human_resource/Reward', [
             'rewards' => $rewards,
@@ -43,10 +56,9 @@ class RewardController extends Controller
             'awarded_by' => 'nullable|string',
             'points' => 'nullable|integer|min:0',
             'notes' => 'nullable|string',
-            'company_id' => 'nullable|exists:companies,id',
         ]);
 
-        Reward::create($validated + ['company_id' => 1]);
+        Reward::create($validated + ['company_id' => $this->companyContext->id()]);
 
         return redirect()->route('admin.rewards.index', [
             'country' => $request->segment(1),
@@ -78,6 +90,8 @@ class RewardController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        // Keep ownership intact on update; never trust client company_id.
+        unset($validated['company_id']);
         $reward->update($validated);
 
         return redirect()->route('admin.rewards.index', [

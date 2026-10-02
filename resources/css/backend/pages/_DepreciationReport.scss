@@ -1,0 +1,166 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+@use 'sass:color';
+
+/* ==========================================================================
+   Depreciation Report — page-specific styles (.depr-report namespace)
+   ========================================================================== */
+
+.depr-report {
+    animation: depr-report-fade-in 0.35s ease-out;
+
+    &__header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: $spacing-md;
+        flex-wrap: wrap;
+        margin-bottom: $spacing-lg;
+    }
+
+    &__title {
+        margin: 0;
+        font-size: $font-size-2xl;
+        font-weight: $font-weight-bold;
+        color: $text-primary;
+    }
+
+    &__subtitle {
+        margin: $spacing-xs 0 0;
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    &__content { margin-bottom: $spacing-lg; }
+
+    &__card {
+        background: $white;
+        border: 1px solid $border-color;
+        border-radius: $radius-xl;
+        overflow: hidden;
+    }
+
+    &__card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-md;
+        flex-wrap: wrap;
+        padding: $spacing-md $spacing-lg;
+        border-bottom: 1px solid $border-color;
+    }
+
+    &__card-title-group {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+    }
+
+    &__card-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: $radius-lg;
+        background: $primary-light;
+        color: $primary-color;
+    }
+
+    &__card-title {
+        margin: 0;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+        color: $text-primary;
+    }
+
+    &__card-desc {
+        margin: 2px 0 0;
+        font-size: $font-size-xs;
+        color: $text-muted;
+    }
+
+    &__filter-select {
+        min-width: 160px;
+        padding: 0.5rem 2.25rem 0.5rem 0.75rem;
+        border: 1px solid $border-color;
+        border-radius: $radius-lg;
+        background-color: $white;
+        font-size: $font-size-sm;
+        color: $text-secondary;
+        font-family: inherit;
+
+        &:focus {
+            outline: none;
+            border-color: $primary-color;
+        }
+    }
+
+    &__asset {
+        display: flex;
+        flex-direction: column;
+        font-weight: $font-weight-medium;
+        color: $text-primary;
+    }
+
+    &__asset-number {
+        font-size: $font-size-xs;
+        color: $text-muted;
+        font-weight: $font-weight-normal;
+    }
+
+    &__amount {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+
+        &--dep { color: $danger-color; font-weight: $font-weight-semibold; }
+        &--nbv { font-weight: $font-weight-semibold; color: $text-primary; }
+    }
+
+    &__badge {
+        display: inline-flex;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        font-size: $font-size-xs;
+        background: $light-color;
+        color: $text-secondary;
+    }
+
+    &__totals {
+        display: flex;
+        gap: $spacing-xl;
+        flex-wrap: wrap;
+        padding: $spacing-md $spacing-lg;
+        border-top: 1px solid $border-color;
+        background: $light-color;
+    }
+
+    &__totals-item {
+        display: flex;
+        flex-direction: column;
+
+        span {
+            font-size: $font-size-xs;
+            color: $text-muted;
+        }
+
+        strong {
+            font-size: $font-size-md;
+            font-variant-numeric: tabular-nums;
+            color: $text-primary;
+        }
+    }
+
+    &__empty {
+        padding: $spacing-lg 0;
+        text-align: center;
+        color: $text-muted;
+
+        p { margin: 0; font-size: $font-size-sm; }
+    }
+}
+
+@keyframes depr-report-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}

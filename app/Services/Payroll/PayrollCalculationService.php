@@ -43,6 +43,7 @@ class PayrollCalculationService
                 $result = PayrollResult::create([
                     'payroll_period_id' => $lockedPeriod->getKey(),
                     'employee_id' => $employee->getKey(),
+                    'company_id' => $lockedPeriod->company_id,
                 ]);
                 $result->refresh();
             }
@@ -55,7 +56,86 @@ class PayrollCalculationService
             $advances = $this->sources->advances($employee->getKey(), $start, $end);
             $violations = $this->sources->trafficViolations($employee->getKey(), $start, $end);
 
-            $components = [];
+            // Attendance & leave integration (Phase 6) — only applies when
+            // the period has explicit rates configured; NULL rates keep the
+            // historical behavior (0.00) so no rules are invented.
+            $attendanceStats = $this->sources->attendanceSummary($employee->getKey(), $start, $end);
+            $unpaidLeaveDays = $this->sources->unpaidLeaveDays($employee->getKey(), $start, $end);
+
+            $overtimeAmount = '0.00';
+            if ($lockedPeriod->overtime_rate_per_hour !== null) {
+                $overtimeAmount = $this->decimal(
+                    bcmul((string) $attendanceStats['overtime_hours'], (string) $lockedPeriod->overtime_rate_per_hour, 2)
+                );
+                if ($overtimeAmount !== '0.00') {
+                    $components[] = $this->component(
+                        $result,
+                        'attendance_overtime:'.$lockedPeriod->getKey(),
+                        'earning',
+                        'attendance_overtime',
+                        (int) $lockedPeriod->getKey(),
+                        "Overtime ({$attendanceStats['overtime_hours']}h)",
+                        $overtimeAmount,
+                        now(),
+                        ['overtime_hours' => $attendanceStats['overtime_hours'], 'rate' => (string) $lockedPeriod->overtime_rate_per_hour]
+                    );
+                }
+            }
+
+            $absenceAmount = '0.00';
+            if ($lockedPeriod->absence_deduction_per_day !== null && $attendanceStats['absent_days'] > 0) {
+                $absenceAmount = $this->decimal(
+                    bcmul((string) $attendanceStats['absent_days'], (string) $lockedPeriod->absence_deduction_per_day, 2)
+                );
+                $components[] = $this->component(
+                    $result,
+                    'attendance_absence:'.$lockedPeriod->getKey(),
+                    'deduction',
+                    'attendance_absence',
+                    (int) $lockedPeriod->getKey(),
+                    "Absence deduction ({$attendanceStats['absent_days']} day(s))",
+                    $absenceAmount,
+                    now(),
+                    ['absent_days' => $attendanceStats['absent_days'], 'rate' => (string) $lockedPeriod->absence_deduction_per_day]
+                );
+            }
+
+            $lateAmount = '0.00';
+            if ($lockedPeriod->late_deduction_per_incident !== null && $attendanceStats['late_incidents'] > 0) {
+                $lateAmount = $this->decimal(
+                    bcmul((string) $attendanceStats['late_incidents'], (string) $lockedPeriod->late_deduction_per_incident, 2)
+                );
+                $components[] = $this->component(
+                    $result,
+                    'attendance_late:'.$lockedPeriod->getKey(),
+                    'deduction',
+                    'attendance_late',
+                    (int) $lockedPeriod->getKey(),
+                    "Late deduction ({$attendanceStats['late_incidents']} incident(s))",
+                    $lateAmount,
+                    now(),
+                    ['late_incidents' => $attendanceStats['late_incidents'], 'rate' => (string) $lockedPeriod->late_deduction_per_incident]
+                );
+            }
+
+            $unpaidLeaveAmount = '0.00';
+            if ($lockedPeriod->unpaid_leave_deduction_per_day !== null && $unpaidLeaveDays > 0) {
+                $unpaidLeaveAmount = $this->decimal(
+                    bcmul((string) $unpaidLeaveDays, (string) $lockedPeriod->unpaid_leave_deduction_per_day, 2)
+                );
+                $components[] = $this->component(
+                    $result,
+                    'unpaid_leave:'.$lockedPeriod->getKey(),
+                    'deduction',
+                    'unpaid_leave',
+                    (int) $lockedPeriod->getKey(),
+                    "Unpaid leave ({$unpaidLeaveDays} day(s))",
+                    $unpaidLeaveAmount,
+                    now(),
+                    ['unpaid_leave_days' => $unpaidLeaveDays, 'rate' => (string) $lockedPeriod->unpaid_leave_deduction_per_day]
+                );
+            }
+
             $components[] = $this->component(
                 $result,
                 'basic_salary:employee:'.$employee->getKey(),
@@ -95,18 +175,21 @@ class PayrollCalculationService
             $manualDeductions = $this->sumBySource($components, 'deduction');
             $advancesTotal = $this->sumBySource($components, 'payroll_advance');
             $violationsTotal = $this->sumBySource($components, 'traffic_violation');
+            // NOTE: overtime is an 'earning' component, so it is already
+            // included in $rewardsTotal. Do not add it to gross again.
             $gross = $this->add($basic, $rewardsTotal);
             $totalDeductions = $this->add($manualDeductions, $advancesTotal);
             $totalDeductions = $this->add($totalDeductions, $violationsTotal);
+            $totalDeductions = $this->add($totalDeductions, $this->add($absenceAmount, $this->add($lateAmount, $unpaidLeaveAmount)));
 
             $result->update([
                 'basic_salary' => $basic,
                 'allowances' => '0.00',
-                'overtime' => '0.00',
+                'overtime' => $overtimeAmount,
                 'total_rewards' => $rewardsTotal,
                 'gross_salary' => $gross,
-                'attendance_deductions' => '0.00',
-                'leave_deductions' => '0.00',
+                'attendance_deductions' => $this->add($absenceAmount, $lateAmount),
+                'leave_deductions' => $unpaidLeaveAmount,
                 'manual_deductions' => $manualDeductions,
                 'total_advances' => $advancesTotal,
                 'traffic_violations' => $violationsTotal,

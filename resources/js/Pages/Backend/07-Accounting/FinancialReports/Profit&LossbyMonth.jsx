@@ -47,7 +47,10 @@ export default function ProfitLossByMonth() {
 
   const t = {
     ar: {
-      title: 'الأرباح والخسائر حسب الشهر',
+      dashboard: 'لوحة التحكم',
+      accounting: 'المحاسبة',
+      financialReports: 'التقارير المالية',
+      title: 'الأرباح والخسائل حسب الشهر',
       period: 'الفترة من',
       to: 'إلى',
       income: 'الإيرادات',
@@ -64,11 +67,14 @@ export default function ProfitLossByMonth() {
       exportExcel: 'تصدير إكسل',
       print: 'طباعة',
       subtitle: "اضغط على حرف 'a' للتحويل للغة الإنجليزية",
-      companyName: 'شركة زد إي آر بي (ZodicERP)',
+      companyName: 'شركة زد إي آر بير (ZodicERP)',
       noData: 'لا توجد بيانات متاحة لهذه الفترة',
       month: 'الشهر',
     },
     en: {
+      dashboard: 'Dashboard',
+      accounting: 'Accounting',
+      financialReports: 'Financial Reports',
       title: 'Profit & Loss by Month',
       period: 'Period From',
       to: 'To',
@@ -99,9 +105,9 @@ export default function ProfitLossByMonth() {
     return nodes.map((node) => (
       <React.Fragment key={node.AccCode}>
         <tr className={`row-depth-${depth} ${node.AccType === 0 ? 'font-bold bg-gray-50/50' : ''} hover:bg-gray-50 transition-colors`}>
-          <td className="account-cell py-2" style={{ 
-            paddingLeft: isAr ? '12px' : `${depth * 20 + 12}px`, 
-            paddingRight: isAr ? `${depth * 20 + 12}px` : '12px' 
+          <td className="account-cell py-2" style={{
+            paddingLeft: isAr ? '12px' : `${depth * 20 + 12}px`,
+            paddingRight: isAr ? `${depth * 20 + 12}px` : '12px'
           }}>
             <div className="flex items-center">
               <span className={`acc-code text-[10px] font-mono px-1.5 py-0.5 rounded ${
@@ -130,12 +136,12 @@ export default function ProfitLossByMonth() {
 
     const workbook = XLSX.utils.book_new();
     const rows = [];
-    
+
     rows.push([currentLang.companyName]);
     rows.push([currentLang.title]);
     rows.push([`${currentLang.period}: ${startDate} ${currentLang.to}: ${endDate}`]);
     rows.push([]);
-    
+
     const flatten = (nodes, depth = 0) => {
       nodes.forEach(n => {
         const indent = '    '.repeat(depth);
@@ -180,76 +186,92 @@ export default function ProfitLossByMonth() {
 
   return (
     <AdminLayout activeMenu="Financial Reports">
-      <div className={`financial-reports-page profit-loss-page ${isAr ? 'rtl' : 'ltr'}`}>
-        <Head title={`${currentLang.title} - ZodicERP`} />
+      <Head title={`${currentLang.title} - ZodicERP`} />
+      <div className={`fr-page profit-loss-page ${isAr ? 'rtl' : 'ltr'}`}>
+        <div className="fr-breadcrumb">
+          <a href="#">{currentLang.dashboard}</a>
+          <span className="fr-sep">/</span>
+          <a href="#">{currentLang.accounting}</a>
+          <span className="fr-sep">/</span>
+          <a href="#">{currentLang.financialReports}</a>
+          <span className="fr-sep">/</span>
+          <span className="fr-current">{currentLang.title}</span>
+        </div>
 
-        <div className="report-header no-print">
-          <div className="report-header__left">
-            <h1 className="text-2xl font-bold text-gray-800">{currentLang.title}</h1>
-            <p className="text-sm text-gray-500 mt-1">{currentLang.subtitle}</p>
+        <div className="fr-header-card">
+          <div>
+            <h1 className="fr-title">{currentLang.title}</h1>
+            <p className="fr-subtitle">{currentLang.subtitle}</p>
           </div>
-          <div className="report-header__right">
-            <div className="date-picker-group">
-              <label className="text-sm font-medium text-gray-700">{currentLang.period}</label>
-              <div className="flex items-center gap-2">
-                <input 
-                  type="date" 
-                  value={startDate} 
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="form-input rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                />
-                <span className="text-gray-500">{currentLang.to}</span>
-                <input 
-                  type="date" 
-                  value={endDate} 
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="form-input rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                />
-              </div>
+        </div>
+
+        <div className="fr-filters-card">
+          <div className="fr-filters-grid">
+            <div className="fr-form-group">
+              <label htmlFor="fr-start">{currentLang.period}</label>
+              <input
+                id="fr-start"
+                type="date"
+                className="fr-input"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
             </div>
-            <div className="button-group ml-4">
-              <button onClick={handleExportExcel} className="btn-secondary">
-                <span className="material-icons-outlined text-base mr-1">file_download</span>
-                {currentLang.exportExcel}
-              </button>
-              <button onClick={() => window.print()} className="btn-primary ml-2">
-                <span className="material-icons-outlined text-base mr-1">print</span>
-                {currentLang.print}
-              </button>
+            <div className="fr-form-group">
+              <label htmlFor="fr-end">{currentLang.to}</label>
+              <input
+                id="fr-end"
+                type="date"
+                className="fr-input"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
             </div>
+          </div>
+          <div className="fr-form-actions">
+            <button
+              type="button"
+              className="btn btn-excel fr-btn"
+              onClick={handleExportExcel}
+            >
+              <span className="material-icons-outlined">description</span>
+              <span>{currentLang.exportExcel}</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary fr-btn"
+              onClick={() => window.print()}
+            >
+              <span className="material-icons-outlined">print</span>
+              <span>{currentLang.print}</span>
+            </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            <span className="ml-3 text-lg text-gray-600">{currentLang.loading}</span>
+          <div className="fr-loading-banner">
+            <span className="material-icons-outlined">sync</span>
+            <span>{currentLang.loading}</span>
           </div>
         ) : data ? (
-          <div className="report-container print-section shadow-lg bg-white rounded-lg overflow-hidden max-w-5xl mx-auto">
-            <div className="report-top-banner p-8 border-b border-gray-100 text-center">
-              <h2 className="text-3xl font-bold text-indigo-700 uppercase tracking-wider">{currentLang.companyName}</h2>
-              <h3 className="text-xl font-semibold text-gray-700 mt-2 uppercase">{currentLang.title}</h3>
-              <p className="text-gray-500 mt-1 font-medium">{currentLang.period}: {startDate} {currentLang.to}: {endDate}</p>
-            </div>
-
-            <div className="report-body p-8">
+          <div className="fr-table-card">
+            <div className="fr-table-wrapper">
               {data.months && (
                 <section className="mb-12">
                   <h4 className="section-header-pill bg-blue-50 text-blue-700 px-4 py-2 rounded-full inline-block font-bold mb-4">
                     {currentLang.month}
                   </h4>
-                  <table className="w-full">
+                  <table className="fr-table">
                     <thead>
-                      <tr className="border-b-2 border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
-                        <th className="text-left py-3 font-semibold">{currentLang.month}</th>
-                        <th className="text-right py-3 font-semibold">{currentLang.totalIncome}</th>
-                        <th className="text-right py-3 font-semibold">{currentLang.totalCogs}</th>
-                        <th className="text-right py-3 font-semibold">{currentLang.totalExpenses}</th>
-                        <th className="text-right py-3 font-semibold">{currentLang.netIncome}</th>
+                      <tr>
+                        <th className="fr-th">{currentLang.month}</th>
+                        <th className="fr-th fr-amount-header">{currentLang.totalIncome}</th>
+                        <th className="fr-th fr-amount-header">{currentLang.totalCogs}</th>
+                        <th className="fr-th fr-amount-header">{currentLang.totalExpenses}</th>
+                        <th className="fr-th fr-amount-header">{currentLang.netIncome}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="fr-table-body">
                       {Object.entries(data.months).map(([month, monthData]) => (
                         <tr key={month}>
                           <td className="py-3 font-mono">{month}</td>
@@ -269,18 +291,18 @@ export default function ProfitLossByMonth() {
                   <h4 className="section-header-pill bg-green-50 text-green-700 px-4 py-2 rounded-full inline-block font-bold mb-4">
                     {currentLang.income}
                   </h4>
-                  <table className="w-full">
+                  <table className="fr-table">
                     <thead>
-                      <tr className="border-b-2 border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
-                        <th className="text-left py-3 font-semibold">{currentLang.accountName}</th>
-                        <th className="text-right py-3 font-semibold">{currentLang.balance}</th>
+                      <tr>
+                        <th className="fr-th">{currentLang.accountName}</th>
+                        <th className="fr-th fr-amount-header">{currentLang.balance}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="fr-table-body">
                       {renderAccountRows(data.income)}
                       <tr className="total-row-sub font-bold text-gray-800 bg-gray-50">
-                        <td className="py-3 px-4 rounded-l-md">{currentLang.totalIncome}</td>
-                        <td className="py-3 px-4 text-right rounded-r-md">{formatNumber(data.total_income)}</td>
+                        <td className="py-3 px-4">{currentLang.totalIncome}</td>
+                        <td className="py-3 px-4 text-right">{formatNumber(data.total_income)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -291,25 +313,25 @@ export default function ProfitLossByMonth() {
                   <h4 className="section-header-pill bg-orange-50 text-orange-700 px-4 py-2 rounded-full inline-block font-bold mb-4">
                     {currentLang.cogs}
                   </h4>
-                  <table className="w-full">
+                  <table className="fr-table">
                     <thead>
-                      <tr className="border-b-2 border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
-                        <th className="text-left py-3 font-semibold">{currentLang.accountName}</th>
-                        <th className="text-right py-3 font-semibold">{currentLang.balance}</th>
+                      <tr>
+                        <th className="fr-th">{currentLang.accountName}</th>
+                        <th className="fr-th fr-amount-header">{currentLang.balance}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="fr-table-body">
                       {renderAccountRows(data.cogs)}
                       <tr className="total-row-sub font-bold text-gray-800 bg-gray-50">
-                        <td className="py-3 px-4 rounded-l-md">{currentLang.totalCogs}</td>
-                        <td className="py-3 px-4 text-right rounded-r-md">{formatNumber(data.total_cogs)}</td>
+                        <td className="py-3 px-4">{currentLang.totalCogs}</td>
+                        <td className="py-3 px-4 text-right">{formatNumber(data.total_cogs)}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
 
                 {/* Gross Profit */}
-                <div className="flex justify-between items-center bg-gray-100 p-4 rounded-lg">
+                <div className="bg-gray-100 p-4 rounded-lg">
                   <span className="text-lg font-bold text-gray-700">{currentLang.grossProfit}</span>
                   <span className={`text-xl font-bold ${data.gross_profit < 0 ? 'text-red-600' : 'text-gray-900'}`}>
                     {formatNumber(data.gross_profit)}
@@ -321,18 +343,18 @@ export default function ProfitLossByMonth() {
                   <h4 className="section-header-pill bg-red-50 text-red-700 px-4 py-2 rounded-full inline-block font-bold mb-4">
                     {currentLang.expenses}
                   </h4>
-                  <table className="w-full">
+                  <table className="fr-table">
                     <thead>
-                      <tr className="border-b-2 border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
-                        <th className="text-left py-3 font-semibold">{currentLang.accountName}</th>
-                        <th className="text-right py-3 font-semibold">{currentLang.balance}</th>
+                      <tr>
+                        <th className="fr-th">{currentLang.accountName}</th>
+                        <th className="fr-th fr-amount-header">{currentLang.balance}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="fr-table-body">
                       {renderAccountRows(data.expenses)}
                       <tr className="total-row-sub font-bold text-gray-800 bg-gray-50">
-                        <td className="py-3 px-4 rounded-l-md">{currentLang.totalExpenses}</td>
-                        <td className="py-3 px-4 text-right rounded-r-md">{formatNumber(data.total_expenses)}</td>
+                        <td className="py-3 px-4">{currentLang.totalExpenses}</td>
+                        <td className="py-3 px-4 text-right">{formatNumber(data.total_expenses)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -345,7 +367,6 @@ export default function ProfitLossByMonth() {
                 </div>
               </div>
             </div>
-
             <div className="report-footer p-8 border-t border-gray-100 bg-gray-50/50">
               <div className="flex justify-between text-xs text-gray-400">
                 <span>{new Date().toLocaleString(isAr ? 'ar-SA' : 'en-US')}</span>
@@ -354,35 +375,48 @@ export default function ProfitLossByMonth() {
             </div>
           </div>
         ) : (
-          <div className="flex justify-center items-center h-64 bg-white rounded-lg shadow-sm">
-            <p className="text-gray-500 italic">{currentLang.noData}</p>
+          <div className="fr-empty-state">
+            <span className="material-icons-outlined">sync</span>
+            <p>{currentLang.noData}</p>
           </div>
         )}
-
-        <style dangerouslySetInnerHTML={{ __html: `
-          @media print {
-            .no-print { display: none !important; }
-            .print-section { 
-              box-shadow: none !important; 
-              margin: 0 !important; 
-              padding: 0 !important; 
-              width: 100% !important;
-              max-width: none !important;
-            }
-            body { background: white !important; }
-            .report-container { border: none !important; }
-            .section-header-pill { 
-              border: 1px solid #e5e7eb !important;
-              -webkit-print-color-adjust: exact;
-            }
-          }
-          .row-depth-0 { font-weight: 600; }
-          .row-depth-1 td.account-cell { padding-left: 2rem; }
-          .row-depth-2 td.account-cell { padding-left: 3.5rem; }
-          .rtl .row-depth-1 td.account-cell { padding-right: 2rem; padding-left: 0.75rem; }
-          .rtl .row-depth-2 td.account-cell { padding-right: 3.5rem; padding-left: 0.75rem; }
-        ` }} />
       </div>
+
+      <style jsx>{`{
+        .profit-loss-page { padding: 40px; background-color: #f9fafb; min-height: 100vh; }
+        .rtl { direction: rtl; text-align: right; }
+        .ltr { direction: ltr; text-align: left; }
+        .fr-breadcrumb { margin-bottom: 16px; }
+        .fr-header-card { margin-bottom: 18px; }
+        .fr-filters-card { margin-bottom: 18px; }
+        .fr-filters-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; align-items: flex-end; }
+        .fr-form-group label { font-size: 0.8rem; font-weight: 500; }
+        .fr-input { font-size: 0.85rem; }
+        .fr-form-actions { justify-content: flex-start; gap: 8px; }
+        .account-cell { padding: 8px 12px; font-size: 0.9rem; color: #4b5563; }
+        .balance-cell { font-family: 'Courier New', Courier, monospace; font-weight: 500; }
+        .font-bold .acc-name { font-weight: 700; color: #111827; }
+        .section-header-pill { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .fr-table { font-size: 0.85rem; }
+        .fr-table th, .fr-table td { padding: 8px 10px; }
+        .fr-table .fr-amount-header { text-align: right; }
+        .fr-table .fr-amount { text-align: right; font-variant-numeric: tabular-nums; }
+        @media print {
+          .fr-page { padding: 0; background: white; }
+          .fr-breadcrumb, .fr-header-card, .fr-filters-card, .fr-form-actions { display: none !important; }
+          .fr-table-card { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: none !important; padding: 0 !important; }
+          body { background: white !important; }
+          .report-container { border: none !important; }
+          .report-body { padding: 0 !important; }
+          .section-header-pill {
+            border: 1px solid #e5e7eb !important;
+            -webkit-print-color-adjust: exact;
+          }
+        }
+        .rtl .fr-breadcrumb { direction: rtl; }
+        .rtl .text-left { text-align: right !important; }
+        .rtl .text-right { text-align: left !important; }
+      `}</style>
     </AdminLayout>
   );
 }

@@ -42,10 +42,11 @@ class GrnAccountingTest extends TestCase
 
         $this->testCompanyId = 1;
 
-        // Create test user
+        // Create test user (unique username — a committed residue row from an
+        // interrupted run must never collide with the unique index).
         $email = 'grn-test-' . uniqid() . '@zodicerp-test.com';
         $this->testUserId = DB::table('users')->insertGetId([
-            'username' => 'grn-tester',
+            'username' => 'grn-tester-' . uniqid(),
             'email' => $email,
             'password' => bcrypt('password'),
             'role' => 'admin',
@@ -106,6 +107,7 @@ class GrnAccountingTest extends TestCase
             'slug' => 'grn-test-product-' . $uniqid,
             'sku' => 'GRN-TEST-' . $uniqid,
             'quantity' => 0,
+            'unit_id' => $this->testUnitId,
             'cost_per_item' => 10.00,
             'company_id' => $this->testCompanyId,
             'status' => 'active',
@@ -171,9 +173,35 @@ class GrnAccountingTest extends TestCase
 
     protected function tearDown(): void
     {
+        // Hardened cleanup: any ICT referencing this run's warehouse/product
+        // must go first (covers residue from interrupted runs whose detail ids
+        // no longer match), otherwise the warehouse delete violates its FK.
+        // The self-referencing reversal_of_id FK needs CHILDREN (reversals)
+        // deleted before parents (originals).
+        if ($this->testWarehouseId ?? 0) {
+            DB::table('inventory_cost_transactions')
+                ->where('warehouse_id', $this->testWarehouseId)
+                ->where('source_type', 'goods_receipt_reversal')
+                ->delete();
+            DB::table('inventory_cost_transactions')
+                ->where('warehouse_id', $this->testWarehouseId)
+                ->delete();
+
+            // Balances reference the warehouse too — warehouse-scoped so
+            // residue products from interrupted runs are covered.
+            DB::table('inventory_cost_balances')
+                ->where('warehouse_id', $this->testWarehouseId)
+                ->delete();
+        }
+
         // Remove dependent costing and movement rows before their referenced GRN rows.
+        // Warehouse-scoped so orphan receipts from interrupted runs (same
+        // shared warehouse) cannot block the warehouse delete either.
         $grnIds = DB::table('goods_receipts')
-            ->where('order_id', $this->testPoId ?? 0)
+            ->where(function ($q) {
+                $q->where('warehouse_id', $this->testWarehouseId ?? 0)
+                    ->orWhere('order_id', $this->testPoId ?? 0);
+            })
             ->pluck('id');
 
         if ($grnIds->isNotEmpty()) {
@@ -182,6 +210,18 @@ class GrnAccountingTest extends TestCase
                 ->pluck('id');
 
             if ($detailIds->isNotEmpty()) {
+                // Reversal ICTs (source_id = original ICT id) must go first.
+                $originalTxIds = DB::table('inventory_cost_transactions')
+                    ->where('source_type', 'goods_receipt_detail')
+                    ->whereIn('source_id', $detailIds)
+                    ->pluck('id');
+                if ($originalTxIds->isNotEmpty()) {
+                    DB::table('inventory_cost_transactions')
+                        ->where('source_type', 'goods_receipt_reversal')
+                        ->whereIn('reversal_of_id', $originalTxIds)
+                        ->delete();
+                }
+
                 DB::table('inventory_cost_transactions')
                     ->where('source_type', 'goods_receipt_detail')
                     ->whereIn('source_id', $detailIds)
@@ -198,10 +238,6 @@ class GrnAccountingTest extends TestCase
                 DB::table('inventory_movement_headers')->whereIn('id', $movementHeaders)->delete();
             }
 
-            DB::table('inventory_cost_balances')
-                ->where('product_id', $this->testProductId ?? 0)
-                ->where('warehouse_id', $this->testWarehouseId ?? 0)
-                ->delete();
             DB::table('goods_receipt_details')->whereIn('receipt_id', $grnIds)->delete();
             DB::table('goods_receipts')->whereIn('id', $grnIds)->delete();
         }
@@ -212,7 +248,28 @@ class GrnAccountingTest extends TestCase
             DB::table('purchase_orders')->where('id', $this->testPoId)->delete();
         }
 
-        // Clean up product
+        // Residue from interrupted runs: adjustment + movement rows anchored
+        // to the shared warehouse/product must go BEFORE the product and
+        // warehouse deletes (FK-safe order).
+        if ($this->testWarehouseId ?? 0) {
+            $residueAdjustmentIds = DB::table('stock_adjustments')
+                ->where('warehouse_id', $this->testWarehouseId)
+                ->pluck('id');
+            if ($residueAdjustmentIds->isNotEmpty()) {
+                DB::table('stock_adjustment_items')->whereIn('adjustment_id', $residueAdjustmentIds)->delete();
+                DB::table('stock_adjustments')->whereIn('id', $residueAdjustmentIds)->delete();
+            }
+
+            $residueHeaders = DB::table('inventory_movement_headers')
+                ->where('warehouse_id', $this->testWarehouseId)
+                ->pluck('id');
+            if ($residueHeaders->isNotEmpty()) {
+                DB::table('inventory_movement_lines')->whereIn('stock_movement_id', $residueHeaders)->delete();
+                DB::table('inventory_movement_headers')->whereIn('id', $residueHeaders)->delete();
+            }
+        }
+
+        // Clean up product (after every child referencing it is gone).
         if ($this->testProductId) {
             DB::table('products')->where('id', $this->testProductId)->delete();
         }
@@ -449,6 +506,130 @@ class GrnAccountingTest extends TestCase
     }
 
     // ========================================================================
+    // TEST 8 — Reversing an approved receipt restores everything exactly
+    // ========================================================================
+
+    /** @test */
+    public function reversing_approved_receipt_restores_inventory_and_po()
+    {
+        $this->actingAsTestUser();
+
+        $receipt = $this->createGrn(50, 10.00);
+
+        $service = app(GoodsReceiptService::class);
+        $service->approveReceipt($receipt);
+
+        $reversed = $service->reverseReceipt($receipt->fresh());
+
+        // Status is cancelled (enum-compatible terminal state).
+        $this->assertSame('cancelled', $reversed->status);
+
+        // Product quantity rolled back to zero.
+        $product = DB::table('products')->where('id', $this->testProductId)->first();
+        $this->assertEquals(0.0, (float) $product->quantity, 'Reversal must undo the derived quantity increment.');
+
+        // WAC balance zeroed exactly.
+        $balance = DB::table('inventory_cost_balances')
+            ->where('product_id', $this->testProductId)
+            ->where('warehouse_id', $this->testWarehouseId)
+            ->first();
+        $this->assertSame(0.0, (float) $balance->quantity);
+        $this->assertEqualsWithDelta(0.0, (float) $balance->inventory_value, 0.000001);
+
+        // One reversal ICT per original, each tied to its original.
+        $originalTxIds = DB::table('inventory_cost_transactions')
+            ->where('source_type', 'goods_receipt_detail')
+            ->pluck('id');
+        $reversals = DB::table('inventory_cost_transactions')
+            ->where('source_type', 'goods_receipt_reversal')
+            ->get();
+        $this->assertCount(1, $reversals);
+        $this->assertSame((int) $originalTxIds->first(), (int) $reversals->first()->reversal_of_id);
+        $this->assertEquals(-50.0, (float) $reversals->first()->quantity_delta);
+
+        // The movement is stamped for the stock card.
+        $movement = DB::table('inventory_movement_headers')
+            ->where('reference_type', 'goods_receipt')
+            ->where('reference_id', $receipt->id)
+            ->first();
+        $this->assertStringContainsString('[REVERSED', (string) $movement->notes);
+
+        // PO accumulation recomputed back to zero.
+        $poItem = DB::table('purchase_order_items')
+            ->where('purchase_order_id', $this->testPoId)
+            ->first();
+        $this->assertEquals(0.0, (float) $poItem->received_quantity);
+
+        // Reversing again is idempotent (already stamped).
+        $service->reverseReceipt($reversed->fresh());
+        $this->assertSame(
+            1,
+            DB::table('inventory_cost_transactions')->where('source_type', 'goods_receipt_reversal')->count(),
+            'Repeated reversal must not duplicate reversal ICTs.'
+        );
+    }
+
+    /** @test */
+    public function reverse_refuses_non_approved_receipts()
+    {
+        $this->actingAsTestUser();
+
+        $receipt = $this->createGrn(10, 5.00);
+
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Only approved receipts can be reversed.');
+
+        app(GoodsReceiptService::class)->reverseReceipt($receipt);
+    }
+
+    /** @test */
+    public function reverse_refuses_consumed_stock_and_rolls_back()
+    {
+        $this->actingAsTestUser();
+
+        $receipt = $this->createGrn(25, 6.00);
+        $service = app(GoodsReceiptService::class);
+        $service->approveReceipt($receipt);
+
+        // Consume part of the received stock through the adjustment engine.
+        $adjustmentService = app(\App\Services\Inventory\StockAdjustmentService::class);
+        $adjustmentService->createAdjustment([
+            'warehouse_id' => $this->testWarehouseId,
+            'adjustment_date' => now()->toDateString(),
+            'reason' => 'damage',
+            'items' => [
+                ['product_id' => $this->testProductId, 'unit_id' => $this->testUnitId, 'adjustment_quantity' => -10, 'unit_cost' => 0],
+            ],
+        ]);
+        $adjustment = DB::table('stock_adjustments')->orderByDesc('id')->first();
+        $adjustmentService->approveAdjustment((int) $adjustment->id);
+
+        try {
+            $service->reverseReceipt($receipt->fresh());
+            $this->fail('Reversing a receipt whose stock was consumed must throw.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsStringIgnoringCase('consumed', $e->getMessage());
+        }
+
+        // Whole reversal rolled back: receipt still approved, no reversal
+        // ICTs, movement not stamped.
+        $this->assertSame('approved', $receipt->fresh()->status);
+        $this->assertSame(
+            0,
+            DB::table('inventory_cost_transactions')->where('source_type', 'goods_receipt_reversal')->count()
+        );
+        $movement = DB::table('inventory_movement_headers')
+            ->where('reference_type', 'goods_receipt')
+            ->where('reference_id', $receipt->id)
+            ->first();
+        $this->assertStringNotContainsString('[REVERSED', (string) $movement->notes);
+
+        // Product quantity unchanged (25 received - 10 consumed).
+        $product = DB::table('products')->where('id', $this->testProductId)->first();
+        $this->assertEquals(15.0, (float) $product->quantity);
+    }
+
+    // ========================================================================
     // HELPERS
     // ========================================================================
 
@@ -496,6 +677,10 @@ class GrnAccountingTest extends TestCase
     private function actingAsTestUser(): void
     {
         $user = \App\Models\User::find($this->testUserId);
-        $this->actingAs($user, 'sanctum');
+
+        // The default guard must be authenticated: CompanyContext (and thus
+        // the WAC + unit-conversion engines) resolve the active company from
+        // Auth::user(), not from the sanctum guard.
+        $this->actingAs($user);
     }
 }

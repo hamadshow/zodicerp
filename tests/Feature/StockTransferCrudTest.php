@@ -8,12 +8,11 @@ use App\Models\Products;
 use App\Models\TransferStock;
 use App\Models\User;
 use App\Models\Warehouses;
+use App\Services\Inventory\OpeningStockService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -28,28 +27,13 @@ class StockTransferCrudTest extends TestCase
         if (DB::connection()->getDriverName() === 'sqlite') {
             $this->markTestSkipped('This test requires a MySQL database.');
         }
-
-        Config::set('database.default', 'mysql');
-        $dbName = 'u244683233_Zodicerp';
-        $dbUser = env('DB_USERNAME', 'root');
-        $dbPass = env('DB_PASSWORD', '');
-        $dbHost = env('DB_HOST', '127.0.0.1');
-        $dbPort = env('DB_PORT', '3306');
-        Config::set('database.connections.mysql.database', $dbName);
-        Config::set('database.connections.mysql.username', $dbUser);
-        Config::set('database.connections.mysql.password', $dbPass);
-        Config::set('database.connections.mysql.host', $dbHost);
-        Config::set('database.connections.mysql.port', $dbPort);
     }
 
     protected function ensureCompanyTwoExists(): int
     {
-        $table = Schema::hasTable('company')
-            ? 'company'
-            : (Schema::hasTable('companies') ? 'companies' : 'companies_shares');
-        $exists = DB::table($table)->where('id', 2)->exists();
+        $exists = DB::table('company')->where('id', 2)->exists();
         if (! $exists) {
-            DB::table($table)->insert([
+            DB::table('company')->insert([
                 'id' => 2,
                 'company_name' => 'Company 2',
                 'created_at' => now(),
@@ -104,7 +88,7 @@ class StockTransferCrudTest extends TestCase
         ]);
     }
 
-    protected function createProduct(int $companyId, string $code = 'PRD-TST', string $name = 'Test Product'): Products
+    protected function createProduct(int $companyId, string $code = 'PRD-TST', string $name = 'Test Product', ?int $unitId = null): Products
     {
         $suffix = substr(uniqid(), -6);
 
@@ -115,6 +99,7 @@ class StockTransferCrudTest extends TestCase
             'status' => 'active',
             'company_id' => $companyId,
             'cost_per_item' => 0,
+            'unit_id' => $unitId,
         ]);
     }
 
@@ -124,24 +109,22 @@ class StockTransferCrudTest extends TestCase
         $user = $this->createUser($companyId);
         $wh1 = $this->createWarehouse($companyId, 'WH1', 'Warehouse 1');
         $wh2 = $this->createWarehouse($companyId, 'WH2', 'Warehouse 2');
-        
-        dump([
-            'wh1_id' => $wh1->id,
-            'wh1_company' => $wh1->company_id,
-            'wh2_id' => $wh2->id,
-            'wh2_company' => $wh2->company_id,
-        ]);
 
         $unit = $this->createUnit($companyId);
-        $productA = $this->createProduct($companyId, 'PRD-A', 'Product A');
-        
-        dump([
-            'productA_id' => $productA->id,
-            'productA_company' => $productA->company_id,
+        $productA = $this->createProduct($companyId, 'PRD-A', 'Product A', $unit->id);
+        $date = Carbon::now()->toDateString();
+
+        // The transfer ledger applies at save, so the source warehouse needs
+        // real WAC stock (seeded through the Phase 3 opening-stock engine).
+        $this->actingAs($user);
+        app(OpeningStockService::class)->create([
+            'warehouse_id' => $wh1->id,
+            'items' => [
+                ['product_id' => $productA->id, 'unit_id' => $unit->id, 'quantity' => 20, 'cost_price' => 4],
+            ],
         ]);
 
         $params = ['country' => 'sa', 'lang' => 'ar'];
-        $date = Carbon::now()->toDateString();
 
         $payload = [
             'movement_date' => $date,
@@ -158,20 +141,8 @@ class StockTransferCrudTest extends TestCase
         ];
 
         $response = $this->actingAs($user)->post(route('admin.inventory.stock-transfers.store', $params), $payload);
-        if ($response->status() !== 302) {
-            dump($response->getContent());
-        }
         $response->assertStatus(302);
-        
-        $errors = session('errors');
-        if ($errors) {
-            dump($errors->getMessages());
-        }
-
-        $allHeaders = DB::table('inventory_movement_headers')->get();
-        if ($allHeaders->isEmpty()) {
-            dump('No headers found in inventory_movement_headers');
-        }
+        $response->assertSessionHas('success');
 
         $transfer = DB::table('inventory_movement_headers')
             ->where('company_id', $companyId)
@@ -206,7 +177,7 @@ class StockTransferCrudTest extends TestCase
         $wh1 = $this->createWarehouse($companyId, 'WH1', 'Warehouse 1');
         $wh2 = $this->createWarehouse($companyId, 'WH2', 'Warehouse 2');
         $unit = $this->createUnit($companyId);
-        $productA = $this->createProduct($companyId, 'PRD-A', 'Product A');
+        $productA = $this->createProduct($companyId, 'PRD-A', 'Product A', $unit->id);
 
         // Create initial record
         $transfer = TransferStock::create([

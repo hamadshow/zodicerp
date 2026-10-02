@@ -39,10 +39,21 @@ class UpdateEmployeeRequest extends FormRequest
             'hire_date' => 'required|date',
             'salary' => 'nullable|numeric|min:0',
             'nationality' => 'nullable|string|max:255',
-            'status' => 'required|in:active,inactive,on-leave,terminated',
+            'status' => 'required|in:active,inactive,on-leave,terminated,probation',
             'address' => 'nullable|string',
             'notes' => 'nullable|string',
             'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'manager_id' => [
+                'nullable',
+                'integer',
+                'exists:employees,id',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    $companyId = (int) app(\App\Services\CompanyContext::class)->id();
+                    if ($value && ! \App\Models\Employee::query()->where('company_id', $companyId)->whereKey((int) $value)->exists()) {
+                        $fail('The selected manager must belong to your company.');
+                    }
+                },
+            ],
         ];
     }
 
@@ -55,6 +66,13 @@ class UpdateEmployeeRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
+            // Prevent self-reference in the manager hierarchy.
+            $managerId = $this->input('manager_id');
+            $employee = $this->route('employee');
+            if ($managerId && $employee instanceof \App\Models\Employee && (int) $managerId === (int) $employee->id) {
+                $validator->errors()->add('manager_id', 'An employee cannot be their own manager.');
+            }
+
             $salary = $this->input('salary');
             $position = $this->input('position');
 

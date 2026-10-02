@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
 
 // --- Recursive Category Tree Item ---
@@ -86,8 +86,8 @@ const CategoryItem = ({ category, level = 0, selectedId, onSelect, onDelete, onD
                 )}
             </div>
 
-            {hasChildren && isExpanded && (
-                <div className="category-children">
+            {hasChildren && (
+                <div className={`category-children ${isExpanded ? 'expanded' : ''}`}>
                     {category.children.map(child => (
                         <CategoryItem 
                             key={child.id} 
@@ -108,6 +108,17 @@ const CategoryItem = ({ category, level = 0, selectedId, onSelect, onDelete, onD
 
 // --- Main Component ---
 const AssetCategory = ({ categories = [], parents = [], accounts = [] }) => {
+    const { props } = usePage();
+    const { localization } = props;
+
+    const getLocalizedRoute = (name, params = {}) => {
+        return route(name, {
+            country: localization?.country_code || 'sa',
+            lang: localization?.current_locale || 'ar',
+            ...params
+        });
+    };
+
     const [categoryTree, setCategoryTree] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null); // null means "Create New" mode or nothing selected
     const [isCreating, setIsCreating] = useState(true); // explicit flag for Create Mode
@@ -214,15 +225,15 @@ const AssetCategory = ({ categories = [], parents = [], accounts = [] }) => {
         };
 
         if (isCreating) {
-            post(route('admin.assets.asset-categories.store'), options);
+            post(getLocalizedRoute('admin.assets.categories.store'), options);
         } else if (selectedCategory) {
-            put(route('admin.assets.asset-categories.update', selectedCategory.id), options);
+            put(getLocalizedRoute('admin.assets.categories.update', { category: selectedCategory.id }), options);
         }
     };
 
     const handleDelete = (id) => {
         if (window.confirm('Are you sure you want to delete this category?')) {
-            router.delete(route('admin.assets.asset-categories.destroy', id), {
+            router.delete(getLocalizedRoute('admin.assets.categories.destroy', { category: id }), {
                 onSuccess: () => {
                     if (selectedCategory?.id === id) {
                         handleCreateNew();
@@ -250,7 +261,7 @@ const AssetCategory = ({ categories = [], parents = [], accounts = [] }) => {
         const category = categories.find(c => String(c.id) === String(draggedId));
         if (!category || String(category.parent_id) === String(newParentId)) return;
         
-        router.put(route('admin.assets.asset-categories.update', draggedId), {
+        router.put(getLocalizedRoute('admin.assets.categories.update', { category: draggedId }), {
             ...category,
             parent_id: newParentId
         }, { preserveScroll: true });

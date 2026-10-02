@@ -28,6 +28,7 @@ class WeightedAverageAccountingIntegrationTest extends TestCase
     private array $branchIds = [];
     private array $purchaseInvoiceIds = [];
     private array $purchaseReturnIds = [];
+    private int $customerGroupId = 0;
 
     protected function setUp(): void
     {
@@ -38,6 +39,25 @@ class WeightedAverageAccountingIntegrationTest extends TestCase
         }
         $this->userId = (int) DB::table('users')->first()->id;
         $this->actingAs(\App\Models\User::find($this->userId));
+        $this->customerGroupId = $this->ensureTestCustomerGroup();
+
+        // The journal assertions resolve real accounts by AccCode — seed the
+        // GL rows the posting paths expect (resolvers require AccStopped=0).
+        // '1.2.100' matches the SalesReturnService AR fallback (AccCode like '1.2%');
+        // without it createJournalEntryForReturn silently skips the return journal.
+        foreach ([['11401', 'Inventory Asset', 1], ['401', 'Sales Revenue', 1], ['501', 'Cost of Sales', 1], ['2111', 'Accounts Payable', 2], ['1.2.100', 'Accounts Receivable', 1]] as [$code, $name, $type]) {
+            DB::table('accounts')->insertOrIgnore([
+                'AccCode' => $code,
+                'AccName' => $name,
+                'AccType' => $type,
+                'AccFinal' => 1,
+                'AccStopped' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+        // Journal treasury resolution requires a bank-nature account.
+        $this->ensureTestTreasuryAccount();
     }
 
     protected function tearDown(): void
@@ -47,6 +67,15 @@ class WeightedAverageAccountingIntegrationTest extends TestCase
                 $ids = DB::table('sales_invoices')->whereIn('invoice_number', $this->invoiceNumbers)->pluck('id');
                 DB::table('sales_invoice_details')->whereIn('invoice_id', $ids)->delete();
                 DB::table('sales_invoices')->whereIn('id', $ids)->delete();
+                // Journals outlive the per-test transaction in polluted residue
+                // databases; delete lines first (FK) then entries by reference
+                // so reruns cannot collide on generated entry codes.
+                DB::table('journal_entry_lines')->whereIn('related_name_details', $this->invoiceNumbers)->delete();
+                DB::table('journal_entries')->whereIn('reference', $this->invoiceNumbers)->delete();
+            }
+            if (! empty($this->returnNumbers)) {
+                DB::table('journal_entry_lines')->whereIn('related_name_details', $this->returnNumbers)->delete();
+                DB::table('journal_entries')->whereIn('reference', $this->returnNumbers)->delete();
             }
             if (! empty($this->returnNumbers)) {
                 $ids = DB::table('sales_returns')->whereIn('return_number', $this->returnNumbers)->pluck('id');
@@ -124,6 +153,7 @@ class WeightedAverageAccountingIntegrationTest extends TestCase
             'slug' => 'wa-acct-'.$suffix.'-'.uniqid(),
             'sku' => 'WA-ACCT-'.substr(uniqid(), -6),
             'quantity' => 0,
+            'unit_id' => $this->unitId(), // WA conversion refuses unitless products
             'cost_per_item' => 999, // intentionally NOT the WA cost — engine must be authoritative
             'status' => 'active',
             'company_id' => $this->companyId,
@@ -141,8 +171,8 @@ class WeightedAverageAccountingIntegrationTest extends TestCase
             'customer_code' => 'WA-ACCT-CUST-'.uniqid(),
             'name_ar' => 'عميل حسابي',
             'name_en' => 'WA Accounting Customer',
-            'customer_group_id' => DB::table('customer_groups')->first()->id ?? 1,
-            'account_id' => DB::table('accounts')->where('AccCode', 1200)->value('AccID'),
+            'customer_group_id' => $this->customerGroupId,
+            'account_id' => DB::table('accounts')->where('AccCode', 1200)->value('AccID'), // null is fine — journal code falls back to 12% AR
             'is_active' => true,
             'company_id' => $this->companyId,
             'created_at' => now(),
@@ -159,10 +189,15 @@ class WeightedAverageAccountingIntegrationTest extends TestCase
         if ($existing) {
             return (int) $existing;
         }
-        return (int) DB::table('item_units')->insertGetId([
+        // insertOrIgnore on the unique-ish unit name, then re-select: sibling
+        // processes (parallel PHPUnit) may have committed this row already and
+        // this transaction cannot see it.
+        DB::table('item_units')->insertOrIgnore([
             'name' => 'WA Unit', 'unit_type' => 1, 'conversion_factor' => 1, 'active' => true,
             'created_by' => $this->userId, 'created_at' => now(), 'updated_at' => now(),
         ]);
+
+        return (int) DB::table('item_units')->where('name', 'WA Unit')->where('unit_type', 1)->value('id');
     }
 
     private function accId(int $code): int

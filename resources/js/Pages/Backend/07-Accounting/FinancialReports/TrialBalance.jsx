@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
 import { apiService } from '../../../../services/api';
@@ -46,7 +46,7 @@ export default function TrialBalance() {
 
   const formatNumber = (num) => {
     if (num === 0) return '-';
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(currentLocale === 'ar' ? 'ar-SA' : 'en-US', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(num);
@@ -164,42 +164,59 @@ export default function TrialBalance() {
 
   return (
     <AdminLayout activeMenu="Financial Reports">
-      <div className={`financial-reports-page trial-balance-page ${lang === 'ar' ? 'rtl' : 'ltr'}`}>
-        <Head title={`${t('title', 'Trial Balance')} - ZodicERP`} />
+      <Head title={`${t('title', 'Trial Balance')} - ZodicERP`} />
+      <div className="fr-page trial-balance-page">
+        <div className="fr-breadcrumb">
+          <a href="#">{t('dashboard', 'Dashboard')}</a>
+          <span className="fr-sep">/</span>
+          <a href="#">{t('accounting', 'Accounting')}</a>
+          <span className="fr-sep">/</span>
+          <a href="#">{t('financial_reports', 'Financial Reports')}</a>
+          <span className="fr-sep">/</span>
+          <span className="fr-current">{t('title', 'Trial Balance')}</span>
+        </div>
 
-        <div className="report-header">
-          <div className="report-header__title-section">
-            <h1>{t('title', 'Trial Balance')}</h1>
-            <p className="subtitle">{t('toggle_lang_hint', "Press 'a' to toggle language")}</p>
-          </div>
-          <div className="report-header__actions">
-             <button 
-                 className="btn btn-outline" 
-                 onClick={handleExportExcel} 
-                 disabled={loading || data.length === 0}
-                 style={{ 
-                   marginRight: '12px', 
-                   borderColor: '#4caf50', 
-                   color: '#4caf50', 
-                   display: 'flex', 
-                   alignItems: 'center', 
-                   gap: '8px',
-                   opacity: (loading || data.length === 0) ? 0.6 : 1,
-                   cursor: (loading || data.length === 0) ? 'not-allowed' : 'pointer'
-                 }}
-              >
-                <i className="material-icons-outlined">file_download</i>
-                <span>{t('export_excel', 'Export Excel')}</span>
-             </button>
-             <button className="btn btn-primary" onClick={() => window.print()}>
-                {t('print', 'Print')}
-             </button>
+        <div className="fr-header-card">
+          <div>
+            <h1 className="fr-title">{t('title', 'Trial Balance')}</h1>
+            <p className="fr-subtitle">{t('subtitle', "Trial balance summary of debit and credit balances by account.")}</p>
           </div>
         </div>
 
-        <div className="report-table-card">
-          <div className="table-responsive">
-            <table className="report-table trial-balance-table">
+        <div className="fr-filters-card">
+          <div className="fr-filters-grid">
+            <div className="fr-form-group">
+              <label htmlFor="fr-lang">Language</label>
+              <select id="fr-lang" className="fr-input" value={lang} onChange={(e) => setLang(e.target.value)}>
+                <option value="en">{t('english', 'English')}</option>
+                <option value="ar">{t('arabic', 'Arabic')}</option>
+              </select>
+            </div>
+          </div>
+          <div className="fr-form-actions">
+            <button 
+              type="button"
+              className="btn btn-excel fr-btn"
+              onClick={handleExportExcel} 
+              disabled={loading || data.length === 0}
+            >
+              <span className="material-icons-outlined">description</span>
+              <span>{t('export_excel', 'Export Excel')}</span>
+            </button>
+            <button 
+              type="button"
+              className="btn btn-primary fr-btn"
+              onClick={() => window.print()}
+            >
+              <span className="material-icons-outlined">print</span>
+              <span>{t('print', 'Print')}</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="fr-table-card">
+          <div className="fr-table-wrapper">
+            <table className="fr-table">
               <thead>
                 <tr className="main-header">
                   <th rowSpan="2" className="account-col">{t('account_name', 'Account Name')}</th>

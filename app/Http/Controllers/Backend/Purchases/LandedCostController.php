@@ -53,6 +53,11 @@ class LandedCostController extends Controller
             'notes' => 'nullable|string',
         ]);
 
+        // Multi-company boundary: the invoice must belong to the active
+        // company (404, do not leak other companies' records).
+        $invoiceCompanyId = (int) (PurchaseInvoice::query()->whereKey($data['purchase_invoice_id'])->value('company_id') ?? 0);
+        abort_unless($invoiceCompanyId === app(CompanyContext::class)->id(), 404, 'Purchase invoice not found.');
+
         $landedCost = LandedCost::create([
             ...$data,
             'reference_number' => $data['reference_number'] ?? 'LC-'.now()->format('YmdHis'),
@@ -68,30 +73,69 @@ class LandedCostController extends Controller
 
     public function preview(LandedCost $landedCost)
     {
+        $this->assertOwned($landedCost);
+
         return response()->json($this->service->preview((int) $landedCost->purchase_invoice_id));
     }
 
     public function allocate(LandedCost $landedCost)
     {
-        $this->service->allocate($landedCost);
+        try {
+            $this->service->allocate($landedCost);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+
         return redirect()->back()->with('success', 'Landed Cost allocated.');
     }
 
     public function post(LandedCost $landedCost)
     {
-        $this->service->post($landedCost);
+        try {
+            $this->service->post($landedCost);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+
         return redirect()->back()->with('success', 'Landed Cost posted.');
     }
 
     public function cancel(LandedCost $landedCost)
     {
-        $this->service->cancel($landedCost);
+        try {
+            $this->service->cancel($landedCost);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+
         return redirect()->back()->with('success', 'Landed Cost cancelled.');
     }
 
     public function reverse(LandedCost $landedCost)
     {
-        $this->service->reverse($landedCost);
+        try {
+            $this->service->reverse($landedCost);
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+
         return redirect()->back()->with('success', 'Landed Cost reversed.');
+    }
+
+    /**
+     * Multi-company boundary for route-model actions the service does not
+     * re-check (preview reads by invoice id).
+     */
+    private function assertOwned(LandedCost $landedCost): void
+    {
+        abort_unless((int) $landedCost->company_id === app(CompanyContext::class)->id(), 404, 'Landed Cost not found.');
     }
 }

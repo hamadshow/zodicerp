@@ -119,9 +119,11 @@ class TreasuryService
         $details = $transaction->notes ?: $transaction->reference;
 
         $this->ensureOpenFiscalPeriod($transaction->transaction_date);
-        $header = JournalEntry::where('reference', $code)
-            ->where('entry_type', $qaidType)
-            ->first();
+
+        // Phase 19: the unreversed live entry via the journal_reversals link
+        // table — a fully reversed reference posts a FRESH entry.
+        $header = app(JournalReversalService::class)
+            ->unreversedEntryFor((string) $code, $qaidType);
 
         if ($header) {
             $header->update([
@@ -217,9 +219,10 @@ class TreasuryService
             'transfer' => 'BnkTransfer',
         };
 
-        $header = JournalEntry::where('reference', $transaction->transaction_no)
-            ->where('entry_type', $qaidType)
-            ->first();
+        // Phase 19: the unreversed live entry via the link table — reversed
+        // posted history is audit-only and never adopted for deletion.
+        $header = app(JournalReversalService::class)
+            ->unreversedEntryFor((string) $transaction->transaction_no, $qaidType);
 
         if ($header) {
             // P0-06: Only allow deletion of unposted journals
@@ -242,9 +245,10 @@ class TreasuryService
             'transfer' => 'BnkTransfer',
         };
 
-        $header = JournalEntry::where('reference', $transaction->transaction_no)
-            ->where('entry_type', $qaidType)
-            ->first();
+        // Phase 19: the unreversed live entry via the link table — never
+        // re-reverses an already-reversed slot.
+        $header = app(JournalReversalService::class)
+            ->unreversedEntryFor((string) $transaction->transaction_no, $qaidType);
 
         if ($header && in_array($header->status, ['Post', 'posted'])) {
             app(JournalReversalService::class)->createReversal(

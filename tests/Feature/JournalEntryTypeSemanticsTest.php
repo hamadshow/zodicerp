@@ -67,6 +67,12 @@ class JournalEntryTypeSemanticsTest extends TestCase
         DB::table('journal_entries')->where('entry_code', $entryCode)->delete();
     }
 
+    /** Fiscal years created by fixtures (year + its periods are deleted). */
+    private array $cleanupFiscalYearIds = [];
+
+    /** Existing fiscal years we only added periods to (periods deleted, year kept). */
+    private array $cleanupPeriodOnlyYearIds = [];
+
     private function cleanupFixtures(): void
     {
         DB::table('journal_entry_lines')
@@ -85,6 +91,14 @@ class JournalEntryTypeSemanticsTest extends TestCase
             ->delete();
 
         DB::table('accounts')->where('AccName', 'like', 'JET-TMP-ACC-%')->delete();
+
+        if (! empty($this->cleanupPeriodOnlyYearIds)) {
+            DB::table('accounting_periods')->whereIn('fiscal_year_id', $this->cleanupPeriodOnlyYearIds)->delete();
+        }
+        if (! empty($this->cleanupFiscalYearIds)) {
+            DB::table('accounting_periods')->whereIn('fiscal_year_id', $this->cleanupFiscalYearIds)->delete();
+            DB::table('fiscal_years')->whereIn('id', $this->cleanupFiscalYearIds)->delete();
+        }
     }
 
     private function postJournal(array $payload): \Illuminate\Testing\TestResponse
@@ -309,6 +323,12 @@ class JournalEntryTypeSemanticsTest extends TestCase
      */
     public function test_reversal_of_regular_entry_inherits_type(): void
     {
+        // JournalReversalService dates the reversal with now() and validates
+        // it against an open fiscal period; ensure one covers today instead
+        // of relying on incidental production coverage (same pattern as
+        // ErpTransactionIntegrityTest).
+        $this->ensureOpenPeriodForToday();
+
         $a = $this->createAccount('RV');
         $b = $this->createAccount('RV2');
 
@@ -346,5 +366,63 @@ class JournalEntryTypeSemanticsTest extends TestCase
     {
         $this->cleanupFixtures();
         parent::tearDown();
+    }
+
+    /**
+     * Create a fiscal year + monthly periods covering today if no period
+     * covers it yet. Self-cleaning fixture (tracked in cleanupFixtures).
+     */
+    private function ensureOpenPeriodForToday(): void
+    {
+        $today = now()->toDateString();
+
+        $covered = DB::table('accounting_periods as ap')
+            ->join('fiscal_years as fy', 'fy.id', '=', 'ap.fiscal_year_id')
+            ->where('fy.company_id', 1)
+            ->where('ap.start_date', '<=', $today)
+            ->where('ap.end_date', '>=', $today)
+            ->where('ap.status', 'open')
+            ->exists();
+        if ($covered) {
+            return;
+        }
+
+        $yearStart = now()->startOfYear()->toDateString();
+        $yearEnd = now()->endOfYear()->toDateString();
+        $existingYear = DB::table('fiscal_years')->where('company_id', 1)->where('start_date', $yearStart)->first();
+
+        if ($existingYear && $existingYear->status === 'closed') {
+            DB::table('fiscal_years')->where('id', $existingYear->id)->update(['status' => 'open']);
+        }
+
+        $fiscalYearId = $existingYear?->id ?? DB::table('fiscal_years')->insertGetId([
+            'name' => 'JET-TMP-FY-'.now()->format('Y'),
+            'start_date' => $yearStart,
+            'end_date' => $yearEnd,
+            'status' => 'open',
+            'company_id' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        if ($existingYear) {
+            $this->cleanupPeriodOnlyYearIds[] = (int) $fiscalYearId;
+        } else {
+            $this->cleanupFiscalYearIds[] = (int) $fiscalYearId;
+        }
+
+        $start = new \DateTime($yearStart);
+        for ($i = 0; $i < 12; $i++) {
+            $periodEnd = (clone $start)->modify('last day of this month');
+            DB::table('accounting_periods')->insert([
+                'fiscal_year_id' => $fiscalYearId,
+                'name' => 'JET-TMP-P'.$i.'-'.uniqid(),
+                'start_date' => $start->format('Y-m-d'),
+                'end_date' => $periodEnd->format('Y-m-d'),
+                'status' => 'open',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $start->modify('first day of next month');
+        }
     }
 }

@@ -55,7 +55,10 @@ class BalanceSheetEquilibriumTest extends TestCase
 
     private function createAccount(string $suffix): array
     {
-        $code = (string) random_int(10000000, 99999999);
+        // The balance sheet classifies accounts by AccCode prefix ('10%'/'11%'
+        // assets); a fully random 8-digit code lands in random classes and
+        // flakes the equation. Keep the fixture in the asset-code family.
+        $code = '114'.(string) random_int(1000000, 9999999);
         $id = DB::table('accounts')->insertGetId([
             'AccCode' => $code,
             'AccName' => 'JEBST-TMP-'.$suffix.'-'.uniqid(),

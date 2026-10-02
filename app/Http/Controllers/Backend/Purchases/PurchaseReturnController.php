@@ -255,10 +255,11 @@ class PurchaseReturnController extends Controller
                 $purchaseReturn->restore();
                 $message = 'Purchase Return restored successfully.';
             } else {
-                // P0-06: If posted, create reversal journal
-                $header = JournalEntry::where('reference', $purchaseReturn->return_number)
-                    ->where('entry_type', 'PurchaseReturn')
-                    ->first();
+                // P0-06: If posted, create reversal journal.
+                // Phase 19: the unreversed live entry via the link table —
+                // never re-reverses an already-reversed slot.
+                $header = app(JournalReversalService::class)
+                    ->unreversedEntryFor((string) $purchaseReturn->return_number, 'PurchaseReturn');
 
                 if ($header && in_array($header->status, ['Post', 'posted'])) {
                     app(JournalReversalService::class)->createReversal(

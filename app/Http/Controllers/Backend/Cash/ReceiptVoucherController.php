@@ -48,10 +48,12 @@ class ReceiptVoucherController extends Controller
         $validated = $this->validatePayload($request, $payload, $voucher);
 
         DB::transaction(function () use ($voucher, $validated) {
-            // P0-06: If posted, create reversal before updating
-            $existingHeader = JournalEntry::where('reference', $voucher->payment_number)
-                ->where('entry_type', 'CustomerReceipt')
-                ->first();
+            // P0-06: If posted, create reversal before updating.
+            // Phase 19: the unreversed live entry via the journal_reversals
+            // link table — reversed history is never re-reversed and a
+            // '-REV' document is never adopted.
+            $existingHeader = app(JournalReversalService::class)
+                ->unreversedEntryFor((string) $voucher->payment_number, 'CustomerReceipt');
             if ($existingHeader && in_array($existingHeader->status, ['Post', 'posted'])) {
                 app(JournalReversalService::class)->createReversal(
                     $existingHeader->entry_code,
@@ -75,10 +77,11 @@ class ReceiptVoucherController extends Controller
     public function destroy(CustomerPayment $voucher): RedirectResponse
     {
         DB::transaction(function () use ($voucher) {
-            // P0-06: Check if journal is posted
-            $header = JournalEntry::where('reference', $voucher->payment_number)
-                ->where('entry_type', 'CustomerReceipt')
-                ->first();
+            // P0-06: Check if journal is posted.
+            // Phase 19: the unreversed live entry via the link table — an
+            // already-reversed reference falls through to draft cleanup.
+            $header = app(JournalReversalService::class)
+                ->unreversedEntryFor((string) $voucher->payment_number, 'CustomerReceipt');
 
             if ($header && in_array($header->status, ['Post', 'posted'])) {
                 // Posted: create reversal, preserve original
@@ -328,11 +331,12 @@ class ReceiptVoucherController extends Controller
         // Fiscal period validation (always check, even for existing entries)
         $this->ensureOpenFiscalPeriod($paymentDate);
 
-        // Upsert pattern (idempotent) — match SalesInvoice pattern
-        $existingHeader = JournalEntry::where('reference', $reference)
-            ->where('entry_type', 'CustomerReceipt')
-            ->lockForUpdate()
-            ->first();
+        // Upsert pattern (idempotent) — match SalesInvoice pattern.
+        // Phase 19: the unreversed live entry via the link table — a fully
+        // reversed reference posts a FRESH entry; rows stay locked FOR
+        // UPDATE under the caller's transaction.
+        $existingHeader = app(JournalReversalService::class)
+            ->unreversedEntryFor((string) $reference, 'CustomerReceipt', null, lock: true);
 
         if ($existingHeader) {
             JournalEntryLine::where('journal_entry_code', $existingHeader->entry_code)->delete();
@@ -384,9 +388,10 @@ class ReceiptVoucherController extends Controller
 
     private function deleteJournalEntryForPayment(CustomerPayment $payment): void
     {
-        $header = JournalEntry::where('reference', $payment->payment_number)
-            ->where('entry_type', 'CustomerReceipt')
-            ->first();
+        // Phase 19: the unreversed live entry via the link table — reversed
+        // posted history is audit-only and never adopted for deletion.
+        $header = app(JournalReversalService::class)
+            ->unreversedEntryFor((string) $payment->payment_number, 'CustomerReceipt');
         if ($header) {
             // P0-06: Only allow deletion of unposted journals
             if (in_array($header->status, ['Post', 'posted'])) {

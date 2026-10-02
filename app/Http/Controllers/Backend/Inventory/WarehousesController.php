@@ -9,18 +9,72 @@ use App\Models\Account;
 use App\Models\Branch;
 use App\Models\Employee;
 use App\Models\Warehouses;
+use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class WarehousesController extends Controller
 {
+    public function __construct(private CompanyContext $companyContext) {}
+
+    /**
+     * Shared option lists for the warehouse screens, scoped to the active
+     * company. Branches/employees keep the legacy "= active OR NULL"
+     * convention for master data (nullable company_id columns).
+     */
+    private function scopedOptions(int $companyId): array
+    {
+        $branches = Branch::query()
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->select('id', 'branch_name')
+            ->get();
+
+        $glAccounts = Account::query()
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->where('Nature', 'Inventory')
+            ->where('AccType', 1)
+            ->select('AccID', 'AccCode', 'AccName')
+            ->orderBy('AccCode', 'asc')
+            ->get();
+
+        $employees = Employee::query()
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        return [$branches, $glAccounts, $employees];
+    }
+
+    /**
+     * Referenced branch must belong to the active company.
+     */
+    private function assertOwnedBranch(?int $branchId, int $companyId): void
+    {
+        if ($branchId === null) {
+            return;
+        }
+
+        $owner = Branch::query()->whereKey($branchId)->value('company_id');
+        abort_unless($owner === null || (int) $owner === $companyId, 404, 'Branch not found.');
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $query = Warehouses::with(['branch', 'linkedAccount']);
+        $companyId = $this->companyContext->id();
+
+        $query = Warehouses::with(['branch', 'linkedAccount'])
+            ->where('company_id', $companyId);
 
         if ($request->has('search')) {
             $search = $request->input('search');
@@ -34,20 +88,7 @@ class WarehousesController extends Controller
 
         $warehouses = $query->latest()->get();
 
-        // Fetch branches for the dropdown in create/edit modal
-        $branches = Branch::select('id', 'branch_name')->get();
-
-        // Fetch Inventory GL accounts for the dropdown
-        $glAccounts = Account::where('Nature', 'Inventory')
-            ->where('AccType', 1)
-            ->select('AccID', 'AccCode', 'AccName')
-            ->orderBy('AccCode', 'asc')
-            ->get();
-
-        $employees = Employee::query()
-            ->select('id', 'name')
-            ->orderBy('name')
-            ->get();
+        [$branches, $glAccounts, $employees] = $this->scopedOptions($companyId);
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -74,14 +115,18 @@ class WarehousesController extends Controller
         try {
             DB::beginTransaction();
 
-            // Auto-generate warehouse_code
-            // Start from 5001 if no warehouses exist
-            $lastWarehouse = Warehouses::latest('id')->first();
+            $this->assertOwnedBranch($request->branch_id, $this->companyContext->id());
+            $companyId = $this->companyContext->id();
+
+            // Auto-generate warehouse_code per company so companies do not
+            // consume each other's code sequence.
+            $lastWarehouse = Warehouses::where('company_id', $companyId)->latest('id')->first();
             $lastCode = $lastWarehouse ? intval($lastWarehouse->warehouse_code) : 5000;
             $newCode = strval($lastCode + 1);
 
             $warehouse = Warehouses::create([
                 'warehouse_code' => $newCode,
+                'company_id' => $companyId,
                 'name' => $request->name,
                 'branch_id' => $request->branch_id,
                 'linked_gl_account_id' => $request->linked_gl_account_id,
@@ -119,6 +164,8 @@ class WarehousesController extends Controller
      */
     public function show(Request $request, Warehouses $warehouse)
     {
+        abort_unless((int) $warehouse->company_id === $this->companyContext->id(), 404);
+
         if ($request->wantsJson()) {
             return response()->json($warehouse->load('branch'));
         }
@@ -132,8 +179,12 @@ class WarehousesController extends Controller
      */
     public function update(UpdateWarehouseRequest $request, Warehouses $warehouse)
     {
+        abort_unless((int) $warehouse->company_id === $this->companyContext->id(), 404);
+
         try {
             DB::beginTransaction();
+
+            $this->assertOwnedBranch($request->branch_id, $this->companyContext->id());
 
             $warehouse->update([
                 'name' => $request->name,
@@ -175,6 +226,8 @@ class WarehousesController extends Controller
      */
     public function destroy(Request $request, Warehouses $warehouse)
     {
+        abort_unless((int) $warehouse->company_id === $this->companyContext->id(), 404);
+
         try {
             // Check if warehouse has inventory or other dependencies
             // This is a placeholder for actual inventory check

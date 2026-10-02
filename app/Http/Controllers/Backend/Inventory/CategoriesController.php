@@ -8,6 +8,7 @@ use App\Http\Requests\Inventory\StoreCategoriesRequest;
 use App\Http\Requests\Inventory\UpdateCategoriesRequest;
 use App\Imports\CategoryImport;
 use App\Models\Categories;
+use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -17,11 +18,13 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class CategoriesController extends Controller
 {
+    public function __construct(private CompanyContext $companyContext) {}
+
     public function bulkImport(Request $request)
     {
         set_time_limit(300);
 
-        $companyId = $request->user()?->company_id;
+        $companyId = $this->companyContext->id();
         if (! $companyId) {
             return back()->withErrors(['error' => 'Company not set for this user.']);
         }
@@ -37,7 +40,11 @@ class CategoriesController extends Controller
                     // Normalize parent_id: if name is provided, try to find it
                     $parentId = 0;
                     if (! empty($row['parent_name'])) {
-                        $parent = Categories::where('name', $row['parent_name'])->first();
+                        $parent = Categories::where('name', $row['parent_name'])
+                            ->where(function ($q) use ($companyId) {
+                                $q->where('company_id', $companyId)->orWhereNull('company_id');
+                            })
+                            ->first();
                         $parentId = $parent ? $parent->id : 0;
                     } elseif (! empty($row['parent_id'])) {
                         $parentId = (int) $row['parent_id'];
@@ -48,12 +55,15 @@ class CategoriesController extends Controller
                     // Generate category_code if not provided
                     $categoryCode = ! empty($row['category_code']) ? $row['category_code'] : null;
                     if (! $categoryCode) {
-                        $lastCategory = Categories::withTrashed()->orderBy('id', 'desc')->first();
+                        $lastCategory = Categories::withTrashed()
+                            ->where('company_id', $companyId)
+                            ->orderBy('id', 'desc')
+                            ->first();
                         $categoryCode = $lastCategory ? (intval($lastCategory->category_code) + 1) : 1001;
                     }
 
                     Categories::updateOrCreate(
-                        ['name' => $row['name'], 'parent_id' => $parentId],
+                        ['name' => $row['name'], 'parent_id' => $parentId, 'company_id' => $companyId],
                         [
                             'category_code' => $categoryCode,
                             'slug' => $slug,
@@ -76,7 +86,7 @@ class CategoriesController extends Controller
 
     public function export(Request $request)
     {
-        $companyId = $request->user()?->company_id;
+        $companyId = $this->companyContext->id();
         if (! $companyId) {
             abort(403, 'Company not set for this user.');
         }
@@ -88,7 +98,7 @@ class CategoriesController extends Controller
     {
         set_time_limit(300); // Increase time limit to 5 minutes for imports
 
-        $companyId = $request->user()?->company_id;
+        $companyId = $this->companyContext->id();
         if (! $companyId) {
             return back()->withErrors(['error' => 'Company not set for this user.']);
         }
@@ -108,7 +118,12 @@ class CategoriesController extends Controller
 
     public function index(Request $request)
     {
+        $companyId = $this->companyContext->id();
+
         $query = Categories::query()
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
             ->with('parent')
             ->withCount('products');
 
@@ -149,6 +164,9 @@ class CategoriesController extends Controller
         $categoryTree = $this->buildCategoryTree($grouped, 0);
 
         $parents = Categories::query()
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
@@ -213,12 +231,18 @@ class CategoriesController extends Controller
         try {
             DB::beginTransaction();
 
-            // Auto-generate Category Code (e.g., 1001, 1002)
-            $lastCategory = Categories::withTrashed()->orderBy('id', 'desc')->first();
+            $companyId = $this->companyContext->id();
+
+            // Auto-generate Category Code per company (e.g., 1001, 1002)
+            $lastCategory = Categories::withTrashed()
+                ->where('company_id', $companyId)
+                ->orderBy('id', 'desc')
+                ->first();
             $nextCode = $lastCategory ? (intval($lastCategory->category_code) + 1) : 1001;
 
             $data = [
                 'category_code' => $nextCode,
+                'company_id' => $companyId,
                 'name' => $request->name,
                 'slug' => $request->slug ?? \Illuminate\Support\Str::slug($request->name),
                 'parent_id' => $request->parent_id ?: 0,
@@ -262,6 +286,7 @@ class CategoriesController extends Controller
 
     public function update(UpdateCategoriesRequest $request, Categories $category)
     {
+        abort_unless($category->company_id === null || (int) $category->company_id === $this->companyContext->id(), 404);
         try {
             $data = $request->validated();
             $data['parent_id'] = $data['parent_id'] ?: 0;
@@ -311,6 +336,8 @@ class CategoriesController extends Controller
 
     public function destroy(Categories $category)
     {
+        abort_unless($category->company_id === null || (int) $category->company_id === $this->companyContext->id(), 404);
+
         try {
             if ($category->children()->count() > 0) {
                 if (request()->wantsJson()) {

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\HumanResource\CreateSalaryReceiptRequest;
 use App\Models\SalaryReceipt;
 use App\Models\PayrollResult;
+use App\Services\CompanyContext;
 use App\Models\Employee;
 use App\Models\Deduction;
 use App\Models\Reward;
@@ -19,13 +20,21 @@ use Illuminate\Validation\ValidationException;
 
 class SalaryReceiptController extends Controller
 {
+    public function __construct(private readonly CompanyContext $companyContext)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
         try {
-            $receipts = SalaryReceipt::with('employee:id,name,position,salary')->get()->map(function ($r) {
+            $receipts = SalaryReceipt::query()
+                ->where('company_id', $this->companyContext->id())
+                ->with('employee:id,name,position,salary')
+                ->get()
+                ->map(function ($r) {
                 return [
                     'id' => $r->id,
                     'employee_id' => $r->employee_id,
@@ -116,8 +125,11 @@ class SalaryReceiptController extends Controller
     public function store(CreateSalaryReceiptRequest $request)
     {
         $receipt = DB::transaction(function () use ($request): SalaryReceipt {
+            $companyId = $this->companyContext->id();
+
             $result = PayrollResult::query()
                 ->with('period')
+                ->where('company_id', $companyId)
                 ->lockForUpdate()
                 ->findOrFail((int) $request->validated('payroll_result_id'));
             if (! in_array($result->period->status, ['approved', 'posted', 'closed'], true)) {
@@ -141,6 +153,7 @@ class SalaryReceiptController extends Controller
                 'payment_method' => $request->validated('payment_method'),
                 'bank_account' => $request->validated('bank_account'),
                 'status' => 'pending',
+                'company_id' => $companyId,
             ]);
         }, 3);
 
@@ -156,7 +169,10 @@ class SalaryReceiptController extends Controller
      */
     public function show(string $id)
     {
-        $receipt = SalaryReceipt::with('employee')->findOrFail($id);
+        $receipt = SalaryReceipt::query()
+            ->where('company_id', $this->companyContext->id())
+            ->with('employee')
+            ->findOrFail($id);
         return response()->json($receipt);
     }
 
@@ -165,7 +181,9 @@ class SalaryReceiptController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $receipt = SalaryReceipt::findOrFail($id);
+        $receipt = SalaryReceipt::query()
+            ->where('company_id', $this->companyContext->id())
+            ->findOrFail($id);
 
         $validated = $request->validate([
             'status' => 'required|string',
@@ -188,7 +206,9 @@ class SalaryReceiptController extends Controller
      */
     public function destroy(string $id)
     {
-        $receipt = SalaryReceipt::findOrFail($id);
+        $receipt = SalaryReceipt::query()
+            ->where('company_id', $this->companyContext->id())
+            ->findOrFail($id);
         $receipt->delete();
 
         return response()->json([

@@ -4,17 +4,22 @@ namespace App\Http\Controllers\Backend\HumanResource;
 
 use App\Http\Controllers\Controller;
 use App\Models\Nationality;
+use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class NationalityController extends Controller
 {
+    public function __construct(private readonly CompanyContext $companyContext)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $query = Nationality::query();
+        $query = Nationality::query()->where('company_id', $this->companyContext->id());
 
         if ($request->has('search')) {
             $search = $request->search;
@@ -47,7 +52,7 @@ class NationalityController extends Controller
             'status' => 'required|in:active,inactive',
         ]);
 
-        $nationality = Nationality::create($validated);
+        $nationality = Nationality::create($validated + ['company_id' => $this->companyContext->id()]);
 
         return response()->json([
             'message' => 'Nationality created successfully',
@@ -60,6 +65,7 @@ class NationalityController extends Controller
      */
     public function show(Nationality $nationality)
     {
+        abort_unless((int) $nationality->company_id === $this->companyContext->id(), 404);
         return response()->json($nationality);
     }
 
@@ -68,6 +74,8 @@ class NationalityController extends Controller
      */
     public function update(Request $request, Nationality $nationality)
     {
+        abort_unless((int) $nationality->company_id === $this->companyContext->id(), 404);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'country_code' => 'required|string|max:5',
@@ -90,6 +98,7 @@ class NationalityController extends Controller
      */
     public function destroy(Nationality $nationality)
     {
+        abort_unless((int) $nationality->company_id === $this->companyContext->id(), 404);
         $nationality->delete();
 
         return response()->json([

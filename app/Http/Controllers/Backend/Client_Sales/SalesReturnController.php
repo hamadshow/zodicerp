@@ -281,10 +281,11 @@ class SalesReturnController extends Controller
                 $salesReturn->restore();
                 $message = 'Sales Return restored successfully.';
             } else {
-                // P0-06: If posted, create reversal journal
-                $header = JournalEntry::where('reference', $salesReturn->return_number)
-                    ->where('entry_type', 'SalesReturn')
-                    ->first();
+                // P0-06: If posted, create reversal journal.
+                // Phase 19: the unreversed live entry via the link table —
+                // never re-reverses an already-reversed slot.
+                $header = app(JournalReversalService::class)
+                    ->unreversedEntryFor((string) $salesReturn->return_number, 'SalesReturn');
 
                 if ($header && in_array($header->status, ['Post', 'posted'])) {
                     app(JournalReversalService::class)->createReversal(

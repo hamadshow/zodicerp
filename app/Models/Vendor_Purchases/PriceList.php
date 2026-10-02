@@ -13,6 +13,7 @@ class PriceList extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'company_id',
         'code',
         'name_ar',
         'name_en',

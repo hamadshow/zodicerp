@@ -4,9 +4,10 @@ namespace App\Http\Controllers\Backend\Purchases;
 
 use App\Http\Controllers\Controller;
 use App\Models\Vendor_Purchases\GoodsReceipt;
+use App\Models\Vendor_Purchases\GoodsReceiptDetail;
 use App\Models\Vendor_Purchases\PurchaseOrder;
-use App\Models\Vendor_Purchases\Supplier;
 use App\Models\Warehouses;
+use App\Services\CompanyContext;
 use App\Services\Vendor_Purchases\GoodsReceiptService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -15,13 +16,17 @@ use Inertia\Response;
 class GoodsReceiptController extends Controller
 {
     public function __construct(
-        protected GoodsReceiptService $receiptService
+        protected GoodsReceiptService $receiptService,
+        protected CompanyContext $companyContext,
     ) {}
 
     public function index(Request $request): Response
     {
+        $companyId = $this->companyContext->id();
+
         $query = GoodsReceipt::query()
             ->with(['order', 'warehouse', 'creator'])
+            ->where('company_id', $companyId)
             ->orderBy('created_at', 'desc');
 
         if ($request->filled('search')) {
@@ -40,13 +45,17 @@ class GoodsReceiptController extends Controller
         $receipts = $query->paginate(15)->withQueryString();
 
         $purchaseOrders = PurchaseOrder::query()
+            ->where('company_id', $companyId)
             ->whereIn('status', ['approved', 'sent_to_vendor', 'partially_received', 'fully_received'])
             ->with(['items', 'vendor'])
             ->orderByDesc('created_at')
             ->limit(100)
             ->get();
 
-        $warehouses = Warehouses::select('id', 'name as name_ar')->get();
+        $warehouses = Warehouses::query()
+            ->where('company_id', $companyId)
+            ->select('id', 'name as name_ar')
+            ->get();
 
         return Inertia::render('Backend/04-Purchases/GoodsReceipt', [
             'receipts' => $receipts,
@@ -84,6 +93,8 @@ class GoodsReceiptController extends Controller
         try {
             $receipt = $this->receiptService->createGoodsReceipt($validated);
             return redirect()->back()->with('success', "Goods Receipt {$receipt->receipt_number} created successfully.");
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $e) {
+            throw $e; // ownership aborts keep their HTTP status (404)
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error creating goods receipt: ' . $e->getMessage())->withInput();
         }
@@ -91,6 +102,8 @@ class GoodsReceiptController extends Controller
 
     public function show(GoodsReceipt $goodsReceipt): Response
     {
+        $this->assertOwnedReceipt($goodsReceipt);
+
         $goodsReceipt->load(['details.product', 'details.unit', 'order', 'warehouse', 'creator', 'receiver', 'checker', 'approver']);
 
         return Inertia::render('Backend/04-Purchases/GoodsReceiptDetail', [
@@ -101,6 +114,8 @@ class GoodsReceiptController extends Controller
     public function approve(GoodsReceipt $goodsReceipt)
     {
         try {
+            $this->assertOwnedReceipt($goodsReceipt);
+
             $receipt = $this->receiptService->approveReceipt($goodsReceipt);
             return redirect()->back()->with('success', "Goods Receipt {$receipt->receipt_number} approved. Inventory updated.");
         } catch (\Exception $e) {
@@ -111,6 +126,8 @@ class GoodsReceiptController extends Controller
     public function receive(GoodsReceipt $goodsReceipt)
     {
         try {
+            $this->assertOwnedReceipt($goodsReceipt);
+
             $receipt = $this->receiptService->receiveItems($goodsReceipt);
             return redirect()->back()->with('success', "Goods Receipt {$receipt->receipt_number} marked as received.");
         } catch (\Exception $e) {
@@ -126,6 +143,8 @@ class GoodsReceiptController extends Controller
         ]);
 
         try {
+            $this->assertOwnedReceipt($goodsReceipt);
+
             $receipt = $this->receiptService->checkItems(
                 $goodsReceipt,
                 $request->input('quality_status'),
@@ -140,6 +159,8 @@ class GoodsReceiptController extends Controller
     public function cancel(GoodsReceipt $goodsReceipt)
     {
         try {
+            $this->assertOwnedReceipt($goodsReceipt);
+
             $receipt = $this->receiptService->cancelReceipt($goodsReceipt);
             return redirect()->back()->with('success', "Goods Receipt {$receipt->receipt_number} cancelled.");
         } catch (\Exception $e) {
@@ -147,13 +168,55 @@ class GoodsReceiptController extends Controller
         }
     }
 
+    /**
+     * Phase 6 — reverse an approved receipt exactly (stock + derived quantity
+     * + PO accumulation), for audit-visible corrections.
+     */
+    public function reverse(GoodsReceipt $goodsReceipt)
+    {
+        try {
+            $this->assertOwnedReceipt($goodsReceipt);
+
+            $receipt = $this->receiptService->reverseReceipt($goodsReceipt);
+            return redirect()->back()->with('success', "Goods Receipt {$receipt->receipt_number} reversed. Inventory and PO quantities restored.");
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
     public function destroy(GoodsReceipt $goodsReceipt)
     {
+        $this->assertOwnedReceipt($goodsReceipt);
+
         if ($goodsReceipt->status === 'approved') {
-            return redirect()->back()->with('error', 'Approved receipts cannot be deleted.');
+            return redirect()->back()->with('error', 'Approved receipts cannot be deleted. Reverse the receipt instead.');
         }
 
         $goodsReceipt->delete();
         return redirect()->back()->with('success', 'Goods Receipt deleted.');
+    }
+
+    /**
+     * Cross-company guard (Phase 1 convention): a receipt owned by another
+     * company is indistinguishable from a missing one.
+     */
+    private function assertOwnedReceipt(GoodsReceipt $goodsReceipt): void
+    {
+        $companyId = $this->companyContext->id();
+
+        abort_unless(
+            (int) ($goodsReceipt->company_id ?: $companyId) === $companyId,
+            404
+        );
+
+        // Legacy rows with NULL company are additionally anchored by their
+        // warehouse: if the warehouse belongs to the active company the row is
+        // treated as owned, otherwise 404.
+        if (! $goodsReceipt->company_id) {
+            $warehouseOwner = \Illuminate\Support\Facades\DB::table('warehouses')
+                ->where('id', $goodsReceipt->warehouse_id)
+                ->value('company_id');
+            abort_unless((int) $warehouseOwner === $companyId, 404);
+        }
     }
 }

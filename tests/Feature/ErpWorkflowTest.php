@@ -240,6 +240,22 @@ class ErpWorkflowTest extends TestCase
     /** @test */
     public function stock_adjustment_service_generates_unique_numbers()
     {
+        // Phase 1 company isolation: quantity reads are company-scoped, so a
+        // company context is now required (previously fell back to company 1).
+        $suffix = uniqid();
+        $userId = DB::table('users')->insertGetId([
+            'username' => 'wa-flow-'.$suffix,
+            'email' => 'wa-flow-'.$suffix.'@zodicerp-test.com',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+            'company_id' => 1,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]
+        );
+        $this->actingAs(\App\Models\User::find($userId));
+
         $service = new \App\Services\Inventory\StockAdjustmentService();
 
         $num1 = $service->getProductQuantity(999, 1);

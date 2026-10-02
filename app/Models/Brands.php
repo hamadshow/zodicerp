@@ -11,6 +11,7 @@ class Brands extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'company_id',
         'brand_code',
         'name',
         'parent_id',

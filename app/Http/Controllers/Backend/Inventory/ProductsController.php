@@ -56,25 +56,42 @@ class ProductsController extends Controller
                         $productCode = $nextProductCode++;
                     }
 
-                    $product = Products::updateOrCreate(
-                        ['name' => $row['name'], 'company_id' => $companyId],
-                        [
-                            'product_code' => $productCode,
-                            'slug' => $slug,
-                            'sku' => $row['sku'] ?? null,
-                            'barcode' => $row['barcode'] ?? null,
-                            'price' => $row['price'] ?? 0,
-                            'sale_price' => $row['sale_price'] ?? null,
-                            'cost_per_item' => $row['cost_price'] ?? 0,
+                    // Phase 11 (§11 rule 3): catalog import is master-data only.
+                    // products.quantity is maintained by the movement engine.
+                    // A NEW product's quantity is its implicit opening stock
+                    // (creation-time initial state, same as the store flow);
+                    // an EXISTING product's stock is NEVER touched by an
+                    // import — corrections go through Opening Stock, Stock
+                    // Adjustment, GRN, or the update-stock API.
+                    $payload = [
+                        'product_code' => $productCode,
+                        'slug' => $slug,
+                        'sku' => $row['sku'] ?? null,
+                        'barcode' => $row['barcode'] ?? null,
+                        'price' => $row['price'] ?? 0,
+                        'sale_price' => $row['sale_price'] ?? null,
+                        'cost_per_item' => $row['cost_price'] ?? 0,
+                        'description' => $row['description'] ?? null,
+                        'status' => $row['status'] ?? 'active',
+                        'order' => (int) ($row['order'] ?? 0),
+                        'is_featured' => (bool) ($row['is_featured'] ?? false),
+                        'is_default' => (bool) ($row['is_default'] ?? false),
+                    ];
+
+                    $product = Products::query()
+                        ->where('name', $row['name'])
+                        ->where('company_id', $companyId)
+                        ->first();
+
+                    if ($product) {
+                        $product->update($payload); // quantity deliberately omitted
+                    } else {
+                        $product = Products::create($payload + [
+                            'name' => $row['name'],
                             'quantity' => $row['quantity'] ?? 0,
-                            'description' => $row['description'] ?? null,
-                            'status' => $row['status'] ?? 'active',
-                            'order' => (int) ($row['order'] ?? 0),
-                            'is_featured' => (bool) ($row['is_featured'] ?? false),
-                            'is_default' => (bool) ($row['is_default'] ?? false),
                             'company_id' => $companyId,
-                        ]
-                    );
+                        ]);
+                    }
 
                     // Handle Brand
                     if (! empty($row['brand'])) {
@@ -255,6 +272,9 @@ class ProductsController extends Controller
 
     public function show(Products $product)
     {
+        // Company isolation (Phase 1)
+        abort_unless((int) $product->company_id === (int) auth()->user()?->company_id, 404);
+
         $product->load(['categories', 'brand', 'unit', 'variations.items', 'variations.product']);
 
         if (request()->wantsJson()) {
@@ -292,6 +312,9 @@ class ProductsController extends Controller
 
     public function edit(Products $product)
     {
+        // Company isolation (Phase 1)
+        abort_unless((int) $product->company_id === (int) auth()->user()?->company_id, 404);
+
         $product->load(['categories', 'unit', 'variations.items', 'variations.product']);
 
         $brands = Brands::select('id', 'name')->whereIn('status', ['active', '1'])->orderBy('name')->get();
@@ -633,6 +656,9 @@ class ProductsController extends Controller
         if (! $user) {
             abort(403, 'Unauthorized');
         }
+
+        // Company isolation (Phase 1)
+        abort_unless((int) $product->company_id === (int) $user->company_id, 404);
 
         try {
             DB::beginTransaction();
@@ -1011,6 +1037,9 @@ class ProductsController extends Controller
 
     public function destroy(Products $product)
     {
+        // Company isolation (Phase 1)
+        abort_unless((int) $product->company_id === (int) auth()->user()?->company_id, 404);
+
         try {
             if ($product->children()->count() > 0) {
                 if (request()->wantsJson()) {

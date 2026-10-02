@@ -13,6 +13,7 @@ use App\Models\ItemUnit;
 use App\Models\Products;
 use App\Models\Vendor_Purchases\PriceList;
 use App\Models\Vendor_Purchases\PriceListItem;
+use App\Services\CompanyContext;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -42,6 +43,21 @@ class PriceListController extends Controller
 
     private const ITEM_SORTABLE = ['id', 'min_quantity', 'unit_price', 'final_price', 'effective_date', 'expiry_date', 'product_id'];
 
+    public function __construct(private CompanyContext $companyContext) {}
+
+    /**
+     * Company scope helper: master data keeps the established
+     * "company_id = active OR NULL" convention (same as UnitConversionService).
+     */
+    private function scopeCompany($query, ?int $companyId = null)
+    {
+        $companyId ??= $this->companyContext->id();
+
+        return $query->where(function ($q) use ($companyId) {
+            $q->where('company_id', $companyId)->orWhereNull('company_id');
+        });
+    }
+
     /**
      * Price lists (server-side paginated listing).
      */
@@ -49,8 +65,9 @@ class PriceListController extends Controller
     {
         $filters = $this->listFilters($request);
         $today = Carbon::now()->format('Y-m-d');
+        $companyId = $this->companyContext->id();
 
-        $query = PriceList::query()
+        $query = $this->scopeCompany(PriceList::query())
             ->with(['currency:id,code,name,symbol'])
             ->withCount('items')
             ->addSelect([
@@ -109,11 +126,13 @@ class PriceListController extends Controller
             'priceTypes' => self::PRICE_TYPES,
             'roundingMethods' => self::ROUNDING_METHODS,
             'stats' => [
-                'total' => PriceList::count(),
-                'active' => PriceList::where('is_active', true)->count(),
-                'scheduled' => PriceList::where('valid_from', '>', $today)->count(),
-                'expired' => PriceList::whereNotNull('valid_to')->where('valid_to', '<', $today)->count(),
-                'items' => PriceListItem::count(),
+                'total' => $this->scopeCompany(PriceList::query(), $companyId)->count(),
+                'active' => $this->scopeCompany(PriceList::query(), $companyId)->where('is_active', true)->count(),
+                'scheduled' => $this->scopeCompany(PriceList::query(), $companyId)->where('valid_from', '>', $today)->count(),
+                'expired' => $this->scopeCompany(PriceList::query(), $companyId)->whereNotNull('valid_to')->where('valid_to', '<', $today)->count(),
+                'items' => PriceListItem::query()
+                    ->whereHas('priceList', fn ($q) => $this->scopeCompany($q, $companyId))
+                    ->count(),
             ],
             'nextCode' => $this->nextCode(),
             'filters' => $filters,
@@ -139,6 +158,8 @@ class PriceListController extends Controller
      */
     public function show(Request $request, PriceList $priceList)
     {
+        $this->assertOwnedPriceList($priceList);
+
         $priceList->load(['currency:id,code,name,symbol']);
 
         $filters = $this->itemFilters($request);
@@ -288,6 +309,8 @@ class PriceListController extends Controller
      */
     public function edit(PriceList $priceList)
     {
+        $this->assertOwnedPriceList($priceList);
+
         $priceList->load(['currency:id,code,name,symbol']);
 
         return Inertia::render('Backend/03-Inventory/PriceLists', [
@@ -323,6 +346,8 @@ class PriceListController extends Controller
      */
     public function update(Request $request, PriceList $priceList)
     {
+        $this->assertOwnedPriceList($priceList);
+
         $validated = $this->validateList($request, $priceList);
 
         $priceList->update($validated);
@@ -337,6 +362,8 @@ class PriceListController extends Controller
      */
     public function destroy(PriceList $priceList)
     {
+        $this->assertOwnedPriceList($priceList);
+
         $referenced = SalesQuotation::where('price_list_id', $priceList->id)->exists()
             || SalesOrder::where('price_list_id', $priceList->id)->exists()
             || SalesInvoice::where('price_list_id', $priceList->id)->exists();
@@ -365,6 +392,8 @@ class PriceListController extends Controller
      */
     public function storeItem(Request $request, PriceList $priceList)
     {
+        $this->assertOwnedPriceList($priceList);
+
         $validated = $this->validateItem($request, $priceList);
 
         DB::transaction(function () use ($validated, $priceList) {
@@ -381,6 +410,7 @@ class PriceListController extends Controller
      */
     public function updateItem(Request $request, PriceList $priceList, PriceListItem $item)
     {
+        $this->assertOwnedPriceList($priceList);
         $this->assertItemBelongsTo($priceList, $item);
 
         $validated = $this->validateItem($request, $priceList, $item);
@@ -395,6 +425,7 @@ class PriceListController extends Controller
      */
     public function destroyItem(PriceList $priceList, PriceListItem $item)
     {
+        $this->assertOwnedPriceList($priceList);
         $this->assertItemBelongsTo($priceList, $item);
 
         $item->delete();
@@ -408,8 +439,10 @@ class PriceListController extends Controller
     public function searchProducts(Request $request)
     {
         $search = trim((string) $request->input('query', ''));
+        $companyId = $this->companyContext->id();
 
         $products = Products::query()
+            ->where('company_id', $companyId)
             ->with(['unit:id,name,conversion_factor,base_unit'])
             ->withCount('children')
             ->when($search !== '', function ($query) use ($search) {
@@ -454,6 +487,19 @@ class PriceListController extends Controller
      |  Helpers
      --------------------------------------------------------------------- */
 
+    /**
+     * Route-model bound price lists must belong to the active company
+     * (404, as the hardened Nationality/Profession controllers).
+     */
+    private function assertOwnedPriceList(PriceList $priceList): void
+    {
+        $companyId = $this->companyContext->id();
+
+        if ($priceList->company_id !== null && (int) $priceList->company_id !== $companyId) {
+            abort(404);
+        }
+    }
+
     private function validateList(Request $request, ?PriceList $priceList = null): array
     {
         $validated = $request->validate([
@@ -478,6 +524,10 @@ class PriceListController extends Controller
         $validated['rounding_factor'] = $validated['rounding_factor'] ?? 0.05;
         $validated['is_default'] = (bool) ($validated['is_default'] ?? false);
         $validated['is_active'] = (bool) ($validated['is_active'] ?? true);
+
+        if ($priceList === null) {
+            $validated['company_id'] = $this->companyContext->id();
+        }
 
         return $validated;
     }
@@ -621,7 +671,12 @@ class PriceListController extends Controller
 
     private function unitOptions()
     {
+        $companyId = $this->companyContext->id();
+
         return ItemUnit::query()
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
             ->with(['parent:id,name,conversion_factor'])
             ->select('id', 'name', 'unit_type', 'base_unit', 'conversion_factor', 'active')
             ->orderBy('name')

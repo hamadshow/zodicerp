@@ -8,6 +8,10 @@ use Illuminate\Validation\ValidationException;
 
 class PayrollWorkflowService
 {
+    public function __construct(private readonly PayrollPostingService $postingService)
+    {
+    }
+
     public function transition(PayrollPeriod|int $period, string $to, ?int $actorId = null): PayrollPeriod
     {
         return DB::transaction(function () use ($period, $to, $actorId): PayrollPeriod {
@@ -34,6 +38,9 @@ class PayrollWorkflowService
                 $data += ['approved_by' => $actorId, 'approved_at' => now()];
                 $locked->results()->update(['approved_at' => now()]);
             } elseif ($to === 'posted') {
+                // Phase 7: create the accounting journal BEFORE flipping the
+                // status. If posting fails, the period never becomes posted.
+                $this->postingService->postPeriodJournal($locked, (int) $actorId);
                 $data += ['posted_by' => $actorId, 'posted_at' => now()];
             } elseif ($to === 'closed') {
                 $data += ['closed_by' => $actorId, 'closed_at' => now()];

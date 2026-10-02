@@ -14,6 +14,7 @@ class PayrollResult extends Model
     protected $fillable = [
         'payroll_period_id',
         'employee_id',
+        'company_id',
         'basic_salary',
         'allowances',
         'overtime',

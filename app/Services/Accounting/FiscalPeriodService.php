@@ -244,21 +244,28 @@ class FiscalPeriodService
         ]);
 
         return DB::table('accounting_periods')->where('id', $periodId)->first();
-    }
-
-    /**
+    }    /**
      * Validate that a date falls within an open period.
      * Returns true if posting is allowed, throws exception otherwise.
+     *
+     * Accounting periods are day-granular (DATE columns), so the posting
+     * date is normalized to its calendar day before comparison. Comparing
+     * the raw DATETIME string (e.g. '2025-01-31 23:00:00') against a DATE
+     * column would silently fail the end-date boundary check because the
+     * DATE value is interpreted as midnight — rejecting every journal dated
+     * on a period's last day after 00:00:00.
      */
     public function validatePostingDate(string $postingDate): bool
     {
         $companyId = auth()->user()->company_id ?? 1;
 
+        $postingDay = (new \DateTimeImmutable($postingDate))->format('Y-m-d');
+
         $period = DB::table('accounting_periods as ap')
             ->join('fiscal_years as fy', 'fy.id', '=', 'ap.fiscal_year_id')
             ->where('fy.company_id', $companyId)
-            ->where('ap.start_date', '<=', $postingDate)
-            ->where('ap.end_date', '>=', $postingDate)
+            ->where('ap.start_date', '<=', $postingDay)
+            ->where('ap.end_date', '>=', $postingDay)
             ->where('ap.status', 'open')
             ->first();
 

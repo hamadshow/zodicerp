@@ -31,6 +31,11 @@
 @use 'pages/AssetAttribute';
 @use 'pages/AssetCategory';
 @use 'pages/Assets';
+@use 'pages/AssetMovement';
+@use 'pages/AssetRevaluation';
+@use 'pages/AssetDisposal';
+@use 'pages/DepreciationSchedule';
+@use 'pages/DepreciationReport';
 @use 'pages/bank';
 @use 'pages/BankTransactions';
 @use 'pages/Brands';

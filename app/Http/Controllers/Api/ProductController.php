@@ -70,7 +70,8 @@ class ProductController extends BaseApiController
         try {
             $product = $this->productService->find($id);
 
-            if (!$product) {
+            // Company isolation (Phase 1): never serve another company's product.
+            if (!$product || (int) $product->company_id !== (int) auth()->user()?->company_id) {
                 return $this->notFoundResponse('Product not found');
             }
 
@@ -92,6 +93,13 @@ class ProductController extends BaseApiController
         }
 
         try {
+            // Company isolation (Phase 1): refuse updates on other companies' products.
+            $companyId = (int) auth()->user()?->company_id;
+            $owner = \App\Models\Products::query()->whereKey($id)->value('company_id');
+            if ((int) $owner !== $companyId) {
+                return $this->notFoundResponse('Product not found');
+            }
+
             $product = $this->productService->update($id, $this->preparePayload($request, true));
 
             if (!$product) {
@@ -110,6 +118,13 @@ class ProductController extends BaseApiController
     public function destroy(int $id): JsonResponse
     {
         try {
+            // Company isolation (Phase 1): refuse deletes on other companies' products.
+            $companyId = (int) auth()->user()?->company_id;
+            $owner = \App\Models\Products::query()->whereKey($id)->value('company_id');
+            if ((int) $owner !== $companyId) {
+                return $this->notFoundResponse('Product not found');
+            }
+
             $deleted = $this->productService->delete($id);
 
             if (!$deleted) {
@@ -141,7 +156,15 @@ class ProductController extends BaseApiController
         }
 
         try {
-            $deleted = $this->productService->bulkDelete($request->ids);
+            // Company isolation (Phase 1): only the caller's own products may be deleted.
+            $companyId = (int) auth()->user()?->company_id;
+            $ownedIds = Products::query()
+                ->whereIn('id', $request->ids)
+                ->where('company_id', $companyId)
+                ->pluck('id')
+                ->all();
+
+            $deleted = $this->productService->bulkDelete($ownedIds);
             return $this->successResponse(['deleted_count' => $deleted], 'Products deleted successfully');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to delete products', 500);
@@ -164,7 +187,15 @@ class ProductController extends BaseApiController
         }
 
         try {
-            $updated = $this->productService->bulkUpdateStatus($request->ids, $request->status);
+            // Company isolation (Phase 1): only the caller's own products may be updated.
+            $companyId = (int) auth()->user()?->company_id;
+            $ownedIds = Products::query()
+                ->whereIn('id', $request->ids)
+                ->where('company_id', $companyId)
+                ->pluck('id')
+                ->all();
+
+            $updated = $this->productService->bulkUpdateStatus($ownedIds, $request->status);
             return $this->successResponse(['updated_count' => $updated], 'Product status updated successfully');
         } catch (\Exception $e) {
             return $this->errorResponse('Failed to update product status', 500);
@@ -174,8 +205,10 @@ class ProductController extends BaseApiController
     /**
      * Update product stock.
      *
-     * ProductService::updateStock() refuses services (increment/decrement
-     * bypass model events, so the guard lives in the service).
+     * Phase 10: ProductService::updateStock() routes every mutation through
+     * the movement/WAC engine (stock adjustment document + ICT + derived
+     * quantity + GL where configured) — never raw products.quantity writes.
+     * Services are refused inside the service (early return).
      */
     public function updateStock(Request $request, int $id): JsonResponse
     {

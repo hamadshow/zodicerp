@@ -14,13 +14,15 @@ use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
 
+use App\Support\JournalStatus;
+
 class FinancialReportController extends Controller
 {
     private const POSTED_STATUSES = ['Post', 'posted'];
 
     private function postedJournalQuery($query, string $alias = 'e')
     {
-        return $query->whereIn("{$alias}.status", self::POSTED_STATUSES);
+        return $query->whereIn("{$alias}.status", JournalStatus::postedValues());
     }
 
     public function index(): Response
@@ -831,7 +833,18 @@ class FinancialReportController extends Controller
         foreach ($accounts as $account) {
             $code = $account->AccCode;
             $id = $account->AccID;
-            $act = $activity->get($id) ?? $activity->get($code);
+
+        // journal_entry_lines.account_id references accounts.AccID — the ONLY
+        // correct lookup key. The previous `$activity->get($id)
+        // ?? $activity->get($code)` fallback collided with it: PHP normalizes
+        // numeric-string collection keys to ints, so for a P&L root node whose
+        // AccCode is '5' (AccID 154) the fallback resolved to the activity of
+        // the unrelated AccID=5 account, inflating COGS/Expenses (and for '6'
+        // inflating Expenses again) and corrupting gross/net profit. Verified:
+        // zero journal lines reference a non-AccID value, so the fallback was
+        // dead code that only ever corrupted results. Same fix already applied
+        // to fetchBalanceSheetData().
+        $act = $activity->get($id);
 
             $debit = (float)($act?->debit ?? 0);
             $credit = (float)($act?->credit ?? 0);
@@ -1120,202 +1133,6 @@ class FinancialReportController extends Controller
             'period' => [
                 'start' => $startDate,
                 'end' => $endDate,
-            ]
-        ]);
-    }
-
-    public function getGeneralLedgerData(Request $request): JsonResponse
-    {
-        $companyId = $request->user()?->company_id;
-        if (! $companyId) {
-            return response()->json([], 401);
-        }
-
-        $validated = $request->validate([
-            'account_id' => 'required|integer',
-            'date_from' => 'nullable|date',
-            'date_to' => 'nullable|date',
-            'status' => 'nullable|string|in:all,posted,unposted',
-            'page' => 'nullable|integer|min:1',
-            'per_page' => 'nullable|integer|min:-1|max:5000',
-        ]);
-
-        $accountId = (int) $validated['account_id'];
-        $dateFrom = $validated['date_from'] ?? null;
-        $dateTo = $validated['date_to'] ?? null;
-        $status = $validated['status'] ?? 'posted';
-        $page = (int) ($validated['page'] ?? 1);
-        $perPage = (int) ($validated['per_page'] ?? 15);
-        $isExport = $perPage === -1;
-
-        $account = DB::table('accounts')
-            ->where('AccID', $accountId)
-            ->where('company_id', $companyId)
-            ->first(['AccID', 'AccCode', 'AccName', 'AccDmType']);
-
-        if (! $account) {
-            return response()->json(['message' => 'Account not found.'], 404);
-        }
-
-        $nature = (int) ($account->AccDmType ?? 0);
-        $applyAccountFilter = function ($query) use ($account) {
-            $query->where(function ($q) use ($account) {
-                $q->where('b.account_id', $account->AccID)
-                    ->orWhere('b.account_id', $account->AccCode);
-            });
-        };
-
-        $applyStatusFilter = function ($query) use ($status) {
-            if ($status === 'posted') {
-                $query->whereIn('h.status', self::POSTED_STATUSES);
-            } elseif ($status === 'unposted') {
-                $query->whereNotIn('h.status', self::POSTED_STATUSES);
-            }
-        };
-
-        // Calculate opening balance (all entries before dateFrom)
-        $openingDebit = 0.0;
-        $openingCredit = 0.0;
-
-        $openingQuery = DB::table('journal_entry_lines as b')
-            ->join('journal_entries as h', 'h.entry_code', '=', 'b.journal_entry_code')
-            ->where('h.company_id', $companyId)
-            ->tap($applyAccountFilter)
-            ->tap($applyStatusFilter);
-
-        if ($dateFrom) {
-            $openingQuery->where('h.date', '<', $dateFrom);
-        } else {
-            // If no dateFrom, opening balance is 0 unless there are entries with null date
-            $openingQuery->whereNull('h.date');
-        }
-
-        $openingTotals = $openingQuery
-            ->selectRaw('COALESCE(SUM(b.debit),0) as total_debit, COALESCE(SUM(b.credit),0) as total_credit')
-            ->first();
-
-        if ($openingTotals) {
-            $openingDebit = (float) $openingTotals->total_debit;
-            $openingCredit = (float) $openingTotals->total_credit;
-        }
-
-        $openingBalance = $nature === 0
-            ? $openingDebit - $openingCredit
-            : $openingCredit - $openingDebit;
-
-        // Fetch entries for the current period
-        $entriesQuery = DB::table('journal_entry_lines as b')
-            ->join('journal_entries as h', 'h.entry_code', '=', 'b.journal_entry_code')
-            ->where('h.company_id', $companyId)
-            ->tap($applyAccountFilter)
-            ->tap($applyStatusFilter);
-
-        if ($dateFrom) {
-            $entriesQuery->where('h.date', '>=', $dateFrom);
-        }
-
-        if ($dateTo) {
-            $entriesQuery->where('h.date', '<=', $dateTo);
-        }
-
-        // Get total count for pagination
-        $totalRecords = $entriesQuery->count();
-
-        if ($isExport) {
-            $perPage = $totalRecords ?: 1000;
-        }
-
-        // Get all entries for the period to calculate running balance correctly
-        // Running balance needs all previous entries in the period to be accurate for the current page.
-        // So we fetch all entries up to the end of the current page.
-        $allEntriesUntilPage = $entriesQuery
-            ->leftJoin(DB::raw('(SELECT journal_entry_code, SUM(debit) as journal_total_debit, SUM(credit) as journal_total_credit FROM journal_entry_lines GROUP BY journal_entry_code) as balance_check'), 'balance_check.journal_entry_code', '=', 'h.entry_code')
-            ->orderBy('h.date')
-            ->orderBy('h.entry_code')
-            ->orderBy('b.id')
-            ->limit($page * $perPage)
-            ->get([
-                'h.date as date',
-                'h.entry_code as journal_code',
-                'h.reference as reference',
-                'h.description as header_description',
-                'b.description as line_description',
-                'b.debit as debit',
-                'b.credit as credit',
-                'h.status as status',
-                DB::raw('ABS(COALESCE(balance_check.journal_total_debit, 0) - COALESCE(balance_check.journal_total_credit, 0)) < 0.01 as is_balanced')
-            ]);
-
-        $runningBalance = $openingBalance;
-        $totalDebit = 0.0;
-        $totalCredit = 0.0;
-
-        $mappedEntries = $allEntriesUntilPage->map(function ($row) use (&$runningBalance, &$totalDebit, &$totalCredit, $nature) {
-            $debit = (float) ($row->debit ?? 0);
-            $credit = (float) ($row->credit ?? 0);
-
-            $totalDebit += $debit;
-            $totalCredit += $credit;
-
-            $delta = $nature === 0 ? $debit - $credit : $credit - $debit;
-            $runningBalance += $delta;
-
-            $row->debit = round($debit, 2);
-            $row->credit = round($credit, 2);
-            $row->running_balance = round($runningBalance, 2);
-            $row->description = $row->line_description ?: $row->header_description;
-            unset($row->header_description, $row->line_description);
-
-            return $row;
-        });
-
-        // Slice for current page
-        $currentPageEntries = $mappedEntries->slice(($page - 1) * $perPage, $perPage)->values();
-
-        // Calculate period totals (for the whole selected period, not just the page)
-        $periodTotals = DB::table('journal_entry_lines as b')
-            ->join('journal_entries as h', 'h.entry_code', '=', 'b.journal_entry_code')
-            ->where('h.company_id', $companyId)
-            ->tap($applyAccountFilter)
-            ->tap($applyStatusFilter);
-
-        if ($dateFrom) {
-            $periodTotals->where('h.date', '>=', $dateFrom);
-        }
-        if ($dateTo) {
-            $periodTotals->where('h.date', '<=', $dateTo);
-        }
-
-        $totals = $periodTotals->selectRaw('COALESCE(SUM(b.debit),0) as total_debit, COALESCE(SUM(b.credit),0) as total_credit')
-            ->first();
-
-        $closingBalance = $openingBalance + ($nature === 0 
-            ? ($totals->total_debit - $totals->total_credit) 
-            : ($totals->total_credit - $totals->total_debit));
-
-        return response()->json([
-            'account' => [
-                'id' => $account->AccID,
-                'code' => $account->AccCode,
-                'name' => $account->AccName,
-                'dm_type' => $nature,
-                'dm_label' => $nature === 0 ? 'Debit' : 'Credit',
-            ],
-            'filters' => [
-                'date_from' => $dateFrom,
-                'date_to' => $dateTo,
-                'status' => $status,
-            ],
-            'opening_balance' => round($openingBalance, 2),
-            'closing_balance' => round($closingBalance, 2),
-            'total_debit' => round((float)$totals->total_debit, 2),
-            'total_credit' => round((float)$totals->total_credit, 2),
-            'entries' => $currentPageEntries,
-            'pagination' => [
-                'total' => $totalRecords,
-                'per_page' => $perPage,
-                'current_page' => $page,
-                'last_page' => ceil($totalRecords / $perPage),
             ]
         ]);
     }

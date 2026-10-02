@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Head, usePage, router } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
 import { apiService } from '../../../../services/api';
@@ -13,15 +13,14 @@ export default function BalanceSheet() {
     country: localization.country_code || route().params.country || 'sa',
     lang: currentLocale,
   });
-  
+
   const t = (key, fallback) => {
-    // Try to find the key in FinancialReports first, then fall back to the provided fallback
     return translations[`FinancialReports.${key}`] || translations[key] || fallback;
   };
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
-  const [lang] = useState(currentLocale);
+  // lang is read from the route during initial render and passed to formatNumber via currentLocale
   const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split('T')[0]);
   const [collapsedNodes, setCollapsedNodes] = useState({});
 
@@ -56,8 +55,6 @@ export default function BalanceSheet() {
     }).format(num);
   };
 
-  const isAr = lang === 'ar';
-
   const renderAccountRows = (nodes, depth = 0) => {
     if (!nodes) return null;
     return nodes.map((node) => {
@@ -68,20 +65,20 @@ export default function BalanceSheet() {
       return (
         <React.Fragment key={node.AccCode}>
           <tr className={`
-            report-row 
-            depth-${depth} 
-            ${isParent ? 'parent-row' : 'leaf-row'} 
+            report-row
+            depth-${depth}
+            ${isParent ? 'parent-row' : 'leaf-row'}
             ${depth === 0 ? 'root-row' : ''}
           `}>
-            <td 
-              className="name-cell" 
-              style={{ 
-                paddingInlineStart: `${depth * 24 + (isParent ? 0 : 32)}px` 
+            <td
+              className="name-cell"
+              style={{
+                paddingInlineStart: `${depth * 24 + (isParent ? 0 : 32)}px`
               }}
             >
               <div className="flex items-center gap-2">
                 {isParent && (
-                  <button 
+                  <button
                     onClick={() => toggleNode(node.AccCode)}
                     className="toggle-btn"
                   >
@@ -98,7 +95,7 @@ export default function BalanceSheet() {
             </td>
           </tr>
           {isParent && !isCollapsed && renderAccountRows(node.children, depth + 1)}
-          
+
           {/* Summary Row for Parents */}
           {isParent && !isCollapsed && (
             <tr className={`summary-row depth-${depth}`}>
@@ -123,7 +120,7 @@ export default function BalanceSheet() {
     rows.push([t('balance_sheet', 'Balance Sheet')]);
     rows.push([`${t('as_of', 'As of')}: ${asOfDate}`]);
     rows.push([]);
-    
+
     const flatten = (nodes, depth = 0) => {
       nodes.forEach(n => {
         const indent = '    '.repeat(depth);
@@ -157,498 +154,418 @@ export default function BalanceSheet() {
 
   return (
     <AdminLayout activeMenu="Financial Reports">
-      <div className={`qbo-report-page ${isAr ? 'rtl' : 'ltr'}`}>
-        <Head title={`${t('balance_sheet', 'Balance Sheet')} - ZodicERP`} />
+      <Head title={`${t('balance_sheet', 'Balance Sheet')} - ZodicERP`} />
+      <div className="fr-page">
+        <div className="fr-breadcrumb">
+          <a href="#">{t('dashboard', 'Dashboard')}</a>
+          <span className="fr-sep">/</span>
+          <a href="#">{t('accounting', 'Accounting')}</a>
+          <span className="fr-sep">/</span>
+          <a href={financialReportsRoute()}>{t('financial_reports', 'Financial Reports')}</a>
+          <span className="fr-sep">/</span>
+          <span className="fr-current">{t('balance_sheet', 'Balance Sheet')}</span>
+        </div>
 
-        {/* 1. Breadcrumbs & Top Actions */}
-        <div className="report-top-nav no-print">
-          <div className="breadcrumb">
-            <span className="item">{t('reports', 'Reports')}</span>
-            <span className="sep material-icons-outlined">chevron_right</span>
-            <span className="item active">{t('balance_sheet', 'Balance Sheet')}</span>
+        <div className="fr-header-card">
+          <div>
+            <h1 className="fr-title">{t('balance_sheet', 'Balance Sheet')}</h1>
+            <p className="fr-subtitle">
+              {t('balance_sheet_desc', 'Statement of assets, liabilities, and equity as of a specific date.')}
+            </p>
           </div>
-          <div className="top-actions">
-            <button className="action-link" onClick={() => router.get(financialReportsRoute())}>
-              {t('back_to_report_list', 'Back to report list')}
+        </div>
+
+        <div className="fr-filters-card">
+          <div className="fr-filters-grid">
+            <div className="fr-form-group">
+              <label htmlFor="fr-asof">{t('as_of', 'As of')}</label>
+              <input
+                id="fr-asof"
+                type="date"
+                className="fr-input"
+                value={asOfDate}
+                onChange={(e) => setAsOfDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="fr-form-actions">
+            <button
+              type="button"
+              className="btn btn-primary fr-btn"
+              onClick={fetchData}
+            >
+              <span className="material-icons-outlined">refresh</span>
+              <span>{t('run_report', 'Run report')}</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn-excel fr-btn"
+              onClick={handleExportExcel}
+            >
+              <span className="material-icons-outlined">description</span>
+              <span>{t('export_excel', 'Export Excel')}</span>
             </button>
           </div>
         </div>
 
-        {/* 2. Main Title Area */}
-        <div className="report-header-area no-print">
-          <h1 className="report-title">{t('balance_sheet', 'Balance Sheet')}</h1>
-          <div className="header-buttons">
-            <button className="btn-outline">{t('customize', 'Customize')}</button>
-            <button className="btn-primary">{t('save_customization', 'Save customization')}</button>
-          </div>
-        </div>
+        {loading && <div className="fr-loading-banner fr-error-banner">{t('loading_data', 'Loading your financial data...')}</div>}
 
-        {/* 3. Filter/Action Bar */}
-        <div className="report-filter-bar no-print">
-          <div className="filter-group">
-            <div className="field">
-              <label>{t('report_period', 'Report period')}</label>
-              <select defaultValue="Custom" className="qbo-select">
-                <option value="All">{t('all_dates', 'All Dates')}</option>
-                <option value="Custom">{t('custom', 'Custom')}</option>
-                <option value="This Month">{t('this_month', 'This Month')}</option>
-                <option value="This Year">{t('this_year', 'This Year')}</option>
-              </select>
-            </div>
-            <div className="field">
-              <label>{t('as_of', 'As of')}</label>
-              <input 
-                type="date" 
-                className="qbo-date-input"
-                value={asOfDate} 
-                onChange={(e) => setAsOfDate(e.target.value)} 
-              />
-            </div>
-          </div>
-          <div className="bar-actions">
-            <button className="btn-run" onClick={fetchData}>{t('run_report', 'Run report')}</button>
-          </div>
-        </div>
-
-        {/* 4. The "Paper" Report Container */}
-        <div className="report-paper-container">
-          <div className="report-paper-actions no-print">
-            <div className="left-tools">
-              <button onClick={() => setCollapsedNodes({})}>{t('expand_all', 'Expand all')}</button>
-              <button onClick={() => {
-                const all = {};
-                const walk = (nodes) => nodes.forEach(n => { if(n.children) { all[n.AccCode] = true; walk(n.children); }});
-                if(data) { walk(data.assets); walk(data.liabilities); walk(data.equity); }
-                setCollapsedNodes(all);
-              }}>{t('collapse_all', 'Collapse all')}</button>
-            </div>
-            <div className="right-tools">
-              <button title={t('print', 'Print')} onClick={() => window.print()}>
-                <span className="material-icons-outlined">print</span>
-              </button>
-              <button title={t('export', 'Export')} onClick={handleExportExcel}>
-                <span className="material-icons-outlined">ios_share</span>
-              </button>
-              <button title={t('settings', 'Settings')}>
-                <span className="material-icons-outlined">settings</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="report-content-paper shadow-xl">
-            {/* Report Header (Inside Paper) */}
-            <div className="inner-header">
-              <h2 className="company-name">{t('company_name', 'ZodicERP Company')}</h2>
-              <h3 className="report-type">{t('balance_sheet', 'Balance Sheet')}</h3>
-              <p className="report-date">{t('as_of', 'As of')} {asOfDate}</p>
-            </div>
-
-            {loading ? (
-              <div className="report-loading">
-                <div className="spinner"></div>
-                <p>{t('loading_data', 'Loading your financial data...')}</p>
-              </div>
-            ) : data ? (
-              <div className="report-table-wrapper">
-                <table className="qbo-table">
-                  <thead>
-                    <tr>
-                      <th className="name-col"></th>
-                      <th className="total-col">{t('total_column', 'TOTAL')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* ASSETS SECTION */}
-                    <tr className="section-header-row">
-                      <td colSpan="2">{t('assets', 'ASSETS')}</td>
-                    </tr>
-                    {renderAccountRows(data.assets)}
-                    <tr className="grand-total-row">
-                      <td className="name-cell">{t('total_assets', 'Total Assets')}</td>
-                      <td className="balance-cell">{formatNumber(data.total_assets)}</td>
-                    </tr>
-
-                    <tr className="spacer-row"></tr>
-
-                    {/* LIABILITIES SECTION */}
-                    <tr className="section-header-row">
-                      <td colSpan="2">{t('liabilities', 'LIABILITIES')}</td>
-                    </tr>
-                    {renderAccountRows(data.liabilities)}
-                    <tr className="grand-total-row sub-grand">
-                      <td className="name-cell">{t('total_liabilities', 'Total Liabilities')}</td>
-                      <td className="balance-cell">{formatNumber(data.total_liabilities)}</td>
-                    </tr>
-
-                    <tr className="spacer-row"></tr>
-
-                    {/* EQUITY SECTION */}
-                    <tr className="section-header-row">
-                      <td colSpan="2">{t('equity', 'EQUITY')}</td>
-                    </tr>
-                    {renderAccountRows(data.equity)}
-                    <tr className="grand-total-row sub-grand">
-                      <td className="name-cell">{t('total_equity', 'Total Equity')}</td>
-                      <td className="balance-cell">{formatNumber(data.total_equity)}</td>
-                    </tr>
-
-                    <tr className="spacer-row"></tr>
-
-                    {/* TOTAL L+E */}
-                    <tr className="grand-total-row final-total">
-                      <td className="name-cell">{t('total_liabilities_equity', 'TOTAL LIABILITIES AND EQUITY')}</td>
-                      <td className="balance-cell">{formatNumber(totalLiabilitiesEquity)}</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                {!isBalanced && (
-                  <div className="unbalanced-warning no-print">
-                    <span className="material-icons-outlined">warning</span>
-                    <span>{t('unbalanced_msg', 'The balance sheet is out of balance by')}: {formatNumber(diff)}</span>
-                  </div>
+        <div className="fr-table-card">
+          <div className="fr-table-wrapper">
+            <table className="fr-table">
+              <thead>
+                <tr>
+                  <th className="fr-th">{t('account_name', 'Account Name')}</th>
+                  <th className="fr-th fr-amount-header">{t('balance', 'Balance')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* ASSETS SECTION */}
+                <tr className="section-header-row">
+                  <td colSpan="2">{t('assets', 'ASSETS')}</td>
+                </tr>
+                {renderAccountRows(data?.assets)}
+                {data?.assets && (
+                  <tr className="grand-total-row">
+                    <td className="name-cell">{t('total_assets', 'Total Assets')}</td>
+                    <td className="balance-cell">{formatNumber(data.total_assets)}</td>
+                  </tr>
                 )}
-              </div>
-            ) : (
-              <div className="no-data-msg">
-                {t('no_data_found', 'No data found for the selected period.')}
+
+                <tr className="spacer-row"></tr>
+
+                {/* LIABILITIES SECTION */}
+                <tr className="section-header-row">
+                  <td colSpan="2">{t('liabilities', 'LIABILITIES')}</td>
+                </tr>
+                {renderAccountRows(data?.liabilities)}
+                {data?.liabilities && (
+                  <tr className="grand-total-row sub-grand">
+                    <td className="name-cell">{t('total_liabilities', 'Total Liabilities')}</td>
+                    <td className="balance-cell">{formatNumber(data.total_liabilities)}</td>
+                  </tr>
+                )}
+
+                <tr className="spacer-row"></tr>
+
+                {/* EQUITY SECTION */}
+                <tr className="section-header-row">
+                  <td colSpan="2">{t('equity', 'EQUITY')}</td>
+                </tr>
+                {renderAccountRows(data?.equity)}
+                {data?.equity && (
+                  <tr className="grand-total-row sub-grand">
+                    <td className="name-cell">{t('total_equity', 'Total Equity')}</td>
+                    <td className="balance-cell">{formatNumber(data.total_equity)}</td>
+                  </tr>
+                )}
+
+                <tr className="spacer-row"></tr>
+
+                {/* TOTAL L+E */}
+                {data && (
+                  <tr className="grand-total-row final-total">
+                    <td className="name-cell">{t('total_liabilities_equity', 'TOTAL LIABILITIES AND EQUITY')}</td>
+                    <td className="balance-cell">{formatNumber(totalLiabilitiesEquity)}</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+            {!isBalanced && (
+              <div className="fr-error-banner">
+                <span className="material-icons-outlined">warning</span>
+                <span>{t('unbalanced_msg', 'The balance sheet is out of balance by')}: {formatNumber(diff)}</span>
               </div>
             )}
-
-            <div className="inner-footer">
-              <p>{new Date().toLocaleString(currentLocale === 'ar' ? 'ar-SA' : 'en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
-              <p>{t('accrual_basis', 'Accrual Basis')}</p>
-            </div>
           </div>
         </div>
+
+        {!loading && data && !isBalanced && (
+          <div className="fr-error-banner">
+            <span className="material-icons-outlined">warning</span>
+            <span>{t('unbalanced_msg', 'The balance sheet is out of balance by')}: {formatNumber(diff)}</span>
+          </div>
+        )}
+
+        {!loading && data && isBalanced && (
+          <div className="fr-empty-state">
+            <span className="material-icons-outlined">check_circle</span>
+            <p>{t('balanced', 'The balance sheet is balanced.')}</p>
+          </div>
+        )}
       </div>
 
-      <style jsx global>{`
-        /* QuickBooks Online 2026 - Ultra Clean Redesign */
-        :root {
-          --qbo-green: #2ca01c;
-          --qbo-blue: #0077c5;
-          --qbo-gray-bg: #f4f5f8;
-          --qbo-border: #d4d7dc;
-          --qbo-text: #393a3d;
-          --qbo-text-light: #6b6c72;
-          --qbo-negative: #d52b1e;
-          --paper-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+      <style jsx global>{`{
+        /* Financial Reports design tokens */
+        --fr-surface: #ffffff;
+        --fr-surface-alt: #f8fafc;
+        --fr-border: #e2e8f0;
+        --fr-border-strong: #cbd5e1;
+        --fr-text: #1e293b;
+        --fr-text-light: #64748b;
+        --fr-text-lighter: #94a3b8;
+        --fr-accent: #1e88e5;
+        --fr-success: #2e7d32;
+        --fr-shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+        --fr-shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+        --fr-radius: 10px;
+        --fr-input-height: 36px;
+        --fr-btn-height: 36px;
+        --fr-font-mono: SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+      }
+      .fr-page {
+        padding: 24px;
+        background-color: #f8fafc;
+        min-height: 100vh;
+      }
+      .fr-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        color: var(--fr-text-light);
+        margin-bottom: 16px;
+      }
+      .fr-breadcrumb a {
+        color: var(--primary-color);
+        font-weight: 500;
+        text-decoration: none;
+      }
+      .fr-breadcrumb a:hover {
+        text-decoration: underline;
+      }
+      .fr-breadcrumb .fr-sep {
+        color: var(--fr-text-lighter);
+      }
+      .fr-breadcrumb .fr-current {
+        font-weight: 600;
+        color: var(--fr-text);
+      }
+      .fr-header-card {
+        background-color: var(--fr-surface);
+        border-radius: var(--fr-radius);
+        box-shadow: var(--fr-shadow-md);
+        border: 1px solid var(--fr-border);
+        padding: 16px 18px;
+        margin-bottom: 18px;
+      }
+      .fr-header-card .fr-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--fr-text);
+        margin: 0 0 4px;
+      }
+      .fr-header-card .fr-subtitle {
+        font-size: 0.9rem;
+        color: var(--fr-text-light);
+        margin: 0;
+      }
+      .fr-filters-card {
+        background-color: var(--fr-surface);
+        border-radius: var(--fr-radius);
+        box-shadow: var(--fr-shadow-md);
+        border: 1px solid var(--fr-border);
+        padding: 16px 18px;
+        margin-bottom: 18px;
+      }
+      .fr-filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 16px;
+        align-items: flex-end;
+      }
+      .fr-form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .fr-form-group label {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--fr-text);
+      }
+      .fr-input {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--fr-border-strong);
+        font-size: 0.85rem;
+      }
+      .fr-form-actions {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid var(--fr-border);
+      }
+      .fr-table-card {
+        background-color: var(--fr-surface);
+        border-radius: var(--fr-radius);
+        box-shadow: var(--fr-shadow-md);
+        border: 1px solid var(--fr-border);
+        padding: 16px;
+        margin-bottom: 18px;
+      }
+      .fr-table-wrapper {
+        overflow-x: auto;
+      }
+      .fr-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+      .fr-table th,
+      .fr-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--fr-border);
+      }
+      .fr-table th {
+        text-align: left;
+        background-color: var(--fr-surface-alt);
+        font-weight: 600;
+        color: #0f172a;
+      }
+      .fr-table .section-header-row td {
+        padding: 16px 8px 12px 8px;
+        font-weight: 800;
+        font-size: 15px;
+        color: #0f172a;
+      }
+      .fr-table .grand-total-row td {
+        padding: 16px 8px;
+        font-weight: 800;
+        font-size: 15px;
+        border-top: 2px solid #0f172a;
+        border-bottom: 2px solid #0f172a;
+      }
+      .fr-table .final-total td {
+        font-size: 18px;
+        border-bottom: 4px double #0f172a;
+        padding: 20px 8px;
+      }
+      .fr-table .spacer-row {
+        height: 24px;
+      }
+      .fr-table .fr-amount-header {
+        text-align: right;
+      }
+      .fr-table .balance-cell,
+      .fr-table .fr-amount {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .fr-table .balance-cell.negative,
+      .fr-table .balance-cell .negative {
+        color: #d52b1e;
+      }
+      .fr-table .report-row {
+        transition: background 0.15s;
+      }
+      .fr-table .report-row:hover {
+        background: #f9fafb;
+      }
+      .fr-table .report-row td {
+        padding: 10px 8px;
+        font-size: 14px;
+      }
+      .fr-table .parent-row {
+        font-weight: 700;
+      }
+      .fr-table .summary-row td {
+        padding: 12px 8px;
+        font-size: 14px;
+        font-weight: 700;
+        border-top: 1px solid var(--fr-border);
+      }
+      .fr-table .summary-label {
+        font-style: normal;
+      }
+      .fr-loading-banner {
+        padding: 16px;
+        text-align: center;
+        color: var(--fr-text-light);
+        background: var(--fr-surface);
+        border: 1px solid var(--fr-border);
+        border-radius: var(--fr-radius);
+        margin-bottom: 18px;
+        font-size: 0.85rem;
+      }
+      .fr-error-banner {
+        padding: 12px 16px;
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: var(--fr-radius);
+        margin-bottom: 18px;
+        font-size: 0.85rem;
+        color: #991b1b;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .fr-empty-state {
+        padding: 40px 16px;
+        text-align: center;
+        color: var(--fr-text-light);
+        background: var(--fr-surface);
+        border: 1px solid var(--fr-border);
+        border-radius: var(--fr-radius);
+        margin-bottom: 18px;
+      }
+      .fr-empty-state .material-icons-outlined {
+        font-size: 48px;
+        color: var(--fr-text-lighter);
+        margin-bottom: 8px;
+      }
+      .fr-table-wrapper .report-row .name-cell,
+      .fr-table-wrapper .report-row .balance-cell {
+        padding: 8px 8px;
+      }
+      .fr-table-wrapper .report-row .acc-name {
+        font-size: 0.85rem;
+      }
+      .fr-table-wrapper .report-row .toggle-btn {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        color: var(--fr-text-lighter);
+        display: flex;
+        align-items: center;
+        transition: color 0.2s;
+      }
+      .fr-table-wrapper .report-row .toggle-btn:hover {
+        color: var(--primary-color);
+      }
+      @media (max-width: 768px) {
+        .fr-filters-card {
+          padding: 12px 14px;
         }
-
-        .qbo-report-page {
-          background-color: var(--qbo-gray-bg);
-          min-height: 100vh;
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-          color: var(--qbo-text);
-          padding-bottom: 80px;
+        .fr-filters-grid {
+          gap: 12px;
         }
-
-        /* 1. Top Navigation Bar */
-        .report-top-nav {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 32px;
-          background: #fff;
-          border-bottom: 1px solid var(--qbo-border);
-          position: sticky;
-          top: 0;
-          z-index: 50;
+        .fr-table-card {
+          padding: 12px;
         }
-        .report-top-nav .breadcrumb { 
-          display: flex; 
-          align-items: center; 
-          gap: 8px; 
-          font-size: 13px; 
-          color: var(--qbo-text-light);
+        .fr-table th,
+        .fr-table td {
+          padding: 6px 8px;
         }
-        .report-top-nav .breadcrumb .sep { color: #babec5; }
-        .report-top-nav .breadcrumb .active { font-weight: 600; color: var(--qbo-text); }
-        .report-top-nav .action-link { 
-          color: var(--qbo-blue); 
-          font-weight: 600; 
-          font-size: 13px; 
-          text-decoration: none;
-          background: none;
-          border: none;
-          cursor: pointer;
+        .fr-header-card {
+          padding: 14px 16px;
         }
-        .report-top-nav .action-link:hover { text-decoration: underline; }
-
-        /* 2. Header Area */
-        .report-header-area {
-          padding: 32px 32px 24px 32px;
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          max-width: 1200px;
-          margin: 0 auto;
+        .fr-form-actions {
+          flex-direction: column;
         }
-        .report-title { 
-          font-size: 28px; 
-          font-weight: 300; 
-          color: var(--qbo-text); 
-          margin: 0;
-        }
-        .header-buttons { display: flex; gap: 12px; }
-        
-        .btn-outline { 
-          padding: 8px 20px; 
-          border: 1px solid var(--qbo-border); 
-          border-radius: 20px; 
-          font-weight: 600; 
-          background: #fff; 
-          color: var(--qbo-text);
-          cursor: pointer; 
-          font-size: 14px;
-          transition: all 0.2s;
-        }
-        .btn-outline:hover { background: #f4f5f8; border-color: #babec5; }
-        
-        .btn-primary { 
-          padding: 8px 24px; 
-          background: var(--qbo-green); 
-          color: #fff; 
-          border: none; 
-          border-radius: 20px; 
-          font-weight: 600; 
-          cursor: pointer; 
-          font-size: 14px;
-          transition: background 0.2s;
-        }
-        .btn-primary:hover { background: #238416; }
-
-        /* 3. Filter Bar - Modernized */
-        .report-filter-bar {
-          margin: 0 32px 32px 32px;
-          background: #fff;
-          padding: 24px;
-          border-radius: 8px;
-          border: 1px solid var(--qbo-border);
-          box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-          max-width: 1200px;
-          margin-left: auto;
-          margin-right: auto;
-        }
-        .filter-group { display: flex; gap: 32px; flex-wrap: wrap; }
-        .filter-group .field { display: flex; flex-direction: column; gap: 6px; }
-        .filter-group label { font-size: 11px; font-weight: 700; color: var(--qbo-text-light); text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .filter-group select, .filter-group input[type="date"] { 
-          padding: 10px 12px; 
-          border: 1px solid #babec5; 
-          border-radius: 4px; 
-          min-width: 180px; 
-          font-size: 14px;
-          outline: none;
-        }
-        .filter-group select:focus, .filter-group input:focus { border-color: var(--qbo-blue); box-shadow: 0 0 0 2px rgba(0,119,197,0.1); }
-        
-        .radio-group { display: flex; border: 1px solid #babec5; border-radius: 4px; overflow: hidden; background: #fff; }
-        .radio-group label { 
-          padding: 10px 20px; 
-          cursor: pointer; 
-          font-size: 14px; 
-          margin: 0; 
-          background: #f4f5f8; 
-          border-right: 1px solid #babec5; 
-          color: var(--qbo-text); 
-          font-weight: 400;
-          transition: all 0.2s;
-        }
-        .radio-group label:last-child { border-right: none; }
-        .radio-group label.active { background: #fff; font-weight: 700; color: var(--qbo-blue); }
-        .radio-group input { display: none; }
-
-        .btn-run { 
-          padding: 10px 32px; 
-          border: 1px solid #babec5; 
-          border-radius: 20px; 
-          font-weight: 700; 
-          background: #fff; 
-          cursor: pointer; 
-          font-size: 14px;
-          color: var(--qbo-text);
-          transition: all 0.2s;
-        }
-        .btn-run:hover { background: #f4f5f8; border-color: var(--qbo-text); }
-
-        /* 4. Paper Container */
-        .report-paper-container {
-          margin: 0 32px;
-          max-width: 1100px;
-          margin-left: auto;
-          margin-right: auto;
-        }
-        .report-paper-actions {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 12px;
-          padding: 0 8px;
-        }
-        .left-tools button { 
-          background: none; 
-          border: none; 
-          color: var(--qbo-blue); 
-          font-size: 14px; 
-          margin-right: 20px; 
-          cursor: pointer; 
-          font-weight: 600;
-          padding: 0;
-        }
-        .left-tools button:hover { text-decoration: underline; }
-        
-        .right-tools { display: flex; gap: 16px; }
-        .right-tools button { 
-          background: none; 
-          border: none; 
-          color: var(--qbo-text-light); 
-          cursor: pointer; 
-          display: flex; 
-          align-items: center;
-          padding: 4px;
-          border-radius: 4px;
-          transition: all 0.2s;
-        }
-        .right-tools button:hover { color: var(--qbo-text); background: rgba(0,0,0,0.05); }
-
-        .report-content-paper {
-          background: #fff;
-          padding: 60px 80px;
-          min-height: 1000px;
-          position: relative;
-          box-shadow: var(--paper-shadow);
-          border-radius: 2px;
-        }
-
-        .inner-header { text-align: center; margin-bottom: 48px; }
-        .company-name { font-size: 20px; font-weight: 800; margin-bottom: 6px; color: #000; }
-        .report-type { font-size: 24px; font-weight: 400; margin-bottom: 6px; color: var(--qbo-text); }
-        .report-date { font-size: 15px; color: var(--qbo-text-light); }
-
-        /* Table Styling - Clean & Modern */
-        .qbo-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-        .qbo-table th { 
-          border-bottom: 1px solid var(--qbo-text); 
-          padding: 12px 8px; 
-          font-size: 12px; 
-          font-weight: 800; 
-          text-align: right; 
-          color: var(--qbo-text);
-          text-transform: uppercase;
-        }
-        .qbo-table .name-col { text-align: left; width: 75%; }
-        
-        .section-header-row td { 
-          padding: 32px 8px 12px 8px; 
-          font-weight: 800; 
-          font-size: 15px; 
-          text-transform: uppercase;
-          color: #000;
-        }
-        
-        .report-row { transition: background 0.15s; }
-        .report-row:hover { background: #f9f9f9; }
-        .report-row td { padding: 10px 8px; font-size: 14px; border-bottom: 1px solid #f0f0f0; }
-        .parent-row { font-weight: 700; }
-        .balance-cell { text-align: right; white-space: nowrap; font-family: 'Inter', monospace; }
-        .balance-cell.negative { color: var(--qbo-negative); }
-        
-        .summary-row td { 
-          padding: 12px 8px; 
-          font-size: 14px; 
-          font-weight: 700; 
-          border-top: 1px solid var(--qbo-border); 
-          color: var(--qbo-text);
-        }
-        .summary-label { font-style: normal; }
-        
-        .grand-total-row td { 
-          padding: 20px 8px; 
-          font-weight: 800; 
-          font-size: 15px; 
-          border-top: 1px solid var(--qbo-text); 
-          border-bottom: 2px solid var(--qbo-text); 
-          color: #000;
-        }
-        .final-total td { 
-          font-size: 18px; 
-          border-bottom: 4px double var(--qbo-text); 
-          padding: 24px 8px;
-        }
-        .spacer-row { height: 32px; }
-
-        .toggle-btn { 
-          background: none; 
-          border: none; 
-          padding: 0; 
-          cursor: pointer; 
-          color: var(--qbo-text-light); 
-          display: flex; 
-          align-items: center;
-          transition: color 0.2s;
-        }
-        .toggle-btn:hover { color: var(--qbo-blue); }
-
-        .inner-footer { 
-          margin-top: 80px; 
-          border-top: 1px solid var(--qbo-border); 
-          padding-top: 24px; 
-          font-size: 13px; 
-          color: var(--qbo-text-light); 
-          display: flex; 
-          justify-content: space-between;
-        }
-
-        .unbalanced-warning {
-          margin: 32px 0; 
-          padding: 16px; 
-          background: #fff8f8; 
-          border: 1px solid var(--qbo-negative);
-          color: var(--qbo-negative); 
-          border-radius: 8px; 
-          display: flex; 
-          align-items: center; 
-          gap: 12px; 
-          font-weight: 700;
-          font-size: 15px;
-        }
-
-        /* RTL Specifics - Perfected */
-        .rtl { direction: rtl; }
-        .rtl .qbo-table .name-col { text-align: right; }
-        .rtl .qbo-table .total-col { text-align: left; }
-        .rtl .balance-cell { text-align: left; }
-        .rtl .left-tools button { margin-right: 0; margin-left: 24px; }
-        .rtl .toggle-btn span { transform: rotate(180deg); }
-        .rtl .toggle-btn[style*="expand_more"] span { transform: rotate(0deg); }
-        
-        .rtl .breadcrumb .sep { transform: rotate(180deg); }
-
-        @media print {
-          .no-print { display: none !important; }
-          .qbo-report-page { padding: 0; background: #fff; }
-          .report-paper-container { margin: 0; width: 100%; max-width: none; }
-          .report-content-paper { box-shadow: none !important; padding: 40px; }
-          .inner-header { margin-top: 0; }
-          .report-top-nav { display: none; }
-        }
-
-        /* Spinner Modern */
-        .report-loading { text-align: center; padding: 150px 0; }
-        .spinner { 
-          width: 50px; height: 50px; 
-          border: 3px solid rgba(44, 160, 28, 0.1); 
-          border-top: 3px solid var(--qbo-green); 
-          border-radius: 50%; 
-          animation: spin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite; 
-          margin: 0 auto 20px auto;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      }
+      @media print {
+        .fr-page { padding: 0; background: #fff; }
+        .fr-filters-card, .fr-form-actions, .fr-loading-banner, .fr-error-banner, .fr-table-card .report-row .toggle-btn, .no-print { display: none !important; }
+        .fr-header-card, .fr-table-card { border: none; box-shadow: none; padding: 0; }
+        .fr-table { border-collapse: collapse; }
+        .fr-table th, .fr-table td { border: 1px solid var(--fr-border); }
+      }
       `}</style>
     </AdminLayout>
   );

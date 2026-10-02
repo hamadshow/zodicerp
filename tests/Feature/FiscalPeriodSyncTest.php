@@ -188,19 +188,32 @@ class FiscalPeriodSyncTest extends TestCase
         $this->actingAsAdmin();
 
         $service = new \App\Services\Accounting\FiscalPeriodService();
-        $year = $this->makeYear('FY SyncTest 2025E', '2025-01-01', '2025-12-31');
+
+        // 2028 has no other coverage in this database, so the closed fixture
+        // period is the only candidate for its dates (isolation guarantee).
+        $premise = DB::table('accounting_periods as ap')
+            ->join('fiscal_years as fy', 'fy.id', '=', 'ap.fiscal_year_id')
+            ->where('fy.company_id', 1)
+            ->where('ap.start_date', '<=', '2028-12-20')
+            ->where('ap.end_date', '>=', '2028-12-20')
+            ->exists();
+        $this->assertFalse($premise, 'Test premise: no period covers 2028-12-20 yet');
+
+        $year = $this->makeYear('FY SyncTest 2028E', '2028-01-01', '2028-12-31');
 
         $decPeriod = DB::table('accounting_periods')
             ->where('fiscal_year_id', $year->id)
-            ->where('start_date', '<=', '2025-12-20')
-            ->where('end_date', '>=', '2025-12-20')
+            ->where('start_date', '<=', '2028-12-20')
+            ->where('end_date', '>=', '2028-12-20')
             ->first();
         $this->assertNotNull($decPeriod);
 
         $service->closePeriod($decPeriod->id);
 
+        // A same-day DATETIME must also be rejected inside a closed period
+        // (regression for the DATE-vs-DATETIME boundary bug).
         $this->expectException(\Exception::class);
-        $service->validatePostingDate('2025-12-20 00:00:00');
+        $service->validatePostingDate('2028-12-20 23:00:00');
     }
 
     /** @test */
@@ -264,5 +277,21 @@ class FiscalPeriodSyncTest extends TestCase
         $this->assertTrue($service->validatePostingDate('2027-01-01'));
         $this->assertTrue($service->validatePostingDate('2027-06-15'));
         $this->assertTrue($service->validatePostingDate('2027-12-31'));
+    }
+
+    /** @test */
+    public function posting_accepts_last_day_of_period_at_any_time_of_day()
+    {
+        $this->actingAsAdmin();
+
+        $this->makeYear('FY SyncTest 2027G', '2027-01-01', '2027-12-31');
+        $service = new \App\Services\Accounting\FiscalPeriodService();
+
+        // Regression: journals dated on a period's last day with a time
+        // component (17:00 / 23:00) were rejected because a raw DATETIME
+        // string was compared against a DATE end_date column.
+        $this->assertTrue($service->validatePostingDate('2027-12-31 17:00:00'));
+        $this->assertTrue($service->validatePostingDate('2027-12-31 23:00:00'));
+        $this->assertTrue($service->validatePostingDate('2027-01-01 00:00:00'));
     }
 }

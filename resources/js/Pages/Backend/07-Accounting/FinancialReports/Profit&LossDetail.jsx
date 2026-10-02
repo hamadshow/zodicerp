@@ -47,7 +47,10 @@ export default function ProfitLossDetail() {
 
   const t = {
     ar: {
-      title: 'تفاصيل الأرباح والخسائر',
+      dashboard: 'لوحة التحكم',
+      accounting: 'المحاسبة',
+      financialReports: 'التقارير المالية',
+      title: 'تفاصيل الأرباح والخسائل',
       period: 'الفترة من',
       to: 'إلى',
       income: 'الإيرادات',
@@ -64,10 +67,13 @@ export default function ProfitLossDetail() {
       exportExcel: 'تصدير إكسل',
       print: 'طباعة',
       subtitle: "اضغط على حرف 'a' للتحويل للغة الإنجليزية",
-      companyName: 'شركة زد إي آر بي (ZodicERP)',
+      companyName: 'شركة زد إي آر بير (ZodicERP)',
       noData: 'لا توجد بيانات متاحة لهذه الفترة',
     },
     en: {
+      dashboard: 'Dashboard',
+      accounting: 'Accounting',
+      financialReports: 'Financial Reports',
       title: 'Profit & Loss Detail',
       period: 'Period From',
       to: 'To',
@@ -97,9 +103,9 @@ export default function ProfitLossDetail() {
     return nodes.map((node) => (
       <React.Fragment key={node.AccCode}>
         <tr className={`row-depth-${depth} ${node.AccType === 0 ? 'font-bold bg-gray-50/50' : ''} hover:bg-gray-50 transition-colors`}>
-          <td className="account-cell py-2" style={{ 
-            paddingLeft: isAr ? '12px' : `${depth * 20 + 12}px`, 
-            paddingRight: isAr ? `${depth * 20 + 12}px` : '12px' 
+          <td className="account-cell py-2" style={{
+            paddingLeft: isAr ? '12px' : `${depth * 20 + 12}px`,
+            paddingRight: isAr ? `${depth * 20 + 12}px` : '12px'
           }}>
             <div className="flex items-center">
               <span className={`acc-code text-[10px] font-mono px-1.5 py-0.5 rounded ${
@@ -128,12 +134,12 @@ export default function ProfitLossDetail() {
 
     const workbook = XLSX.utils.book_new();
     const rows = [];
-    
+
     rows.push([currentLang.companyName]);
     rows.push([currentLang.title]);
     rows.push([`${currentLang.period}: ${startDate} ${currentLang.to}: ${endDate}`]);
     rows.push([]);
-    
+
     const flatten = (nodes, depth = 0) => {
       nodes.forEach(n => {
         const indent = '    '.repeat(depth);
@@ -178,78 +184,93 @@ export default function ProfitLossDetail() {
 
   return (
     <AdminLayout activeMenu="Financial Reports">
-      <div className={`financial-reports-page profit-loss-page ${isAr ? 'rtl' : 'ltr'}`}>
-        <Head title={`${currentLang.title} - ZodicERP`} />
+      <Head title={`${currentLang.title} - ZodicERP`} />
+      <div className={`fr-page profit-loss-page ${isAr ? 'rtl' : 'ltr'}`}>
+        <div className="fr-breadcrumb">
+          <a href="#">{currentLang.dashboard}</a>
+          <span className="fr-sep">/</span>
+          <a href="#">{currentLang.accounting}</a>
+          <span className="fr-sep">/</span>
+          <a href="#">{currentLang.financialReports}</a>
+          <span className="fr-sep">/</span>
+          <span className="fr-current">{currentLang.title}</span>
+        </div>
 
-        <div className="report-header no-print">
-          <div className="report-header__left">
-            <h1 className="text-2xl font-bold text-gray-800">{currentLang.title}</h1>
-            <p className="text-sm text-gray-500 mt-1">{currentLang.subtitle}</p>
+        <div className="fr-header-card">
+          <div>
+            <h1 className="fr-title">{currentLang.title}</h1>
+            <p className="fr-subtitle">{currentLang.subtitle}</p>
           </div>
-          <div className="report-header__right">
-            <div className="date-picker-group">
-              <label className="text-sm font-medium text-gray-700">{currentLang.period}</label>
-              <div className="flex items-center gap-2">
-                <input 
-                  type="date" 
-                  value={startDate} 
+        </div>
+
+        <div className="fr-filters-card">
+          <div className="fr-filters-grid">
+            <div className="fr-form-group">
+              <label htmlFor="fr-start">{currentLang.period}</label>
+              <div className="fr-input-group">
+                <input
+                  id="fr-start"
+                  type="date"
+                  className="fr-input"
+                  value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="form-input rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
-                <span className="text-gray-500">{currentLang.to}</span>
-                <input 
-                  type="date" 
-                  value={endDate} 
+                <span className="fr-input-separator">{currentLang.to}</span>
+                <input
+                  type="date"
+                  className="fr-input"
+                  value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="form-input rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                 />
               </div>
             </div>
-            <div className="button-group ml-4">
-              <button onClick={handleExportExcel} className="btn-secondary">
-                <span className="material-icons-outlined text-base mr-1">file_download</span>
-                {currentLang.exportExcel}
-              </button>
-              <button onClick={() => window.print()} className="btn-primary ml-2">
-                <span className="material-icons-outlined text-base mr-1">print</span>
-                {currentLang.print}
-              </button>
-            </div>
+          </div>
+          <div className="fr-form-actions">
+            <button
+              type="button"
+              className="btn btn-excel fr-btn"
+              onClick={handleExportExcel}
+            >
+              <span className="material-icons-outlined">description</span>
+              <span>{currentLang.exportExcel}</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary fr-btn"
+              onClick={() => window.print()}
+            >
+              <span className="material-icons-outlined">print</span>
+              <span>{currentLang.print}</span>
+            </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            <span className="ml-3 text-lg text-gray-600">{currentLang.loading}</span>
+          <div className="fr-loading-banner">
+            <span className="material-icons-outlined">sync</span>
+            <span>{currentLang.loading}</span>
           </div>
         ) : data ? (
-          <div className="report-container print-section shadow-lg bg-white rounded-lg overflow-hidden max-w-5xl mx-auto">
-            <div className="report-top-banner p-8 border-b border-gray-100 text-center">
-              <h2 className="text-3xl font-bold text-indigo-700 uppercase tracking-wider">{currentLang.companyName}</h2>
-              <h3 className="text-xl font-semibold text-gray-700 mt-2 uppercase">{currentLang.title}</h3>
-              <p className="text-gray-500 mt-1 font-medium">{currentLang.period}: {startDate} {currentLang.to}: {endDate}</p>
-            </div>
-
-            <div className="report-body p-8">
+          <div className="fr-table-card">
+            <div className="fr-table-wrapper">
               {data.details && (
                 <section className="mb-12 overflow-x-auto">
                   <h4 className="section-header-pill bg-blue-50 text-blue-700 px-4 py-2 rounded-full inline-block font-bold mb-4">
                     {currentLang.title}
                   </h4>
-                  <table className="w-full text-sm">
+                  <table className="fr-table">
                     <thead>
-                      <tr className="border-b-2 border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
-                        <th className="text-left py-3">Journal</th>
-                        <th className="text-left py-3">Date</th>
-                        <th className="text-left py-3">Reference</th>
-                        <th className="text-left py-3">Account</th>
-                        <th className="text-right py-3">Debit</th>
-                        <th className="text-right py-3">Credit</th>
-                        <th className="text-left py-3">Description</th>
+                      <tr>
+                        <th className="fr-th">Journal</th>
+                        <th className="fr-th">Date</th>
+                        <th className="fr-th">Reference</th>
+                        <th className="fr-th">Account</th>
+                        <th className="fr-th fr-amount-header">Debit</th>
+                        <th className="fr-th fr-amount-header">Credit</th>
+                        <th className="fr-th">Description</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="fr-table-body">
                       {data.details.map((detail) => (
                         <tr key={detail.journal_line_id}>
                           <td className="py-2 font-mono">{detail.journal_entry_code}</td>
@@ -271,14 +292,14 @@ export default function ProfitLossDetail() {
                   <h4 className="section-header-pill bg-green-50 text-green-700 px-4 py-2 rounded-full inline-block font-bold mb-4">
                     {currentLang.income}
                   </h4>
-                  <table className="w-full">
+                  <table className="fr-table">
                     <thead>
-                      <tr className="border-b-2 border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
-                        <th className="text-left py-3 font-semibold">{currentLang.accountName}</th>
-                        <th className="text-right py-3 font-semibold">{currentLang.balance}</th>
+                      <tr>
+                        <th className="fr-th">{currentLang.accountName}</th>
+                        <th className="fr-th fr-amount-header">{currentLang.balance}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="fr-table-body">
                       {renderAccountRows(data.income)}
                       <tr className="total-row-sub font-bold text-gray-800 bg-gray-50">
                         <td className="py-3 px-4">{currentLang.totalIncome}</td>
@@ -293,14 +314,14 @@ export default function ProfitLossDetail() {
                   <h4 className="section-header-pill bg-orange-50 text-orange-700 px-4 py-2 rounded-full inline-block font-bold mb-4">
                     {currentLang.cogs}
                   </h4>
-                  <table className="w-full">
+                  <table className="fr-table">
                     <thead>
-                      <tr className="border-b-2 border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
-                        <th className="text-left py-3 font-semibold">{currentLang.accountName}</th>
-                        <th className="text-right py-3 font-semibold">{currentLang.balance}</th>
+                      <tr>
+                        <th className="fr-th">{currentLang.accountName}</th>
+                        <th className="fr-th fr-amount-header">{currentLang.balance}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="fr-table-body">
                       {renderAccountRows(data.cogs)}
                       <tr className="total-row-sub font-bold text-gray-800 bg-gray-50">
                         <td className="py-3 px-4">{currentLang.totalCogs}</td>
@@ -321,14 +342,14 @@ export default function ProfitLossDetail() {
                   <h4 className="section-header-pill bg-red-50 text-red-700 px-4 py-2 rounded-full inline-block font-bold mb-4">
                     {currentLang.expenses}
                   </h4>
-                  <table className="w-full">
+                  <table className="fr-table">
                     <thead>
-                      <tr className="border-b-2 border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
-                        <th className="text-left py-3 font-semibold">{currentLang.accountName}</th>
-                        <th className="text-right py-3 font-semibold">{currentLang.balance}</th>
+                      <tr>
+                        <th className="fr-th">{currentLang.accountName}</th>
+                        <th className="fr-th fr-amount-header">{currentLang.balance}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="fr-table-body">
                       {renderAccountRows(data.expenses)}
                       <tr className="total-row-sub font-bold text-gray-800 bg-gray-50">
                         <td className="py-3 px-4">{currentLang.totalExpenses}</td>
@@ -352,83 +373,66 @@ export default function ProfitLossDetail() {
                 </div>
               </div>
             </div>
-
             <div className="report-footer p-8 border-t border-gray-100 bg-gray-50 flex justify-between text-xs text-gray-400 font-mono">
               <span>{new Date().toLocaleString()}</span>
               <span>ZodicERP Financial Management System</span>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-64 bg-white rounded-lg shadow-sm border border-gray-100">
-            <span className="material-icons-outlined text-4xl text-gray-300 mb-2">find_in_page</span>
-            <p className="text-gray-500 font-medium">{currentLang.noData}</p>
+          <div className="fr-empty-state">
+            <span className="material-icons-outlined">search_off</span>
+            <p className="mt-4">{currentLang.noData}</p>
           </div>
         )}
       </div>
 
-      <style>{`
+      <style jsx>{`{
+        .profit-loss-page { padding: 40px; background-color: #f9fafb; min-height: 100vh; }
+        .rtl { direction: rtl; text-align: right; }
+        .ltr { direction: ltr; text-align: left; }
+        .fr-breadcrumb { margin-bottom: 16px; }
+        .fr-header-card { margin-bottom: 18px; }
+        .fr-filters-card { margin-bottom: 18px; }
+        .fr-filters-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; align-items: flex-end; }
+        .fr-form-group label { font-size: 0.8rem; font-weight: 500; }
+        .fr-input { font-size: 0.85rem; }
+        .fr-form-actions { justify-content: flex-start; gap: 8px; }
+        .account-cell { padding: 8px 12px; font-size: 0.9rem; color: #4b5563; }
+        .balance-cell { font-family: 'Courier New', Courier, monospace; font-weight: 500; }
+        .font-bold .acc-name { font-weight: 700; color: #111827; }
+        .section-header-pill { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .fr-table { font-size: 0.85rem; }
+        .fr-table th, .fr-table td { padding: 8px 10px; }
+        .fr-table .fr-amount-header { text-align: right; }
+        .fr-table .fr-amount { text-align: right; font-variant-numeric: tabular-nums; }
+        .fr-input-group {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .fr-input-group .fr-input {
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
+        }
+        .fr-input-separator {
+          color: var(--fr-text-lighter);
+          font-size: 0.85rem;
+        }
+        .fr-input-group .fr-input + .fr-input-separator {
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
+        }
         @media print {
-          .no-print { display: none !important; }
-          .print-section { 
-            box-shadow: none !important; 
-            margin: 0 !important; 
-            max-width: 100% !important; 
-            padding: 0 !important;
-          }
+          .fr-page { padding: 0; background: white; }
+          .fr-breadcrumb, .fr-header-card, .fr-filters-card, .fr-form-actions { display: none !important; }
+          .fr-table-card { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: none !important; padding: 0 !important; }
           body { background: white !important; }
           .report-container { border: none !important; }
+          .report-body { padding: 0 !important; }
         }
-        .row-depth-0 { background-color: rgba(249, 250, 251, 0.5); }
-        .financial-reports-page {
-          padding: 2rem;
-          min-height: 100vh;
-          background-color: #f8fafc;
-        }
-        .report-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 2rem;
-        }
-        .report-header__right {
-          display: flex;
-          align-items: flex-end;
-        }
-        .date-picker-group {
-          display: flex;
-          flex-direction: column;
-          gap: 0.5rem;
-        }
-        .btn-primary {
-          display: flex;
-          align-items: center;
-          padding: 0.5rem 1rem;
-          background-color: #4f46e5;
-          color: white;
-          border-radius: 0.375rem;
-          font-weight: 500;
-          transition: background-color 0.2s;
-        }
-        .btn-primary:hover { background-color: #4338ca; }
-        .btn-secondary {
-          display: flex;
-          align-items: center;
-          padding: 0.5rem 1rem;
-          background-color: white;
-          color: #374151;
-          border: 1px solid #d1d5db;
-          border-radius: 0.375rem;
-          font-weight: 500;
-          transition: background-color 0.2s;
-        }
-        .btn-secondary:hover { background-color: #f9fafb; }
-        .section-header-pill {
-          letter-spacing: 0.05em;
-          text-transform: uppercase;
-          font-size: 0.75rem;
-        }
-        .rtl { direction: rtl; }
-        .ltr { direction: ltr; }
+        .rtl .fr-breadcrumb { direction: rtl; }
+        .rtl .text-left { text-align: right !important; }
+        .rtl .text-right { text-align: left !important; }
       `}</style>
     </AdminLayout>
   );

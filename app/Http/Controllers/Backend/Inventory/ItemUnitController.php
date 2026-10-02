@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Backend\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\ItemUnit;
 use App\Models\ItemUnitConversion;
+use App\Services\CompanyContext;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,11 +16,23 @@ use Inertia\Inertia;
 
 class ItemUnitController extends Controller
 {
+    public function __construct(private CompanyContext $companyContext) {}
+
     public function index()
     {
         try {
-            $units = ItemUnit::with('children')->get();
-            $parents = ItemUnit::whereNull('base_unit')->get();
+            $companyId = $this->companyContext->id();
+
+            $units = ItemUnit::with('children')
+                ->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->get();
+            $parents = ItemUnit::whereNull('base_unit')
+                ->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->get();
 
             return Inertia::render('Backend/03-Inventory/ItemUnits', [
                 'units' => $units,
@@ -33,7 +46,7 @@ class ItemUnitController extends Controller
     public function store(Request $request)
     {
         try {
-            $companyId = $request->user()?->company_id;
+            $companyId = $this->companyContext->id();
 
             $validated = $request->validate([
                 'name' => 'required|string|max:100',
@@ -71,6 +84,9 @@ class ItemUnitController extends Controller
 
                 $baseUnit = ItemUnit::query()
                     ->whereKey($validated['base_unit'])
+                    ->where(function ($q) use ($companyId) {
+                        $q->where('company_id', $companyId)->orWhereNull('company_id');
+                    })
                     ->first();
 
                 if (! $baseUnit) {
@@ -127,9 +143,14 @@ class ItemUnitController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $unit = ItemUnit::findOrFail($id);
+            $companyId = $this->companyContext->id();
 
-            $companyId = $request->user()?->company_id;
+            $unit = ItemUnit::query()
+                ->whereKey($id)
+                ->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->firstOrFail();
 
             $validated = $request->validate([
                 'name' => 'required|string|max:100',
@@ -169,6 +190,9 @@ class ItemUnitController extends Controller
 
                 $baseUnit = ItemUnit::query()
                     ->whereKey($validated['base_unit'])
+                    ->where(function ($q) use ($companyId) {
+                        $q->where('company_id', $companyId)->orWhereNull('company_id');
+                    })
                     ->first();
 
                 if (! $baseUnit) {
@@ -185,6 +209,13 @@ class ItemUnitController extends Controller
             }
 
             DB::transaction(function () use ($unit, $validated, $companyId, $isBaseUnit): void {
+                // A unit owned by another company must never be re-tagged.
+                if ($unit->company_id !== null && (int) $unit->company_id !== $companyId) {
+                    throw ValidationException::withMessages([
+                        'company_id' => 'Item unit belongs to a different company.',
+                    ]);
+                }
+
                 $unit->update($validated);
 
                 if ($isBaseUnit) {
@@ -227,7 +258,14 @@ class ItemUnitController extends Controller
     public function destroy($id)
     {
         try {
-            $unit = ItemUnit::findOrFail($id);
+            $companyId = $this->companyContext->id();
+
+            $unit = ItemUnit::query()
+                ->whereKey($id)
+                ->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->firstOrFail();
 
             if ($unit->children()->count() > 0) {
                 return redirect()->back()->with('error', 'Cannot delete unit because it has sub-units.');
@@ -251,7 +289,7 @@ class ItemUnitController extends Controller
             ]);
 
             $rows = $request->rows;
-            $companyId = Auth::user()?->company_id;
+            $companyId = $this->companyContext->id();
             $userId = Auth::id();
 
             DB::transaction(function () use ($rows, $companyId, $userId): void {
@@ -261,7 +299,11 @@ class ItemUnitController extends Controller
                     
                     $baseUnitId = null;
                     if (!$isBaseUnit && !empty($row['base_unit_name'])) {
-                        $baseUnit = ItemUnit::where('name', $row['base_unit_name'])->first();
+                        $baseUnit = ItemUnit::where('name', $row['base_unit_name'])
+                            ->where(function ($q) use ($companyId) {
+                                $q->where('company_id', $companyId)->orWhereNull('company_id');
+                            })
+                            ->first();
                         $baseUnitId = $baseUnit?->id;
                     }
 

@@ -13,6 +13,7 @@ class ItemAttribute extends Model
     protected $table = 'item_attributes';
 
     protected $fillable = [
+        'company_id',
         'title',
         'slug',
         'display_layout',

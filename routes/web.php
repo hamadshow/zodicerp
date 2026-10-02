@@ -102,7 +102,6 @@ Route::group([
         'country' => '[a-zA-Z]{2,3}',
         'lang' => '[a-z]{2}',
     ],
-    'middleware' => ['web', \App\Http\Middleware\SetLocalization::class],
 ], function () {
 
     // ------------------------------------------------------------------------
@@ -189,14 +188,7 @@ Route::group([
             'lang' => $request->segment(2) ?? session('locale', config('app.locale', 'en')),
         ];
 
-        \Illuminate\Support\Facades\Auth::guard('web')->logout();
-        \Illuminate\Support\Facades\Auth::guard('customer')->logout();
-        \Illuminate\Support\Facades\Auth::guard('supplier')->logout();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return redirect()->route('home', $params);
+        return redirect()->route('auth.login', $params);
     });
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
@@ -297,9 +289,7 @@ Route::group([
         Route::resource('branches', \App\Http\Controllers\Backend\Essential_Data_Controllers\BranchController::class);
 
         // 3. Human Resources (الموارد البشرية)
-        Route::get('hr/dashboard', function () {
-            return Inertia::render('Backend/02_human_resource/dashboard');
-        })->name('hr.dashboard');
+        Route::get('hr/dashboard', [\App\Http\Controllers\Backend\HumanResource\HrDashboardController::class, 'index'])->name('hr.dashboard');
         Route::resource('employees', \App\Http\Controllers\Backend\HumanResource\EmployeeController::class);
         Route::resource('nationalities', \App\Http\Controllers\Backend\HumanResource\NationalityController::class);
         Route::resource('departments', \App\Http\Controllers\Backend\HumanResource\DepartmentController::class);
@@ -348,6 +338,12 @@ Route::group([
                 'employees' => $employees
             ]);
         })->name('salary-receipt.index');
+        Route::get('contracts', function () {
+            $employees = Employee::select('id', 'name', 'position', 'department')->get();
+            return Inertia::render('Backend/02_human_resource/Contracts', [
+                'employees' => $employees
+            ]);
+        })->name('contracts.index');
         Route::get('traffic-violations', function () {
             $employees = Employee::select('id', 'name', 'position', 'department')->get();
             return Inertia::render('Backend/02_human_resource/Traffic-Violations', [
@@ -364,11 +360,17 @@ Route::group([
             Route::get('movements', [$alc, 'movements'])->name('movements.index');
             Route::post('movements', [$alc, 'move'])->name('movements.store');
             Route::get('revaluation', [$alc, 'revaluation'])->name('revaluation.index');
+            Route::post('revaluation', [$alc, 'storeRevaluation'])->name('revaluation.store');
+            Route::put('revaluation/{revaluation}', [$alc, 'updateRevaluation'])->name('revaluation.update');
+            Route::delete('revaluation/{revaluation}', [$alc, 'destroyRevaluation'])->name('revaluation.destroy');
             Route::get('disposal', [$alc, 'disposals'])->name('disposal.index');
             Route::post('disposal', [$alc, 'dispose'])->name('disposal.store');
-            Route::get('depreciation/run', [$alc, 'runDepreciation'])->name('depreciation.run');
+            Route::put('disposal/{disposal}', [$alc, 'updateDisposal'])->name('disposal.update');
+            Route::delete('disposal/{disposal}', [$alc, 'destroyDisposal'])->name('disposal.destroy');
             Route::post('depreciation/run', [$alc, 'runBulkDepreciation'])->name('depreciation.run.post');
             Route::get('depreciation/schedule', [$alc, 'depreciationSchedule'])->name('depreciation.schedule');
+            Route::post('depreciation/schedule/post', [$alc, 'runDepreciation'])->name('depreciation.post');
+            Route::post('depreciation/schedule/reverse', [$alc, 'reverseDepreciation'])->name('depreciation.reverse');
             Route::get('depreciation/report', [$alc, 'depreciationReport'])->name('depreciation.report');
         });
 
@@ -391,6 +393,7 @@ Route::group([
             Route::post('goods-receipts/{goodsReceipt}/receive', [$grc, 'receive'])->name('goods-receipts.receive');
             Route::post('goods-receipts/{goodsReceipt}/check', [$grc, 'check'])->name('goods-receipts.check');
             Route::post('goods-receipts/{goodsReceipt}/cancel', [$grc, 'cancel'])->name('goods-receipts.cancel');
+            Route::post('goods-receipts/{goodsReceipt}/reverse', [$grc, 'reverse'])->name('goods-receipts.reverse');
             Route::delete('goods-receipts/{goodsReceipt}', [$grc, 'destroy'])->name('goods-receipts.destroy');
             Route::resource('invoices', \App\Http\Controllers\Backend\Purchases\PurchaseInvoiceController::class);
             Route::get('returns', [\App\Http\Controllers\Backend\Purchases\PurchaseReturnController::class, 'index'])->name('returns.index');
@@ -454,6 +457,7 @@ Route::group([
             Route::get('opening-stock', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'index'])->name('opening-stock.index');
             Route::post('opening-stock', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'store'])->name('opening-stock.store');
             Route::get('opening-stock/{openingStock}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'show'])->name('opening-stock.show');
+            Route::put('opening-stock/{openingStock}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'update'])->name('opening-stock.update');
             Route::delete('opening-stock/{openingStock}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'destroy'])->name('opening-stock.destroy');
             Route::post('products/bulk-import', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'bulkImport'])->name('products.bulkImport');
             Route::resource('products', \App\Http\Controllers\Backend\Inventory\ProductsController::class);
@@ -480,6 +484,8 @@ Route::group([
             Route::resource('price-lists', $plc)->except([]);
 
             Route::resource('stock-transfers', \App\Http\Controllers\Backend\Inventory\StockTransferController::class);
+            Route::post('stock-transfers/{id}/cancel', [\App\Http\Controllers\Backend\Inventory\StockTransferController::class, 'cancel'])
+                ->name('stock-transfers.cancel');
 
             $sac = \App\Http\Controllers\Backend\Inventory\StockAdjustmentController::class;
             Route::get('stock-adjustments', [$sac, 'index'])->name('stock-adjustments.index');
@@ -489,9 +495,12 @@ Route::group([
             Route::delete('stock-adjustments/{id}', [$sac, 'destroy'])->name('stock-adjustments.destroy');
             Route::get('stock-card', [$sac, 'stockCard'])->name('stock-card');
             Route::get('warehouse-stock', [$sac, 'warehouseReport'])->name('warehouse-stock');
-            Route::get('reports', function () {
-                return Inertia::render('Backend/03-Inventory/InventoryReports');
-            })->name('reports.index');
+            Route::get('reports', [\App\Http\Controllers\Backend\Inventory\InventoryReconciliationController::class, 'index'])
+                ->name('reports.index');
+            Route::post('reports/resync-balance', [\App\Http\Controllers\Backend\Inventory\InventoryReconciliationController::class, 'resyncBalance'])
+                ->name('reports.resync-balance');
+            Route::post('reports/resync-derived', [\App\Http\Controllers\Backend\Inventory\InventoryReconciliationController::class, 'resyncDerived'])
+                ->name('reports.resync-derived');
         });
 
         // 8. Accounting & Business (المحاسبة)

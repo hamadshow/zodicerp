@@ -12,11 +12,46 @@ const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
 ];
 
+/**
+ * Audit Phase 5: a balance is a magnitude AND a Debit/Credit direction.
+ * The backend computes the signed value from the account's nature — for a
+ * Debit-nature account the sign is debit − credit (positive ⇒ Debit), for
+ * a Credit-nature account it is credit − debit (positive ⇒ Credit). The
+ * old `Math.abs(...)` rendering kept the magnitude but hid the direction
+ * entirely. The direction label comes from the API's `account.dm_label`
+ * (the same value the Nature summary card shows).
+ */
+export const formatBalanceWithDirection = (value, natureLabel) => {
+  const amount = Math.abs(Number(value) || 0).toFixed(2);
+  const isCreditNature = natureLabel === 'Credit';
+  // A non-negative balance carries the account's own nature; a negative
+  // balance overflows the natural side and flips the direction.
+  const direction = (Number(value) < 0) === isCreditNature ? 'Debit' : 'Credit';
+  return `${amount} ${direction}`;
+};
+
 export default function GeneralLedger() {
+  const { props } = usePage();
+  const localization = props?.localization || {};
+  const translations = localization?.translations || {};
+  const locale = localization?.current_locale || route().params.lang || 'ar';
+
+  const t = (key, fallback, replacements = {}) => {
+    let message = translations[`Journal.${key}`] || translations[`FinancialReports.${key}`] || translations[key] || fallback;
+    Object.keys(replacements).forEach((r) => {
+      message = message.replace(`:${r}`, replacements[r]);
+    });
+    return message;
+  };
+
   const financialReportsRoute = () => route('admin.financial-reports.index', {
-    country: route().params.country || 'sa',
-    lang: route().params.lang || 'ar',
+    country: localization?.country_code || route().params.country || 'sa',
+    lang: locale,
   });
+
+  STATUS_OPTIONS[0].label = t('posted_only', 'Posted Only');
+  STATUS_OPTIONS[1].label = t('unposted_only', 'Unposted Only');
+  STATUS_OPTIONS[2].label = t('all', 'All');
 
   const [accounts, setAccounts] = useState([]);
   const [filters, setFilters] = useState({
@@ -95,7 +130,7 @@ export default function GeneralLedger() {
       }
     } catch (e) {
       const message =
-        e?.response?.data?.message || 'Failed to load general ledger.';
+        e?.response?.data?.message || t('failed_to_load', 'Failed to load general ledger.');
       setError(message);
       setLedger(null);
     } finally {
@@ -156,37 +191,43 @@ export default function GeneralLedger() {
       // Add Opening Balance
       rows.push({
         'Date': '',
+        'Posted At': '',
         'Journal Code': '',
         'Reference': '',
-        'Description': 'Opening balance',
+        'Description': t('opening_balance', 'Opening balance'),
         'Debit': 0,
         'Credit': 0,
-        'Running Balance': data.opening_balance
+        // Phase 5: same direction-explicit presentation as the screen.
+        'Running Balance': formatBalanceWithDirection(data.opening_balance, natureLabel)
       });
 
       // Add Entries
       entries.forEach(entry => {
         rows.push({
           'Date': entry.date,
+          // Audit Phase 3: same field the screen renders — actual posting
+          // time, or an em-dash for historical rows with no posted_at.
+          'Posted At': entry.posted_at ?? '—',
           'Journal Code': entry.journal_code,
           'Reference': entry.reference,
           'Description': entry.description,
           'Debit': entry.debit || 0,
           'Credit': entry.credit || 0,
-          'Running Balance': entry.running_balance,
-          'Status': entry.is_balanced === 0 ? 'Unbalanced' : ''
+          'Running Balance': formatBalanceWithDirection(entry.running_balance, natureLabel),
+          'Status': entry.is_balanced === 0 ? t('unbalanced', 'Unbalanced') : ''
         });
       });
 
       // Add Totals
       rows.push({
         'Date': '',
+        'Posted At': '',
         'Journal Code': '',
         'Reference': '',
-        'Description': 'Totals',
+        'Description': t('totals', 'Totals'),
         'Debit': data.total_debit,
         'Credit': data.total_credit,
-        'Running Balance': data.closing_balance
+        'Running Balance': formatBalanceWithDirection(data.closing_balance, natureLabel)
       });
 
       const worksheet = XLSX.utils.json_to_sheet(rows);
@@ -196,27 +237,25 @@ export default function GeneralLedger() {
       // Column widths
       worksheet['!cols'] = [
         { wch: 15 }, // Date
+        { wch: 20 }, // Posted At
         { wch: 15 }, // Journal Code
         { wch: 15 }, // Reference
         { wch: 40 }, // Description
         { wch: 12 }, // Debit
         { wch: 12 }, // Credit
-        { wch: 15 }, // Running Balance
+        { wch: 20 }, // Running Balance (amount + Debit/Credit direction)
         { wch: 15 }  // Status
       ];
 
-      const fileName = `General_Ledger_${accountLabel.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      const fileName = `${t('general_ledger_file_prefix', 'General_Ledger')}_${accountLabel.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(workbook, fileName);
     } catch (err) {
       console.error('Export failed:', err);
-      setError('Failed to export Excel.');
+      setError(t('failed_to_export', 'Failed to export Excel.'));
     } finally {
       setLoading(false);
     }
   };
-
-  const { props } = usePage();
-  const localization = props?.localization;
 
   const handleJournalClick = (code) => {
     if (!code) return;
@@ -236,9 +275,10 @@ export default function GeneralLedger() {
       result.unshift({
         isOpening: true,
         date: '',
+        posted_at: '',
         journal_code: '',
         reference: '',
-        description: 'Opening balance',
+        description: t('opening_balance', 'Opening balance'),
         debit: 0,
         credit: 0,
         running_balance: ledger.opening_balance,
@@ -269,23 +309,23 @@ export default function GeneralLedger() {
 
   return (
     <AdminLayout activeMenu="Financial Reports">
-      <Head title="General Ledger - ZodicERP" />
+      <Head title={t('general_ledger_title', 'General Ledger - ZodicERP')} />
       <div className="GeneralLedger-page">
         <div className="breadcrumb">
-          <a href="#">Dashboard</a>
+          <a href="#">{t('dashboard', 'Dashboard')}</a>
           <span>/</span>
-          <a href="#">Accounting</a>
+          <a href="#">{t('accounting', 'Accounting')}</a>
           <span>/</span>
-          <a href={financialReportsRoute()}>Financial Reports</a>
+          <a href={financialReportsRoute()}>{t('financial_reports', 'Financial Reports')}</a>
           <span>/</span>
-          <span>General Ledger</span>
+          <span>{t('general_ledger', 'General Ledger')}</span>
         </div>
 
         <div className="gl-header">
           <div>
-            <h1 className="gl-title">General Ledger</h1>
+            <h1 className="gl-title">{t('general_ledger', 'General Ledger')}</h1>
             <p className="gl-subtitle">
-              Detailed posting history with running balance by account.
+              {t('general_ledger_desc', 'Detailed posting history with running balance by account.')}
             </p>
           </div>
         </div>
@@ -293,16 +333,16 @@ export default function GeneralLedger() {
         <div className="gl-filters-card">
           <div className="gl-filters-grid">
             <div className="gl-form-group">
-              <label htmlFor="gl-account">Account</label>
+              <label htmlFor="gl-account">{t('account', 'Account')}</label>
               <SearchableComboBox
                 options={accountOptions}
                 value={filters.accountId}
                 onChange={(val) => handleFilterChange('accountId', val)}
-                placeholder="Select account"
+                placeholder={t('select_account', 'Select account')}
               />
             </div>
             <div className="gl-form-group">
-              <label htmlFor="gl-date-from">Date from</label>
+              <label htmlFor="gl-date-from">{t('date_from', 'Date from')}</label>
               <input
                 id="gl-date-from"
                 type="date"
@@ -314,7 +354,7 @@ export default function GeneralLedger() {
               />
             </div>
             <div className="gl-form-group">
-              <label htmlFor="gl-date-to">Date to</label>
+              <label htmlFor="gl-date-to">{t('date_to', 'Date to')}</label>
               <input
                 id="gl-date-to"
                 type="date"
@@ -326,7 +366,7 @@ export default function GeneralLedger() {
               />
             </div>
             <div className="gl-form-group">
-              <label htmlFor="gl-status">Journal status</label>
+              <label htmlFor="gl-status">{t('journal_status', 'Journal status')}</label>
               <select
                 id="gl-status"
                 className="gl-input"
@@ -351,7 +391,7 @@ export default function GeneralLedger() {
                 style={{ marginRight: '8px' }}
               >
                 <span className="material-icons-outlined">filter_alt</span>
-                <span>Apply filters</span>
+                <span>{t('apply_filters', 'Apply filters')}</span>
               </button>
               <button
                 type="button"
@@ -372,7 +412,7 @@ export default function GeneralLedger() {
                 }}
               >
                 <span className="material-icons-outlined">description</span>
-                <span>Export Excel</span>
+                <span>{t('export_excel', 'Export Excel')}</span>
               </button>
             </div>
           </div>
@@ -381,23 +421,23 @@ export default function GeneralLedger() {
         {ledger && (
           <div className="gl-summary">
             <div className="gl-summary-item">
-              <span className="gl-summary-label">Account</span>
+              <span className="gl-summary-label">{t('account', 'Account')}</span>
               <span className="gl-summary-value">{accountLabel}</span>
             </div>
             <div className="gl-summary-item">
-              <span className="gl-summary-label">Nature</span>
+              <span className="gl-summary-label">{t('nature', 'Nature')}</span>
               <span className="gl-summary-value">{natureLabel}</span>
             </div>
             <div className="gl-summary-item">
-              <span className="gl-summary-label">Opening balance</span>
+              <span className="gl-summary-label">{t('opening_balance', 'Opening balance')}</span>
               <span className="gl-summary-value">
-                {Math.abs(ledger.opening_balance).toFixed(2)}
+                {formatBalanceWithDirection(ledger.opening_balance, natureLabel)}
               </span>
             </div>
             <div className="gl-summary-item">
-              <span className="gl-summary-label">Closing balance</span>
+              <span className="gl-summary-label">{t('closing_balance', 'Closing balance')}</span>
               <span className="gl-summary-value">
-                {Math.abs(ledger.closing_balance).toFixed(2)}
+                {formatBalanceWithDirection(ledger.closing_balance, natureLabel)}
               </span>
             </div>
           </div>
@@ -409,27 +449,28 @@ export default function GeneralLedger() {
           <table className="gl-table">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Journal code</th>
-                <th>Reference</th>
-                <th>Description</th>
-                <th className="gl-amount-header">Debit</th>
-                <th className="gl-amount-header">Credit</th>
-                <th className="gl-amount-header">Running balance</th>
+                <th>{t('date', 'Date')}</th>
+                <th>{t('posted_at', 'Posted at')}</th>
+                <th>{t('journal_code', 'Journal code')}</th>
+                <th>{t('reference', 'Reference')}</th>
+                <th>{t('description', 'Description')}</th>
+                <th className="gl-amount-header">{t('debit', 'Debit')}</th>
+                <th className="gl-amount-header">{t('credit', 'Credit')}</th>
+                <th className="gl-amount-header">{t('running_balance', 'Running balance')}</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan={7} className="text-center">
-                    Loading...
+                  <td colSpan={8} className="text-center">
+                    {t('loading_ledger', 'Loading...')}
                   </td>
                 </tr>
               )}
               {!loading && (!ledger || rowsWithOpening.length === 0) && (
                 <tr>
-                  <td colSpan={7} className="text-center">
-                    No ledger entries found for current filters.
+                  <td colSpan={8} className="text-center">
+                    {t('no_ledger_entries', 'No ledger entries found for current filters.')}
                   </td>
                 </tr>
               )}
@@ -440,6 +481,10 @@ export default function GeneralLedger() {
                     className={row.isOpening ? 'gl-opening-row' : ''}
                   >
                     <td>{row.date}</td>
+                    {/* Audit Phase 3: the real posting timestamp — an em-dash
+                        for historical journals with no posted_at, never a
+                        fabricated value. Synthetic opening row is empty. */}
+                    <td>{row.posted_at ?? '—'}</td>
                     <td>
                       {row.journal_code ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -454,7 +499,7 @@ export default function GeneralLedger() {
                             <span 
                               className="material-icons-outlined" 
                               style={{ color: '#c62828', fontSize: '16px' }}
-                              title="Unbalanced Journal Entry"
+                              title={t('unbalanced_journal_entry', 'Unbalanced Journal Entry')}
                             >
                               error_outline
                             </span>
@@ -473,7 +518,7 @@ export default function GeneralLedger() {
                       {row.credit ? row.credit.toFixed(2) : ''}
                     </td>
                     <td className="gl-amount">
-                      {Math.abs(row.running_balance).toFixed(2)}
+                      {formatBalanceWithDirection(row.running_balance, natureLabel)}
                     </td>
                   </tr>
                 ))}
@@ -481,8 +526,8 @@ export default function GeneralLedger() {
             {ledger && (
               <tfoot>
                 <tr>
-                  <td colSpan={4} className="gl-total-label">
-                    Totals
+                  <td colSpan={5} className="gl-total-label">
+                    {t('totals', 'Totals')}
                   </td>
                   <td className="gl-amount gl-amount-debit">
                     {ledger.total_debit.toFixed(2)}
@@ -491,7 +536,7 @@ export default function GeneralLedger() {
                     {ledger.total_credit.toFixed(2)}
                   </td>
                   <td className="gl-amount">
-                    {Math.abs(ledger.closing_balance).toFixed(2)}
+                    {formatBalanceWithDirection(ledger.closing_balance, natureLabel)}
                   </td>
                 </tr>
               </tfoot>

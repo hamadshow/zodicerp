@@ -32,6 +32,7 @@ class PurchaseReturn extends Model
         'received_date',
         'notes',
         'created_by',
+        'company_id',
     ];
 
     protected $casts = [

@@ -34,6 +34,16 @@ use Inertia\Inertia;
 class SalesInvoiceController extends Controller
 {
     use EnsuresFiscalPeriod;
+
+    /**
+     * Phase 15: per-posting memory of the outbound ICTs applied by the
+     * journal step (sales_invoice_detail id → InventoryCostTransaction),
+     * so the movement step can link each ICT to its own movement line.
+     * Valid within one posting transaction only (idempotency guards make
+     * re-entry a no-op before any second application).
+     */
+    protected array $invoiceOutboundTxs = [];
+
     protected string $journalCodePrefix = 'QID-';
 
     protected int $journalCodeStart = 10001;
@@ -149,6 +159,8 @@ class SalesInvoiceController extends Controller
             'paid_amount' => 'nullable|numeric|min:0',
         ]);
 
+        $currentCompanyId = app(CompanyContext::class)->id();
+
         try {
             $priceResolver = app(ProductPriceResolver::class);
             $customer = Customer::findOrFail($validated['customer_id']);
@@ -225,10 +237,18 @@ class SalesInvoiceController extends Controller
             $headerTotal = bcadd($headerTotal, $shippingCost, 6);
             $headerTotal = bcadd($headerTotal, $otherCharges, 6);
 
-            DB::transaction(function () use ($request, $validated, $processedItems, $headerSubtotal, $headerDiscount, $headerTax, $shippingCost, $otherCharges, $headerTotal, $paidAmount) {
+            DB::transaction(function () use ($request, $validated, $processedItems, $headerSubtotal, $headerDiscount, $headerTax, $shippingCost, $otherCharges, $headerTotal, $paidAmount, $currentCompanyId) {
                 $number = $request->invoice_number ?? 'SINV-'.date('Ymd').'-'.rand(1000, 9999);
+                // invoice_number is unique (including soft-deleted rows) — retry
+                // generated numbers instead of failing the whole sale.
+                if (! $request->invoice_number) {
+                    while (SalesInvoice::withTrashed()->where('invoice_number', $number)->exists()) {
+                        $number = 'SINV-'.date('Ymd').'-'.rand(1000, 9999);
+                    }
+                }
 
-                $defaultWarehouseId = Warehouses::query()->value('id') ?? 1;
+                // Default warehouse must come from the invoice's own company.
+                $defaultWarehouseId = Warehouses::query()->where('company_id', $currentCompanyId)->value('id') ?? 1;
                 $warehouseId = $request->warehouse_id ?? $defaultWarehouseId;
 
                 $invoice = SalesInvoice::create([
@@ -248,6 +268,7 @@ class SalesInvoiceController extends Controller
                     'internal_notes' => $request->internal_notes,
 
                     'created_by' => Auth::id(),
+                    'company_id' => $currentCompanyId,
                     'warehouse_id' => $warehouseId,
 
                     'subtotal' => $headerSubtotal,
@@ -274,9 +295,11 @@ class SalesInvoiceController extends Controller
                 }
 
                 if ($invoice->is_posted) {
-                    $this->upsertJournalEntryForInvoice($invoice);
-                    $this->upsertBankReceiptForInvoice($invoice);
+                    // Phase 16 pipeline (documents before journal; see post()).
+                    $this->applyInvoiceOutbounds($invoice);
                     $this->createStockMovementsForInvoice($invoice);
+                    $this->postJournalEntryForInvoice($invoice);
+                    $this->upsertBankReceiptForInvoice($invoice);
                 }
             });
 
@@ -292,6 +315,9 @@ class SalesInvoiceController extends Controller
     public function update(Request $request, $id)
     {
         $invoice = SalesInvoice::findOrFail($id);
+
+        // Multi-company boundary: cross-company invoices are invisible (404).
+        abort_unless((int) $invoice->company_id === app(CompanyContext::class)->id(), 404);
 
         if ($invoice->is_posted) {
             return redirect()->back()->withErrors([
@@ -367,7 +393,7 @@ class SalesInvoiceController extends Controller
             $totalAmount = bcadd($totalAmount, $otherCharges, 6);
 
             DB::transaction(function () use ($request, $validated, $invoice, $processedItems, $subtotal, $lineDiscount, $lineTax, $shippingCost, $otherCharges, $totalAmount) {
-                $defaultWarehouseId = Warehouses::query()->value('id') ?? 1;
+                $defaultWarehouseId = Warehouses::query()->where('company_id', $invoice->company_id)->value('id') ?? 1;
                 $warehouseId = $request->warehouse_id ?? $invoice->warehouse_id ?? $defaultWarehouseId;
 
                 $invoice->update([
@@ -435,12 +461,17 @@ class SalesInvoiceController extends Controller
 
     public function post(SalesInvoice $invoice)
     {
+        // Multi-company boundary: cross-company invoices are invisible (404).
+        abort_unless((int) $invoice->company_id === app(CompanyContext::class)->id(), 404);
+
         try {
             DB::transaction(function () use ($invoice) {
-                $invoice = $invoice->fresh(['details']);
+                // Lock the row so a concurrent double POST cannot post twice.
+                $invoice = SalesInvoice::whereKey($invoice->getKey())->lockForUpdate()->firstOrFail();
+                $invoice->load('details');
 
                 if ($invoice->is_posted) {
-                    return;
+                    return; // Already posted — idempotent no-op.
                 }
 
                 $invoice->forceFill([
@@ -450,9 +481,16 @@ class SalesInvoiceController extends Controller
                 ])->save();
 
                 $postedInvoice = $invoice->fresh(['details']);
-                $this->upsertJournalEntryForInvoice($postedInvoice);
-                $this->upsertBankReceiptForInvoice($postedInvoice);
+                // Phase 16 pipeline — STRUCTURAL posting order:
+                //   1. apply the WAC outbounds (a refused outbound aborts
+                //      before any document or ledger row is written);
+                //   2. create the movement documents + link the ICTs;
+                //   3. post the journal (valued from the APPLIED ICTs)
+                //      and sync the treasury receipt.
+                $this->applyInvoiceOutbounds($postedInvoice);
                 $this->createStockMovementsForInvoice($postedInvoice);
+                $this->postJournalEntryForInvoice($postedInvoice);
+                $this->upsertBankReceiptForInvoice($postedInvoice);
             });
 
             return redirect()->back()->with('success', 'Sales Invoice posted successfully.');
@@ -463,14 +501,22 @@ class SalesInvoiceController extends Controller
 
     public function destroy($id)
     {
-        try {
-            DB::transaction(function () use ($id) {
-                $invoice = SalesInvoice::findOrFail($id);
+        $invoice = SalesInvoice::findOrFail($id);
 
+        // Multi-company boundary: cross-company invoices are invisible (404).
+        // Checked outside the try/catch so the 404 is never swallowed into a
+        // session error.
+        abort_unless((int) $invoice->company_id === app(CompanyContext::class)->id(), 404);
+
+        try {
+            DB::transaction(function () use ($invoice) {
                 if ($invoice->is_posted) {
                     // P0-06: Create reversal journal instead of deleting the original
                     $this->createReversalForInvoice($invoice);
-                    // Reverse stock movements
+                    // Phase 8: reverse cost transactions through the WAC engine
+                    // (mirrors GoodsReceiptService::reverseReceipt) instead of
+                    // destroying the ledger rows. Originals keep full audit
+                    // provenance; products.quantity is rolled back explicitly.
                     $this->reverseStockMovementsForInvoice($invoice);
                     // Reverse bank receipt
                     $this->reverseBankReceiptForInvoice($invoice);
@@ -497,6 +543,15 @@ class SalesInvoiceController extends Controller
             throw new \RuntimeException('Treasury is required.');
         }
 
+        // Phase 9 (treasury/GL coupling): the journal debits the treasury, so
+        // the account must belong to the invoice's company (NULL-company
+        // accounts are shared master data).
+        $companyId = (int) ($invoice->company_id ?? Auth::user()?->company_id ?? 0);
+        $treasuryCompanyId = (int) (Account::query()->where('AccID', $treasuryId)->value('company_id') ?? 0);
+        if ($treasuryCompanyId !== 0 && $treasuryCompanyId !== $companyId) {
+            throw new \RuntimeException('Treasury account does not belong to this company.');
+        }
+
         $revenueAccountId = $this->resolveSalesRevenueAccountId();
         if (! $revenueAccountId) {
             throw new \RuntimeException('Sales revenue account is not configured.');
@@ -509,10 +564,12 @@ class SalesInvoiceController extends Controller
         $description = 'Sales Invoice '.$reference;
 
         $this->ensureOpenFiscalPeriod($invoice->invoice_date);
-        $header = JournalEntry::where('reference', $reference)
-            ->where('entry_type', $entryType)
-            ->lockForUpdate()
-            ->first();
+        // Phase 18: resolve the live, unreversed entry via the
+        // journal_reversals link table. If history is fully reversed
+        // (deleted-and-reposted invoice numbers) this is null and a FRESH
+        // entry is created below — a reversed slot is never resurrected.
+        $header = app(JournalReversalService::class)
+            ->unreversedEntryFor($reference, $entryType, null, lock: true);
 
         if ($header) {
             $header->update([
@@ -520,6 +577,7 @@ class SalesInvoiceController extends Controller
                 'description' => $description,
                 'total_amount' => $amount,
                 'status' => $status,
+                'company_id' => $companyId, // heal legacy unstamped rows
             ]);
 
             JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
@@ -534,6 +592,7 @@ class SalesInvoiceController extends Controller
                 'description' => $description,
                 'total_amount' => $amount,
                 'status' => $status,
+                'company_id' => $companyId,
             ]);
         }
 
@@ -586,11 +645,11 @@ class SalesInvoiceController extends Controller
                 'related_name_details' => $reference,
                 'description' => $line['desc'],
                 'cost_center_code' => null,
+                'company_id' => $companyId,
             ]);
         }
 
         // Sync account_postings cache for Trial Balance consistency
-        $companyId = $invoice->company_id ?? Auth::user()?->company_id;
         if ($companyId) {
             app(PostingService::class)->recalculatePostings($companyId);
         }
@@ -605,9 +664,10 @@ class SalesInvoiceController extends Controller
         $entryType = 'SalesInvoice';
         $reference = (string) $invoice->invoice_number;
 
-        $header = JournalEntry::where('reference', $reference)
-            ->where('entry_type', $entryType)
-            ->first();
+        // Phase 18: the unreversed live entry via the link table — never a
+        // '-REV' history row and never an already-reversed slot.
+        $header = app(JournalReversalService::class)
+            ->unreversedEntryFor($reference, $entryType);
 
         if ($header) {
             app(JournalReversalService::class)->createReversal(
@@ -636,9 +696,11 @@ class SalesInvoiceController extends Controller
         $entryType = 'SalesInvoice';
         $reference = (string) $invoice->invoice_number;
 
-        $header = JournalEntry::where('reference', $reference)
-            ->where('entry_type', $entryType)
-            ->first();
+        // Phase 18: the unreversed live entry via the link table — reversed
+        // history (posted-deletion audit trail) is never adopted for a
+        // draft delete.
+        $header = app(JournalReversalService::class)
+            ->unreversedEntryFor($reference, $entryType);
 
         if (! $header) {
             return;
@@ -714,15 +776,30 @@ class SalesInvoiceController extends Controller
                 continue;
             }
 
-            $costTransaction = $this->weightedAverageCost()->applyOutbound(
-                (int) $detail->product_id,
-                (int) ($detail->warehouse_id ?: $invoice->warehouse_id),
-                $quantity,
-                'sales_invoice_detail',
-                (int) $detail->id,
-                (string) $invoice->invoice_date,
-            );
+            $costTransaction = $this->invoiceOutboundTxs[(int) $detail->id]
+                ?? null;
+
+            if ($costTransaction === null) {
+                // Legacy chain (posted pre-Phase-15): outbounds not applied
+                // yet — apply them now (idempotent) so the COGS valuation
+                // always reflects the real, applied ledger effects.
+                $costTransaction = $this->weightedAverageCost()->applyOutbound(
+                    (int) $detail->product_id,
+                    (int) ($detail->warehouse_id ?: $invoice->warehouse_id),
+                    $quantity,
+                    'sales_invoice_detail',
+                    (int) $detail->id,
+                    (string) $invoice->invoice_date,
+                );
+            }
+
             $totalCogs = bcadd($totalCogs, bcsub('0', (string) $costTransaction->value_delta, 6), 6);
+
+            // Phase 15: remember the ICT so the movement step can link it to
+            // its own line (movement_header_id/movement_line_id) — sales ICTs
+            // used to post with NULL links, which forced the reversal step to
+            // guess provenance by product + quantity.
+            $this->invoiceOutboundTxs[(int) $detail->id] = $costTransaction;
         }
 
         return (float) $totalCogs;
@@ -820,15 +897,90 @@ class SalesInvoiceController extends Controller
     }
 
     /**
-     * Create inventory movements (direction: out) for a posted Sales Invoice.
+     * PHASE 3 of the posting pipeline — post the journal (valued from the
+     * APPLIED ICTs, which phase 1 has already written or phase 2 has
+     * linked). The documents exist by the time this runs — the posting
+     * order is STRUCTURAL now, not conventional. Kept as a thin wrapper
+     * over the historical upsert so legacy one-step chains (journal →
+     * movements via calculateCogsAmount's idempotent fallback) keep
+     * working for external callers.
+     */
+    protected function postJournalEntryForInvoice(SalesInvoice $invoice): void
+    {
+        $this->upsertJournalEntryForInvoice($invoice);
+    }
+
+    /**
+     * PHASE 1 of the posting pipeline — apply the WAC outbounds.
+     *
+     * Applies one outbound ICT per detail (ledger effects only: no movement
+     * rows, no derived quantity) and remembers the applied ICTs so later
+     * phases can link and value from them without re-deriving provenance.
+     *
+     * Phase 16 restructure: this used to be hidden inside
+     * `calculateCogsAmount` during the JOURNAL step, making the
+     * documents-before-journal order a convention nobody could see or
+     * enforce. Now the pipeline reads top-down:
+     *   applyInvoiceOutbounds → createStockMovementsForInvoice →
+     *   postJournalEntryForInvoice (+ receipt), and a refused outbound
+     *   (`Insufficient weighted-average inventory`) aborts BEFORE any
+     *   document or ledger row is written.
+     *
+     * Each detail's application is idempotent at the ENGINE level: the ICT
+     * is keyed by (company, product, warehouse, source_type, source_id), so
+     * re-running phase 1 after a crash returns the existing rows instead of
+     * double-applying.
+     *
+     * @return array<int, InventoryCostTransaction> detail id → applied ICT
+     */
+    protected function applyInvoiceOutbounds(SalesInvoice $invoice): array
+    {
+        $applied = [];
+        $invoice->loadMissing('details');
+        $unitConversion = app(UnitConversionService::class);
+
+        foreach ($invoice->details as $detail) {
+            $conversion = $unitConversion->toBase(
+                (int) $detail->product_id,
+                (int) $detail->unit_id,
+                (string) $detail->quantity
+            );
+            $quantity = $conversion['base_quantity'];
+            if (bccomp($quantity, '0', 6) <= 0) {
+                continue;
+            }
+
+            $applied[(int) $detail->id] = $this->weightedAverageCost()->applyOutbound(
+                (int) $detail->product_id,
+                (int) ($detail->warehouse_id ?: $invoice->warehouse_id),
+                $quantity,
+                'sales_invoice_detail',
+                (int) $detail->id,
+                (string) $invoice->invoice_date,
+            );
+        }
+
+        $this->invoiceOutboundTxs = $applied;
+
+        return $applied;
+    }
+
+    /**
+     * PHASE 2 of the posting pipeline — create the movement DOCUMENTS and
+     * link the applied ICTs to their own immutable lines.
      * Idempotent: skips if movements already exist for this invoice.
+     *
+     * Phase 15: each movement line is created BEFORE its detail's outbound
+     * ICT is linked to it (movement_header_id/movement_line_id), so the
+     * reversal step can pair every ICT with its own immutable line instead
+     * of guessing provenance by product + quantity.
      */
     protected function createStockMovementsForInvoice(SalesInvoice $invoice): void
     {
         // Check for existing movements (idempotency)
         $existingMovements = DB::table('inventory_movement_headers')
             ->where('reference_id', $invoice->id)
-            ->where('reference_type', 'SalesInvoice')
+            ->where('reference_type', 'sales_invoice')
             ->count();
 
         if ($existingMovements > 0) {
@@ -844,7 +996,7 @@ class SalesInvoiceController extends Controller
             'type' => 'sale',
             'direction' => 'out',
             'reference_id' => $invoice->id,
-            'reference_type' => 'SalesInvoice',
+            'reference_type' => 'sales_invoice',
             'voucher_num' => $invoice->invoice_number,
             'warehouse_id' => $warehouseId,
             'company_id' => app(CompanyContext::class)->id(),
@@ -865,15 +1017,21 @@ class SalesInvoiceController extends Controller
                 continue;
             }
 
-            $costTransaction = \App\Models\InventoryCostTransaction::query()
-                ->where('company_id', app(CompanyContext::class)->id())
-                ->where('source_type', 'sales_invoice_detail')
-                ->where('source_id', $detail->id)
-                ->latest('id')
-                ->firstOrFail();
+            // Phase 15: the journal step has already applied the outbound ICT
+            // for this detail (memory first, idempotent re-read as fallback).
+            // The line is created FIRST, then the ICT is linked to it — every
+            // sales ICT now carries its immutable movement-line provenance,
+            // like every other lifecycle.
+            $costTransaction = $this->invoiceOutboundTxs[(int) $detail->id]
+                ?? \App\Models\InventoryCostTransaction::query()
+                    ->where('company_id', app(CompanyContext::class)->id())
+                    ->where('source_type', 'sales_invoice_detail')
+                    ->where('source_id', $detail->id)
+                    ->latest('id')
+                    ->firstOrFail();
             $costPrice = (string) $costTransaction->unit_cost;
 
-            DB::table('inventory_movement_lines')->insert([
+            $movementLineId = DB::table('inventory_movement_lines')->insertGetId([
                 'stock_movement_id' => $movementHeaderId,
                 'product_id' => $detail->product_id,
                 'unit_id' => $detail->unit_id,
@@ -885,6 +1043,16 @@ class SalesInvoiceController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            if ((int) $costTransaction->movement_line_id !== $movementLineId) {
+                \App\Models\InventoryCostTransaction::query()
+                    ->where('id', $costTransaction->id)
+                    ->whereNull('movement_line_id') // never rewrite an already-linked ICT
+                    ->update([
+                        'movement_header_id' => $movementHeaderId,
+                        'movement_line_id' => $movementLineId,
+                    ]);
+            }
 
             // Deduct product quantity
             DB::table('products')
@@ -914,35 +1082,139 @@ class SalesInvoiceController extends Controller
 
     /**
      * Reverse inventory movements for a Sales Invoice.
-     * Restores product quantities and deletes movement records.
+     *
+     * Phase 8 (aligned with GoodsReceiptService::reverseReceipt): the WAC
+     * engine keeps its audit trail — outbounds are reversed via
+     * WeightedAverageCostService::reverse (refuses if the stock was consumed)
+     * and movement rows are stamped [REVERSED date] instead of deleted.
+     *
+     * Phase 15: ICTs are paired to their reversal by the movement_line_id
+     * link (written by the Phase 15 posting step); legacy unlinked rows fall
+     * back to a grouped per-detail lookup that consumes one un-reversed ICT
+     * per line, so same-shape lines can never drain the same ICT twice.
+     *
+     * Idempotency backstop FIRST: movements already stamped [REVERSED] were
+     * reversed before — return unchanged.
      */
     protected function reverseStockMovementsForInvoice(SalesInvoice $invoice): void
     {
-        $headers = DB::table('inventory_movement_headers')
+        $companyId = (int) ($invoice->company_id ?: app(CompanyContext::class)->id());
+        $today = now()->toDateString();
+
+        $alreadyReversed = DB::table('inventory_movement_headers')
+            ->where('reference_type', 'sales_invoice')
             ->where('reference_id', $invoice->id)
-            ->where('reference_type', 'SalesInvoice')
+            ->where('notes', 'like', '%[REVERSED%')
+            ->exists();
+
+        if ($alreadyReversed) {
+            return;
+        }
+
+        $headers = DB::table('inventory_movement_headers')
+            ->where('reference_type', 'sales_invoice')
+            ->where('reference_id', $invoice->id)
+            ->orderBy('id')
             ->get();
 
         foreach ($headers as $header) {
-            // Reverse product quantities
             $lines = DB::table('inventory_movement_lines')
                 ->where('stock_movement_id', $header->id)
+                ->orderBy('id')
                 ->get();
 
+            // Legacy fallback occurrence counters: lines AND details are both
+            // created per-detail in order, so the n-th same-shape line (same
+            // product + original quantity) pairs with the n-th same-shape
+            // detail — first() alone would map EVERY line to the first detail
+            // and never reach its twin.
+            $shapeCounters = [];
+
+            // Phase 15: pair every applied outbound ICT with its OWN immutable
+            // movement line. Since Phase 15 the ICT carries movement_line_id
+            // (linked by the posting step); legacy rows (posted before the
+            // link existed) are paired per line by the grouped fallback below.
+            $lineIds = $lines->pluck('id');
+
+            $linkedTxs = \App\Models\InventoryCostTransaction::query()
+                ->where('company_id', $companyId)
+                ->where('source_type', 'sales_invoice_detail')
+                ->whereIn('movement_line_id', $lineIds)
+                ->whereNull('reversal_of_id')
+                ->whereNotExists(function ($q) {
+                    $q->selectRaw(1)
+                        ->from('inventory_cost_transactions as rev')
+                        ->whereColumn('rev.reversal_of_id', 'inventory_cost_transactions.id')
+                        ->where('rev.source_type', 'sales_invoice_reversal');
+                })
+                ->orderBy('id')
+                ->get()
+                ->groupBy('movement_line_id');
+
             foreach ($lines as $line) {
+                $group = $linkedTxs->get((int) $line->id);
+
+                if ($group === null) {
+                    // Legacy fallback: this line predates ICT links. Lines and
+                    // details share creation order, so the n-th same-shape
+                    // line takes the n-th same-shape detail, and ONE still-
+                    // un-reversed ICT per call — two same-shape lines can
+                    // never drain the same detail's ICTs twice (the
+                    // pre-Phase-15 fuzzy first() could reverse one ICT twice
+                    // and leave its twin live forever).
+                    $shapeKey = $line->product_id.':'.(string) $line->original_quantity;
+                    $occurrence = $shapeCounters[$shapeKey] ?? 0;
+                    $shapeCounters[$shapeKey] = $occurrence + 1;
+
+                    $detail = DB::table('sales_invoice_details')
+                        ->where('invoice_id', $invoice->id)
+                        ->where('product_id', $line->product_id)
+                        ->where('quantity', $line->original_quantity)
+                        ->orderBy('id')
+                        ->skip($occurrence)
+                        ->first();
+
+                    $tx = null;
+                    if ($detail) {
+                        $tx = \App\Models\InventoryCostTransaction::query()
+                            ->where('company_id', $companyId)
+                            ->where('source_type', 'sales_invoice_detail')
+                            ->where('source_id', $detail->id)
+                            ->whereNull('reversal_of_id')
+                            ->whereNotExists(function ($q) {
+                                $q->selectRaw(1)
+                                    ->from('inventory_cost_transactions as rev')
+                                    ->whereColumn('rev.reversal_of_id', 'inventory_cost_transactions.id')
+                                    ->where('rev.source_type', 'sales_invoice_reversal');
+                            })
+                            ->orderBy('id')
+                            ->first();
+                    }
+                    $group = $tx ? collect([$tx]) : null;
+                }
+
+                foreach ($group ?? [] as $outboundTx) {
+                    app(WeightedAverageCostService::class)->reverse(
+                        (int) $outboundTx->id,
+                        max((string) $header->movement_date, $today),
+                        'sales_invoice_reversal',
+                        (int) $outboundTx->id,
+                    );
+                }
+
+                // Derived quantity rollback: posting decremented the product by
+                // the base quantity — undo exactly that.
                 DB::table('products')
                     ->where('id', $line->product_id)
                     ->increment('quantity', (float) $line->quantity);
             }
 
-            DB::table('inventory_movement_lines')
-                ->where('stock_movement_id', $header->id)
-                ->delete();
+            // Audit stamp (stock card remains visible with the reversal note).
+            DB::table('inventory_movement_headers')
+                ->where('id', $header->id)
+                ->update([
+                    'notes' => DB::raw("CONCAT(COALESCE(notes, ''), ' [REVERSED {$today}]')"),
+                ]);
         }
-
-        DB::table('inventory_movement_headers')
-            ->where('reference_id', $invoice->id)
-            ->where('reference_type', 'SalesInvoice')
-            ->delete();
     }
 }

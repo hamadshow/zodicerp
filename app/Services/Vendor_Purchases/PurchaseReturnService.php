@@ -286,6 +286,7 @@ class PurchaseReturnService
                 'received_date' => $receivedDate,
                 'notes' => !empty($data['notes']) ? trim((string) $data['notes']) : null,
                 'created_by' => Auth::id(),
+                'company_id' => app(CompanyContext::class)->id(), // Phase 14: the debit-note stamp reads this
             ]);
 
             foreach ($built['items'] as $item) {
@@ -294,10 +295,6 @@ class PurchaseReturnService
 
             if (in_array($status, ['approved', 'completed'])) {
                 $this->createInventoryEffectsForReturn($purchaseReturn->fresh('details'));
-            }
-
-            // Create journal entry if return is approved/completed
-            if (in_array($status, ['approved', 'completed'])) {
                 $this->createJournalEntryForReturn($purchaseReturn, $totals);
             }
 
@@ -385,9 +382,19 @@ class PurchaseReturnService
                 $this->createInventoryEffectsForReturn($freshReturn);
                 $this->createJournalEntryForReturn($freshReturn, $totals);
             } elseif ($newStatusIsPosted && $oldStatusWasPosted) {
+                // Phase 14: a posted→posted AMENDMENT rebuilds the stock side
+                // through the engine (immutable documents) before re-posting
+                // the debit note — the pre-Phase-14 flow never retracted the
+                // ledger here, double-returning stock on every amendment.
+                $this->reverseInventoryEffectsForReturn($freshReturn);
                 $this->reverseJournalEntryForReturn($freshReturn);
+                $this->createInventoryEffectsForReturn($freshReturn);
                 $this->createJournalEntryForReturn($freshReturn, $totals);
             } elseif (!$newStatusIsPosted && $oldStatusWasPosted) {
+                // Phase 14: posted → draft/requested/cancelled now retracts
+                // the stock side through the WAC engine (the pre-Phase-14
+                // flow silently KEPT the returned-to-vendor stock movement).
+                $this->reverseInventoryEffectsForReturn($freshReturn);
                 $this->reverseJournalEntryForReturn($freshReturn);
             }
 
@@ -397,16 +404,46 @@ class PurchaseReturnService
 
     private function createInventoryEffectsForReturn(PurchaseReturn $return): void
     {
-        $detailIds = $return->details->pluck('id')->all();
-        if (! empty($detailIds) && DB::table('inventory_cost_transactions')
-            ->where('source_type', 'purchase_return_detail')
-            ->whereIn('source_id', $detailIds)
-            ->exists()) {
-            return;
+        // Phase 14: idempotency is judged from the WAC ledger, not from
+        // detail ids — updatePurchaseReturn() recreates details (delete +
+        // create) BEFORE the transition effects, so detail-id keying can miss
+        // the original application (detail ids are not stable). Skip only
+        // when un-reversed 'purchase_return_detail' ICTs exist for this
+        // return's movement lines: never applied → proceed, applied → skip,
+        // retracted → proceed. A re-approval after retraction legitimately
+        // records a second application round (documents are immutable).
+        $existingHeaders = DB::table('inventory_movement_headers')
+            ->where('reference_id', $return->id)
+            ->where('reference_type', 'purchase_return')
+            ->orderBy('id')
+            ->get();
+
+        if ($existingHeaders->isNotEmpty()) {
+            $lineIds = DB::table('inventory_movement_lines')
+                ->whereIn('stock_movement_id', $existingHeaders->pluck('id'))
+                ->pluck('id');
+
+            $alreadyApplied = $lineIds->isNotEmpty() && DB::table('inventory_cost_transactions as tx')
+                ->where('tx.company_id', (int) $existingHeaders->first()->company_id)
+                ->where('tx.source_type', 'purchase_return_detail')
+                ->whereIn('tx.movement_line_id', $lineIds)
+                ->whereNull('tx.reversal_of_id')
+                ->whereNotExists(function ($q) {
+                    $q->selectRaw(1)
+                        ->from('inventory_cost_transactions as rev')
+                        ->whereColumn('rev.reversal_of_id', 'tx.id')
+                        ->where('rev.source_type', 'purchase_return_detail_reversal');
+                })
+                ->exists();
+
+            if ($alreadyApplied) {
+                return;
+            }
         }
 
         $companyId = app(CompanyContext::class)->id();
         $costing = app(WeightedAverageCostService::class);
+        $unitConversion = app(\App\Services\UnitConversionService::class);
         $headerId = DB::table('inventory_movement_headers')->insertGetId([
             'movement_date' => $return->return_date,
             'type' => 'purchase_return',
@@ -423,11 +460,26 @@ class PurchaseReturnService
         ]);
 
         foreach ($return->details as $detail) {
+            // Phase 2 (movement engine integrity): the return quantity is a
+            // DOCUMENT quantity expressed in the invoice line's unit. Convert
+            // to the product's base unit ONCE and use that same base quantity
+            // for the movement line, the WAC outbound, and products.quantity.
+            // This matches GRN / Sales / Sales Return behavior and removes the
+            // raw-quantity mismatch this flow previously had (Phase 0 doc §6.3).
+            $conversion = $unitConversion->toBase(
+                (int) $detail->product_id,
+                (int) $detail->unit_id,
+                (string) $detail->quantity
+            );
+            $baseQuantity = $conversion['base_quantity'];
+
             $lineId = DB::table('inventory_movement_lines')->insertGetId([
                 'stock_movement_id' => $headerId,
                 'product_id' => $detail->product_id,
                 'unit_id' => $detail->unit_id,
-                'quantity' => $detail->quantity,
+                'quantity' => $baseQuantity,
+                'conversion_factor_snapshot' => $conversion['conversion_factor'],
+                'original_quantity' => $detail->quantity,
                 'cost_price' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -436,7 +488,7 @@ class PurchaseReturnService
             $transaction = $costing->applyOutbound(
                 (int) $detail->product_id,
                 (int) $return->warehouse_id,
-                (string) $detail->quantity,
+                (string) $baseQuantity,
                 'purchase_return_detail',
                 (int) $detail->id,
                 (string) $return->return_date,
@@ -447,7 +499,7 @@ class PurchaseReturnService
             DB::table('inventory_movement_lines')->where('id', $lineId)->update([
                 'cost_price' => abs((float) $transaction->unit_cost),
             ]);
-            DB::table('products')->where('id', $detail->product_id)->decrement('quantity', (float) $detail->quantity);
+            DB::table('products')->where('id', $detail->product_id)->decrement('quantity', (float) $baseQuantity);
         }
     }
 
@@ -512,28 +564,48 @@ class PurchaseReturnService
      *   Dr Accounts Payable (total return amount)
      *   Cr Purchase/Expense (return subtotal)
      *   Cr Input Tax (return tax amount)
+     *
+     * Phase 14 (silent AP-skip closed, mirroring the Phase 12 credit-note
+     * contract): posting an approved/completed purchase return without AP +
+     * Inventory Asset accounts used to be silently skipped while stock still
+     * left inventory. The GL is now an all-or-nothing contract: the entry
+     * posts in full, or the whole return rolls back with a loud
+     * RuntimeException. Also Phase 14: a REVERSED slot is never resurrected
+     * (retract → re-approve would otherwise re-post into an entry whose
+     * standing -REV nets the live debit note away to zero), and the entry is
+     * company-stamped (header + lines) like the Phase 9 sales-invoice stamp.
      */
     private function createJournalEntryForReturn(PurchaseReturn $return, array $totals): void
     {
         $totalAmount = (float) ($totals['total_amount'] ?? $return->total_amount ?? 0);
         $taxAmount = (float) ($totals['tax_amount'] ?? $return->tax_amount ?? 0);
         $netAmount = $totalAmount - $taxAmount;
+        $companyId = (int) ($return->company_id ?? Auth::user()?->company_id ?? 0);
 
         $apAccountId = $this->resolveAccountsPayableAccountId($return->supplier_id);
         $purchaseAccountId = $this->resolvePurchaseAccountId();
         $taxAccountId = $this->resolveInputTaxAccountId();
 
         if (!$apAccountId || !$purchaseAccountId) {
-            return;
+            throw new \RuntimeException(
+                'Purchase return cannot be posted: no Accounts Payable and/or Inventory Asset account is configured for this company. Seed the GL accounts (or complete the supplier account assignment) before approving returns.'
+            );
         }
 
         $reference = $return->return_number;
 
         // Upsert pattern (idempotent)
         $this->ensureOpenFiscalPeriod($return->return_date);
-        $existingHeader = JournalEntry::where('reference', $reference)
-            ->where('entry_type', 'PurchaseReturn')
-            ->first();
+        $existingHeader = $this->liveJournalEntryFor($reference);
+
+        // Phase 13 intent, Phase 17 mechanism: a REVERSED slot is never
+        // resurrected. liveEntryFor() already skips recorded reversals via
+        // the journal_reversals link table; the fallback below catches the
+        // legacy-ambiguous case where every entry of the reference is
+        // reversed — the re-approval must post a fresh entry.
+        if ($existingHeader && $this->hasRecordedReversal($existingHeader)) {
+            $existingHeader = null;
+        }
 
         if ($existingHeader) {
             JournalEntryLine::where('journal_entry_code', $existingHeader->entry_code)->delete();
@@ -541,6 +613,7 @@ class PurchaseReturnService
                 'date' => $return->return_date,
                 'total_amount' => $totalAmount,
                 'status' => 'Post',
+                'company_id' => $companyId, // heal legacy unstamped rows
             ]);
             $entryCode = $existingHeader->entry_code;
         } else {
@@ -553,6 +626,7 @@ class PurchaseReturnService
             'description' => 'Purchase Return ' . $reference,
             'total_amount' => $totalAmount,
             'status' => 'Post',
+            'company_id' => $companyId,
             ]);
         }
 
@@ -565,6 +639,7 @@ class PurchaseReturnService
             'related_id_name' => 'PurchaseReturn',
             'related_name_details' => $reference,
             'description' => 'AP reduction - Return ' . $reference,
+            'company_id' => $companyId,
         ]);
 
         // Cr Purchase/Expense
@@ -576,6 +651,7 @@ class PurchaseReturnService
             'related_id_name' => 'PurchaseReturn',
             'related_name_details' => $reference,
             'description' => 'Purchase reversal - ' . $reference,
+            'company_id' => $companyId,
         ]);
 
         // Cr Input Tax (if applicable)
@@ -588,6 +664,7 @@ class PurchaseReturnService
                 'related_id_name' => 'PurchaseReturn',
                 'related_name_details' => $reference,
                 'description' => 'Input Tax reversal - ' . $reference,
+                'company_id' => $companyId,
             ]);
         }
 
@@ -606,7 +683,10 @@ class PurchaseReturnService
                 return $supplier->account_id;
             }
         }
-        return Account::where('AccCode', 'like', '2%')->where('AccType', 1)->value('AccID');
+        // Phase 14: AP is a LIABILITY — the fallback must match AccType 2.
+        // The old AccType-1 fallback could resolve to Input Tax (e.g. a 2131
+        // row typed as expense) and post the AP reduction to the wrong book.
+        return Account::where('AccCode', 'like', '2%')->where('AccType', 2)->value('AccID');
     }
 
     /**
@@ -645,13 +725,37 @@ class PurchaseReturnService
     /**
      * P0-06: Create a reversal journal for a purchase return instead of deleting the original.
      * Called when status changes from approved/completed to draft/requested/cancelled.
+     *
+     * Phase 14: with reversed history kept for audit, a reference can own
+     * several entries (amendments / retract + re-approve); the LIVE one is
+     * the latest without a standing -REV (fallback: last).
      */
+    /**
+     * Phase 17: the LIVE debit-note entry for this return's reference —
+     * answered through the journal_reversals link table (a join), not by
+     * probing for '-REV' code suffixes.
+     */
+    private function liveJournalEntryFor(string $reference): ?JournalEntry
+    {
+        return app(\App\Services\Accounting\JournalReversalService::class)
+            ->liveEntryFor($reference, 'PurchaseReturn');
+    }
+
+    private function hasRecordedReversal(?JournalEntry $entry): bool
+    {
+        return $entry !== null
+            && app(\App\Services\Accounting\JournalReversalService::class)->hasReversal($entry->entry_code);
+    }
+
     private function reverseJournalEntryForReturn(PurchaseReturn $return): void
     {
         $reference = $return->return_number;
-        $header = JournalEntry::where('reference', $reference)
-            ->where('entry_type', 'PurchaseReturn')
-            ->first();
+
+        // Phase 17: the LIVE entry (no recorded reversal) via the link
+        // table — with reversed history kept for audit, a reference can own
+        // several entries (amendments / retract + re-approve); the fallback
+        // handles legacy-ambiguous history.
+        $header = $this->liveJournalEntryFor($reference);
 
         if ($header && in_array($header->status, ['Post', 'posted'])) {
             // Posted: create reversal, preserve original
@@ -663,6 +767,127 @@ class PurchaseReturnService
             // Unposted: safe to delete
             JournalEntryLine::where('journal_entry_code', $header->entry_code)->delete();
             $header->delete();
+        }
+    }
+
+    /**
+     * Reverse the stock side of a posted purchase return (Phase 14,
+     * engine-routed — mirrors the Phase 13 sales-return retraction).
+     * Immutable documents: nothing is ever deleted. Per un-reversed ICT:
+     *
+     *   - WeightedAverageCostService::reverse() writes the offsetting
+     *     INBOUND ICT at the ORIGINAL unit cost, keeping the original's
+     *     movement header/line links and carrying reversal_of_id. For
+n     *     outbound originals the engine refuses only on negative VALUE —
+     *     quantity always adds back; consumption of the remaining stock is
+     *     instead refused at APPLY time (Insufficient weighted-average
+     *     inventory), which protects the amendment path.
+     *   - the derived products.quantity rolls back per detail (increment by
+     *     the original ICT's quantity_delta — the engine is ledger-only).
+     *   - a reversal movement document ('purchase_return' type, direction
+     *     'in', voucher '<number>-REV') records the round trip.
+     *
+     * Idempotent: no un-reversed purchase_return_detail ICTs → no-op.
+     *
+     * @throws \RuntimeException when the WAC engine refuses the reversal.
+     */
+    private function reverseInventoryEffectsForReturn(PurchaseReturn $return): void
+    {
+        $headers = DB::table('inventory_movement_headers')
+            ->where('reference_id', $return->id)
+            ->where('reference_type', 'purchase_return')
+            ->orderBy('id')
+            ->get();
+
+        if ($headers->isEmpty()) {
+            return; // nothing applied — idempotent no-op
+        }
+
+        // Pair each applied ICT with its IMMUTABLE original movement line.
+        // Keyed by MOVEMENT LINE, not by return-detail id:
+        // updatePurchaseReturn() recreates details (delete + create) BEFORE
+        // the transition effects run, so detail ids are not stable across a
+        // retraction, while movement lines never change.
+        $lineIds = DB::table('inventory_movement_lines')
+            ->whereIn('stock_movement_id', $headers->pluck('id'))
+            ->pluck('id');
+
+        $txs = DB::table('inventory_cost_transactions as tx')
+            ->where('tx.company_id', (int) $headers->first()->company_id)
+            ->where('tx.source_type', 'purchase_return_detail')
+            ->whereIn('tx.movement_line_id', $lineIds)
+            ->whereNull('tx.reversal_of_id')
+            ->whereNotExists(function ($q) {
+                $q->selectRaw(1)
+                    ->from('inventory_cost_transactions as rev')
+                    ->whereColumn('rev.reversal_of_id', 'tx.id')
+                    ->where('rev.source_type', 'purchase_return_detail_reversal');
+            })
+            ->orderBy('tx.id')
+            ->get();
+
+        if ($txs->isEmpty()) {
+            return; // already retracted — idempotent no-op
+        }
+
+        $reversals = [];
+        foreach ($txs as $tx) {
+            $line = $tx->movement_line_id
+                ? DB::table('inventory_movement_lines')->where('id', $tx->movement_line_id)->first()
+                : null;
+            $reversals[] = ['tx' => $tx, 'line' => $line];
+        }
+
+        $reversalDate = now()->toDateString();
+
+        foreach ($reversals as $entry) {
+            // Exact reversal through the WAC engine; refuses (RuntimeException)
+            // when the warehouse's ledger VALUE would go negative — the whole
+            // retraction transaction rolls back with zero residue.
+            app(WeightedAverageCostService::class)->reverse(
+                (int) $entry['tx']->id,
+                $reversalDate,
+                'purchase_return_detail_reversal',
+                (int) $entry['tx']->id,
+            );
+
+            // Derived-quantity rollback: the original ICT's delta is the
+            // authoritative applied SIGNED quantity (base units) — outbound
+            // originals carry a NEGATIVE delta, so the rollback is always
+            // decrement-by-delta (a −6 return delta rolls back +6).
+            DB::table('products')
+                ->where('id', $entry['tx']->product_id)
+                ->decrement('quantity', (float) $entry['tx']->quantity_delta);
+        }
+
+        // Reversal movement document records the round trip (immutable history).
+        $reversalHeaderId = DB::table('inventory_movement_headers')->insertGetId([
+            'movement_date' => $reversalDate,
+            'type' => 'purchase_return',
+            'direction' => 'in',
+            'reference_id' => $return->id,
+            'reference_type' => 'purchase_return_reversal',
+            'voucher_num' => $return->return_number.'-REV',
+            'warehouse_id' => $return->warehouse_id,
+            'company_id' => (int) $headers->first()->company_id,
+            'created_by' => Auth::id(),
+            'notes' => 'Purchase Return Reversal: '.$return->return_number,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        foreach ($reversals as $entry) {
+            DB::table('inventory_movement_lines')->insert([
+                'stock_movement_id' => $reversalHeaderId,
+                'product_id' => $entry['tx']->product_id,
+                'unit_id' => $entry['line']->unit_id ?? null,
+                'quantity' => abs((float) $entry['tx']->quantity_delta),
+                'conversion_factor_snapshot' => $entry['line']->conversion_factor_snapshot ?? '1.000000',
+                'original_quantity' => abs((float) $entry['tx']->quantity_delta),
+                'cost_price' => abs((float) $entry['tx']->unit_cost),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
         }
     }
 }

@@ -72,6 +72,7 @@ class LandedCostService
     {
         return DB::transaction(function () use ($landedCost) {
             $landedCost = LandedCost::query()->lockForUpdate()->findOrFail($landedCost->id);
+            $this->assertOwned($landedCost);
             if ($landedCost->status === 'posted') {
                 throw new RuntimeException('Posted Landed Costs cannot be reallocated.');
             }
@@ -131,6 +132,7 @@ class LandedCostService
     {
         return DB::transaction(function () use ($landedCost) {
             $landedCost = LandedCost::query()->lockForUpdate()->with('allocations.purchaseInvoiceDetail')->findOrFail($landedCost->id);
+            $this->assertOwned($landedCost);
             if ($landedCost->status === 'posted') {
                 return $landedCost;
             }
@@ -182,6 +184,7 @@ class LandedCostService
 
     public function cancel(LandedCost $landedCost): LandedCost
     {
+        $this->assertOwned($landedCost);
         if ($landedCost->status === 'posted') {
             throw new RuntimeException('Posted Landed Costs require reversal.');
         }
@@ -193,6 +196,7 @@ class LandedCostService
     {
         return DB::transaction(function () use ($landedCost) {
             $landedCost = LandedCost::query()->lockForUpdate()->with('allocations.purchaseInvoiceDetail')->findOrFail($landedCost->id);
+            $this->assertOwned($landedCost);
             if ($landedCost->status !== 'posted') {
                 throw new RuntimeException('Only posted Landed Costs can be reversed.');
             }
@@ -204,9 +208,16 @@ class LandedCostService
             foreach ($landedCost->allocations as $allocation) {
                 $detail = $allocation->purchaseInvoiceDetail;
                 $balance = $this->weightedAverageCost->current((int) $detail->product_id, (int) $detail->warehouse_id);
-                $remaining = bccomp((string) $balance->inventory_value, (string) $allocation->allocated_amount, 6) < 0
-                    ? (string) $balance->inventory_value
-                    : (string) $allocation->allocated_amount;
+                // Phase 9 audit: only reverse what is still capitalized in the
+                // REMAINING units. The per-unit landed cost is homogeneously
+                // mixed into the WAC average, so the remaining capitalization
+                // is allocated_per_unit × on-hand quantity — never more than
+                // the allocated amount, never more than the balance value.
+                $remaining = min(
+                    (string) $allocation->allocated_amount,
+                    bcmul((string) $allocation->allocated_per_unit, (string) $balance->quantity, 6),
+                    (string) $balance->inventory_value,
+                );
                 if (bccomp($remaining, '0', 6) > 0) {
                     $remainingCapitalized = bcadd($remainingCapitalized, $remaining, 6);
                     $this->weightedAverageCost->applyValueAdjustment(
@@ -243,8 +254,32 @@ class LandedCostService
     private function createJournal(LandedCost $landedCost): string
     {
         $reference = $landedCost->reference_number;
-        $existing = JournalEntry::query()->where('entry_type', 'LandedCost')->where('reference', $reference)->lockForUpdate()->first();
-        $entryCode = $existing?->entry_code ?: 'LC-'.str_pad((string) $landedCost->id, 8, '0', STR_PAD_LEFT);
+
+        // Phase 20: the unreversed live entry via the journal_reversals link
+        // table — the LAST reference lookup in app/ moves onto the service.
+        // Two hazards this closes beyond the lookup itself:
+        //
+        //   1. `->first()` adopted a REVERSED original (or its -REV document)
+        //      on a fully-reversed history; the strict lookup returns null
+        //      and a FRESH entry is posted instead — a reversed slot is
+        //      never resurrected.
+        //   2. The fallback code slot was the deterministic 'LC-<id>' —
+        //      under the UNIQUE journal_entries.entry_code index, a fresh
+        //      re-post after a reversal collided with the slot occupied by
+        //      the original + its LC-<id>-REV (and LC-<id>-COGS) documents.
+        //      The fallback now draws a fresh QID- number instead.
+        $existing = app(JournalReversalService::class)
+            ->unreversedEntryFor((string) $reference, 'LandedCost', null, lock: true);
+
+        // Keep the readable deterministic slot for a fresh posting; escape to
+        // a fresh QID- code only when that slot is already occupied (a
+        // reversed original still holds it, or its -REV/-COGS documents do).
+        $fallbackCode = 'LC-'.str_pad((string) $landedCost->id, 8, '0', STR_PAD_LEFT);
+        $entryCode = $existing?->entry_code
+            ?? (JournalEntry::where('entry_code', $fallbackCode)->exists()
+                ? app(JournalReversalService::class)->nextFreshEntryCode()
+                : $fallbackCode);
+
         $entry = $existing ?: JournalEntry::create([
             'entry_code' => $entryCode,
             'entry_type' => 'LandedCost',
@@ -320,6 +355,15 @@ class LandedCostService
         if (isset($account->company_id) && $account->company_id && (int) $account->company_id !== $this->companyContext->id()) {
             throw new RuntimeException('Selected credit account belongs to another company.');
         }
+    }
+
+    /**
+     * Multi-company boundary: cross-company landed costs are invisible (404,
+     * do not leak other companies' records). Mirrors the GRN service guard.
+     */
+    private function assertOwned(LandedCost $landedCost): void
+    {
+        abort_unless((int) $landedCost->company_id === $this->companyContext->id(), 404, 'Landed Cost not found.');
     }
 
     private function netUnitCost($detail): string

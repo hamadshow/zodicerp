@@ -34,6 +34,32 @@ class PerpetualInventoryTest extends TestCase
         }
 
         $this->testUserId = DB::table('users')->first()->id ?? 1;
+
+        // GL rows the resolvers expect (this database is a residue test DB,
+        // not a seeded chart of accounts).
+        foreach ([['11401', 'Inventory Asset', 1], ['501', 'Cost of Sales', 1], ['2131', 'Input Tax', 1]] as [$code, $name, $type]) {
+            DB::table('accounts')->insertOrIgnore([
+                'AccCode' => $code,
+                'AccName' => $name,
+                'AccType' => $type,
+                'AccFinal' => 1,
+                'AccStopped' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    /**
+     * Invoke a protected controller resolver (the resolvers are code-based
+     * account lookups, not part of the HTTP contract).
+     */
+    private function invokeProtectedResolver(object $controller, string $method): ?int
+    {
+        $ref = new \ReflectionMethod($controller, $method);
+        $ref->setAccessible(true);
+
+        return $ref->invoke($controller);
     }
 
     protected function tearDown(): void
@@ -71,8 +97,8 @@ class PerpetualInventoryTest extends TestCase
 
         $controller = new \App\Http\Controllers\Backend\Purchases\PurchaseInvoiceController();
 
-        // Simulate the account resolution
-        $resolvedAccountId = $controller->resolvePurchaseAccountId();
+        // Simulate the account resolution (protected method — not public API)
+        $resolvedAccountId = $this->invokeProtectedResolver($controller, 'resolvePurchaseAccountId');
 
         // CRITICAL: Must resolve to Inventory Asset (11401), NOT COGS (501)
         $this->assertEquals($inventoryAccountId, $resolvedAccountId, 'Purchase Invoice must debit Inventory Asset, NOT COGS');
@@ -112,8 +138,8 @@ class PerpetualInventoryTest extends TestCase
         $this->assertNotNull($inventoryAccountId, 'Inventory Asset account must exist');
 
         $controller = new \App\Http\Controllers\Backend\Client_Sales\SalesInvoiceController();
-        $cogsResolved = $controller->resolveCogsAccountId();
-        $inventoryResolved = $controller->resolveInventoryAssetAccountId();
+        $cogsResolved = $this->invokeProtectedResolver($controller, 'resolveCogsAccountId');
+        $inventoryResolved = $this->invokeProtectedResolver($controller, 'resolveInventoryAssetAccountId');
 
         // Sales Invoice COGS must debit COGS (501) and credit Inventory (11401)
         $this->assertEquals($cogsAccountId, $cogsResolved, 'Sales COGS must debit COGS account');
@@ -272,9 +298,20 @@ class PerpetualInventoryTest extends TestCase
 
     private function createTestWarehouse(): int
     {
+        // Current schema: warehouses requires warehouse_code and branch_id;
+        // name_ar no longer exists.
+        $branchId = DB::table('branches')->insertGetId([
+            'branch_code' => 'BR-'.uniqid(),
+            'branch_name' => 'Test Branch',
+            'company_id' => $this->companyId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         return DB::table('warehouses')->insertGetId([
+            'warehouse_code' => 'WH-'.uniqid(),
             'name' => 'Test Warehouse',
-            'name_ar' => 'مستودع تجريبي',
+            'branch_id' => $branchId,
             'company_id' => $this->companyId,
             'created_at' => now(),
             'updated_at' => now(),
@@ -285,10 +322,12 @@ class PerpetualInventoryTest extends TestCase
     {
         $slug = str()->slug($name) . '-' . uniqid();
         return DB::table('products')->insertGetId([
-            'product_code' => 'PRD-' . strtoupper(substr($slug, 0, 10)),
+            // Truncating the slug drops the uniqid suffix; keep the code unique
+            // or reruns collide on products_product_code_unique in a residue DB.
+            'product_code' => 'PRD-' . strtoupper(substr($slug, 0, 10)) . '-' . substr(uniqid(), -6),
             'name' => $name,
             'slug' => $slug,
-            'sku' => 'SKU-' . strtoupper(substr($slug, 0, 8)),
+            'sku' => 'SKU-' . strtoupper(substr($slug, 0, 8)) . '-' . substr(uniqid(), -6),
             'status' => 'active',
             'quantity' => 0,
             'cost_per_item' => $cost,

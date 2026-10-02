@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Backend\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Models\ItemAttribute;
+use App\Services\CompanyContext;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -12,10 +13,19 @@ use Inertia\Inertia;
 
 class ItemAttributeController extends Controller
 {
+    public function __construct(private CompanyContext $companyContext) {}
+
     public function index()
     {
         try {
-            $attributes = ItemAttribute::latest()->get();
+            $companyId = $this->companyContext->id();
+
+            $attributes = ItemAttribute::query()
+                ->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->latest()
+                ->get();
 
             return Inertia::render('Backend/03-Inventory/ItemAttributes', [
                 'attributes' => $attributes,
@@ -50,6 +60,8 @@ class ItemAttributeController extends Controller
             $validated['is_use_in_product_listing'] = $request->boolean('is_use_in_product_listing', false);
             $validated['use_image_from_product_variation'] = $request->boolean('use_image_from_product_variation', false);
 
+            $validated['company_id'] = $this->companyContext->id();
+
             $attribute = ItemAttribute::create($validated);
 
             if ($request->has('details')) {
@@ -78,7 +90,14 @@ class ItemAttributeController extends Controller
     public function edit($id)
     {
         try {
-            $attribute = ItemAttribute::with('details')->findOrFail($id);
+            $companyId = $this->companyContext->id();
+
+            $attribute = ItemAttribute::query()
+                ->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->with('details')
+                ->findOrFail($id);
 
             return Inertia::render('Backend/03-Inventory/ItemAttributes', [
                 'attribute' => $attribute,
@@ -92,7 +111,13 @@ class ItemAttributeController extends Controller
     public function update(Request $request, $id)
     {
         try {
-            $attribute = ItemAttribute::findOrFail($id);
+            $companyId = $this->companyContext->id();
+
+            $attribute = ItemAttribute::query()
+                ->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->findOrFail($id);
 
             $validated = $request->validate([
                 'title' => 'required|string|max:120',
@@ -155,7 +180,13 @@ class ItemAttributeController extends Controller
     public function destroy($id)
     {
         try {
-            $attribute = ItemAttribute::findOrFail($id);
+            $companyId = $this->companyContext->id();
+
+            $attribute = ItemAttribute::query()
+                ->where(function ($q) use ($companyId) {
+                    $q->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->findOrFail($id);
             $attribute->delete();
 
             return redirect()->route('admin.inventory.item-attributes.index')->with('success', 'Attribute deleted successfully.');

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Backend\Accounting;
 
 use App\Http\Controllers\Controller;
+use App\Support\AccountNature;
+use App\Support\JournalStatus;
 use App\Http\Requests\Accounting\StoreJournalRequest;
 use App\Http\Requests\Accounting\UpdateJournalRequest;
 use App\Models\Accounting\JournalEntry;
@@ -18,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class JournalController extends Controller
 {
@@ -74,10 +77,7 @@ class JournalController extends Controller
         }
 
         if ($request->filled('status') && $request->status !== 'all') {
-            $status = $request->status;
-            // Map 'posted'/'unposted' to database values if needed, e.g. 'Post'/'UnPost'
-            if ($status === 'posted') $status = 'Post';
-            if ($status === 'unposted') $status = 'UnPost';
+            $status = JournalStatus::normalize($request->status);
             $query->where('status', $status);
         }
 
@@ -142,11 +142,17 @@ class JournalController extends Controller
         $this->ensureBalanced($lines);
 
         return DB::transaction(function () use ($data, $lines) {
-            // Fiscal period validation — block posting into closed periods
-            $targetStatus = $data['status'] ?? 'UnPost';
-            if (in_array($targetStatus, ['Post', 'posted'])) {
+            // Fiscal period validation — block posting into closed periods.
+            $targetStatus = JournalStatus::normalize($data['status'] ?? 'UnPost');
+            if (JournalStatus::isPosted($targetStatus)) {
                 $this->periodService->validatePostingDate($data['date']);
             }
+
+            // Audit Phase 7: journals are stamped with the creator's company
+            // (postAll/unpostAll and the General Ledger already scope by
+            // company_id — a NULL-stamped new row would be invisible to the
+            // GL's scoped queries and to bulk posting).
+            $companyId = (int) (request()->user()->company_id ?? 1);
 
             $code = $this->generateNextEntryCode();
 
@@ -167,7 +173,8 @@ class JournalController extends Controller
                 'date' => $data['date'],
                 'description' => $data['description'] ?? null,
                 'total_amount' => $total,
-                'status' => $data['status'] ?? 'UnPost',
+                'status' => JournalStatus::normalize($data['status'] ?? 'UnPost'),
+                'company_id' => $companyId,
             ]);
 
             foreach ($lines as $line) {
@@ -183,8 +190,8 @@ class JournalController extends Controller
                 ]);
             }
 
-            // Automatically recalculate postings if status is Post
-            if (in_array($journalEntry->status, ['Post', 'posted'])) {
+            // Automatically recalculate postings if status is Post.
+            if (JournalStatus::isPosted($journalEntry->status)) {
                 $this->postingService->recalculatePostings(request()->user()->company_id);
             }
 
@@ -392,7 +399,7 @@ class JournalController extends Controller
             return response()->json(['message' => 'Journal entry not found.'], 404);
         }
 
-        if ($header->status === 'Post' || $header->status === 'Posted') {
+        if (JournalStatus::isPosted($header->status)) {
             return response()->json(['message' => 'Posted journal entries cannot be edited.'], 422);
         }
 
@@ -408,14 +415,29 @@ class JournalController extends Controller
         }
 
         return DB::transaction(function () use ($entryCode, $data, $lines, $total) {
+            // GL Audit Phase 2: this endpoint only edits UNPOSTED journals
+            // (posted headers are refused above), so a posted target status
+            // is always a real draft→Posted transition and records the
+            // actual posting time. Editing a draft (UnPost) must NOT set
+            // posted_at — the attribute is simply not written. (This mass
+            // update bypasses the model's transition hook, hence explicit.)
+            $attributes = [
+                'reference' => $data['reference'] ?? null,
+                'date' => $data['date'],
+                'description' => $data['description'] ?? null,
+                'total_amount' => $total,
+                'status' => JournalStatus::normalize($data['status']),
+                // Audit Phase 7: heal/stamp ownership on edit — an edited
+                // NULL-company draft becomes visible to its editor's company
+                // (same convention as the Phase 9 company-stamp heal).
+                'company_id' => (int) (request()->user()->company_id ?? 1),
+            ];
+            if (JournalStatus::isPosted($attributes['status'])) {
+                $attributes['posted_at'] = now();
+            }
+
             JournalEntry::where('entry_code', $entryCode)
-                ->update([
-                    'reference' => $data['reference'] ?? null,
-                    'date' => $data['date'],
-                    'description' => $data['description'] ?? null,
-                    'total_amount' => $total,
-                    'status' => $data['status'],
-                ]);
+                ->update($attributes);
 
             JournalEntryLine::where('journal_entry_code', $entryCode)->delete();
 
@@ -432,8 +454,8 @@ class JournalController extends Controller
                 ]);
             }
 
-            // Automatically recalculate postings
-            if ($data['status'] === 'Post' || $data['status'] === 'posted') {
+            // Automatically recalculate postings.
+            if (JournalStatus::isPosted($data['status'] ?? 'UnPost')) {
                 $this->postingService->recalculatePostings(request()->user()->company_id);
             }
 
@@ -451,7 +473,7 @@ class JournalController extends Controller
             return response()->json(['message' => 'Journal entry not found.'], 404);
         }
 
-        if ($header->status === 'Post' || $header->status === 'Posted') {
+        if (JournalStatus::isPosted($header->status)) {
             return response()->json(['message' => 'Posted journal entries cannot be deleted.'], 422);
         }
 
@@ -571,7 +593,11 @@ class JournalController extends Controller
                       ->orWhereNull('status')
                       ->orWhere('status', '');
                 })
-                ->update(['status' => 'Post']);
+                // GL Audit Phase 2: a real transition to Posted records the
+                // actual posting time for every journal in the batch. The
+                // selected set is guaranteed unposted by the filter above,
+                // so every updated row is a genuine transition.
+                ->update(['status' => 'Post', 'posted_at' => now()]);
 
             // 3. Recalculate account postings
             $this->postingService->recalculatePostings($companyId);
@@ -629,24 +655,47 @@ class JournalController extends Controller
             'date_from' => 'nullable|date',
             'date_to' => 'nullable|date',
             'status' => 'nullable|string|in:all,posted,unposted',
+            // Audit Phase 9: real server-side pagination. per_page = -1 is
+            // the export contract: the FULL ledger, no slicing.
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:-1|max:5000',
         ]);
 
         $accountId = (int) $validated['account_id'];
         $dateFrom = $validated['date_from'] ?? null;
         $dateTo = $validated['date_to'] ?? null;
         $status = $validated['status'] ?? 'posted';
+        $page = max(1, (int) ($validated['page'] ?? 1));
+        $perPage = (int) ($validated['per_page'] ?? 15);
+        $isExport = $perPage === -1;
 
+        // Audit Phase 7: the whole ledger is scoped to the caller's company.
+        $companyId = (int) ($request->user()->company_id ?? 1);
+
+        // The account itself must belong to the caller's company — NULL
+        // company_id rows are SHARED master data (the documented convention,
+        // see the posting resolvers) and stay visible. A foreign company's
+        // account is invisible: 404, exactly like the other multi-company
+        // boundaries.
         $account = DB::table('accounts')
             ->where('AccID', $accountId)
+            ->where(function ($q) use ($companyId) {
+                $q->whereNull('company_id')->orWhere('company_id', $companyId);
+            })
             ->first(['AccID', 'AccCode', 'AccName', 'AccDmType']);
 
         if (! $account) {
             return response()->json(['message' => 'Account not found.'], 404);
         }
 
-        $nature = (int) ($account->AccDmType ?? 0);
+        // Audit Phase 6: the canonical Debit/Credit convention lives in
+        // App\Support\AccountNature (credit iff AccDmType == 1; the legacy
+        // 0 rows, the explicit 2 rows and null are all Debit). Replacing
+        // the local `(int)$x === 0` rule, which misclassified the 46
+        // AccDmType=2 (Debit, expense-family) accounts as Credit.
+        $isCredit = AccountNature::isCredit($account->AccDmType);
 
-        $statusPostedValues = ['Post', 'Posted'];
+        $statusPostedValues = JournalStatus::postedValues();
 
         $applyAccountFilter = function ($query) use ($account) {
             $query->where(function ($q) use ($account) {
@@ -656,11 +705,22 @@ class JournalController extends Controller
         };
 
         $applyStatusFilter = function ($query) use ($status, $statusPostedValues) {
-            if ($status === 'posted') {
+            $normalizedStatus = JournalStatus::normalize($status);
+            if (JournalStatus::isPosted($normalizedStatus)) {
                 $query->whereIn('h.status', $statusPostedValues);
-            } elseif ($status === 'unposted') {
+            } elseif (JournalStatus::isUnposted($normalizedStatus)) {
                 $query->whereNotIn('h.status', $statusPostedValues);
             }
+        };
+
+        // Audit Phase 7: only the caller's company's journals (plus the
+        // NULL-stamped pre-stamping legacy rows) can contribute — this
+        // guards opening balance, movement rows, totals and closing
+        // balance alike, because they all run through these queries.
+        $applyCompanyFilter = function ($query) use ($companyId) {
+            $query->where(function ($q) use ($companyId) {
+                $q->whereNull('h.company_id')->orWhere('h.company_id', $companyId);
+            });
         };
 
         $openingDebit = 0.0;
@@ -671,6 +731,7 @@ class JournalController extends Controller
                 ->join('journal_entries as h', 'h.entry_code', '=', 'b.journal_entry_code')
                 ->tap($applyAccountFilter)
                 ->tap($applyStatusFilter)
+                ->tap($applyCompanyFilter)
                 ->where('h.date', '<', $dateFrom)
                 ->selectRaw('COALESCE(SUM(b.debit),0) as total_debit, COALESCE(SUM(b.credit),0) as total_credit')
                 ->first();
@@ -681,70 +742,142 @@ class JournalController extends Controller
             }
         }
 
-        $openingBalance = $nature === 0
-            ? $openingDebit - $openingCredit
-            : $openingCredit - $openingDebit;
+        $openingBalance = $isCredit
+            ? $openingCredit - $openingDebit
+            : $openingDebit - $openingCredit;
 
         $entriesQuery = DB::table('journal_entry_lines as b')
             ->join('journal_entries as h', 'h.entry_code', '=', 'b.journal_entry_code')
             ->tap($applyAccountFilter)
-            ->tap($applyStatusFilter);
+            ->tap($applyStatusFilter)
+            ->tap($applyCompanyFilter);
 
         if ($dateFrom) {
             $entriesQuery->where('h.date', '>=', $dateFrom);
         }
 
         if ($dateTo) {
-            $entriesQuery->where('h.date', '<=', $dateTo);
+            // Audit Phase 4 (HIGH): journal_entries.date is DATETIME while
+            // the UI (and the validation contract) supplies date_to as a
+            // plain date. `h.date <= '2025-12-31'` casts to 2025-12-31
+            // 00:00:00 and silently EXCLUDED every same-day journal posted
+            // after midnight. A date-only bound now includes the ENTIRE
+            // final day via an exclusive next-day-midnight comparison:
+            //   h.date < 2026-01-01 00:00:00  (includes 23:59:59.999999,
+            //   excludes 2026-01-01 00:00:00 itself).
+            // A caller that explicitly supplies a time component keeps the
+            // exact inclusive second-precision bound it asked for. Totals
+            // and the closing balance derive from these movement rows, so
+            // they stay consistent by construction; the opening calculation
+            // only uses date_from and is untouched.
+            $bound = \Carbon\Carbon::parse($dateTo);
+            if ($bound->format('H:i:s') !== '00:00:00') {
+                $entriesQuery->where('h.date', '<=', $bound);
+            } else {
+                $entriesQuery->where('h.date', '<', $bound->addDay());
+            }
         }
 
+        // Audit Phase 9: count + page-independent aggregates are taken from
+        // a clean clone BEFORE the balance_check join is applied — joining
+        // the grouped subquery and then aggregating at the outer level is
+        // rejected by MySQL (error 1140, mixing of GROUP columns).
+        $totalRecords = (clone $entriesQuery)->count();
+
+        // Totals and the closing balance are PAGE-INDEPENDENT — an
+        // aggregate over the WHOLE filtered movement — so page 2 shows the
+        // same totals as page 1 and the closing balance is the true period
+        // closing. The running balance stays continuous because rows up to
+        // the end of the requested page are accumulated in order.
+        $aggregate = (clone $entriesQuery)
+            ->selectRaw('COALESCE(SUM(b.debit),0) as total_debit, COALESCE(SUM(b.credit),0) as total_credit')
+            ->first();
+        $totalDebit = (float) ($aggregate->total_debit ?? 0);
+        $totalCredit = (float) ($aggregate->total_credit ?? 0);
+        $closingBalance = $openingBalance + ($isCredit
+            ? $totalCredit - $totalDebit
+            : $totalDebit - $totalCredit);
+
+        $selects = [
+            'h.date as date',
+            'h.entry_code as journal_code',
+            'h.reference as reference',
+            'h.description as header_description',
+            'b.description as line_description',
+            'b.debit as debit',
+            'b.credit as credit',
+            'h.status as status',
+            Schema::hasColumn('journal_entries', 'posted_at') ? 'h.posted_at as posted_at' : DB::raw('NULL as posted_at'),
+            DB::raw('ABS(COALESCE(balance_check.journal_total_debit, 0) - COALESCE(balance_check.journal_total_credit, 0)) < 0.01 as is_balanced'),
+        ];
+
         $entries = $entriesQuery
+            // Audit Phase 8 (ported from the dead duplicate before its
+            // removal): per-JOURNAL debit/credit equality, surfaced to the
+            // UI (the unbalanced-icon/status-column contract reads it).
+            ->leftJoin(DB::raw('(SELECT journal_entry_code, SUM(debit) as journal_total_debit, SUM(credit) as journal_total_credit FROM journal_entry_lines GROUP BY journal_entry_code) as balance_check'), 'balance_check.journal_entry_code', '=', 'h.entry_code')
+            // Audit Phase 9: rows are fetched up to the END of the requested
+            // page so the running balance is continuous across pages, while
+            // the payload carries only the page's slice. The export path
+            // (per_page = -1) fetches the whole ledger.
+            ->when(! $isExport, fn ($q) => $q->limit($page * $perPage))
             ->orderBy('h.date')
             ->orderBy('h.entry_code')
             ->orderBy('b.id')
-            ->get([
-                'h.date as date',
-                'h.entry_code as journal_code',
-                'h.reference as reference',
-                'h.description as header_description',
-                'b.description as line_description',
-                'b.debit as debit',
-                'b.credit as credit',
-                'h.status as status',
-            ]);
+            ->get($selects);
 
         $runningBalance = $openingBalance;
-        $totalDebit = 0.0;
-        $totalCredit = 0.0;
 
-        $mappedEntries = $entries->map(function ($row) use (&$runningBalance, &$totalDebit, &$totalCredit, $nature) {
+        $mappedEntries = $entries->map(function ($row) use (&$runningBalance, $isCredit) {
             $debit = (float) ($row->debit ?? 0);
             $credit = (float) ($row->credit ?? 0);
 
-            $totalDebit += $debit;
-            $totalCredit += $credit;
-
-            $delta = $nature === 0 ? $debit - $credit : $credit - $debit;
+            $delta = $isCredit ? $credit - $debit : $debit - $credit;
             $runningBalance += $delta;
 
             $row->debit = round($debit, 2);
             $row->credit = round($credit, 2);
             $row->running_balance = round($runningBalance, 2);
+            // Audit Phase 1: `date` is the ACCOUNTING/_journal date and is
+            // presented DATE-ONLY (YYYY-MM-DD). The underlying DATETIME of
+            // journal_entries.date keeps driving SQL filtering and ordering
+            // above; only the API presentation is truncated here so the
+            // screen DATE column and the Excel export stay identical.
+            $row->date = $row->date !== null ? substr((string) $row->date, 0, 10) : null;
+            // Audit Phase 3: POSTED AT is the actual posting timestamp
+            // (Phase 2 column), presented as YYYY-MM-DD HH:mm:ss. Historical
+            // rows keep NULL — the UI shows an em-dash, never a fabricated
+            // value. Ledger ordering still runs on the ACCOUNTING date
+            // (ORDER BY h.date above); posting order is a different concept
+            // and is deliberately not substituted here.
+            $row->posted_at = $row->posted_at !== null
+                ? \Carbon\Carbon::parse($row->posted_at)->format('Y-m-d H:i:s')
+                : null;
+            $row->is_balanced = (int) $row->is_balanced;
             $row->description = $row->line_description ?: $row->header_description;
             unset($row->header_description, $row->line_description);
 
             return $row;
         });
 
-        $closingBalance = $runningBalance;
+        // Audit Phase 9: slice the page out of the accumulated ledger. The
+        // export path keeps every row (full-ledger contract).
+        if (! $isExport) {
+            $mappedEntries = $mappedEntries->slice(($page - 1) * $perPage, $perPage)->values();
+        }
+
+        // The project's existing pagination payload shape (same keys the
+        // frontend's Table/pagination contract and the former duplicate
+        // implementation already speak).
+        $effectivePerPage = $isExport ? ($totalRecords ?: 1000) : $perPage;
 
         return response()->json([
             'account' => [
                 'id' => $account->AccID,
                 'code' => $account->AccCode,
                 'name' => $account->AccName,
-                'dm_type' => $nature,
-                'dm_label' => $nature === 0 ? 'Debit' : 'Credit',
+                'dm_type' => (int) ($account->AccDmType ?? 0),
+                'dm_label' => $isCredit ? 'Credit' : 'Debit',
             ],
             'filters' => [
                 'date_from' => $dateFrom,
@@ -756,6 +889,12 @@ class JournalController extends Controller
             'total_debit' => round($totalDebit, 2),
             'total_credit' => round($totalCredit, 2),
             'entries' => $mappedEntries,
+            'pagination' => [
+                'total' => $totalRecords,
+                'per_page' => $effectivePerPage,
+                'current_page' => $page,
+                'last_page' => (int) ceil($totalRecords / $effectivePerPage),
+            ],
         ]);
     }
 }

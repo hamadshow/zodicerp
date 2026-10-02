@@ -7,35 +7,85 @@ const HRDashboard = () => {
   const { props } = usePage();
   const localization = props.localization;
   const isArabic = localization?.current_locale === 'ar';
+  const stats = props.hrStats || {};
 
-  const stats = [
+  const cards = [
     {
       title: isArabic ? 'إجمالي الموظفين' : 'Total Employees',
-      value: '0',
+      value: stats.totalEmployees ?? 0,
       icon: 'people',
       color: '#4f46e5',
       link: '/admin/employees'
     },
     {
-      title: isArabic ? 'الأقسام' : 'Departments',
-      value: '0',
-      icon: 'business',
+      title: isArabic ? 'الموظفين النشطين' : 'Active Employees',
+      value: stats.activeEmployees ?? 0,
+      icon: 'person_check',
       color: '#10b981',
+      link: '/admin/employees'
+    },
+    {
+      title: isArabic ? 'الأقسام' : 'Departments',
+      value: stats.departments ?? 0,
+      icon: 'business',
+      color: '#0ea5e9',
       link: '/admin/departments'
     },
     {
       title: isArabic ? 'الوظائف' : 'Professions',
-      value: '0',
+      value: stats.professions ?? 0,
       icon: 'work',
       color: '#f59e0b',
       link: '/admin/professions'
     },
     {
-      title: isArabic ? 'طلبات التوظيف' : 'Job Applications',
-      value: '0',
-      icon: 'description',
+      title: isArabic ? 'حضور اليوم' : 'Attendance Today',
+      value: stats.attendanceToday ?? 0,
+      icon: 'event_available',
+      color: '#8b5cf6',
+      link: '/admin/attendance'
+    },
+    {
+      title: isArabic ? 'خصومات معلقة' : 'Pending Deductions',
+      value: stats.pendingDeductions ?? 0,
+      icon: 'remove_circle',
       color: '#ef4444',
-      link: '/admin/career-applications'
+      link: '/admin/deductions'
+    },
+    {
+      title: isArabic ? 'مكافآت معلقة' : 'Pending Rewards',
+      value: stats.pendingRewards ?? 0,
+      icon: 'stars',
+      color: '#eab308',
+      link: '/admin/rewards'
+    },
+    {
+      title: isArabic ? 'فترات رواتب مفتوحة' : 'Open Payroll Periods',
+      value: stats.openPayrollPeriods ?? 0,
+      icon: 'account_balance_wallet',
+      color: '#14b8a6',
+      link: '/admin/salary-receipt'
+    },
+    {
+      title: isArabic ? 'إجازات معلقة' : 'Pending Vacations',
+      value: stats.pendingVacations ?? 0,
+      icon: 'beach_access',
+      color: '#f97316',
+      link: '/admin/vacations'
+    },
+    {
+      title: isArabic ? 'عقود تنتهي قريبا' : 'Expiring Contracts (30d)',
+      value: stats.expiringContracts ?? 0,
+      icon: 'history_edu',
+      color: '#dc2626',
+      link: '/admin/employees'
+    },
+    {
+      title: isArabic ? 'مخصصات نهاية خدمة معلقة' : 'Pending End-of-Service',
+      value: stats.pendingEos ?? 0,
+      icon: 'exit_to_app',
+      color: '#7c3aed',
+      link: '/admin/end-of-service'
     }
   ];
 
@@ -54,7 +104,7 @@ const HRDashboard = () => {
         </div>
 
         <div className="stats-grid-custom">
-          {stats.map((stat, index) => (
+          {cards.map((stat, index) => (
             <div key={index} className="stat-card-custom">
               <div className="stat-icon-wrapper" style={{ backgroundColor: `${stat.color}15`, color: stat.color }}>
                 <span className="material-icons-outlined">{stat.icon}</span>

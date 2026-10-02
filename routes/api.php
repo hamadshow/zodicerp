@@ -231,9 +231,16 @@ Route::middleware([\App\Http\Middleware\ApiAuth::class])->group(function () {
         Route::apiResource('deductions', App\Http\Controllers\Backend\HumanResource\DeductionController::class);
         Route::apiResource('rewards', App\Http\Controllers\Backend\HumanResource\RewardController::class);
         Route::apiResource('attendances', App\Http\Controllers\Backend\HumanResource\AttendanceController::class);
+        Route::post('attendances/punch', [App\Http\Controllers\Backend\HumanResource\AttendanceController::class, 'punch']);
         Route::apiResource('payroll-advances', App\Http\Controllers\Backend\HumanResource\PayrollAdvanceController::class);
         Route::apiResource('traffic-violations', App\Http\Controllers\Backend\HumanResource\TrafficViolationController::class);
         Route::apiResource('nationalities', App\Http\Controllers\Backend\HumanResource\NationalityController::class);
+        Route::apiResource('vacations', App\Http\Controllers\Backend\HumanResource\VacationController::class);
+        Route::get('vacation-balances', [App\Http\Controllers\Backend\HumanResource\VacationBalanceController::class, 'index']);
+        Route::post('vacation-balances', [App\Http\Controllers\Backend\HumanResource\VacationBalanceController::class, 'store']);
+        Route::apiResource('end-of-service', App\Http\Controllers\Backend\HumanResource\EndOfServiceController::class);
+        Route::apiResource('employee-contracts', App\Http\Controllers\Backend\HumanResource\EmployeeContractController::class);
+        Route::get('employee-contracts-expiring', [App\Http\Controllers\Backend\HumanResource\EmployeeContractController::class, 'expiring']);
     });
 
     Route::middleware('api.admin:payroll.view')->group(function () {

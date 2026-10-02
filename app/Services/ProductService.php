@@ -117,30 +117,100 @@ class ProductService extends BaseService
 
     /**
      * Update stock
+     *
+     * Company isolation (Phase 1): the product must belong to the caller's
+     * company (404 otherwise). Legacy rows without a company are refused for
+     * writes — stock is company-owned data.
+     *
+     * Phase 10 (updateStock hole closed): products.quantity is maintained by
+     * the movement engine only. Every mutation is routed through the
+     * WAC-routed stock adjustment engine (movement document + ICT + derived
+     * quantity + GL where configured) instead of raw increment/decrement/
+     * update. 'set' becomes a signed delta against the current global
+     * quantity; the engine refuses deltas that would drive a WAC balance
+     * negative (e.g. subtract beyond stock), and draft + approval commit
+     * atomically — a refused mutation leaves nothing behind.
      */
     public function updateStock(int $id, int $quantity, string $operation = 'set'): Model
     {
-        $product = $this->findOrFail($id);
+        $product = $this->model->newQuery()
+            ->whereKey($id)
+            ->where('company_id', auth()->user()?->company_id)
+            ->firstOrFail();
 
         // Product Domain (Phase 1): services never hold stock quantities.
-        // increment()/decrement() below bypass model events, so the guard
-        // cannot live in the Products saving hook alone.
         if (! $product->managesStock()) {
             return $product->fresh();
         }
 
-        switch ($operation) {
-            case 'add':
-                $product->increment('quantity', $quantity);
-                break;
-            case 'subtract':
-                $product->decrement('quantity', $quantity);
-                break;
-            default:
-                $product->update(['quantity' => $quantity]);
+        $current = (float) $product->quantity;
+        $target = match ($operation) {
+            'add' => $current + $quantity,
+            'subtract' => $current - $quantity,
+            default => (float) $quantity,
+        };
+        $delta = round($target - $current, 6);
+
+        if (abs($delta) < 0.000001) {
+            return $product->fresh(); // no-op — do not emit empty adjustments
         }
 
+        $adjustmentService = app(\App\Services\Inventory\StockAdjustmentService::class);
+
+        // Atomic end-to-end: draft + approval commit together, so a ledger
+        // refusal (e.g. subtract beyond available WAC stock) leaves NO
+        // document behind — not even a draft.
+        DB::transaction(function () use ($product, $delta, $adjustmentService) {
+            $adjustment = $adjustmentService->createAdjustment([
+                'warehouse_id' => $this->resolveStockWarehouse($product),
+                'adjustment_date' => now()->toDateString(),
+                'reason' => 'correction',
+                'description' => 'API update-stock',
+                'items' => [[
+                    'product_id' => $product->id,
+                    'unit_id' => (int) $product->unit_id,
+                    'adjustment_quantity' => $delta,
+                    'unit_cost' => (float) $product->cost_per_item,
+                ]],
+            ]);
+            $adjustmentService->approveAdjustment((int) $adjustment->id);
+        });
+
         return $product->fresh();
+    }
+
+    /**
+     * Warehouse an engine-routed stock mutation applies at: the warehouse
+     * holding the product's largest WAC balance, else the company's first
+     * active warehouse (never-stocked products).
+     */
+    private function resolveStockWarehouse(Products $product): int
+    {
+        $companyId = (int) auth()->user()?->company_id;
+
+        $balanceWarehouse = DB::table('inventory_cost_balances')
+            ->where('company_id', $companyId)
+            ->where('product_id', $product->id)
+            ->orderByDesc('quantity')
+            ->value('warehouse_id');
+
+        if ($balanceWarehouse) {
+            return (int) $balanceWarehouse;
+        }
+
+        $fallback = DB::table('warehouses')
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->orderBy('id')
+            ->value('id');
+
+        if (! $fallback) {
+            throw new \RuntimeException(
+                'No active warehouse exists for this company; introduce stock through Opening Stock or a GRN first.'
+            );
+        }
+
+        return (int) $fallback;
     }
 
     /**

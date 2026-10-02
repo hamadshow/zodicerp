@@ -53,20 +53,42 @@ export default function Attendance({ employees: propEmployees }) {
     : {};
 
   const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [dayStats, setDayStats] = useState({ present: 0, absent: 0, late: 0, leave: 0, total: 0 });
+  const [pagination, setPagination] = useState({ currentPage: 1, totalPages: 1, totalRecords: 0, recordsPerPage: 20 });
+  const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'desc' });
 
-  useEffect(() => {
-    fetchAttendance();
-  }, []);
-
-  const fetchAttendance = () => {
-    apiService.get('/attendances')
+  const fetchAttendance = (page = pagination.currentPage, sort = sortConfig) => {
+    apiService.get('/attendances', {
+      page,
+      per_page: pagination.recordsPerPage,
+      date: currentFilterDate,
+      status: currentFilterStatus,
+      search: searchTerm,
+      sort_by: sort.key,
+      sort_direction: sort.direction,
+    })
       .then(response => {
-        setAttendanceRecords(response.data || []);
+        const data = response.data || {};
+        setAttendanceRecords(Array.isArray(data.data) ? data.data : []);
+        setPagination(current => ({
+          ...current,
+          currentPage: data.current_page || page,
+          totalPages: data.last_page || 1,
+          totalRecords: data.total || 0,
+        }));
       })
       .catch(error => {
         console.error('Error fetching attendance:', error);
         setAttendanceRecords([]);
       });
+
+    apiService.get('/attendances', { stats: 1, date: currentFilterDate })
+      .then(response => {
+        if (response.data && typeof response.data === 'object' && 'present' in response.data) {
+          setDayStats(response.data);
+        }
+      })
+      .catch(() => {});
   };
 
   const [showForm, setShowForm] = useState(false);
@@ -92,17 +114,11 @@ export default function Attendance({ employees: propEmployees }) {
     setFormData((prev) => ({ ...prev, attendanceDate: today }));
   }, []);
 
-  const filteredRecords = attendanceRecords.filter((record) => {
-    const matchesDate = record.date === currentFilterDate;
-    const matchesStatus =
-      currentFilterStatus === 'all' || record.status === currentFilterStatus;
-    const matchesSearch =
-      !searchTerm ||
-      record.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      record.department.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesDate && matchesStatus && matchesSearch;
-  });
+  useEffect(() => {
+    fetchAttendance(1);
+  }, [currentFilterDate, currentFilterStatus, searchTerm]);
+
+  const filteredRecords = attendanceRecords;
 
   const handleAdd = () => {
     setShowForm(true);
@@ -176,7 +192,7 @@ export default function Attendance({ employees: propEmployees }) {
         })
         .catch(err => {
           console.error(err);
-          showError('Failed to update attendance.');
+          showError(err?.response?.data?.message || 'Failed to update attendance.');
         });
     } else {
       apiService.post('/attendances', attendanceData)
@@ -187,7 +203,7 @@ export default function Attendance({ employees: propEmployees }) {
         })
         .catch(err => {
           console.error(err);
-          showError('Failed to mark attendance.');
+          showError(err?.response?.data?.message || 'Failed to mark attendance.');
         });
     }
   };
@@ -242,6 +258,21 @@ export default function Attendance({ employees: propEmployees }) {
     setCurrentFilterDate(e.target.value);
   };
 
+  const handleSortChange = (key, direction) => {
+    const next = { key, direction: direction || 'asc' };
+    setSortConfig(next);
+    fetchAttendance(pagination.currentPage, next);
+  };
+
+  const handlePageChange = (page) => {
+    fetchAttendance(page);
+  };
+
+  const handleRecordsPerPageChange = (recordsPerPage) => {
+    setPagination(current => ({ ...current, recordsPerPage }));
+    fetchAttendance(1);
+  };
+
   const resetDateFilter = () => {
     const today = new Date().toISOString().split('T')[0];
     setCurrentFilterDate(today);
@@ -249,16 +280,21 @@ export default function Attendance({ employees: propEmployees }) {
   };
 
   const togglePunch = () => {
-    const now = new Date();
-    const timeString = now.toTimeString().split(' ')[0].substring(0, 5);
-
-    if (!isPunchedIn) {
-      showSuccess(`Punched in at ${timeString}`);
-      setIsPunchedIn(true);
-    } else {
-      showSuccess(`Punched out at ${timeString}`);
-      setIsPunchedIn(false);
-    }
+    apiService.post('/attendances/punch', {})
+      .then(response => {
+        const { action, time, message } = response.data || {};
+        setIsPunchedIn(action === 'in');
+        showSuccess(message || `Punched ${action} at ${time}`);
+        fetchAttendance();
+      })
+      .catch(err => {
+        const message = err?.response?.data?.message;
+        if (message) {
+          showInfo(message);
+        } else {
+          showError('Punch action failed. Employees can punch from their account.');
+        }
+      });
   };
 
   const handleSelectAll = (e) => {
@@ -359,13 +395,10 @@ export default function Attendance({ employees: propEmployees }) {
     showSuccess('Attendance data exported successfully!');
   };
 
-  const todayRecords = attendanceRecords.filter(
-    (r) => r.date === currentFilterDate
-  );
-  const present = todayRecords.filter((r) => r.status === 'present').length;
-  const absent = todayRecords.filter((r) => r.status === 'absent').length;
-  const late = todayRecords.filter((r) => r.status === 'late').length;
-  const leave = todayRecords.filter((r) => r.status === 'leave').length;
+  const present = dayStats.present;
+  const absent = dayStats.absent;
+  const late = dayStats.late;
+  const leave = dayStats.leave;
 
   const columns = useMemo(() => [
     { 
@@ -731,6 +764,16 @@ export default function Attendance({ employees: propEmployees }) {
               handleRowSelect={handleSelectRecord}
               selectAll={selectedRecords.length === filteredRecords.length && filteredRecords.length > 0}
               handleSelectAll={handleSelectAll}
+              serverSide={true}
+              onSort={handleSortChange}
+              sortKey={sortConfig.key}
+              sortDirection={sortConfig.direction}
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              totalRecords={pagination.totalRecords}
+              recordsPerPage={pagination.recordsPerPage}
+              onPageChange={handlePageChange}
+              onRecordsPerPageChange={handleRecordsPerPageChange}
               onEdit={(record) => editAttendance(record.id)}
               onDelete={(record) => deleteAttendance(record.id)}
               onView={(record) => {

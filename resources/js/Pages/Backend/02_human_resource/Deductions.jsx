@@ -6,6 +6,28 @@ import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
 import { apiService } from '../../../services/api';
 
+const DEDUCTION_TYPES = {
+    absence: 'Absent',
+    late: 'Late Arrival',
+    loan: 'Loan Repayment',
+    damage: 'Equipment Damage',
+    disciplinary: 'Disciplinary',
+    insurance: 'Insurance',
+    tax: 'Tax',
+    uniform: 'Uniform',
+    mobile: 'Mobile',
+    training: 'Training',
+    other: 'Other',
+};
+
+const DEDUCTION_STATUSES = {
+    pending: 'Pending',
+    approved: 'Approved',
+    applied: 'Applied',
+    disputed: 'Disputed',
+    cancelled: 'Cancelled',
+};
+
 const Deductions = ({ employees: propEmployees }) => {
     const { props } = usePage();
     const localization = props?.localization;
@@ -19,11 +41,11 @@ const Deductions = ({ employees: propEmployees }) => {
 
     const [formData, setFormData] = useState({
         employee_id: '',
-        type: 'Late Arrival',
+        type: 'late',
         amount: '',
         date: new Date().toISOString().split('T')[0],
         reason: '',
-        status: 'Pending'
+        status: 'pending'
     });
 
     const showToast = (message, type = 'info') => {
@@ -84,8 +106,8 @@ const Deductions = ({ employees: propEmployees }) => {
     const stats = useMemo(() => {
         const total = deductions.length;
         const totalAmount = deductions.reduce((acc, d) => acc + (parseFloat(d.amount) || 0), 0);
-        const pending = deductions.filter(d => d.status === 'Pending').length;
-        const approved = deductions.filter(d => d.status === 'Approved').length;
+        const pending = deductions.filter(d => d.status === 'pending').length;
+        const approved = deductions.filter(d => d.status === 'approved').length;
         return { total, totalAmount, pending, approved };
     }, [deductions]);
 
@@ -93,11 +115,11 @@ const Deductions = ({ employees: propEmployees }) => {
         setEditingDeduction(null);
         setFormData({
             employee_id: '',
-            type: 'Late Arrival',
+            type: 'late',
             amount: '',
             date: new Date().toISOString().split('T')[0],
             reason: '',
-            status: 'Pending'
+            status: 'pending'
         });
         setShowForm(true);
     };
@@ -182,7 +204,7 @@ const Deductions = ({ employees: propEmployees }) => {
             header: 'TYPE', 
             key: 'type', 
             sortable: true,
-            render: (row) => <span className="department-badge">{row.type}</span>
+            render: (row) => <span className="department-badge">{DEDUCTION_TYPES[row.type] || row.type}</span>
         },
         { 
             header: 'AMOUNT', 
@@ -197,7 +219,7 @@ const Deductions = ({ employees: propEmployees }) => {
             sortable: true,
             render: (row) => (
                 <span className={`employee-status status-${(row.status || '').toLowerCase()}`}>
-                    {row.status}
+                    {DEDUCTION_STATUSES[row.status] || row.status}
                 </span>
             )
         }
@@ -296,11 +318,10 @@ const Deductions = ({ employees: propEmployees }) => {
                                             onChange={handleInputChange}
                                             required
                                         >
-                                            <option value="Late Arrival">Late Arrival</option>
-                                            <option value="Absent">Absent</option>
-                                            <option value="Equipment Damage">Equipment Damage</option>
-                                            <option value="Loan Repayment">Loan Repayment</option>
-                                            <option value="Other">Other</option>
+                                            <option value="">Select Type</option>
+                                            {Object.entries(DEDUCTION_TYPES).map(([value, label]) => (
+                                                <option key={value} value={value}>{label}</option>
+                                            ))}
                                         </select>
                                     </div>
                                 </div>
@@ -341,9 +362,10 @@ const Deductions = ({ employees: propEmployees }) => {
                                             value={formData.status}
                                             onChange={handleInputChange}
                                         >
-                                            <option value="Pending">Pending</option>
-                                            <option value="Approved">Approved</option>
-                                            <option value="Rejected">Rejected</option>
+                                            <option value="">Select Status</option>
+                                            {Object.entries(DEDUCTION_STATUSES).map(([value, label]) => (
+                                                <option key={value} value={value}>{label}</option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div className="form-group">

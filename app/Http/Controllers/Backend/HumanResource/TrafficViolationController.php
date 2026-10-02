@@ -4,18 +4,27 @@ namespace App\Http\Controllers\Backend\HumanResource;
 
 use App\Http\Controllers\Controller;
 use App\Models\TrafficViolation;
+use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
 class TrafficViolationController extends Controller
 {
+    public function __construct(private readonly CompanyContext $companyContext)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
         try {
-            $violations = TrafficViolation::with('employee:id,name')->get()->map(function ($v) {
+            $violations = TrafficViolation::query()
+                ->where('company_id', $this->companyContext->id())
+                ->with('employee:id,name')
+                ->get()
+                ->map(function ($v) {
                 try {
                     $date = $v->violation_date instanceof Carbon ? $v->violation_date : Carbon::parse($v->violation_date);
                     return [
@@ -91,7 +100,7 @@ class TrafficViolationController extends Controller
             'points' => $validated['points'] ?? 0,
             'description' => $validated['description'],
             'evidence_notes' => $validated['evidenceNotes'],
-            'company_id' => 1, // Default for now
+            'company_id' => $this->companyContext->id(),
         ]);
 
         return response()->json([
@@ -106,7 +115,10 @@ class TrafficViolationController extends Controller
      */
     public function show(string $id)
     {
-        $violation = TrafficViolation::with('employee')->findOrFail($id);
+        $violation = TrafficViolation::query()
+            ->where('company_id', $this->companyContext->id())
+            ->with('employee')
+            ->findOrFail($id);
         return response()->json($violation);
     }
 
@@ -115,7 +127,9 @@ class TrafficViolationController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $violation = TrafficViolation::findOrFail($id);
+        $violation = TrafficViolation::query()
+            ->where('company_id', $this->companyContext->id())
+            ->findOrFail($id);
 
         $validated = $request->validate([
             'employee_id' => 'required|exists:employees,id',
@@ -163,7 +177,9 @@ class TrafficViolationController extends Controller
      */
     public function destroy(string $id)
     {
-        $violation = TrafficViolation::findOrFail($id);
+        $violation = TrafficViolation::query()
+            ->where('company_id', $this->companyContext->id())
+            ->findOrFail($id);
         $violation->delete();
 
         return response()->json([

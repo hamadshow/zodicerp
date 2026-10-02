@@ -26,6 +26,15 @@ class AccountsController extends Controller
     {
         $query = Account::query();
 
+        // Audit Phase 7: the account dropdown must not leak other
+        // companies' accounts. NULL-company rows are SHARED master data
+        // (the documented convention behind the posting resolvers) and
+        // stay visible.
+        $companyId = (int) ($request->user()->company_id ?? 1);
+        $query->where(function ($q) use ($companyId) {
+            $q->whereNull('company_id')->orWhere('company_id', $companyId);
+        });
+
         if ($request->filled('search')) {
             $search = $request->string('search')->toString();
 
@@ -42,16 +51,25 @@ class AccountsController extends Controller
 
         if ($request->filled('branch')) {
             $query->where('AccBranch', (int) $request->input('branch'));
-        }
-
-        if ($request->filled('ids')) {
+        }        if ($request->filled('ids')) {
             $ids = $request->input('ids');
             if (is_string($ids)) {
                 $ids = array_filter(explode(',', $ids));
             }
             $ids = array_map('intval', (array) $ids);
             if (! empty($ids)) {
-                $query->orWhereIn('AccID', $ids);
+                // Audit Phase 7: the ids branch keeps its original purpose
+                // (re-including a selected row hidden by search/type
+                // filters) but MUST carry the company invariant itself —
+                // as a bare top-level orWhere it would smuggle foreign
+                // ids straight past the company filter:
+                //   (company AND filters) OR AccID IN ids   ← leak
+                $query->orWhere(function ($q) use ($ids, $companyId) {
+                    $q->whereIn('AccID', $ids)
+                        ->where(function ($qc) use ($companyId) {
+                            $qc->whereNull('company_id')->orWhere('company_id', $companyId);
+                        });
+                });
             }
         }
 
@@ -69,6 +87,13 @@ class AccountsController extends Controller
     public function tree(Request $request)
     {
         $query = Account::query();
+
+        // Audit Phase 7: same company boundary as index() — NULL-company
+        // rows are shared master data and stay visible.
+        $companyId = (int) ($request->user()->company_id ?? 1);
+        $query->where(function ($q) use ($companyId) {
+            $q->whereNull('company_id')->orWhere('company_id', $companyId);
+        });
 
         if ($request->filled('branch')) {
             $query->where('AccBranch', (int) $request->input('branch'));

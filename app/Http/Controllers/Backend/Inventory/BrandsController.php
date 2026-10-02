@@ -6,15 +6,23 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\StoreBrandsRequest;
 use App\Http\Requests\Inventory\UpdateBrandsRequest;
 use App\Models\Brands;
+use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class BrandsController extends Controller
 {
+    public function __construct(private CompanyContext $companyContext) {}
+
     public function index(Request $request)
     {
-        $query = Brands::with('parent');
+        $companyId = $this->companyContext->id();
+
+        $query = Brands::with('parent')
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            });
 
         if ($request->has('search')) {
             $search = $request->search;
@@ -25,7 +33,13 @@ class BrandsController extends Controller
         }
 
         $brands = $query->orderBy('order')->orderBy('name')->get();
-        $parents = Brands::select('id', 'name')->orderBy('name')->get();
+        $parents = Brands::query()
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         if ($request->wantsJson()) {
             return response()->json([
@@ -45,8 +59,10 @@ class BrandsController extends Controller
         try {
             DB::beginTransaction();
 
-            // Auto-generate Brand Code
-            $lastBrand = Brands::latest('id')->first();
+            $companyId = $this->companyContext->id();
+
+            // Auto-generate Brand Code per company.
+            $lastBrand = Brands::where('company_id', $companyId)->latest('id')->first();
             $nextId = $lastBrand ? ($lastBrand->id + 1) : 1;
             $brandCode = 'BRD-'.str_pad($nextId + 3000, 4, '0', STR_PAD_LEFT);
 
@@ -56,6 +72,7 @@ class BrandsController extends Controller
                 'parent_id' => $request->parent_id,
                 'status' => $request->status,
                 'order' => $request->order ?? 0,
+                'company_id' => $companyId,
             ]);
 
             DB::commit();
@@ -71,6 +88,8 @@ class BrandsController extends Controller
 
     public function update(UpdateBrandsRequest $request, Brands $brand)
     {
+        abort_unless((int) $brand->company_id === $this->companyContext->id(), 404);
+
         try {
             DB::beginTransaction();
 
@@ -94,6 +113,8 @@ class BrandsController extends Controller
 
     public function destroy(Brands $brand)
     {
+        abort_unless((int) $brand->company_id === $this->companyContext->id(), 404);
+
         if ($brand->children()->count() > 0) {
             return back()->withErrors(['error' => 'Cannot delete brand with sub-brands.']);
         }

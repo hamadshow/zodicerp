@@ -96,33 +96,100 @@ export default function JournalEntity() {
 
   // Row selection (checkboxes): stores real journal_entries.id primary keys only.
   const [selectedIds, setSelectedIds] = useState([]);
+  // "Select All" selects the ENTIRE server-side result set (same search/sort
+  // context as the visible list), not just the current page. The full id set
+  // is fetched once from the existing endpoint and every row is treated as
+  // selected; deselecting one row materializes the explicit id list.
+  const [selectAllMode, setSelectAllMode] = useState(false);
+  const selectAllIdsRef = useRef([]);
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+    setSelectAllMode(false);
+    selectAllIdsRef.current = [];
+  };
 
   const handleRowSelect = (id) => {
+    // Deselecting one row while in full-result-set mode materializes the
+    // explicit id set (everything except this row).
+    if (selectAllMode) {
+      setSelectAllMode(false);
+      setSelectedIds(selectAllIdsRef.current.filter((x) => x !== id));
+      return;
+    }
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
   };
 
-  const handleSelectAll = () => {
-    // Toggle ONLY the rows of the current server-paginated page; selections made
-    // on other pages are preserved in the union.
-    setSelectedIds((prev) => {
-      const pageIds = journals.map((j) => j.id);
-      if (pageIds.length > 0 && pageIds.every((id) => prev.includes(id))) {
-        return prev.filter((id) => !pageIds.includes(id)); // deselect this page
-      }
-      return Array.from(new Set([...prev, ...pageIds])); // select this page
-    });
+  const handleSelectAll = async () => {
+    // Full result-set mode: clicking the header again clears everything.
+    if (selectAllMode) {
+      clearSelection();
+      return;
+    }
+
+    // Deselect-all: if the explicit selection already covers the whole
+    // result set, one more header click clears everything.
+    if (totalRecords > 0 && selectedIds.length >= totalRecords) {
+      clearSelection();
+      return;
+    }
+
+    const pageIds = journals.map((j) => j.id);
+    const pageFullySelected =
+      pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
+
+    // Explicit-ids mode: toggle the current page rows only; selections on
+    // other pages survive pagination.
+    if (pageFullySelected) {
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.includes(id)));
+      return;
+    }
+
+    // Select ALL records of the current result set via the existing endpoint
+    // in bulk (all=1) mode — ids only, no full re-render of the dataset.
+    if (totalRecords === 0) return;
+    setLoading(true);
+    try {
+      const response = await apiService.get('/journals', {
+        all: true,
+        search,
+        ...(sortState.key && sortState.direction
+          ? { sort_column: sortState.key, sort_direction: sortState.direction }
+          : {}),
+      });
+      const list = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.data || []);
+      const ids = list.map((j) => Number(j.id)).filter(Boolean);
+      selectAllIdsRef.current = ids;
+      setSelectedIds(ids);
+      setSelectAllMode(true);
+    } catch {
+      toast.error('Failed to select all records');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const allPageSelected =
-    journals.length > 0 && journals.every((j) => selectedIds.includes(j.id));
-  const somePageSelected =
-    !allPageSelected && journals.some((j) => selectedIds.includes(j.id));
+  const selectedCount = selectAllMode ? totalRecords : selectedIds.length;
+  const allSelected =
+    selectAllMode ||
+    (journals.length > 0 && journals.every((j) => selectedIds.includes(j.id)));
+  const someSelected =
+    !allSelected &&
+    (selectAllMode ||
+      selectedIds.length > 0 ||
+      journals.some((j) => selectedIds.includes(j.id)));
 
   const journalsWithSelection = useMemo(
-    () => journals.map((j) => ({ ...j, selected: selectedIds.includes(j.id) })),
-    [journals, selectedIds],
+    () =>
+      journals.map((j) => ({
+        ...j,
+        selected: selectAllMode || selectedIds.includes(j.id),
+      })),
+    [journals, selectedIds, selectAllMode],
   );
   const readOnly = mode === 'list' ? false : mode === 'view';
 
@@ -428,14 +495,15 @@ export default function JournalEntity() {
     setShowPostDropdown(false);
     try {
       // With a checkbox selection: post ONLY the selected entries (ids contract).
-      // Empty selection preserves the historical "post all unposted" behavior.
+      // In full-result-set mode the explicit id set of the result is sent.
       const response = await apiService.post(
         '/reports/post-journal',
-        selectedIds.length > 0 ? { ids: selectedIds } : {},
+        { ids: selectAllMode ? selectAllIdsRef.current : selectedIds },
       );
       if (response.data) {
         toast.success(response.data.message || 'Data posted successfully');
-        setSelectedIds([]);
+        // The selected rows changed state — clear the stale selection.
+        clearSelection();
         loadJournals(currentPage, perPage); // Refresh to see updated status
       }
     } catch (err) {
@@ -451,14 +519,15 @@ export default function JournalEntity() {
     setLoading(true);
     setShowPostDropdown(false);
     try {
-      // Same selection contract as Post: ids => only selected, empty => all.
+      // Same selection contract as Post: only the selected ids are affected.
       const response = await apiService.post(
         '/reports/unpost-journal',
-        selectedIds.length > 0 ? { ids: selectedIds } : {},
+        { ids: selectAllMode ? selectAllIdsRef.current : selectedIds },
       );
       if (response.data) {
         toast.success(response.data.message || 'Data unposted successfully');
-        setSelectedIds([]);
+        // The selected rows changed state — clear the stale selection.
+        clearSelection();
         loadJournals(currentPage, perPage); // Refresh to see updated status
       }
     } catch (err) {
@@ -564,7 +633,7 @@ export default function JournalEntity() {
     return new Date(normalized);
   };
 
-  const loadJournals = async (page = currentPage, recordsPerPage = perPage, sort = sortState) => {
+  const loadJournals = async (page = currentPage, recordsPerPage = perPage, sort = sortState, opts = {}) => {
     setLoading(true);
     setError('');
     try {
@@ -584,6 +653,18 @@ export default function JournalEntity() {
       setTotalRecords(responseData.total || 0);
       setTotalPages(responseData.last_page || 0);
       setCurrentPage(responseData.current_page || 1);
+
+      // Selection lifecycle: a page response is only a WINDOW of the result
+      // set, so it must never filter selections (cross-page selection).
+      // Result-set changes (search/sort/page size) are the only invalidation
+      // points, handled explicitly via opts.resetSelection.
+      if (opts.resetSelection) {
+        clearSelection();
+        return;
+      }
+      if (selectAllMode) {
+        setSelectedIds(selectAllIdsRef.current);
+      }
     } catch {
       setError('Failed to load journal entries.');
       setJournals([]);
@@ -592,15 +673,15 @@ export default function JournalEntity() {
     }
   };
 
-  const handlePageChange = (newPage) => {
+  const handlePageChange = (newPage, opts = {}) => {
     setCurrentPage(newPage);
-    loadJournals(newPage, perPage);
+    loadJournals(newPage, perPage, sortState, opts);
   };
 
   const handleRecordsPerPageChange = (newPerPage) => {
     setPerPage(newPerPage);
     setCurrentPage(1);
-    loadJournals(1, newPerPage);
+    loadJournals(1, newPerPage, sortState, { resetSelection: true });
   };
 
   // Server-side sorting: send the sort to the backend and reset to page 1,
@@ -609,7 +690,7 @@ export default function JournalEntity() {
     const next = { key: direction ? key : null, direction: direction || null };
     setSortState(next);
     setCurrentPage(1);
-    loadJournals(1, perPage, next);
+    loadJournals(1, perPage, next, { resetSelection: true });
   };
 
   useEffect(() => {
@@ -625,7 +706,8 @@ export default function JournalEntity() {
       return;
     }
     const timeoutId = window.setTimeout(() => {
-      handlePageChange(1);
+      // Search redefines the result set — selection must not leak across sets.
+      handlePageChange(1, { resetSelection: true });
     }, 350);
     return () => window.clearTimeout(timeoutId);
   }, [mode, search]);
@@ -1140,8 +1222,8 @@ export default function JournalEntity() {
                 tableData={journalsWithSelection}
                 columns={columns}
                 handleRowSelect={handleRowSelect}
-                selectAll={allPageSelected}
-                someSelected={somePageSelected}
+                selectAll={allSelected}
+                someSelected={someSelected}
                 handleSelectAll={handleSelectAll}
                 currentPage={currentPage}
                 totalPages={totalPages}
@@ -1187,18 +1269,32 @@ export default function JournalEntity() {
 
                       {showPostDropdown && (
                         <div className="excel-dropdown-menu">
-                          <button type="button" className="dropdown-item" onClick={handlePostToPostings}>
+                          <button
+                            type="button"
+                            className="dropdown-item"
+                            onClick={handlePostToPostings}
+                            disabled={selectedCount === 0}
+                          >
                             <i className="material-icons-outlined post-icon">check_circle</i>
                             <div className="item-content">
-                              <span className="title">Post All</span>
-                              <span className="desc">Aggregate all entries to postings</span>
+                              <span className="title">Post</span>
+                              <span className="desc">
+                                Post the selected entries ({selectedCount} selected)
+                              </span>
                             </div>
                           </button>
-                          <button type="button" className="dropdown-item" onClick={handleUnpostFromPostings}>
+                          <button
+                            type="button"
+                            className="dropdown-item"
+                            onClick={handleUnpostFromPostings}
+                            disabled={selectedCount === 0}
+                          >
                             <i className="material-icons-outlined unpost-icon">undo</i>
                             <div className="item-content">
-                              <span className="title">Unpost All</span>
-                              <span className="desc">Remove from postings & reset status</span>
+                              <span className="title">Unpost</span>
+                              <span className="desc">
+                                Unpost the selected entries ({selectedCount} selected)
+                              </span>
                             </div>
                           </button>
                         </div>

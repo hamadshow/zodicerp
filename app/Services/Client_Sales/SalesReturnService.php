@@ -18,6 +18,7 @@ use App\Services\Inventory\WeightedAverageCostService;
 use App\Services\CompanyContext;
 use App\Services\UnitConversionService;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class SalesReturnService
 {
@@ -526,17 +527,33 @@ class SalesReturnService
      *   Dr Accounts Receivable (total return amount)
      *   Dr Output Tax (tax reversal)
      *   Cr Revenue (net return amount)
+     *
+     * Phase 12 (silent AR-skip closed, docs Phase 9 outlook): posting an
+     * approved/completed return without AR + revenue accounts used to be
+     * silently skipped while stock still moved back into inventory — a
+     * company could "give back" stock with no credit note in the books.
+     * The GL is now an all-or-nothing contract: the entry posts in full,
+     * or the whole return (journal + stock movements + derived quantity)
+     * rolls back with a loud RuntimeException. Unseeded test/legacy
+     * contexts must seed the accounts first, exactly like every other
+     * GL-integrated flow.
      */
     private function createJournalEntryForReturn(SalesReturn $return, array $totals): void
     {
         $totalAmount = (float) ($totals['total_amount'] ?? $return->total_amount ?? 0);
         $taxAmount = (float) ($totals['tax_amount'] ?? $return->tax_amount ?? 0);
+        $companyId = (int) ($return->company_id ?? Auth::user()?->company_id ?? 0);
 
         $arAccountId = $this->resolveArAccountId($return->customer_id);
         $revenueAccountId = $this->resolveRevenueAccountId();
 
+        // Loud refusal instead of a silent skip: the AR + revenue pair is
+        // mandatory for a posted return. The caller's transaction rolls the
+        // whole return back (details, movements, ICTs, derived quantity).
         if (!$arAccountId || !$revenueAccountId) {
-            return;
+            throw new RuntimeException(
+                'Sales return cannot be posted: no Accounts Receivable and/or Revenue account is configured for this company. Seed the GL accounts (or complete the customer account assignment) before approving returns.'
+            );
         }
 
         // Fiscal period validation — always check, even for existing entries
@@ -544,9 +561,17 @@ class SalesReturnService
 
         // Check for existing journal entry (idempotency)
         $reference = $return->return_number;
-        $existingHeader = JournalEntry::where('reference', $reference)
-            ->where('entry_type', 'SalesReturn')
-            ->first();
+        $existingHeader = $this->liveJournalEntryFor($reference);
+
+        // Phase 13 intent, Phase 17 mechanism: a REVERSED slot is never
+        // resurrected. liveEntryFor() already skips recorded reversals via
+        // the journal_reversals link table; the fallback below catches the
+        // legacy-ambiguous case where every entry of the reference is
+        // reversed — the re-approval must post a fresh entry, otherwise the
+        // standing reversal nets the live credit note away to zero.
+        if ($existingHeader && $this->hasRecordedReversal($existingHeader)) {
+            $existingHeader = null;
+        }
 
         if ($existingHeader) {
             JournalEntryLine::where('journal_entry_code', $existingHeader->entry_code)->delete();
@@ -555,6 +580,7 @@ class SalesReturnService
                 'date' => $return->return_date,
                 'total_amount' => $totalAmount,
                 'status' => 'Post',
+                'company_id' => $companyId, // heal legacy unstamped rows (Phase 13)
             ]);
         } else {
             $entryCode = $this->generateNextEntryCode();
@@ -566,6 +592,7 @@ class SalesReturnService
                 'description' => 'Sales Return ' . $reference,
                 'total_amount' => $totalAmount,
                 'status' => 'Post',
+                'company_id' => $companyId, // Phase 13: mirrors the Phase 9 sales-invoice stamp
             ]);
         }
 
@@ -578,6 +605,7 @@ class SalesReturnService
             'related_id_name' => 'SalesReturn',
             'related_name_details' => $reference,
             'description' => 'Revenue reversal - Return ' . $reference,
+            'company_id' => $companyId,
         ]);
 
         JournalEntryLine::create([
@@ -588,6 +616,7 @@ class SalesReturnService
             'related_id_name' => 'SalesReturn',
             'related_name_details' => $reference,
             'description' => 'AR reduction - Return ' . $reference,
+            'company_id' => $companyId,
         ]);
 
         // COGS reversal (Dr Inventory, Cr COGS) — restores inventory value and reverses COGS
@@ -605,6 +634,7 @@ class SalesReturnService
                     'related_id_name' => 'SalesReturn',
                     'related_name_details' => $reference,
                     'description' => 'Inventory restoration - Return ' . $reference,
+                    'company_id' => $companyId,
                 ]);
 
                 JournalEntryLine::create([
@@ -615,6 +645,7 @@ class SalesReturnService
                     'related_id_name' => 'SalesReturn',
                     'related_name_details' => $reference,
                     'description' => 'COGS reversal - Return ' . $reference,
+                    'company_id' => $companyId,
                 ]);
             }
         }
@@ -632,11 +663,40 @@ class SalesReturnService
      */
     private function createStockMovementsForReturn(SalesReturn $return): void
     {
-        if (DB::table('inventory_movement_headers')
+        $existingHeaders = DB::table('inventory_movement_headers')
             ->where('reference_id', $return->id)
             ->where('reference_type', 'sales_return')
-            ->exists()) {
-            return;
+            ->orderBy('id')
+            ->get();
+
+        // Phase 13: idempotency is judged from the WAC ledger, not from
+        // documents — headers/lines are immutable, so a RETRACTED return
+        // keeps its original 'sales_return' documents and must still be
+        // allowed to re-apply. Skip only when un-reversed
+        // 'sales_return_detail' ICTs already exist for this return's
+        // movement lines: never applied → proceed, applied → skip,
+        // retracted → proceed. An empty header shell also proceeds.
+        if ($existingHeaders->isNotEmpty()) {
+            $lineIds = DB::table('inventory_movement_lines')
+                ->whereIn('stock_movement_id', $existingHeaders->pluck('id'))
+                ->pluck('id');
+
+            $alreadyApplied = $lineIds->isNotEmpty() && DB::table('inventory_cost_transactions as tx')
+                ->where('tx.company_id', (int) $existingHeaders->first()->company_id)
+                ->where('tx.source_type', 'sales_return_detail')
+                ->whereIn('tx.movement_line_id', $lineIds)
+                ->whereNull('tx.reversal_of_id')
+                ->whereNotExists(function ($q) {
+                    $q->selectRaw(1)
+                        ->from('inventory_cost_transactions as rev')
+                        ->whereColumn('rev.reversal_of_id', 'tx.id')
+                        ->where('rev.source_type', 'sales_return_detail_reversal');
+                })
+                ->exists();
+
+            if ($alreadyApplied) {
+                return;
+            }
         }
 
         $return->load('details');
@@ -679,7 +739,7 @@ class SalesReturnService
             }
             $costPrice = (string) $costTransaction->unit_cost;
 
-            DB::table('inventory_movement_lines')->insert([
+            $movementLineId = DB::table('inventory_movement_lines')->insertGetId([
                 'stock_movement_id' => $movementHeaderId,
                 'product_id' => $detail->product_id,
                 'unit_id' => $detail->unit_id ?? null,
@@ -706,7 +766,7 @@ class SalesReturnService
                 (int) $detail->id,
                 (string) $return->return_date,
                 $movementHeaderId,
-                DB::table('inventory_movement_lines')->where('stock_movement_id', $movementHeaderId)->latest('id')->value('id'),
+                $movementLineId,
             );
         }
     }
@@ -762,7 +822,8 @@ class SalesReturnService
     /**
      * Calculate COGS reversal amount for a Sales Return.
      * Uses the HISTORICAL cost from the original sale's inventory movement
-     * (inventory_movement_lines.cost_price where reference_type = 'SalesInvoice').
+     * (inventory_movement_headers.reference_type = 'sales_invoice', normalized
+     * from the legacy PascalCase 'SalesInvoice' in Phase 2).
      *
      * This ensures the COGS reversal matches the original sale's recorded cost,
      * even if products.cost_per_item has changed since the original sale.
@@ -780,7 +841,7 @@ class SalesReturnService
         // Find the original sale's inventory movement header
         $saleMovementHeader = DB::table('inventory_movement_headers')
             ->where('reference_id', $return->invoice_id)
-            ->where('reference_type', 'SalesInvoice')
+            ->where('reference_type', 'sales_invoice')
             ->first();
 
         foreach ($return->details as $detail) {
@@ -817,15 +878,34 @@ class SalesReturnService
     }
 
     /**
+     * Phase 17: the LIVE credit-note entry for this return's reference —
+     * answered through the journal_reversals link table (a join), not by
+     * probing for '-REV' code suffixes.
+     */
+    private function liveJournalEntryFor(string $reference): ?JournalEntry
+    {
+        return app(\App\Services\Accounting\JournalReversalService::class)
+            ->liveEntryFor($reference, 'SalesReturn');
+    }
+
+    private function hasRecordedReversal(?JournalEntry $entry): bool
+    {
+        return $entry !== null
+            && app(\App\Services\Accounting\JournalReversalService::class)->hasReversal($entry->entry_code);
+    }
+
+    /**
      * P0-06: Create a reversal journal for a sales return instead of deleting the original.
      * Called when status changes from approved/completed to draft/requested/cancelled.
      */
     private function reverseJournalEntryForReturn(SalesReturn $return): void
     {
         $reference = $return->return_number;
-        $header = JournalEntry::where('reference', $reference)
-            ->where('entry_type', 'SalesReturn')
-            ->first();
+
+        // Phase 17: the LIVE entry (no recorded reversal) via the link
+        // table — with reversed history kept for audit, a reference can own
+        // several entries; the fallback handles legacy-ambiguous history.
+        $header = $this->liveJournalEntryFor($reference);
 
         if ($header && in_array($header->status, ['Post', 'posted'])) {
             // Posted: create reversal, preserve original
@@ -841,41 +921,126 @@ class SalesReturnService
     }
 
     /**
-     * Reverse/remove stock movements and product quantity for a sales return.
-     * Called when status changes from approved/completed to draft/requested/cancelled.
+     * Reverse the stock side of a posted sales return (Phase 13,
+     * engine-routed). Immutable documents: lines and headers are NEVER
+     * deleted — that was the pre-Phase-13 raw-delete retraction that broke
+     * on ict_movement_line_fk and silently left the WAC ledger un-reversed
+     * even when the deletes worked. Instead:
+     *
+     *   - every detail's applied ICT is exactly reversed via
+     *     WeightedAverageCostService::reverse() (which REFUSES — and rolls
+     *     the whole retraction back — when the returned units have already
+     *     been consumed downstream); the reversal ICT keeps the original's
+     *     movement header/line links and carries reversal_of_id;
+     *   - the derived products.quantity delta rolls back per detail
+     *     (decrement by the original ICT's quantity_delta);
+     *   - a reversal movement document ('sale_return' type, direction 'out',
+     *     voucher '<number>-REV') records the round trip.
+     *
+     * Idempotent: no original ICTs → nothing to do.
+     *
+     * @throws \RuntimeException when returned stock has been consumed.
      */
     private function reverseStockMovementsForReturn(SalesReturn $return): void
     {
         $headers = DB::table('inventory_movement_headers')
             ->where('reference_id', $return->id)
             ->where('reference_type', 'sales_return')
+            ->orderBy('id')
             ->get();
 
-        foreach ($headers as $header) {
-            $lines = DB::table('inventory_movement_lines')
-                ->where('stock_movement_id', $header->id)
-                ->get();
-
-            foreach ($lines as $line) {
-                // NOTE: line->quantity is stored in base-normalized units
-                // (written via UnitConversionService->toBase in createStockMovementsForReturn),
-                // so decrementing directly by line->quantity correctly reverses the
-                // base-quantity increment that was applied on return creation.
-                // conversion_factor_snapshot on the line is available if the original
-                // document-unit quantity ever needs to be reconstructed.
-                DB::table('products')
-                    ->where('id', $line->product_id)
-                    ->decrement('quantity', (float) $line->quantity);
-            }
-
-            DB::table('inventory_movement_lines')
-                ->where('stock_movement_id', $header->id)
-                ->delete();
+        if ($headers->isEmpty()) {
+            return; // nothing applied (or legacy raw-delete era) — idempotent no-op
         }
 
-        DB::table('inventory_movement_headers')
-            ->where('reference_id', $return->id)
-            ->where('reference_type', 'sales_return')
-            ->delete();
+        // Pair each applied ICT with its IMMUTABLE original movement line.
+        // Keyed by MOVEMENT LINE, not by return-detail id:
+        // updateSalesReturn() recreates details (delete + create) BEFORE the
+        // transition effects run, so detail ids are not stable across a
+        // retraction, while movement lines never change. Originals only —
+        // reversal ICTs carry reversal_of_id / their own source_type and are
+        // never re-reversed.
+        $lineIds = DB::table('inventory_movement_lines')
+            ->whereIn('stock_movement_id', $headers->pluck('id'))
+            ->pluck('id');
+
+        $txs = DB::table('inventory_cost_transactions as tx')
+            ->where('tx.company_id', (int) $headers->first()->company_id)
+            ->where('tx.source_type', 'sales_return_detail')
+            ->whereIn('tx.movement_line_id', $lineIds)
+            ->whereNull('tx.reversal_of_id')
+            ->whereNotExists(function ($q) {
+                $q->selectRaw(1)
+                    ->from('inventory_cost_transactions as rev')
+                    ->whereColumn('rev.reversal_of_id', 'tx.id')
+                    ->where('rev.source_type', 'sales_return_detail_reversal');
+            })
+            ->orderBy('tx.id')
+            ->get();
+
+        if ($txs->isEmpty()) {
+            return; // already retracted — idempotent no-op
+        }
+
+        $reversals = [];
+        foreach ($txs as $tx) {
+            $line = $tx->movement_line_id
+                ? DB::table('inventory_movement_lines')->where('id', $tx->movement_line_id)->first()
+                : null;
+            $reversals[] = ['tx' => $tx, 'line' => $line];
+        }
+
+        $companyId = (int) $headers->first()->company_id;
+        $reversalDate = now()->toDateString();
+
+        foreach ($reversals as $entry) {
+            // Exact reversal through the WAC engine: refuses (RuntimeException)
+            // when the returned units have already been consumed downstream —
+            // the whole retraction transaction rolls back.
+            app(WeightedAverageCostService::class)->reverse(
+                (int) $entry['tx']->id,
+                $reversalDate,
+                'sales_return_detail_reversal',
+                (int) $entry['tx']->id,
+            );
+
+            // Derived-quantity rollback: the original ICT's delta is the
+            // authoritative applied quantity (base units).
+            DB::table('products')
+                ->where('id', $entry['tx']->product_id)
+                ->decrement('quantity', (float) $entry['tx']->quantity_delta);
+        }
+
+        // Reversal movement document records the round trip (immutable history).
+        $reversalHeaderId = DB::table('inventory_movement_headers')->insertGetId([
+            'movement_date' => $reversalDate,
+            'type' => 'sale_return',
+            'direction' => 'out',
+            'reference_id' => $return->id,
+            'reference_type' => 'sales_return_reversal',
+            'voucher_num' => $return->return_number.'-REV',
+            'warehouse_id' => $return->warehouse_id,
+            'company_id' => $companyId,
+            'created_by' => auth()->id(),
+            'notes' => "Sales Return Reversal: {$return->return_number}",
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        foreach ($reversals as $entry) {
+            DB::table('inventory_movement_lines')->insert([
+                'stock_movement_id' => $reversalHeaderId,
+                'product_id' => $entry['tx']->product_id,
+                'unit_id' => $entry['line']->unit_id ?? null,
+                'quantity' => abs((float) $entry['tx']->quantity_delta),
+                'conversion_factor_snapshot' => $entry['line']->conversion_factor_snapshot ?? '1.000000',
+                'original_quantity' => abs((float) $entry['tx']->quantity_delta),
+                'cost_price' => abs((float) $entry['tx']->unit_cost),
+                'goods_receipt_detail_id' => null,
+                'purchase_invoice_detail_id' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 }

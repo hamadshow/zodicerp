@@ -7,6 +7,7 @@ use App\Http\Requests\HumanResource\StoreEmployeeRequest;
 use App\Http\Requests\HumanResource\UpdateEmployeeRequest;
 use App\Models\Employee;
 use App\Models\Backend\HumanResource\Profession;
+use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
@@ -17,15 +18,22 @@ use App\Models\Role;
 
 class EmployeeController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly CompanyContext $companyContext)
     {
         $this->middleware('auth:web,employee');
     }
 
     public function index(): Response
     {
-        $nationalities = \App\Models\Nationality::where('status', 'active')->get(['id', 'name']);
-        $professions = Profession::where('status', 'active')->get(['id', 'profession_name']);
+        $companyId = $this->companyContext->id();
+        $nationalities = \App\Models\Nationality::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->get(['id', 'name']);
+        $professions = Profession::query()
+            ->where('company_id', $companyId)
+            ->where('status', 'active')
+            ->get(['id', 'profession_name']);
         $roles = Role::where('status', 'active')->get(['id', 'name', 'slug']);
         
         return Inertia::render('Backend/02_human_resource/Employees', [
@@ -37,7 +45,9 @@ class EmployeeController extends Controller
 
     public function getEmployees(Request $request)
     {
-        $query = Employee::query()->with('roles');
+        $query = Employee::query()
+            ->where('company_id', $this->companyContext->id())
+            ->with('roles');
 
         // Apply search filter
         if ($request->has('search') && $request->search) {
@@ -65,6 +75,16 @@ class EmployeeController extends Controller
         $employees = $query->orderBy('created_at', 'desc')->paginate($request->get('per_page', 10));
 
         return response()->json($employees);
+    }
+
+    public function show(Request $request, Employee $employee)
+    {
+        abort_unless((int) $employee->company_id === $this->companyContext->id(), 404);
+
+        return response()->json([
+            'success' => true,
+            'data' => $employee->load(['roles:id,name,slug', 'manager:id,first_name,last_name']),
+        ]);
     }
 
     public function store(StoreEmployeeRequest $request)
@@ -159,6 +179,8 @@ class EmployeeController extends Controller
 
     public function destroy(Employee $employee)
     {
+        abort_unless((int) $employee->company_id === $this->companyContext->id(), 404);
+
         $position = $employee->position;
         // Delete avatar if exists
         if ($employee->avatar && Storage::disk('public')->exists($employee->avatar)) {
@@ -194,7 +216,11 @@ class EmployeeController extends Controller
             'status' => 'required|in:active,inactive,on-leave,terminated',
         ]);
 
-        Employee::whereIn('id', $validated['ids'])->update(['status' => $validated['status']]);
+        // Ownership resolved server-side: only this company's ids are touched.
+        Employee::query()
+            ->where('company_id', $this->companyContext->id())
+            ->whereIn('id', $validated['ids'])
+            ->update(['status' => $validated['status']]);
 
         return response()->json([
             'success' => true,
@@ -209,8 +235,11 @@ class EmployeeController extends Controller
             'ids.*' => 'integer',
         ]);
 
-        // Delete avatars for employees being deleted
-        $employees = Employee::whereIn('id', $validated['ids'])->get();
+        // Ownership resolved server-side before any delete.
+        $employees = Employee::query()
+            ->where('company_id', $this->companyContext->id())
+            ->whereIn('id', $validated['ids'])
+            ->get();
         $positionsToUpdate = $employees
             ->filter(fn (Employee $employee): bool => filled($employee->position) && filled($employee->company_id))
             ->map(fn (Employee $employee): string => $employee->company_id.':'.$employee->position)
@@ -222,7 +251,10 @@ class EmployeeController extends Controller
             }
         }
 
-        Employee::whereIn('id', $validated['ids'])->delete();
+        Employee::query()
+            ->where('company_id', $this->companyContext->id())
+            ->whereIn('id', $validated['ids'])
+            ->delete();
 
         // Update counts for all affected positions
         foreach ($positionsToUpdate as $positionKey) {

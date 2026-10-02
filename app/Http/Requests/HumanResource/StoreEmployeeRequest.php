@@ -36,10 +36,21 @@ class StoreEmployeeRequest extends FormRequest
             'hire_date' => 'required|date',
             'salary' => 'nullable|numeric|min:0',
             'nationality' => 'nullable|string|max:255',
-            'status' => 'required|in:active,inactive,on-leave,terminated',
+            'status' => 'required|in:active,inactive,on-leave,terminated,probation',
             'address' => 'nullable|string',
             'notes' => 'nullable|string',
             'avatar' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'manager_id' => [
+                'nullable',
+                'integer',
+                'exists:employees,id',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    $companyId = (int) app(\App\Services\CompanyContext::class)->id();
+                    if ($value && ! Employee::query()->where('company_id', $companyId)->whereKey((int) $value)->exists()) {
+                        $fail('The selected manager must belong to your company.');
+                    }
+                },
+            ],
         ];
     }
 

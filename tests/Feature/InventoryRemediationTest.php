@@ -214,7 +214,7 @@ class InventoryRemediationTest extends TestCase
             'type' => 'sale',
             'direction' => 'out',
             'reference_id' => 99999,
-            'reference_type' => 'SalesInvoice',
+            'reference_type' => 'sales_invoice',
             'voucher_num' => 'INV-HIST-' . uniqid(),
             'warehouse_id' => $warehouseId,
             'company_id' => $companyId,

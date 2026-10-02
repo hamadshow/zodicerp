@@ -46,6 +46,9 @@ export default function BalanceSheetDetail() {
 
   const t = {
     ar: {
+      dashboard: 'لوحة التحكم',
+      accounting: 'المحاسبة',
+      financialReports: 'التقارير المالية',
       title: 'تفاصيل الميزانية العمومية',
       asOf: 'كما في تاريخ',
       assets: 'الأصول',
@@ -68,6 +71,9 @@ export default function BalanceSheetDetail() {
       noData: 'لا توجد بيانات متاحة لهذا التاريخ',
     },
     en: {
+      dashboard: 'Dashboard',
+      accounting: 'Accounting',
+      financialReports: 'Financial Reports',
       title: 'Balance Sheet Detail',
       asOf: 'As of Date',
       assets: 'Assets',
@@ -98,9 +104,9 @@ export default function BalanceSheetDetail() {
     return nodes.map((node) => (
       <React.Fragment key={node.AccCode}>
         <tr className={`row-depth-${depth} ${node.AccType === 0 ? 'font-bold bg-gray-50/50' : ''} hover:bg-gray-50 transition-colors`}>
-          <td className="account-cell py-3" style={{ 
-            paddingLeft: isAr ? '16px' : `${depth * 28 + 16}px`, 
-            paddingRight: isAr ? `${depth * 28 + 16}px` : '16px' 
+          <td className="account-cell py-3" style={{
+            paddingLeft: isAr ? '16px' : `${depth * 28 + 16}px`,
+            paddingRight: isAr ? `${depth * 28 + 16}px` : '16px'
           }}>
             <div className="flex items-center">
               <span className={`acc-code text-xs font-mono px-2 py-0.5 rounded ${
@@ -129,19 +135,18 @@ export default function BalanceSheetDetail() {
 
     const workbook = XLSX.utils.book_new();
     const rows = [];
-    
+
     // Header Info
     rows.push([currentLang.companyName]);
     rows.push([currentLang.title]);
     rows.push([`${currentLang.asOf}: ${asOfDate}`]);
     rows.push([]);
-    
+
     // Table Header
     rows.push([currentLang.accountName, currentLang.balance]);
 
     const flatten = (nodes, depth = 0) => {
       nodes.forEach(n => {
-        // Use non-breaking space for indentation in Excel if possible, or simple spaces
         const indent = '    '.repeat(depth);
         rows.push([indent + n.AccCode + ' - ' + n.AccName, n.balance]);
         if (n.children && n.children.length > 0) {
@@ -172,8 +177,7 @@ export default function BalanceSheetDetail() {
     rows.push([currentLang.totalLiabilitiesEquity, data.total_liabilities + data.total_equity]);
 
     const worksheet = XLSX.utils.aoa_to_sheet(rows);
-    
-    // Set column widths
+
     worksheet['!cols'] = [{ wch: 60 }, { wch: 20 }];
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Balance Sheet Detail');
@@ -186,61 +190,78 @@ export default function BalanceSheetDetail() {
 
   return (
     <AdminLayout activeMenu="Financial Reports">
-      <div className={`financial-reports-page balance-sheet-page ${isAr ? 'rtl' : 'ltr'}`}>
-        <Head title={`${currentLang.title} - ZodicERP`} />
+      <Head title={`${currentLang.title} - ZodicERP`} />
+      <div className={`fr-page balance-sheet-page ${isAr ? 'rtl' : 'ltr'}`}>
+        <div className="fr-breadcrumb">
+          <a href="#">{currentLang.dashboard}</a>
+          <span className="fr-sep">/</span>
+          <a href="#">{currentLang.accounting}</a>
+          <span className="fr-sep">/</span>
+          <a href="#">{currentLang.financialReports}</a>
+          <span className="fr-sep">/</span>
+          <span className="fr-current">{currentLang.title}</span>
+        </div>
 
-        <div className="report-header no-print">
-          <div className="report-header__left">
-            <h1 className="text-2xl font-bold text-gray-800">{currentLang.title}</h1>
-            <p className="text-sm text-gray-500 mt-1">{currentLang.subtitle}</p>
+        <div className="fr-header-card">
+          <div>
+            <h1 className="fr-title">{currentLang.title}</h1>
+            <p className="fr-subtitle">{currentLang.subtitle}</p>
           </div>
-          <div className="report-header__right">
-            <div className="date-picker-group">
-              <label className="text-sm font-medium text-gray-700">{currentLang.asOf}</label>
-              <input 
-                type="date" 
-                value={asOfDate} 
+        </div>
+
+        <div className="fr-filters-card">
+          <div className="fr-filters-grid">
+            <div className="fr-form-group">
+              <label htmlFor="fr-asof">{currentLang.asOf}</label>
+              <input
+                id="fr-asof"
+                type="date"
+                className="fr-input"
+                value={asOfDate}
                 onChange={(e) => setAsOfDate(e.target.value)}
-                className="form-input rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               />
             </div>
-            <div className="button-group ml-4">
-              <button onClick={handleExportExcel} className="btn-secondary">
-                <span className="material-icons-outlined text-base mr-1">file_download</span>
-                {currentLang.exportExcel}
-              </button>
-              <button onClick={() => window.print()} className="btn-primary ml-2">
-                <span className="material-icons-outlined text-base mr-1">print</span>
-                {currentLang.print}
-              </button>
-            </div>
+          </div>
+          <div className="fr-form-actions">
+            <button
+              type="button"
+              className="btn btn-excel fr-btn"
+              onClick={handleExportExcel}
+            >
+              <span className="material-icons-outlined">description</span>
+              <span>{currentLang.exportExcel}</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary fr-btn"
+              onClick={() => window.print()}
+            >
+              <span className="material-icons-outlined">print</span>
+              <span>{currentLang.print}</span>
+            </button>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-            <span className="ml-3 text-lg text-gray-600">{currentLang.loading}</span>
+          <div className="fr-loading-banner">
+            <span className="material-icons-outlined">sync</span>
+            <span>{currentLang.loading}</span>
           </div>
         ) : data ? (
-          <div className="report-container print-section shadow-lg bg-white rounded-lg overflow-hidden max-w-4xl mx-auto">
-            <div className="report-top-banner p-8 border-b border-gray-100 text-center">
-              <h2 className="text-3xl font-bold text-indigo-700 uppercase tracking-wider">{currentLang.companyName}</h2>
-              <h3 className="text-xl font-semibold text-gray-700 mt-2 uppercase">{currentLang.title}</h3>
-              <p className="text-gray-500 mt-1 font-medium">{currentLang.asOf}: {asOfDate}</p>
-            </div>
-
-            <div className="report-body p-8">
-              <table className="w-full">
+          <div className="fr-table-card">
+            <div className="fr-table-wrapper">
+              <table className="fr-table">
                 <thead>
-                  <tr className="border-b-2 border-gray-100 text-gray-400 text-xs uppercase tracking-wider">
-                    <th className="text-left py-3 font-semibold">{currentLang.accountName}</th>
-                    <th className="text-right py-3 font-semibold">{currentLang.balance}</th>
+                  <tr>
+                    <th className="fr-th">{currentLang.accountName}</th>
+                    <th className="fr-th fr-amount-header">{currentLang.balance}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="fr-table-body">
                   {/* Assets Section */}
-                  <tr className="bg-indigo-50/50"><td colSpan="2" className="py-2 px-4 font-bold text-indigo-700 text-sm uppercase">{currentLang.assets}</td></tr>
+                  <tr className="bg-indigo-50/50">
+                    <td colSpan="2" className="py-2 px-4 font-bold text-indigo-700 text-sm uppercase">{currentLang.assets}</td>
+                  </tr>
                   {renderAccountRows(data.assets)}
                   <tr className="bg-indigo-600 text-white font-bold">
                     <td className="py-3 px-4">{currentLang.totalAssets}</td>
@@ -248,9 +269,11 @@ export default function BalanceSheetDetail() {
                   </tr>
 
                   <tr className="h-8"></tr>
-                  
+
                   {/* Liabilities Section */}
-                  <tr className="bg-red-50/50"><td colSpan="2" className="py-2 px-4 font-bold text-red-700 text-sm uppercase">{currentLang.liabilities}</td></tr>
+                  <tr className="bg-red-50/50">
+                    <td colSpan="2" className="py-2 px-4 font-bold text-red-700 text-sm uppercase">{currentLang.liabilities}</td>
+                  </tr>
                   {renderAccountRows(data.liabilities)}
                   <tr className="bg-gray-100 text-gray-800 font-bold">
                     <td className="py-3 px-4">{currentLang.totalLiabilities}</td>
@@ -260,7 +283,9 @@ export default function BalanceSheetDetail() {
                   <tr className="h-8"></tr>
 
                   {/* Equity Section */}
-                  <tr className="bg-green-50/50"><td colSpan="2" className="py-2 px-4 font-bold text-green-700 text-sm uppercase">{currentLang.equity}</td></tr>
+                  <tr className="bg-green-50/50">
+                    <td colSpan="2" className="py-2 px-4 font-bold text-green-700 text-sm uppercase">{currentLang.equity}</td>
+                  </tr>
                   {renderAccountRows(data.equity)}
                   <tr className="bg-gray-100 text-gray-800 font-bold border-b-2 border-gray-800">
                     <td className="py-3 px-4">{currentLang.totalEquity}</td>
@@ -274,65 +299,59 @@ export default function BalanceSheetDetail() {
                 </tbody>
               </table>
 
-              {/* Validation Message */}
-              <div className="mt-12 no-print">
-                <div className={`p-4 rounded-lg flex items-center ${isBalanced ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-                  <span className={`material-icons-outlined mr-3 ${isBalanced ? 'text-green-500' : 'text-red-500'}`}>
-                    {isBalanced ? 'check_circle' : 'warning'}
-                  </span>
-                  <div>
-                    <p className={`font-bold ${isBalanced ? 'text-green-800' : 'text-red-800'}`}>
-                      {isBalanced ? currentLang.balanced : currentLang.unbalanced}
-                    </p>
-                    {!isBalanced && (
-                      <p className="text-red-600 text-sm">{currentLang.diff}: {formatNumber(diff)}</p>
-                    )}
-                  </div>
+              <div className={`fr-error-banner mt-4 ${isBalanced ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                <span className={`material-icons-outlined mr-3 ${isBalanced ? 'text-green-500' : 'text-red-500'}`}>
+                  {isBalanced ? 'check_circle' : 'warning'}
+                </span>
+                <div>
+                  <p className={`font-bold ${isBalanced ? 'text-green-800' : 'text-red-800'}`}>
+                    {isBalanced ? currentLang.balanced : currentLang.unbalanced}
+                  </p>
+                  {!isBalanced && (
+                    <p className="text-red-600 text-sm">{currentLang.diff}: {formatNumber(diff)}</p>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="text-center py-20 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-            <span className="material-icons-outlined text-6xl text-gray-300">search_off</span>
-            <p className="mt-4 text-xl text-gray-500">{currentLang.noData}</p>
+          <div className="fr-empty-state">
+            <span className="material-icons-outlined">search_off</span>
+            <p className="mt-4">{currentLang.noData}</p>
           </div>
         )}
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style jsx>{`{
         .balance-sheet-page { padding: 40px; background-color: #f9fafb; min-height: 100vh; }
-        .rtl { direction: rtl; }
-        .ltr { direction: ltr; }
-        .report-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 40px; }
-        .report-header__right { display: flex; align-items: flex-end; }
-        .date-picker-group { display: flex; flex-direction: column; gap: 4px; }
-        .date-picker-group input { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; }
-        .btn-secondary { display: flex; align-items: center; padding: 8px 16px; background: white; border: 1px solid #d1d5db; border-radius: 6px; font-weight: 500; color: #374151; transition: all 0.2s; }
-        .btn-primary { display: flex; align-items: center; padding: 8px 16px; background: #4f46e5; border: 1px solid #4338ca; border-radius: 6px; font-weight: 500; color: white; transition: all 0.2s; }
-        
-        .account-cell { padding: 8px 12px; font-size: 0.9rem; color: #4b5563; }
+        .rtl { direction: rtl; text-align: right; }
+        .ltr { direction: ltr; text-align: left; }
+        .fr-breadcrumb { margin-bottom: 16px; }
+        .fr-header-card { margin-bottom: 18px; }
+        .fr-filters-card { margin-bottom: 18px; }
+        .fr-filters-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; align-items: flex-end; }
+        .fr-form-group label { font-size: 0.8rem; font-weight: 500; }
+        .fr-input { font-size: 0.85rem; }
+        .fr-form-actions { justify-content: flex-start; gap: 8px; }
+        .account-cell { padding: 8px 12px; font-size: 0.9rem; }
         .balance-cell { font-family: 'Courier New', Courier, monospace; font-weight: 500; }
         .font-bold .acc-name { font-weight: 700; color: #111827; }
-        
+        .fr-table { font-size: 0.85rem; }
+        .fr-table th, .fr-table td { padding: 8px 10px; }
+        .fr-table .fr-amount-header { text-align: right; }
+        .fr-table .fr-amount { text-align: right; font-variant-numeric: tabular-nums; }
         @media print {
-          .no-print { display: none !important; }
-          .print-section { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
-          .balance-sheet-page { padding: 0 !important; background: white !important; }
-          .AdminLayout__Sidebar, .AdminLayout__Header { display: none !important; }
+          .fr-page { padding: 0; background: white; }
+          .fr-breadcrumb, .fr-header-card, .fr-filters-card, .fr-form-actions { display: none !important; }
+          .fr-table-card { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
           body { background: white !important; }
           .report-container { border: none !important; }
           .report-body { padding: 0 !important; }
         }
-
-        .rtl .report-header__left { text-align: right; }
+        .rtl .fr-breadcrumb { direction: rtl; }
         .rtl .text-left { text-align: right !important; }
         .rtl .text-right { text-align: left !important; }
-        .rtl .btn-primary, .rtl .btn-secondary { flex-direction: row-reverse; }
-        .rtl .material-icons-outlined { margin-left: 4px; margin-right: 0; }
-        .rtl .ml-4 { margin-left: 0; margin-right: 1rem; }
-        .rtl .ml-2 { margin-left: 0; margin-right: 0.5rem; }
-      ` }} />
+      `}</style>
     </AdminLayout>
   );
 }

@@ -3,6 +3,22 @@ import { Head, Link } from '@inertiajs/react';
 import AdminLayout from '../../components/AdminLayout';
 import { apiService } from '../../../../services/api';
 
+const t = (key, fallback) => {
+  const translations = {
+    'accountant_and_taxes_reports': 'Accountant & Taxes Reports',
+    'all_types': 'All Types',
+    'all_status': 'All Status',
+    'main': 'Main',
+    'sub': 'Sub',
+    'active': 'Active',
+    'inactive': 'Inactive',
+    'print': 'Print',
+    'export': 'Export',
+    'no_data': 'No accounts found matching your criteria.',
+  };
+  return translations[key] || fallback;
+};
+
 const ACCOUNT_TYPES = [
   { value: 0, label: 'Main' },
   { value: 1, label: 'Sub' },
@@ -72,140 +88,177 @@ export default function COAReport() {
   };
 
   const handleExport = () => {
-    // Placeholder for export functionality
     alert('Export feature coming soon');
   };
 
-  // Mock balance calculation (since API doesn't provide it yet)
-  // In a real scenario, we would map these from the API response
   const calculateBalance = () => {
-    // Placeholder: Return 0.00 as requested if data is missing
-    // Ideally this comes from account.Balance or similar
     return { debit: 0.00, credit: 0.00 };
   };
 
   return (
     <AdminLayout activeMenu="Financial Reports">
-      <div className="COAReport-page">
-        <Head title="Chart of Accounts Report - ZodicERP" />
-
-         <div className="breadcrumb">
-          <Link href={route('admin.dashboard', { country: route().params.country || 'sa', lang: route().params.lang || 'en' })}>Dashboard</Link>
-          <span>/</span>
-          <Link href={route('admin.financial-reports.index', { country: route().params.country || 'sa', lang: route().params.lang || 'en' })}>Financial Reports</Link>
-          <span>/</span>
-          <span>Accountant & Taxes Reports</span>
-          <span>/</span>
-          <span>Chart of Accounts</span>
+      <Head title="Chart of Accounts Report - ZodicERP" />
+      <div className="fr-page">
+        <div className="fr-breadcrumb">
+          <Link href={route('admin.dashboard', { country: route().params.country || 'sa', lang: route().params.lang || 'en' })}>
+            Dashboard
+          </Link>
+          <span className="fr-sep">/</span>
+          <Link href={route('admin.financial-reports.index', { country: route().params.country || 'sa', lang: route().params.lang || 'en' })}>
+            Financial Reports
+          </Link>
+          <span className="fr-sep">/</span>
+          <span className="fr-current">{t('accountant_and_taxes_reports', 'Accountant & Taxes Reports')}</span>
         </div>
 
-        <div className="report-header">
-          <div className="report-title-section">
-            <h1>Chart of Accounts</h1>
-            <p className="report-subtitle">Report generated on {new Date().toLocaleDateString()}</p>
+        <div className="fr-header-card">
+          <div>
+            <h1 className="fr-title">Chart of Accounts</h1>
+            <p className="fr-subtitle">Account hierarchy with debit and credit balances.</p>
           </div>
-          <div className="report-actions">
-            <button className="btn btn-outline" onClick={handlePrint}>
+        </div>
+
+        <div className="fr-filters-card">
+          <div className="fr-filters-grid">
+            <div className="fr-form-group">
+              <label htmlFor="fr-search">Search</label>
+              <input
+                id="fr-search"
+                type="text"
+                className="fr-input"
+                placeholder="Search by Code or Name..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div className="fr-form-group">
+              <label htmlFor="fr-type">Type</label>
+              <select id="fr-type" className="fr-input" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+                <option value="all">{t('all_types', 'All Types')}</option>
+                <option value="0">{t('main', 'Main')}</option>
+                <option value="1">{t('sub', 'Sub')}</option>
+              </select>
+            </div>
+            <div className="fr-form-group">
+              <label htmlFor="fr-status">Status</label>
+              <select id="fr-status" className="fr-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option value="all">{t('all_status', 'All Status')}</option>
+                <option value="active">{t('active', 'Active')}</option>
+                <option value="inactive">{t('inactive', 'Inactive')}</option>
+              </select>
+            </div>
+          </div>
+          <div className="fr-form-actions">
+            <button type="button" className="btn btn-primary fr-btn" onClick={handlePrint}>
               <span className="material-icons-outlined">print</span>
-              Print
+              <span>{t('print', 'Print')}</span>
             </button>
-            <button className="btn btn-primary" onClick={handleExport}>
-              <span className="material-icons-outlined">download</span>
-              Export
+            <button type="button" className="btn btn-excel fr-btn" onClick={handleExport}>
+              <span className="material-icons-outlined">description</span>
+              <span>{t('export', 'Export')}</span>
             </button>
           </div>
         </div>
 
-        <div className="filters-bar">
-          <div className="search-input-wrapper">
-            <span className="material-icons-outlined search-icon">search</span>
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Search by Code or Name..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        <div className="fr-table-card">
+          <div className="fr-table-wrapper">
+            <table className="fr-table">
+              <thead>
+                <tr>
+                  <th className="fr-th">Account Code</th>
+                  <th className="fr-th">Account Name</th>
+                  <th className="fr-th">Type</th>
+                  <th className="fr-th">Parent Account</th>
+                  <th className="fr-th">Level</th>
+                  <th className="fr-th fr-amount-header">Debit Balance</th>
+                  <th className="fr-th fr-amount-header">Credit Balance</th>
+                  <th className="fr-th">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan="8" className="fr-empty-td">Loading chart of accounts...</td>
+                  </tr>
+                ) : filteredAccounts.length > 0 ? (
+                  filteredAccounts.map((account) => {
+                    const { debit, credit } = calculateBalance(account);
+                    return (
+                      <tr key={account.AccID}>
+                        <td className="font-medium">{account.AccCode}</td>
+                        <td>
+                          <span style={{ paddingLeft: `${account.depth * 20}px` }}>
+                            {account.depth > 0 && <span className="level-indicator"></span>}
+                            {account.AccName}
+                          </span>
+                        </td>
+                        <td>{getAccountTypeLabel(account.AccType)}</td>
+                        <td>{account.AccParent || '-'}</td>
+                        <td>{account.depth === 0 ? t('main', 'Main') : `Level ${account.depth}`}</td>
+                        <td className="fr-amount">{debit.toFixed(2)}</td>
+                        <td className="fr-amount">{credit.toFixed(2)}</td>
+                        <td>
+                          <span className={`fr-status-badge ${account.AccStopped ? 'fr-status-inactive' : 'fr-status-active'}`}>
+                            {account.AccStopped ? t('inactive', 'Inactive') : t('active', 'Active')}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="fr-empty-state">
+                      {t('no_data', 'No accounts found matching your criteria.')}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
-
-          <select
-            className="filter-select"
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-          >
-            <option value="all">All Types</option>
-            <option value="0">Main</option>
-            <option value="1">Sub</option>
-          </select>
-
-          <select
-            className="filter-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">All Status</option>
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </div>
-
-        <div className="report-table-container">
-          <table className="report-table">
-            <thead>
-              <tr>
-                <th>Account Code</th>
-                <th>Account Name</th>
-                <th>Type</th>
-                <th>Parent Account</th>
-                <th>Level</th>
-                <th className="text-right">Debit Balance</th>
-                <th className="text-right">Credit Balance</th>
-                <th className="text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="8" className="text-center" style={{ padding: '40px' }}>
-                    Loading chart of accounts...
-                  </td>
-                </tr>
-              ) : filteredAccounts.length > 0 ? (
-                filteredAccounts.map((account) => {
-                  const { debit, credit } = calculateBalance(account);
-                  return (
-                    <tr key={account.AccID}>
-                      <td className="font-medium">{account.AccCode}</td>
-                      <td>
-                        <span style={{ paddingLeft: `${account.depth * 20}px` }}>
-                          {account.depth > 0 && <span className="level-indicator"></span>}
-                          {account.AccName}
-                        </span>
-                      </td>
-                      <td>{getAccountTypeLabel(account.AccType)}</td>
-                      <td>{account.AccParent || '-'}</td>
-                      <td>{account.depth === 0 ? 'Main' : `Level ${account.depth}`}</td>
-                      <td className="text-right">{debit.toFixed(2)}</td>
-                      <td className="text-right">{credit.toFixed(2)}</td>
-                      <td className="text-center">
-                        <span className={`status-badge ${account.AccStopped ? 'status-inactive' : 'status-active'}`}>
-                          {account.AccStopped ? 'Inactive' : 'Active'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="8" className="empty-state">
-                    No accounts found matching your criteria.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
         </div>
       </div>
+
+      <style jsx>{`{
+        .fr-page { padding: 40px; background-color: #f9fafb; min-height: 100vh; }
+        .rtl { direction: rtl; text-align: right; }
+        .ltr { direction: ltr; text-align: left; }
+        .fr-breadcrumb { margin-bottom: 16px; }
+        .fr-header-card { margin-bottom: 18px; }
+        .fr-filters-card { margin-bottom: 18px; }
+        .fr-filters-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; align-items: flex-end; }
+        .fr-form-group label { font-size: 0.8rem; font-weight: 500; }
+        .fr-input { font-size: 0.85rem; }
+        .fr-form-actions { justify-content: flex-start; gap: 8px; }
+        .fr-table { font-size: 0.85rem; }
+        .fr-table th, .fr-table td { padding: 8px 10px; }
+        .fr-table .fr-amount-header { text-align: right; }
+        .fr-table .fr-amount { text-align: right; font-variant-numeric: tabular-nums; }
+        .fr-status-badge {
+          padding: 2px 10px;
+          border-radius: 12px;
+          font-size: 0.75rem;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+        .fr-status-active { background: #d4edda; color: #155724; }
+        .fr-status-inactive { background: #f8d7da; color: #721c24; }
+        .level-indicator {
+          display: inline-block;
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background: #94a3b8;
+          margin-right: 6px;
+        }
+        .fr-empty-td { padding: 40px; color: var(--fr-text-lighter); }
+        @media print {
+          .fr-page { padding: 0; background: white; }
+          .fr-breadcrumb, .fr-header-card, .fr-filters-card, .fr-form-actions { display: none !important; }
+          .fr-table-card { box-shadow: none !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
+          body { background: white !important; }
+        }
+        .rtl .fr-breadcrumb { direction: rtl; }
+      `}</style>
     </AdminLayout>
   );
 }

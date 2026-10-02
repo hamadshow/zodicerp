@@ -71,7 +71,8 @@ const VacationsManagement = ({ employees: propEmployees }) => {
     const fetchVacations = () => {
         apiService.get('/vacations')
             .then(response => {
-                setVacations(Array.isArray(response.data) ? response.data : []);
+                const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+                setVacations(data);
             })
             .catch(() => {
                 setVacations([]);
@@ -149,12 +150,32 @@ const VacationsManagement = ({ employees: propEmployees }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!formData.employeeId || !formData.leaveType || !formData.startDate || !formData.endDate) {
+            showToast('Please fill in all required fields', 'error');
+            return;
+        }
+
+        const start = new Date(formData.startDate);
+        const end = new Date(formData.endDate);
+        if (end < start) {
+            showToast('End date must be on or after the start date', 'error');
+            return;
+        }
+
         try {
+            const payload = {
+                employeeId: formData.employeeId,
+                leaveType: formData.leaveType,
+                startDate: formData.startDate,
+                endDate: formData.endDate,
+                status: formData.status || 'pending',
+            };
+
             if (editingVacation) {
-                await apiService.put(`/vacations/${editingVacation.id}`, formData);
+                await apiService.put(`/vacations/${editingVacation.id}`, payload);
                 showToast('Vacation updated successfully', 'success');
             } else {
-                await apiService.post('/vacations', formData);
+                await apiService.post('/vacations', payload);
                 showToast('Vacation request submitted', 'success');
             }
             fetchVacations();

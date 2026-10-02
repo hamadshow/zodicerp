@@ -87,6 +87,10 @@ abstract class TestCase extends BaseTestCase
     /**
      * Create a test account in the database.
      * Returns the AccID.
+     *
+     * Phase 8: the accounts table no longer carries an AccGroup column
+     * (classification lives in AccType/AccFinal), so the legacy helper no
+     * longer inserts it.
      */
     protected function createTestAccount(string $code, string $name, int $type = 1): int
     {
@@ -103,10 +107,62 @@ abstract class TestCase extends BaseTestCase
             'AccName' => $name,
             'AccType' => $type,
             'AccFinal' => 1,
-            'AccGroup' => $code[0] === '1' ? 'Assets' : ($code[0] === '2' ? 'Liabilities' : ($code[0] === '4' ? 'Revenue' : 'Expenses')),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    /**
+     * Ensure at least one customer group row exists so customer fixtures can
+     * satisfy the customer_groups FK without hard-coding group id 1.
+     */
+    protected function ensureTestCustomerGroup(): int
+    {
+        $groupId = DB::table('customer_groups')->value('id');
+
+        if ($groupId) {
+            return (int) $groupId;
+        }
+
+        return (int) DB::table('customer_groups')->insertGetId([
+            'code' => 'TEST-GRP-'.substr(uniqid(), -6),
+            'name_ar' => 'مجموعة اختبار',
+            'name_en' => 'Test Customer Group',
+            'is_active' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * Ensure a bank-nature, usable (AccStopped=0) account exists so invoice
+     * posting paths can resolve a treasury account.
+     */
+    protected function ensureTestTreasuryAccount(): int
+    {
+        $treasuryId = DB::table('accounts')
+            ->where('Nature', 'bank')
+            ->where('AccStopped', 0)
+            ->orderBy('AccID')
+            ->value('AccID');
+
+        if ($treasuryId) {
+            return (int) $treasuryId;
+        }
+
+        // insertOrIgnore then re-select: AccCode is unique and test processes
+        // with DatabaseTransactions cannot see each other's uncommitted rows.
+        DB::table('accounts')->insertOrIgnore([
+            'AccCode' => '11120',
+            'AccName' => 'Test Treasury Bank',
+            'AccType' => 1,
+            'AccFinal' => 1,
+            'Nature' => 'bank',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return (int) DB::table('accounts')->where('AccCode', '11120')->value('AccID');
     }
 
     /**

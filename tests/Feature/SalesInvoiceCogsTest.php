@@ -31,6 +31,10 @@ class SalesInvoiceCogsTest extends TestCase
 
         $this->testUserId = DB::table('users')->first()->id ?? 1;
         $this->actingAs(\App\Models\User::find($this->testUserId));
+
+        // RefreshDatabase tests wipe the DB once per suite process, so these
+        // tests cannot rely on pre-existing chart rows: self-provide them.
+        $this->seedRequiredAccounts();
     }
 
     protected function tearDown(): void
@@ -620,6 +624,26 @@ class SalesInvoiceCogsTest extends TestCase
 
     // ─── Helper Methods ─────────────────────────────────────────
 
+    /**
+     * GL rows the posting paths resolve; resolvers require AccStopped=0.
+     * insertOrIgnore (unique AccCode) keeps this safe against reruns.
+     */
+    private function seedRequiredAccounts(): void
+    {
+        foreach ([['11401', 'Inventory Asset', 1], ['401', 'Sales Revenue', 1], ['501', 'Cost of Sales', 1], ['11120', 'Test Treasury Bank', 1]] as [$code, $name, $type]) {
+            DB::table('accounts')->insertOrIgnore([
+                'AccCode' => $code,
+                'AccName' => $name,
+                'AccType' => $type,
+                'AccFinal' => 1,
+                'AccStopped' => 0,
+                'Nature' => $code === '11120' ? 'bank' : null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
     private function createTestProduct(string $name, float $cost): int
     {
         $slug = str()->slug($name) . '-' . uniqid();
@@ -631,6 +655,7 @@ class SalesInvoiceCogsTest extends TestCase
             'sku' => 'SKU-' . strtoupper(substr($code, 4)),
             'status' => 'active',
             'quantity' => 0,
+            'unit_id' => $this->getTestUnitId(), // conversion refuses unitless products
             'cost_per_item' => $cost,
             'price' => $cost * 2,
             'product_type' => 'simple',
@@ -646,8 +671,10 @@ class SalesInvoiceCogsTest extends TestCase
             'name_ar' => 'عميل تجريبي',
             'name_en' => 'Test Customer',
             'customer_code' => 'CUST-' . uniqid(),
-            'customer_group_id' => DB::table('customer_groups')->first()->id ?? 1,
-            'account_id' => DB::table('accounts')->where('AccCode', 1200)->value('AccID') ?? 61,
+            'customer_group_id' => $this->ensureTestCustomerGroup(),
+            // account_id is nullable (ON DELETE SET NULL); 61 does not exist in
+            // this database and would violate the customers→accounts FK.
+            'account_id' => DB::table('accounts')->where('AccCode', 1200)->value('AccID'),
             'is_active' => true,
             'company_id' => $this->companyId,
             'created_at' => now(),

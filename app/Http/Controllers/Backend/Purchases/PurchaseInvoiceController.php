@@ -127,9 +127,11 @@ class PurchaseInvoiceController extends Controller
 
         // Upsert pattern: update existing journal or create new (idempotent)
         $this->ensureOpenFiscalPeriod($invoiceDate);
-        $existingHeader = JournalEntry::where('reference', $reference)
-            ->where('entry_type', 'PurchaseInvoice')
-            ->first();
+        // Phase 18: the unreversed live entry via the journal_reversals
+        // link table — a reversed slot is never resurrected; history
+        // posts a FRESH journal instead.
+        $existingHeader = app(JournalReversalService::class)
+            ->unreversedEntryFor((string) $reference, 'PurchaseInvoice');
 
         if ($existingHeader) {
             $existingHeader->update([
@@ -196,9 +198,10 @@ class PurchaseInvoiceController extends Controller
 
     protected function deleteJournalEntryForInvoice(PurchaseInvoice $invoice): void
     {
-        $header = JournalEntry::where('reference', $invoice->invoice_number)
-            ->where('entry_type', 'PurchaseInvoice')
-            ->first();
+        // Phase 18: the unreversed live entry via the link table — reversed
+        // posted history is audit-only and never adopted for deletion.
+        $header = app(JournalReversalService::class)
+            ->unreversedEntryFor((string) $invoice->invoice_number, 'PurchaseInvoice');
 
         if ($header) {
             // P0-06: Only allow deletion of unposted journals
@@ -471,9 +474,10 @@ class PurchaseInvoiceController extends Controller
             }
 
             // P0-06: Create reversal of existing journal before rewriting
-            $existingHeader = JournalEntry::where('reference', $invoice->fresh()->invoice_number)
-                ->where('entry_type', 'PurchaseInvoice')
-                ->first();
+            // Phase 18: the unreversed live entry via the link table —
+            // already-reversed history is never re-reversed.
+            $existingHeader = app(JournalReversalService::class)
+                ->unreversedEntryFor((string) $invoice->fresh()->invoice_number, 'PurchaseInvoice');
             if ($existingHeader && in_array($existingHeader->status, ['Post', 'posted'])) {
                 app(JournalReversalService::class)->createReversal(
                     $existingHeader->entry_code,
@@ -507,9 +511,10 @@ class PurchaseInvoiceController extends Controller
             $invoice = PurchaseInvoice::findOrFail($id);
 
             // P0-06: Check if journal is posted
-            $header = JournalEntry::where('reference', $invoice->invoice_number)
-                ->where('entry_type', 'PurchaseInvoice')
-                ->first();
+            // Phase 18: the unreversed live entry via the link table —
+            // an already-reversed reference falls through to draft cleanup.
+            $header = app(JournalReversalService::class)
+                ->unreversedEntryFor((string) $invoice->invoice_number, 'PurchaseInvoice');
 
             if ($header && in_array($header->status, ['Post', 'posted'])) {
                 // Posted: create reversal, preserve original

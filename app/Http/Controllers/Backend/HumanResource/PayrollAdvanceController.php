@@ -4,18 +4,27 @@ namespace App\Http\Controllers\Backend\HumanResource;
 
 use App\Http\Controllers\Controller;
 use App\Models\PayrollAdvance;
+use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
 class PayrollAdvanceController extends Controller
 {
+    public function __construct(private readonly CompanyContext $companyContext)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
         try {
-            $advances = PayrollAdvance::with('employee:id,name')->get()->map(function ($a) {
+            $advances = PayrollAdvance::query()
+                ->where('company_id', $this->companyContext->id())
+                ->with('employee:id,name')
+                ->get()
+                ->map(function ($a) {
                 try {
                     $date = $a->date instanceof Carbon ? $a->date : Carbon::parse($a->date);
                     return [
@@ -69,7 +78,7 @@ class PayrollAdvanceController extends Controller
             'repayment_plan' => $validated['repaymentPlan'],
             'status' => $validated['status'],
             'notes' => $validated['notes'] ?? null,
-            'company_id' => 1, // Default for now
+            'company_id' => $this->companyContext->id(),
         ]);
 
         return response()->json([
@@ -84,7 +93,10 @@ class PayrollAdvanceController extends Controller
      */
     public function show(string $id)
     {
-        $advance = PayrollAdvance::with('employee')->findOrFail($id);
+        $advance = PayrollAdvance::query()
+            ->where('company_id', $this->companyContext->id())
+            ->with('employee')
+            ->findOrFail($id);
         return response()->json($advance);
     }
 
@@ -93,7 +105,9 @@ class PayrollAdvanceController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $advance = PayrollAdvance::findOrFail($id);
+        $advance = PayrollAdvance::query()
+            ->where('company_id', $this->companyContext->id())
+            ->findOrFail($id);
 
         $validated = $request->validate([
             'employee_id' => 'required|exists:employees,id',
@@ -125,7 +139,9 @@ class PayrollAdvanceController extends Controller
      */
     public function destroy(string $id)
     {
-        $advance = PayrollAdvance::findOrFail($id);
+        $advance = PayrollAdvance::query()
+            ->where('company_id', $this->companyContext->id())
+            ->findOrFail($id);
         $advance->delete();
 
         return response()->json([

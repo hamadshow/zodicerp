@@ -355,7 +355,8 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
         });
     };
     
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
+    // Form handling using Inertia's useForm
+    const { data, setData, post, put, processing, errors, reset, clearErrors } = useForm({
         name_en: '',
         name_ar: '',
         asset_number: '',
@@ -378,6 +379,7 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
         is_depreciable: false,
         depreciation_method: 'straight_line',
         depreciation_rate: '',
+        useful_life_years: '',
         useful_life_months: '',
         
         // Warranty
@@ -391,6 +393,9 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
     useEffect(() => {
         clearErrors();
         if (asset) {
+            const yearsVal = asset.useful_life_years ?? 0;
+            // Sync DB years → months for UI (1 year = 12 months)
+            const monthsVal = yearsVal ? Math.round(parseFloat(yearsVal) * 12) : asset.useful_life_months ?? '';
             setData({
                 ...data,
                 ...asset,
@@ -405,17 +410,18 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                 employee_id: asset.employee_id || '',
                 status: asset.status || 'active',
                 description: asset.description || '',
-                purchase_date: asset.purchase_date || '',
+                purchase_date: asset.purchase_date ? String(asset.purchase_date).split('T')[0] : '',
                 unit_cost: asset.unit_cost || '',
                 current_value: asset.current_value || '',
                 salvage_value: asset.salvage_value || '',
                 is_depreciable: Boolean(asset.is_depreciable),
                 depreciation_method: asset.depreciation_method || 'straight_line',
                 depreciation_rate: asset.depreciation_rate || '',
-                useful_life_months: asset.useful_life_months || '',
-                warranty_expiry: asset.warranty_expiry || '',
+                useful_life_years: yearsVal ?? '',
+                useful_life_months: monthsVal,
+                warranty_expiry: asset.warranty_expiry ? String(asset.warranty_expiry).split('T')[0] : '',
                 image: null,
-                existing_image: asset.image || null,
+                existing_image: asset.image_path || asset.image || null,
             });
         } else {
             reset();
@@ -445,13 +451,20 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
 
     const submit = (e) => {
         e.preventDefault();
+        const monthsNum = parseFloat(data.useful_life_months);
+        const yearsNum = parseFloat(data.useful_life_years);
+        if (!isNaN(monthsNum) && monthsNum > 0 && (isNaN(yearsNum) || yearsNum === 0)) {
+            setData('useful_life_years', String((monthsNum / 12).toFixed(2)));
+        }
         if (asset) {
-            router.post(getLocalizedRoute('admin.assets.register.update', { register: asset.id }), {
-                _method: 'put',
-                ...data
+            put(getLocalizedRoute('admin.assets.register.update', { register: asset.id }), {
+                preserveScroll: true,
             });
         } else {
-            post(getLocalizedRoute('admin.assets.register.store'));
+            post(getLocalizedRoute('admin.assets.register.store'), {
+                preserveScroll: true,
+                onSuccess: () => reset(),
+            });
         }
     };
 
@@ -706,8 +719,9 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                                                     >
                                                         <option value="straight_line">Straight Line</option>
                                                         <option value="declining_balance">Declining Balance</option>
-                                                        <option value="sum_of_years">Sum of Years Digits</option>
+                                                        <option value="units_of_production">Units of Production</option>
                                                     </select>
+                                                    {errors.depreciation_method && <div className="text-error">{errors.depreciation_method}</div>}
                                                 </div>
                                                 <div className="form-group">
                                                     <label className="form-label">Useful Life (Months)</label>
@@ -716,6 +730,20 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                                                         className="form-control" 
                                                         value={data.useful_life_months}
                                                         onChange={e => setData('useful_life_months', e.target.value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="form-grid">
+                                                <div className="form-group">
+                                                    <label className="form-label">Depreciation Rate (%)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        className="form-control" 
+                                                        min="0"
+                                                        max="100"
+                                                        step="0.01"
+                                                        value={data.depreciation_rate}
+                                                        onChange={e => setData('depreciation_rate', e.target.value)}
                                                     />
                                                 </div>
                                             </div>
@@ -740,10 +768,11 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                                         onChange={e => setData('status', e.target.value)}
                                     >
                                         <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
-                                        <option value="maintenance">Maintenance</option>
+                                        <option value="idle">Inactive</option>
+                                        <option value="under_maintenance">Maintenance</option>
                                         <option value="disposed">Disposed</option>
                                     </select>
+                                    {errors.status && <div className="text-error">{errors.status}</div>}
                                 </div>
                             </div>
 
@@ -820,8 +849,8 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
 const Assets = (props) => {
     const { url } = usePage();
     const path = url?.split('?')[0] || '';
-    const isCreate = path.endsWith('/admin/assets/create') || path.endsWith('/admin/assets/create/');
-    const isEdit = /\/admin\/assets\/\d+\/edit\/?$/.test(path);
+    const isCreate = /\/admin\/assets\/register\/create\/?$/.test(path);
+    const isEdit = /\/admin\/assets\/register\/\d+\/edit\/?$/.test(path);
     const hasAssets = Boolean(props?.assets);
 
     if (isCreate || isEdit || !hasAssets) {

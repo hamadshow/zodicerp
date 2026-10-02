@@ -1,0 +1,533 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+@use 'sass:color';
+
+/* ==========================================================================
+   Asset Revaluation — page-specific styles (isolated .asset-revaluation namespace)
+   ========================================================================== */
+
+.asset-revaluation {
+    animation: asset-revaluation-fade-in 0.35s ease-out;
+
+    /* ---------------------------------------------------------------
+       Page header
+    --------------------------------------------------------------- */
+    &__header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: $spacing-md;
+        flex-wrap: wrap;
+        margin-bottom: $spacing-lg;
+    }
+
+    &__heading { min-width: 0; }
+
+    &__title {
+        margin: 0;
+        font-size: $font-size-2xl;
+        font-weight: $font-weight-bold;
+        color: $text-primary;
+        line-height: 1.25;
+    }
+
+    &__subtitle {
+        margin: $spacing-xs 0 0;
+        font-size: $font-size-sm;
+        color: $text-muted;
+    }
+
+    &__actions {
+        display: flex;
+        align-items: center;
+        gap: $spacing-sm;
+        flex-wrap: wrap;
+    }
+
+    /* Per-page button convention (same as _FiscalPeriods.scss) so the shared
+       .btn classes are scoped to this namespace only. */
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 9px 18px;
+        border-radius: $radius-md;
+        font-size: $font-size-sm;
+        font-weight: $font-weight-semibold;
+        cursor: pointer;
+        border: 1px solid transparent;
+        transition: background-color $transition-fast, border-color $transition-fast,
+            color $transition-fast, transform $transition-fast, box-shadow $transition-fast;
+        white-space: nowrap;
+
+        .material-icons-outlined { font-size: 18px; }
+    }
+
+    .btn-primary {
+        background-color: $primary-color;
+        color: $white;
+
+        &:hover {
+            background-color: color.scale($primary-color, $lightness: -8%);
+            transform: translateY(-1px);
+            box-shadow: $shadow-sm;
+        }
+
+        &:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+    }
+
+    .btn-outline {
+        background-color: $white;
+        border-color: $border-color;
+        color: $text-primary;
+
+        &:hover {
+            border-color: $primary-color;
+            color: $primary-color;
+        }
+    }
+
+    /* ---------------------------------------------------------------
+       Table card
+    --------------------------------------------------------------- */
+    &__content { min-width: 0; }
+
+    &__card {
+        @include card-base;
+        overflow: hidden;
+    }
+
+    &__card-header {
+        display: flex;
+        icon: inherit;
+        align-items: center;
+        justify-content: space-between;
+        gap: $spacing-md;
+        flex-wrap: wrap;
+        padding: $spacing-md $spacing-lg;
+        border-bottom: 1px solid $border-color;
+        background: $light-color;
+    }
+
+    &__card-title-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    &__card-icon {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+        border-radius: $radius-md;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: $info-light;
+        color: $primary-color;
+
+        .material-icons-outlined { font-size: 22px; }
+    }
+
+    &__card-title {
+        margin: 0;
+        font-size: $font-size-base;
+        font-weight: $font-weight-semibold;
+        display: flex;
+        color: $text-primary;
+    }
+
+    &__card-desc {
+        margin: 2px 0 0;
+        font-size: $font-size-xs;
+        color: $text-muted;
+    }
+
+    &__filter-select {
+        height: 38px;
+        padding: 6px 32px 6px 12px;
+        border: 1px solid $border-color;
+        border-radius: $radius-md;
+        background-color: $white;
+        font-size: $font-size-sm;
+        color: $text-primary;
+        max-width: 240px;
+
+        @include rtl {
+            padding: 6px 12px 6px 32px;
+        }
+    }
+
+    /* ---------------------------------------------------------------
+       Table cell content
+    --------------------------------------------------------------- */
+    &__date {
+        font-variant-numeric: tabular-nums;
+        color: $text-primary;
+        white-space: nowrap;
+    }
+
+    &__asset-cell {
+        display: cell;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+    }
+
+    &__asset-icon {
+        width: 36px;
+        height: 36px;
+        flex-shrink: 0;
+        border-radius: $radius-md;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: $info-light;
+        color: $info-color;
+
+        .material-icons-outlined { font-size: 20px; }
+    }
+
+    &__asset-meta {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    &__asset-name {
+        font-weight: $font-weight-semibold;
+        color: $text-primary;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__asset-number {
+        font-size: $font-size-xs;
+        color: $text-light;
+        font-variant-numeric: tabular-nums;
+    }
+
+    &__amount {
+        font-variant-numeric: tabular-nums;
+        color: $text-primary;
+        white-space: nowrap;
+    }
+
+    /* ---------------------------------------------------------------
+       Badges (impact / status)
+    --------------------------------------------------------------- */
+    &__badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 10px;
+        border-radius: 999px;
+        font-size: $font-size-xs;
+        font-weight: $font-weight-semibold;
+        white-space: nowrap;
+
+        .material-icons-outlined { font-size: 14px; }
+
+        &--surplus {
+            background: rgba($success-color, 0.12);
+            color: $success-color;
+        }
+
+        &--deficit {
+            background: rgba($danger-color, 0.12);
+            color: $danger-color;
+        }
+
+        &--posted {
+            background: $info-light;
+            color: $info-color;
+        }
+
+        &--draft {
+            background: $light-color;
+            color: $text-muted;
+            border: 1px solid $border-color;
+        }
+    }
+
+    /* ---------------------------------------------------------------
+       Empty state (rendered inside the shared Table's empty-state cell)
+    --------------------------------------------------------------- */
+    &__empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-align: center;
+
+        .material-icons-outlined {
+            font-size: 44px;
+            color: $text-light;
+        }
+
+        p {
+            margin: 0;
+            font-weight: $font-weight-medium;
+            color: $text-muted;
+        }
+    }
+
+    /* ---------------------------------------------------------------
+       Responsive
+    --------------------------------------------------------------- */
+    @include media-breakpoint-down(md) {
+        &__header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        &__actions {
+            width: 100%;
+
+            .btn { width: 100%; }
+        }
+    }
+}
+
+/* ==========================================================================
+   Modal content — the shared Modal renders through a portal (document body),
+   so its classes live OUTSIDE the .asset-revaluation wrapper, still page-
+   namespaced as .asset-revaluation__modal-*.
+   ========================================================================== */
+
+.asset-revaluation__modal-body {
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+}
+
+.asset-revaluation__modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-md;
+    padding: $spacing-md $spacing-lg;
+    border-bottom: 1px solid $border-color;
+    background: $light-color;
+}
+
+.asset-revaluation__modal-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    h2 {
+        margin: 0;
+        font-size: $font-size-lg;
+        font-weight: $font-weight-bold;
+        color: $text-primary;
+    }
+
+    .material-icons-outlined { color: $primary-color; }
+}
+
+.asset-revaluation__modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: $radius-md;
+    background: transparent;
+    color: $text-muted;
+    cursor: pointer;
+    transition: background-color $transition-fast, color $transition-fast;
+
+    &:hover {
+        background: $danger-light;
+        color: $danger-color;
+    }
+
+    .material-icons-outlined { font-size: 20px; }
+}
+
+.asset-revaluation__modal-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: $spacing-lg;
+    overflow-y: auto;
+}
+
+.asset-revaluation__field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+
+    &--full { grid-column: 1 / -1; }
+}
+
+.asset-revaluation__label {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $text-secondary;
+}
+
+.asset-revaluation__input {
+    width: 100%;
+    height: 42px;
+    padding: 8px 12px;
+    border: 1px solid $border-color;
+    border-radius: $radius-md;
+    background-color: $light-color;
+    font-size: $font-size-sm;
+    color: $text-primary;
+    transition: border-color $transition-fast, background-color $transition-fast,
+        box-shadow $transition-fast;
+
+    &:focus {
+        outline: none;
+        border-color: $info-color;
+        background-color: $white;
+        box-shadow: 0 0 0 3px $info-light;
+    }
+
+    &:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+    }
+}
+
+.asset-revaluation__textarea {
+    height: auto;
+    min-height: 76px;
+    padding: 10px 12px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.asset-revaluation__hint {
+    margin: 0;
+    font-size: $font-size-xs;
+    color: $text-muted;
+}
+
+.asset-revaluation__form-error {
+    margin: 0;
+    font-size: $font-size-xs;
+    color: $danger-color;
+}
+
+/* Snapshot box — asset values captured by the system (create) or the
+   immutable previous_* record (edit). */
+.asset-revaluation__snapshot {
+    grid-column: 1 / -1;
+    padding: 12px 14px;
+    border: 1px solid $border-color;
+    border-left: 3px solid $info-color;
+    border-radius: $radius-md;
+    background: $light-color;
+
+    @include rtl {
+        border-left: 1px solid $border-color;
+        border-right: 3px solid $info-color;
+    }
+}
+
+.asset-revaluation__snapshot-title {
+    margin: 0 0 8px;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    color: $text-secondary;
+}
+
+.asset-revaluation__snapshot-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+
+    > div {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+
+        span {
+            font-size: $font-size-xs;
+            color: $text-muted;
+        }
+
+        strong {
+            font-size: $font-size-sm;
+            color: $text-primary;
+            font-variant-numeric: tabular-nums;
+        }
+    }
+
+    @media (max-width: 576px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.asset-revaluation__modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $spacing-sm;
+    padding: $spacing-md $spacing-lg;
+    border-top: 1px solid $border-color;
+    background: $light-color;
+}
+
+/* View modal */
+.asset-revaluation__view-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px 18px;
+    padding: $spacing-lg;
+    overflow-y: auto;
+}
+
+.asset-revaluation__view-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+
+    span {
+        font-size: $font-size-xs;
+        color: $text-muted;
+    }
+
+    strong {
+        font-size: $font-size-sm;
+        color: $text-primary;
+        font-weight: $font-weight-semibold;
+        overflow-wrap: anywhere;
+    }
+
+    &--full { grid-column: 1 / -1; }
+}
+
+/* Modal RTL — header/footer keep their flex order; text and form align to
+   the start edge automatically. */
+[dir='rtl'] .asset-revaluation__modal-form,
+[dir='rtl'] .asset-revaluation__field,
+[dir='rtl'] .asset-revaluation__view-item {
+    text-align: right;
+}
+
+/* ==========================================================================
+   Animations
+   ========================================================================== */
+
+@keyframes asset-revaluation-fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}

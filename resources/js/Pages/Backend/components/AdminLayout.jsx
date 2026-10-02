@@ -159,6 +159,12 @@ const AdminLayout = ({
         },
         { icon: 'card_travel', label: translations['sidebar.vacations'] || 'Vacations', href: getLocalizedRoute('admin.vacations.index'), permission: 'attendance.view' },
         {
+          icon: 'history_edu',
+          label: translations['sidebar.contracts'] || 'Contracts',
+          href: getLocalizedRoute('admin.contracts.index'),
+          permission: 'employees.view'
+        },
+        {
           icon: 'receipt_long',
           label: translations['sidebar.salary_receipt'] || 'Salary Receipt',
           href: getLocalizedRoute('admin.salary-receipt.index'),
@@ -261,7 +267,6 @@ const AdminLayout = ({
         { icon: 'swap_horiz', label: translations['sidebar.asset_movements'] || 'Asset Movements', href: getLocalizedRoute('admin.assets.movements.index'), permission: 'assets.view' },
         { icon: 'trending_up', label: translations['sidebar.asset_revaluation'] || 'Asset Revaluation', href: getLocalizedRoute('admin.assets.revaluation.index'), permission: 'assets.view' },
         { icon: 'delete_forever', label: translations['sidebar.asset_disposal'] || 'Asset Disposal', href: getLocalizedRoute('admin.assets.disposal.index'), permission: 'assets.view' },
-        { icon: 'calculate', label: translations['sidebar.run_depr'] || 'Run Depr', href: getLocalizedRoute('admin.assets.depreciation.run'), permission: 'assets.view' },
         { icon: 'calendar_today', label: translations['sidebar.depr_schedule'] || 'Depr Schedule', href: getLocalizedRoute('admin.assets.depreciation.schedule'), permission: 'assets.view' },
         { icon: 'assessment', label: translations['sidebar.depr_report'] || 'Depr Report', href: getLocalizedRoute('admin.assets.depreciation.report'), permission: 'assets.view' },
       ],

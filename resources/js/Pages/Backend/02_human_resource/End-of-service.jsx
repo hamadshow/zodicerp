@@ -4,6 +4,7 @@ import AdminLayout from '../components/AdminLayout';
 import Table from '../components/Table';
 import BlankPage from '@/Components/BlankPage';
 import '../../../../css/backend/main.scss';
+import { apiService } from '../../../services/api';
 
 const EndOfService = ({ employees: propEmployees }) => {
     const { props } = usePage();
@@ -32,13 +33,30 @@ const EndOfService = ({ employees: propEmployees }) => {
     const [editingId, setEditingId] = useState(null);
     const [toast, setToast] = useState(null);
 
+    const TYPE_MAP = {
+        Resignation: 'resignation',
+        Termination: 'termination',
+        'Contract End': 'contract_end',
+        Retirement: 'retirement',
+    };
+
+    const TYPE_LABELS = {
+        resignation: 'Resignation',
+        termination: 'Termination',
+        contract_end: 'Contract End',
+        retirement: 'Retirement',
+    };
+
+    const STATUS_MAP = { Pending: 'pending', Processed: 'processed', Cancelled: 'cancelled' };
+    const STATUS_LABELS = { pending: 'Pending', processed: 'Processed', cancelled: 'Cancelled' };
+
     const [formData, setFormData] = useState({
         employee: '',
-        type: 'Resignation',
+        type: 'resignation',
         date: new Date().toISOString().split('T')[0],
         reason: '',
         amount: '',
-        status: 'Pending'
+        status: 'pending'
     });
 
     const showToast = (message, type = 'info') => {
@@ -46,19 +64,33 @@ const EndOfService = ({ employees: propEmployees }) => {
         setTimeout(() => setToast(null), 3000);
     };
 
+    const fetchEos = () => {
+        apiService.get('/end-of-service')
+            .then(response => {
+                setEosList(Array.isArray(response.data) ? response.data : []);
+            })
+            .catch(() => {
+                setEosList([]);
+            });
+    };
+
+    useEffect(() => {
+        fetchEos();
+    }, []);
+
     const filteredEos = useMemo(() => {
-        const lowerSearch = searchTerm.toLowerCase();
-        return eosList.filter(e => 
-            e.employee.toLowerCase().includes(lowerSearch) ||
-            e.type.toLowerCase().includes(lowerSearch) ||
-            e.reason.toLowerCase().includes(lowerSearch)
+        const lowerSearch = (searchTerm || '').toLowerCase();
+        return eosList.filter(e =>
+            (e.employee || '').toLowerCase().includes(lowerSearch) ||
+            (e.type || '').toLowerCase().includes(lowerSearch) ||
+            (e.reason || '').toLowerCase().includes(lowerSearch)
         );
     }, [searchTerm, eosList]);
 
     const stats = useMemo(() => ({
         total: eosList.length,
-        processed: eosList.filter(e => e.status === 'Processed').length,
-        pending: eosList.filter(e => e.status === 'Pending').length,
+        processed: eosList.filter(e => e.statusRaw === 'processed').length,
+        pending: eosList.filter(e => e.statusRaw === 'pending').length,
         totalAmount: eosList.reduce((acc, e) => acc + (parseFloat(e.amount) || 0), 0)
     }), [eosList]);
 
@@ -66,11 +98,11 @@ const EndOfService = ({ employees: propEmployees }) => {
         setEditingId(null);
         setFormData({
             employee: '',
-            type: 'Resignation',
+            type: 'resignation',
             date: new Date().toISOString().split('T')[0],
             reason: '',
             amount: '',
-            status: 'Pending'
+            status: 'pending'
         });
         setShowForm(true);
     };
@@ -78,12 +110,12 @@ const EndOfService = ({ employees: propEmployees }) => {
     const handleEdit = (record) => {
         setEditingId(record.id);
         setFormData({
-            employee: record.employee,
-            type: record.type,
+            employee: String(record.employeeId ?? ''),
+            type: record.typeRaw || record.type,
             date: record.date,
-            reason: record.reason,
+            reason: record.reason || '',
             amount: record.amount,
-            status: record.status
+            status: record.statusRaw || record.status
         });
         setShowForm(true);
     };
@@ -98,33 +130,49 @@ const EndOfService = ({ employees: propEmployees }) => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.employee || !formData.amount || !formData.date) {
             showToast('Please fill in all required fields', 'error');
             return;
         }
 
-        const newRecord = {
-            ...formData,
-            id: editingId || Date.now(),
-            amount: parseFloat(formData.amount)
+        const payload = {
+            employeeId: formData.employee,
+            type: TYPE_MAP[formData.type] || formData.type,
+            date: formData.date,
+            reason: formData.reason,
+            amount: parseFloat(formData.amount),
+            status: STATUS_MAP[formData.status] || formData.status,
         };
 
-        if (editingId) {
-            setEosList(eosList.map(e => e.id === editingId ? newRecord : e));
-            showToast('Record updated successfully', 'success');
-        } else {
-            setEosList([...eosList, newRecord]);
-            showToast('Record added successfully', 'success');
+        try {
+            if (editingId) {
+                await apiService.put(`/end-of-service/${editingId}`, payload);
+                showToast('Record updated successfully', 'success');
+            } else {
+                await apiService.post('/end-of-service', payload);
+                showToast('Record added successfully', 'success');
+            }
+            fetchEos();
+            setShowForm(false);
+            setEditingId(null);
+        } catch (error) {
+            console.error('Error saving end-of-service record:', error);
+            showToast(error?.response?.data?.message || 'Error saving record', 'error');
         }
-        setShowForm(false);
     };
 
-    const handleDelete = (id) => {
+    const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this record?')) {
-            setEosList(eosList.filter(e => e.id !== id));
-            showToast('Record deleted successfully', 'success');
+            try {
+                await apiService.delete(`/end-of-service/${id}`);
+                showToast('Record deleted successfully', 'success');
+                fetchEos();
+            } catch (error) {
+                console.error('Error deleting record:', error);
+                showToast('Error deleting record', 'error');
+            }
         }
     };
 
@@ -255,7 +303,7 @@ const EndOfService = ({ employees: propEmployees }) => {
                                         >
                                             <option value="">Select Employee</option>
                                             {Array.isArray(employeesData) && employeesData.map(e => (
-                                                <option key={e.id} value={e.name}>{e.name}</option>
+                                                <option key={e.id} value={e.id}>{e.name}</option>
                                             ))}
                                         </select>
                                     </div>
@@ -268,10 +316,10 @@ const EndOfService = ({ employees: propEmployees }) => {
                                             onChange={handleInputChange}
                                             required
                                         >
-                                            <option value="Resignation">Resignation</option>
-                                            <option value="Termination">Termination</option>
-                                            <option value="Contract End">Contract End</option>
-                                            <option value="Retirement">Retirement</option>
+                                            <option value="resignation">Resignation</option>
+                                            <option value="termination">Termination</option>
+                                            <option value="contract_end">Contract End</option>
+                                            <option value="retirement">Retirement</option>
                                         </select>
                                     </div>
                                 </div>
@@ -311,9 +359,9 @@ const EndOfService = ({ employees: propEmployees }) => {
                                             value={formData.status} 
                                             onChange={handleInputChange}
                                         >
-                                            <option value="Pending">Pending</option>
-                                            <option value="Processed">Processed</option>
-                                            <option value="Cancelled">Cancelled</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="processed">Processed</option>
+                                            <option value="cancelled">Cancelled</option>
                                         </select>
                                     </div>
                                     <div className="form-group">

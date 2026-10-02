@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Backend\Budget;
 
 use App\Http\Controllers\Controller;
+use App\Support\AccountNature;
 use App\Models\Account;
 use App\Models\Accounting\JournalEntryLine;
 use App\Models\Budget\Budget;
@@ -294,21 +295,21 @@ class BudgetMonitoringController extends Controller
         // REMOVED: BudgetCommitment usage (not in allowed tables list)
         $commitmentByItem = collect();
 
-        // Aggregate Totals (normalized by account nature)
+        // Aggregate Totals (normalized by account nature — Audit Phase 6:
+        // via the canonical App\Support\AccountNature helper; behavior
+        // identical, since the legacy rule was already "credit iff 1").
         $totalBudgeted = (float) $budgetItems->sum(function ($item) use ($budgetedByItem, $resolveAccount) {
             $budgeted = (float) ($budgetedByItem[$item->id] ?? 0);
             $account = $resolveAccount($item);
-            $dm = $account?->AccDmType ?? 0;
 
-            return $dm == 1 ? -$budgeted : $budgeted;
+            return AccountNature::normalizeAmount($budgeted, $account?->AccDmType);
         });
         $totalActual = (float) $budgetItems->sum(function ($item) use ($actualByAccount, $resolveAccount) {
             $account = $resolveAccount($item);
             $accountId = $account?->AccID ?? $item->account_id;
             $actual = (float) ($actualByAccount[$accountId] ?? 0);
-            $dm = $account?->AccDmType ?? 0;
 
-            return $dm == 1 ? -$actual : $actual;
+            return AccountNature::normalizeAmount($actual, $account?->AccDmType);
         });
         $totalAvailable = $totalBudgeted - $totalActual;
         $varianceAmount = $totalActual - $totalBudgeted;
@@ -330,17 +331,15 @@ class BudgetMonitoringController extends Controller
                 $budgeted = (float) $items->sum(function ($item) use ($budgetedByItem, $resolveAccount) {
                     $val = (float) ($budgetedByItem[$item->id] ?? 0);
                     $account = $resolveAccount($item);
-                    $dm = $account?->AccDmType ?? 0;
 
-                    return $dm == 1 ? -$val : $val;
+                    return AccountNature::normalizeAmount($val, $account?->AccDmType);
                 });
                 $actual = (float) $items->sum(function ($item) use ($actualByAccount, $resolveAccount) {
                     $account = $resolveAccount($item);
                     $accountId = $account?->AccID ?? $item->account_id;
                     $val = (float) ($actualByAccount[$accountId] ?? 0);
-                    $dm = $account?->AccDmType ?? 0;
 
-                    return $dm == 1 ? -$val : $val;
+                    return AccountNature::normalizeAmount($val, $account?->AccDmType);
                 });
                 $varianceAmount = $actual - $budgeted;
                 $variancePercent = $budgeted != 0 ? ($varianceAmount / $budgeted) * 100 : 0;
@@ -385,11 +384,10 @@ class BudgetMonitoringController extends Controller
         $budgetItemsTable = $budgetItems->map(function ($item) use ($actualByAccount, $budgetedByItem, $threshold, $resolveAccount) {
             $account = $resolveAccount($item);
             $accountId = $account?->AccID ?? $item->account_id;
-            $dm = $account?->AccDmType ?? 0;
             $budgetedRaw = (float) ($budgetedByItem[$item->id] ?? 0);
             $actualRaw = (float) ($actualByAccount[$accountId] ?? 0);
-            $budgetedNorm = $dm == 1 ? -$budgetedRaw : $budgetedRaw;
-            $actualNorm = $dm == 1 ? -$actualRaw : $actualRaw;
+            $budgetedNorm = AccountNature::normalizeAmount($budgetedRaw, $account?->AccDmType);
+            $actualNorm = AccountNature::normalizeAmount($actualRaw, $account?->AccDmType);
             $available = $budgetedNorm - $actualNorm;
             $varianceAmount = $actualNorm - $budgetedNorm;
             $variancePercent = $budgetedNorm != 0 ? ($varianceAmount / $budgetedNorm) * 100 : 0;

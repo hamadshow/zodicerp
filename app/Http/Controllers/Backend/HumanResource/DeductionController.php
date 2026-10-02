@@ -4,18 +4,27 @@ namespace App\Http\Controllers\Backend\HumanResource;
 
 use App\Http\Controllers\Controller;
 use App\Models\Deduction;
+use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
 class DeductionController extends Controller
 {
+    public function __construct(private readonly CompanyContext $companyContext)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
         try {
-            $deductions = Deduction::with('employee:id,name')->get()->map(function ($d) {
+            $deductions = Deduction::query()
+                ->where('company_id', $this->companyContext->id())
+                ->with('employee:id,name')
+                ->get()
+                ->map(function ($d) {
                 try {
                     $date = $d->date instanceof Carbon ? $d->date : Carbon::parse($d->date);
                     return [
@@ -55,11 +64,11 @@ class DeductionController extends Controller
     {
         $validated = $request->validate([
             'employee_id' => 'required|exists:employees,id',
-            'type' => 'required|string',
+            'type' => 'required|in:absence,late,loan,damage,disciplinary,insurance,tax,uniform,mobile,training,other',
             'amount' => 'required|numeric|min:0',
             'date' => 'required|date',
-            'reason' => 'nullable|string',
-            'status' => 'required|string',
+            'reason' => 'nullable|string|max:2000',
+            'status' => 'required|in:pending,approved,applied,disputed,cancelled',
         ]);
 
         $deduction = Deduction::create([
@@ -69,7 +78,7 @@ class DeductionController extends Controller
             'date' => $validated['date'],
             'reason' => $validated['reason'] ?? null,
             'status' => $validated['status'],
-            'company_id' => 1, // Default for now
+            'company_id' => $this->companyContext->id(),
         ]);
 
         return response()->json([
@@ -84,7 +93,10 @@ class DeductionController extends Controller
      */
     public function show(string $id)
     {
-        $deduction = Deduction::with('employee')->findOrFail($id);
+        $deduction = Deduction::query()
+            ->where('company_id', $this->companyContext->id())
+            ->with('employee')
+            ->findOrFail($id);
         return response()->json($deduction);
     }
 
@@ -93,15 +105,17 @@ class DeductionController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        $deduction = Deduction::findOrFail($id);
+        $deduction = Deduction::query()
+            ->where('company_id', $this->companyContext->id())
+            ->findOrFail($id);
 
         $validated = $request->validate([
             'employee_id' => 'required|exists:employees,id',
-            'type' => 'required|string',
+            'type' => 'required|in:absence,late,loan,damage,disciplinary,insurance,tax,uniform,mobile,training,other',
             'amount' => 'required|numeric|min:0',
             'date' => 'required|date',
-            'reason' => 'nullable|string',
-            'status' => 'required|string',
+            'reason' => 'nullable|string|max:2000',
+            'status' => 'required|in:pending,approved,applied,disputed,cancelled',
         ]);
 
         $deduction->update([
@@ -125,7 +139,9 @@ class DeductionController extends Controller
      */
     public function destroy(string $id)
     {
-        $deduction = Deduction::findOrFail($id);
+        $deduction = Deduction::query()
+            ->where('company_id', $this->companyContext->id())
+            ->findOrFail($id);
         $deduction->delete();
 
         return response()->json([

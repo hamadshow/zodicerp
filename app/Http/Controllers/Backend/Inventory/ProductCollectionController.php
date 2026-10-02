@@ -5,18 +5,26 @@ namespace App\Http\Controllers\Backend\Inventory;
 use App\Http\Controllers\Controller;
 use App\Models\ProductCollection;
 use App\Models\Products;
+use App\Services\CompanyContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class ProductCollectionController extends Controller
 {
+    public function __construct(private CompanyContext $companyContext) {}
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
+        $companyId = $this->companyContext->id();
+
         $collections = ProductCollection::with('translations')
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
             ->orderBy('id', 'desc')
             ->get();
 
@@ -31,8 +39,10 @@ class ProductCollectionController extends Controller
      */
     public function getProducts(Request $request)
     {
+        $companyId = $this->companyContext->id();
         $query = $request->input('query');
         $products = Products::query()
+            ->where('company_id', $companyId)
             ->when($query, function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%");
             })
@@ -88,6 +98,7 @@ class ProductCollectionController extends Controller
             'description' => $request->description,
             'image' => $request->image,
             'is_featured' => $request->is_featured ?? false,
+            'company_id' => $this->companyContext->id(),
         ]);
 
         // Save Translations
@@ -118,7 +129,14 @@ class ProductCollectionController extends Controller
      */
     public function edit($id)
     {
-        $collection = ProductCollection::with(['products:id,name,image', 'translations'])->findOrFail($id);
+        $companyId = $this->companyContext->id();
+
+        $collection = ProductCollection::query()
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->with(['products:id,name,image', 'translations'])
+            ->findOrFail($id);
 
         return Inertia::render('Backend/03-Inventory/ProductCollections', [
             'collection' => $collection,
@@ -131,7 +149,13 @@ class ProductCollectionController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $collection = ProductCollection::findOrFail($id);
+        $companyId = $this->companyContext->id();
+
+        $collection = ProductCollection::query()
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->findOrFail($id);
 
         $request->validate([
             'name' => 'required|string|max:191',
@@ -197,7 +221,13 @@ class ProductCollectionController extends Controller
      */
     public function destroy($id)
     {
-        $collection = ProductCollection::findOrFail($id);
+        $companyId = $this->companyContext->id();
+
+        $collection = ProductCollection::query()
+            ->where(function ($q) use ($companyId) {
+                $q->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->findOrFail($id);
         $collection->delete();
 
         return redirect()->route('admin.inventory.product-collections.index')

@@ -136,6 +136,75 @@ class WeightedAverageCostService
         );
     }
 
+    /**
+     * Exact reversal of a previously applied cost transaction (Phase 3, D4).
+     *
+     * Writes one offsetting delta carrying the ORIGINAL unit cost and the
+     * original movement linkage, plus reversal_of_id, so the net effect of
+     * (original + reversal) is exactly zero on quantity and value while the
+     * immutable ICT history documents the round trip. The running average
+     * returns to its pre-original state because both quantity and value are
+     * negated exactly.
+     *
+     * Idempotent per (company, product, warehouse, source_type, source_id).
+     *
+     * @throws RuntimeException when the reversal would drive the balance
+     *                          negative (the stock has already been consumed).
+     */
+    public function reverse(
+        int $originalTransactionId,
+        string $transactionDate,
+        string $sourceType,
+        int $sourceId,
+    ): InventoryCostTransaction {
+        return DB::transaction(function () use ($originalTransactionId, $transactionDate, $sourceType, $sourceId) {
+            $companyId = $this->companyContext->id();
+
+            $original = InventoryCostTransaction::query()
+                ->where('company_id', $companyId)
+                ->whereKey($originalTransactionId)
+                ->firstOrFail();
+
+            $existing = InventoryCostTransaction::query()
+                ->where('company_id', $companyId)
+                ->where('product_id', $original->product_id)
+                ->where('warehouse_id', $original->warehouse_id)
+                ->where('source_type', $sourceType)
+                ->where('source_id', $sourceId)
+                ->first();
+            if ($existing) {
+                return $existing;
+            }
+
+            $balance = $this->lockedBalance($companyId, (int) $original->product_id, (int) $original->warehouse_id);
+            $this->assertChronological($companyId, (int) $original->product_id, (int) $original->warehouse_id, $transactionDate);
+
+            if (
+                self::compare(self::add((string) $balance->quantity, self::negate((string) $original->quantity_delta)), '0') < 0
+                || self::compare(self::add((string) $balance->inventory_value, self::negate((string) $original->value_delta)), '0') < 0
+            ) {
+                throw new RuntimeException(
+                    'Inventory already consumed; the original cost transaction cannot be reversed.'
+                );
+            }
+
+            return $this->persistDelta(
+                $balance,
+                self::negate((string) $original->quantity_delta),
+                self::negate((string) $original->value_delta),
+                (string) $original->unit_cost,
+                $sourceType,
+                $sourceId,
+                $transactionDate,
+                $original->movement_header_id,
+                $original->movement_line_id,
+                null,
+                $companyId,
+                (int) $original->id,
+            );
+        });
+    }
+
     private function applyDelta(
         int $productId,
         int $warehouseId,
@@ -148,8 +217,9 @@ class WeightedAverageCostService
         ?int $movementHeaderId,
         ?int $movementLineId,
         ?int $landedCostId,
+        ?int $reversalOfId = null,
     ): InventoryCostTransaction {
-        return DB::transaction(function () use ($productId, $warehouseId, $quantity, $value, $unitCost, $sourceType, $sourceId, $transactionDate, $movementHeaderId, $movementLineId, $landedCostId) {
+        return DB::transaction(function () use ($productId, $warehouseId, $quantity, $value, $unitCost, $sourceType, $sourceId, $transactionDate, $movementHeaderId, $movementLineId, $landedCostId, $reversalOfId) {
             $companyId = $this->companyContext->id();
             $this->assertScopeOwnership($companyId, $productId, $warehouseId);
             $existing = InventoryCostTransaction::query()
@@ -189,6 +259,7 @@ class WeightedAverageCostService
                 $movementLineId,
                 $landedCostId,
                 $companyId,
+                $reversalOfId,
             );
         });
     }
@@ -226,6 +297,7 @@ class WeightedAverageCostService
         ?int $movementLineId,
         ?int $landedCostId,
         int $companyId,
+        ?int $reversalOfId = null,
     ): InventoryCostTransaction {
         $previousQuantity = (string) $balance->quantity;
         $previousValue = (string) $balance->inventory_value;
@@ -267,6 +339,7 @@ class WeightedAverageCostService
             'transaction_date' => $transactionDate,
             'posting_date' => now()->toDateString(),
             'landed_cost_id' => $landedCostId,
+            'reversal_of_id' => $reversalOfId,
             'created_by' => auth()->id(),
         ]);
     }

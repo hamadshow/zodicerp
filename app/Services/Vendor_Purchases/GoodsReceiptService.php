@@ -14,16 +14,27 @@ use App\Services\UnitConversionService;
 
 class GoodsReceiptService
 {
-    public function __construct(private WeightedAverageCostService $weightedAverageCost) {}
+    public function __construct(
+        private WeightedAverageCostService $weightedAverageCost,
+        private CompanyContext $companyContext,
+    ) {}
 
     public function createGoodsReceipt(array $data): GoodsReceipt
     {
         return DB::transaction(function () use ($data) {
+            $companyId = $this->companyContext->id();
+
+            $this->assertOwnership($companyId, (int) $data['warehouse_id'], array_map(
+                'intval',
+                array_column($data['items'], 'product_id')
+            ));
+
             $receipt = GoodsReceipt::create([
                 'receipt_number' => $this->generateReceiptNumber(),
                 'order_id' => $data['order_id'],
                 'invoice_id' => $data['invoice_id'] ?? null,
                 'warehouse_id' => $data['warehouse_id'],
+                'company_id' => $companyId,
                 'receipt_date' => $data['receipt_date'],
                 'receipt_time' => $data['receipt_time'] ?? now()->format('H:i:s'),
                 'received_by' => $data['received_by'] ?? auth()->id(),
@@ -102,6 +113,10 @@ class GoodsReceiptService
                 throw new \Exception('Only draft, received, or checked receipts can be approved.');
             }
 
+            // company_id may be missing on legacy rows created before Phase 6;
+            // the active company's user approving is the best-available owner.
+            $receipt->company_id = $receipt->company_id ?: $this->companyContext->id();
+
             $receipt->update([
                 'status' => 'approved',
                 'approved_by' => auth()->id(),
@@ -156,12 +171,98 @@ class GoodsReceiptService
     {
         return DB::transaction(function () use ($receipt) {
             if ($receipt->status === 'approved') {
-                throw new \Exception('Approved receipts cannot be cancelled. Use a reversal instead.');
+                throw new \Exception('Approved receipts cannot be cancelled. Reverse the receipt instead.');
             }
 
             $receipt->update(['status' => 'cancelled']);
 
             return $receipt;
+        });
+    }
+
+    /**
+     * Phase 6 — reverse an APPROVED receipt exactly.
+     *
+     * Every accepted detail's inbound ICT is negated through WAC::reverse
+     * (source_type 'goods_receipt_reversal', reversal_of_id set), the
+     * inventory movement is stamped [REVERSED date], derived product quantity
+     * is decremented, PO received quantities are recomputed, and the receipt
+     * status becomes 'cancelled' (enum-compatible terminal state).
+     *
+     * Refused (whole reversal rolls back) when the received stock was already
+     * consumed downstream — WAC refuses a negative balance.
+     */
+    public function reverseReceipt(GoodsReceipt $receipt): GoodsReceipt
+    {
+        return DB::transaction(function () use ($receipt) {
+            // Idempotency backstop FIRST: a receipt whose movements are
+            // already stamped [REVERSED] was reversed before — return
+            // unchanged regardless of its current (terminal) status.
+            $alreadyReversed = DB::table('inventory_movement_headers')
+                ->where('reference_type', 'goods_receipt')
+                ->where('reference_id', $receipt->id)
+                ->where('notes', 'like', '%[REVERSED%')
+                ->exists();
+            if ($alreadyReversed) {
+                return $receipt->fresh();
+            }
+
+            if ($receipt->status !== 'approved') {
+                throw new \Exception('Only approved receipts can be reversed.');
+            }
+
+            $companyId = (int) ($receipt->company_id ?: $this->companyContext->id());
+            $today = now()->toDateString();
+            $reverseDate = max((string) $receipt->receipt_date, $today);
+
+            $detailIds = $receipt->details()
+                ->where('is_accepted', true)
+                ->where('accepted_quantity', '>', 0)
+                ->pluck('id');
+
+            $originalTxs = $detailIds->isEmpty() ? collect() : DB::table('inventory_cost_transactions')
+                ->where('company_id', $companyId)
+                ->where('source_type', 'goods_receipt_detail')
+                ->whereIn('source_id', $detailIds)
+                ->orderBy('id')
+                ->get();
+
+            if ($originalTxs->isEmpty()) {
+                throw new \Exception(
+                    'This receipt has no cost transactions to reverse (legacy pre-engine row). Use reconciliation instead.'
+                );
+            }
+
+            foreach ($originalTxs as $tx) {
+                $this->weightedAverageCost->reverse(
+                    (int) $tx->id,
+                    $reverseDate,
+                    'goods_receipt_reversal',
+                    (int) $tx->id
+                );
+
+                // Derived quantity rollback: the original approval incremented
+                // products.quantity by the base quantity — undo exactly that.
+                DB::table('products')
+                    ->where('id', $tx->product_id)
+                    ->decrement('quantity', (float) abs((float) $tx->quantity_delta));
+            }
+
+            // Stamp the movement as reversed (audit-visible on the stock card).
+            DB::table('inventory_movement_headers')
+                ->where('reference_type', 'goods_receipt')
+                ->where('reference_id', $receipt->id)
+                ->update([
+                    'notes' => DB::raw("CONCAT(COALESCE(notes, ''), ' [REVERSED {$reverseDate}]')"),
+                ]);
+
+            // Terminal status FIRST, then recompute: PO received quantities
+            // accumulate over approved receipts only, so the reversed receipt
+            // must not count itself anymore.
+            $receipt->update(['status' => 'cancelled']);
+            $this->updatePurchaseOrderQuantities($receipt);
+
+            return $receipt->fresh();
         });
     }
 
@@ -270,20 +371,16 @@ class GoodsReceiptService
             ->groupBy('goods_receipt_details.product_id')
             ->pluck('total_received', 'product_id');
 
-        // Update PO items
+        // Update PO items. Received is written UNCONDITIONALLY (clamped to the
+        // ordered quantity): a reversal recomputes to zero and must actually
+        // reset the accumulated figure, not silently keep the stale one.
         foreach ($order->items as $item) {
             $received = (float) ($receivedByProduct[$item->product_id] ?? 0);
             $ordered = (float) $item->ordered_quantity;
 
-            if ($received >= $ordered - 0.0001) {
-                $item->update([
-                    'received_quantity' => $ordered,
-                ]);
-            } elseif ($received > 0) {
-                $item->update([
-                    'received_quantity' => $received,
-                ]);
-            }
+            $item->update([
+                'received_quantity' => min($received, $ordered),
+            ]);
         }
 
         // Update PO overall status
@@ -294,6 +391,10 @@ class GoodsReceiptService
             $order->update(['status' => 'fully_received']);
         } elseif ($totalReceived > 0) {
             $order->update(['status' => 'partially_received']);
+        } else {
+            // Everything received has been reversed — back to the plain
+            // approved state.
+            $order->update(['status' => 'approved']);
         }
     }
 
@@ -332,5 +433,24 @@ class GoodsReceiptService
         } while (GoodsReceipt::where('receipt_number', $number)->exists());
 
         return $number;
+    }
+
+    /**
+     * The referenced master data must belong to the active company — the WAC
+     * engine would refuse later, but the boundary rejects the request itself
+     * (404, do not leak other companies' records).
+     */
+    private function assertOwnership(int $companyId, int $warehouseId, array $productIds): void
+    {
+        $warehouseOwner = DB::table('warehouses')->where('id', $warehouseId)->value('company_id');
+        abort_unless((int) $warehouseOwner === $companyId, 404, 'Warehouse not found.');
+
+        $productOwners = DB::table('products')
+            ->whereIn('id', array_unique($productIds))
+            ->pluck('company_id', 'id');
+
+        foreach (array_unique($productIds) as $productId) {
+            abort_unless((int) ($productOwners[$productId] ?? 0) === $companyId, 404, 'Product not found.');
+        }
     }
 }
