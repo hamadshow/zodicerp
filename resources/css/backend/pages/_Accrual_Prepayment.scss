@@ -1,0 +1,300 @@
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+.accrual-prepayment-page {
+    padding: $spacing-lg;
+}
+
+.accrual-prepayment__stats {
+    margin-bottom: $spacing-lg;
+}
+
+.accrual-prepayment__stat {
+    background: $white;
+    border: 1px solid $border-color;
+    border-radius: $radius-lg;
+    padding: $spacing-lg;
+    box-shadow: $shadow-sm;
+    min-height: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: $spacing-xs;
+
+    strong {
+        font-size: 1.5rem;
+        font-weight: $font-weight-bold;
+        color: $dark-color;
+        line-height: 1.2;
+    }
+
+    &--primary {
+        background: rgba($primary-color, 0.04);
+    }
+
+    &--highlight {
+        background: linear-gradient(135deg, rgba($primary-color, 0.08), rgba($success-color, 0.08));
+    }
+}
+
+.accrual-prepayment__stat-label {
+    color: $gray-color;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+}
+
+.accrual-prepayment__filters {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(150px, 1fr));
+    gap: $spacing-md;
+    align-items: end;
+
+    @media (max-width: 1200px) {
+        grid-template-columns: repeat(2, minmax(180px, 1fr));
+    }
+
+    @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.accrual-prepayment__filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+
+    label {
+        font-size: $font-size-xs;
+        color: $gray-color;
+        font-weight: $font-weight-medium;
+    }
+}
+
+.accrual-prepayment__filter-field--search {
+    grid-column: span 2;
+
+    @media (max-width: 768px) {
+        grid-column: auto;
+    }
+}
+
+.accrual-prepayment__filter-actions {
+    display: flex;
+    gap: $spacing-sm;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.accrual-prepayment__card {
+    background: $white;
+    border: 1px solid $border-color;
+    border-radius: $radius-xl;
+    box-shadow: $shadow-sm;
+    overflow: hidden;
+}
+
+.accrual-prepayment__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $spacing-lg $spacing-xl;
+    border-bottom: 1px solid $border-color;
+    background: rgba($light-color, 0.35);
+
+    h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: $font-weight-bold;
+        color: $dark-color;
+    }
+
+    p {
+        margin: $spacing-xs 0 0;
+        color: $gray-color;
+        font-size: $font-size-sm;
+    }
+
+    @media (max-width: 768px) {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: $spacing-md;
+    }
+}
+
+.accrual-prepayment__add-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-sm;
+    white-space: nowrap;
+    font-weight: $font-weight-semibold;
+    box-shadow: $shadow-sm;
+
+    i {
+        font-size: 1.15rem;
+        line-height: 1;
+    }
+
+    @media (max-width: 768px) {
+        width: 100%;
+    }
+}
+
+.accrual-prepayment__table-wrap {
+    padding: $spacing-xl;
+}
+
+.accrual-prepayment__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 0.75rem;
+    border-radius: 999px;
+    font-size: $font-size-xs;
+    font-weight: $font-weight-semibold;
+    text-transform: capitalize;
+    background: rgba($gray-color, 0.08);
+    color: $dark-color;
+    white-space: nowrap;
+
+    &--prepayment {
+        background: rgba($primary-color, 0.1);
+        color: $primary-color;
+    }
+
+    &--accrual {
+        background: rgba($warning-color, 0.15);
+        color: darken($warning-color, 15%);
+    }
+
+    &--supplier_advance {
+        background: rgba($success-color, 0.1);
+        color: $success-color;
+    }
+
+    &--status {
+        min-width: 90px;
+    }
+
+    &--draft {
+        background: rgba($gray-color, 0.12);
+        color: $gray-color;
+    }
+
+    &--active {
+        background: rgba($success-color, 0.12);
+        color: $success-color;
+    }
+
+    &--pending {
+        background: rgba($warning-color, 0.18);
+        color: darken($warning-color, 20%);
+    }
+
+    &--completed {
+        background: rgba($primary-color, 0.12);
+        color: $primary-color;
+    }
+}
+
+.accrual-prepayment__actions {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    flex-wrap: wrap;
+}
+
+.accrual-prepayment__modal {
+    padding: $spacing-xl;
+}
+
+.accrual-prepayment__modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: $spacing-md;
+    border-bottom: 1px solid $border-color;
+
+    h3 {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: $font-weight-bold;
+    }
+}
+
+.accrual-prepayment__form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: $spacing-md;
+    margin-top: $spacing-lg;
+
+    @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.accrual-prepayment__field {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-xs;
+
+    label {
+        font-size: $font-size-xs;
+        color: $gray-color;
+        font-weight: $font-weight-medium;
+    }
+
+    &--full {
+        grid-column: 1 / -1;
+    }
+}
+
+.accrual-prepayment__modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: $spacing-sm;
+    margin-top: $spacing-xl;
+}
+
+.accrual-prepayment__preview {
+    margin-top: $spacing-lg;
+
+    h4 {
+        margin-bottom: $spacing-md;
+        font-size: 1rem;
+        font-weight: $font-weight-bold;
+    }
+}
+
+.accrual-prepayment__preview-box {
+    border: 1px solid $border-color;
+    border-radius: $radius-lg;
+    background: $light-color;
+    padding: $spacing-lg;
+}
+
+.accrual-prepayment__preview-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $spacing-sm 0;
+    border-bottom: 1px solid $border-color;
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    > div {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+}
+
+[dir='rtl'] {
+    .accrual-prepayment__header,
+    .accrual-prepayment__modal-header,
+    .accrual-prepayment__preview-row {
+        direction: rtl;
+    }
+}
