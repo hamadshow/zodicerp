@@ -29,4 +29,5 @@ return [
     'budget_commitments' => 'Budget Commitments',
     'budget_forecasts' => 'Budget Forecasts',
     'budget_transfers' => 'Budget Transfers',
+    'accrual_prepayment' => 'Accrual & Prepayment',
 ];

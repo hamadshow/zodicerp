@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
@@ -18,27 +18,25 @@ export default function BalanceSheet() {
     return translations[`FinancialReports.${key}`] || translations[key] || fallback;
   };
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   // lang is read from the route during initial render and passed to formatNumber via currentLocale
   const [asOfDate, setAsOfDate] = useState(new Date().toISOString().split('T')[0]);
+  const [appliedAsOfDate, setAppliedAsOfDate] = useState(null);
   const [collapsedNodes, setCollapsedNodes] = useState({});
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (selectedAsOfDate) => {
     try {
       setLoading(true);
-      const response = await apiService.get(`/reports/balance-sheet?date=${asOfDate}`);
+      const response = await apiService.get(`/reports/balance-sheet?date=${selectedAsOfDate}`);
       setData(response.data.main);
+      setAppliedAsOfDate(selectedAsOfDate);
     } catch (error) {
       console.error('Failed to fetch balance sheet:', error);
     } finally {
       setLoading(false);
     }
-  }, [asOfDate]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  }, []);
 
   const toggleNode = (code) => {
     setCollapsedNodes(prev => ({
@@ -87,6 +85,7 @@ export default function BalanceSheet() {
                     </span>
                   </button>
                 )}
+                <span className="acc-code">{node.AccCode}</span>
                 <span className="acc-name">{node.AccName}</span>
               </div>
             </td>
@@ -100,7 +99,7 @@ export default function BalanceSheet() {
           {isParent && !isCollapsed && (
             <tr className={`summary-row depth-${depth}`}>
               <td className="name-cell" style={{ paddingInlineStart: `${depth * 24 + 32}px` }}>
-                <span className="summary-label">{t('total', 'Total')} {node.AccName}</span>
+                <span className="summary-label">{t('total', 'Total')} {node.AccCode} - {node.AccName}</span>
               </td>
               <td className={`balance-cell summary-balance ${node.balance < 0 ? 'negative' : ''}`}>
                 {formatNumber(node.balance)}
@@ -118,13 +117,13 @@ export default function BalanceSheet() {
     const rows = [];
     rows.push([t('company_name', 'ZodicERP Company')]);
     rows.push([t('balance_sheet', 'Balance Sheet')]);
-    rows.push([`${t('as_of', 'As of')}: ${asOfDate}`]);
+    rows.push([`${t('as_of', 'As of')}: ${appliedAsOfDate || asOfDate}`]);
     rows.push([]);
 
     const flatten = (nodes, depth = 0) => {
       nodes.forEach(n => {
         const indent = '    '.repeat(depth);
-        rows.push([indent + n.AccName, n.balance]);
+        rows.push([indent + n.AccCode + ' - ' + n.AccName, n.balance]);
         if (n.children && n.children.length > 0) {
           flatten(n.children, depth + 1);
         }
@@ -145,12 +144,15 @@ export default function BalanceSheet() {
 
     const worksheet = XLSX.utils.aoa_to_sheet(rows);
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Balance Sheet');
-    XLSX.writeFile(workbook, `Balance_Sheet_${asOfDate}.xlsx`);
+    XLSX.writeFile(workbook, `Balance_Sheet_${appliedAsOfDate || asOfDate}.xlsx`);
   };
 
   const totalLiabilitiesEquity = (data?.total_liabilities || 0) + (data?.total_equity || 0);
   const diff = (data?.total_assets || 0) - totalLiabilitiesEquity;
   const isBalanced = Math.abs(diff) < 0.01;
+  const hasReportData = ['assets', 'liabilities', 'equity'].some(
+    (section) => Array.isArray(data?.[section]) && data[section].length > 0,
+  );
 
   return (
     <AdminLayout activeMenu="Financial Reports">
@@ -192,7 +194,7 @@ export default function BalanceSheet() {
             <button
               type="button"
               className="btn btn-primary fr-btn"
-              onClick={fetchData}
+              onClick={() => fetchData(asOfDate)}
             >
               <span className="material-icons-outlined">refresh</span>
               <span>{t('run_report', 'Run report')}</span>
@@ -210,88 +212,92 @@ export default function BalanceSheet() {
 
         {loading && <div className="fr-loading-banner fr-error-banner">{t('loading_data', 'Loading your financial data...')}</div>}
 
-        <div className="fr-table-card">
-          <div className="fr-table-wrapper">
-            <table className="fr-table">
-              <thead>
-                <tr>
-                  <th className="fr-th">{t('account_name', 'Account Name')}</th>
-                  <th className="fr-th fr-amount-header">{t('balance', 'Balance')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* ASSETS SECTION */}
-                <tr className="section-header-row">
-                  <td colSpan="2">{t('assets', 'ASSETS')}</td>
-                </tr>
-                {renderAccountRows(data?.assets)}
-                {data?.assets && (
-                  <tr className="grand-total-row">
-                    <td className="name-cell">{t('total_assets', 'Total Assets')}</td>
-                    <td className="balance-cell">{formatNumber(data.total_assets)}</td>
-                  </tr>
+        {hasReportData && (
+          <>
+            <div className="fr-table-card">
+              <div className="fr-table-wrapper">
+                <table className="fr-table">
+                  <thead>
+                    <tr>
+                      <th className="fr-th">{t('account_name', 'Account Name')}</th>
+                      <th className="fr-th fr-amount-header">{t('balance', 'Balance')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* ASSETS SECTION */}
+                    <tr className="section-header-row">
+                      <td colSpan="2">{t('assets', 'ASSETS')}</td>
+                    </tr>
+                    {renderAccountRows(data?.assets)}
+                    {data?.assets && (
+                      <tr className="grand-total-row">
+                        <td className="name-cell">{t('total_assets', 'Total Assets')}</td>
+                        <td className="balance-cell">{formatNumber(data.total_assets)}</td>
+                      </tr>
+                    )}
+
+                    <tr className="spacer-row"></tr>
+
+                    {/* LIABILITIES SECTION */}
+                    <tr className="section-header-row">
+                      <td colSpan="2">{t('liabilities', 'LIABILITIES')}</td>
+                    </tr>
+                    {renderAccountRows(data?.liabilities)}
+                    {data?.liabilities && (
+                      <tr className="grand-total-row sub-grand">
+                        <td className="name-cell">{t('total_liabilities', 'Total Liabilities')}</td>
+                        <td className="balance-cell">{formatNumber(data.total_liabilities)}</td>
+                      </tr>
+                    )}
+
+                    <tr className="spacer-row"></tr>
+
+                    {/* EQUITY SECTION */}
+                    <tr className="section-header-row">
+                      <td colSpan="2">{t('equity', 'EQUITY')}</td>
+                    </tr>
+                    {renderAccountRows(data?.equity)}
+                    {data?.equity && (
+                      <tr className="grand-total-row sub-grand">
+                        <td className="name-cell">{t('total_equity', 'Total Equity')}</td>
+                        <td className="balance-cell">{formatNumber(data.total_equity)}</td>
+                      </tr>
+                    )}
+
+                    <tr className="spacer-row"></tr>
+
+                    {/* TOTAL L+E */}
+                    {data && (
+                      <tr className="grand-total-row final-total">
+                        <td className="name-cell">{t('total_liabilities_equity', 'TOTAL LIABILITIES AND EQUITY')}</td>
+                        <td className="balance-cell">{formatNumber(totalLiabilitiesEquity)}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+                {!isBalanced && (
+                  <div className="fr-error-banner">
+                    <span className="material-icons-outlined">warning</span>
+                    <span>{t('unbalanced_msg', 'The balance sheet is out of balance by')}: {formatNumber(diff)}</span>
+                  </div>
                 )}
+              </div>
+            </div>
 
-                <tr className="spacer-row"></tr>
-
-                {/* LIABILITIES SECTION */}
-                <tr className="section-header-row">
-                  <td colSpan="2">{t('liabilities', 'LIABILITIES')}</td>
-                </tr>
-                {renderAccountRows(data?.liabilities)}
-                {data?.liabilities && (
-                  <tr className="grand-total-row sub-grand">
-                    <td className="name-cell">{t('total_liabilities', 'Total Liabilities')}</td>
-                    <td className="balance-cell">{formatNumber(data.total_liabilities)}</td>
-                  </tr>
-                )}
-
-                <tr className="spacer-row"></tr>
-
-                {/* EQUITY SECTION */}
-                <tr className="section-header-row">
-                  <td colSpan="2">{t('equity', 'EQUITY')}</td>
-                </tr>
-                {renderAccountRows(data?.equity)}
-                {data?.equity && (
-                  <tr className="grand-total-row sub-grand">
-                    <td className="name-cell">{t('total_equity', 'Total Equity')}</td>
-                    <td className="balance-cell">{formatNumber(data.total_equity)}</td>
-                  </tr>
-                )}
-
-                <tr className="spacer-row"></tr>
-
-                {/* TOTAL L+E */}
-                {data && (
-                  <tr className="grand-total-row final-total">
-                    <td className="name-cell">{t('total_liabilities_equity', 'TOTAL LIABILITIES AND EQUITY')}</td>
-                    <td className="balance-cell">{formatNumber(totalLiabilitiesEquity)}</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-            {!isBalanced && (
+            {!loading && !isBalanced && (
               <div className="fr-error-banner">
                 <span className="material-icons-outlined">warning</span>
                 <span>{t('unbalanced_msg', 'The balance sheet is out of balance by')}: {formatNumber(diff)}</span>
               </div>
             )}
-          </div>
-        </div>
 
-        {!loading && data && !isBalanced && (
-          <div className="fr-error-banner">
-            <span className="material-icons-outlined">warning</span>
-            <span>{t('unbalanced_msg', 'The balance sheet is out of balance by')}: {formatNumber(diff)}</span>
-          </div>
-        )}
-
-        {!loading && data && isBalanced && (
-          <div className="fr-empty-state">
-            <span className="material-icons-outlined">check_circle</span>
-            <p>{t('balanced', 'The balance sheet is balanced.')}</p>
-          </div>
+            {!loading && isBalanced && (
+              <div className="fr-empty-state">
+                <span className="material-icons-outlined">check_circle</span>
+                <p>{t('balanced', 'The balance sheet is balanced.')}</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -521,6 +527,11 @@ export default function BalanceSheet() {
       .fr-table-wrapper .report-row .name-cell,
       .fr-table-wrapper .report-row .balance-cell {
         padding: 8px 8px;
+      }
+      .fr-table-wrapper .report-row .acc-code {
+        color: var(--fr-text-light);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
       }
       .fr-table-wrapper .report-row .acc-name {
         font-size: 0.85rem;

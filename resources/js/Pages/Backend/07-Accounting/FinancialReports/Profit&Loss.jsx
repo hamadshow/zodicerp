@@ -5,27 +5,43 @@ import AdminLayout from '../../components/AdminLayout';
 import { apiService } from '../../../../services/api';
 
 export default function ProfitLoss() {
-  const [loading, setLoading] = useState(true);
+  const financialReportsRoute = () => route('admin.financial-reports.index', {
+    country: route().params.country || 'sa',
+    lang: route().params.lang || document.documentElement.lang || 'en',
+  });
+
+  const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
+  const [hasLoadedReport, setHasLoadedReport] = useState(false);
+  const [appliedDates, setAppliedDates] = useState(null);
   const [lang, setLang] = useState(document.documentElement.lang || 'ar');
   const [startDate, setStartDate] = useState('2024-01-01');
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (requestedStartDate, requestedEndDate) => {
     try {
       setLoading(true);
-      const response = await apiService.get(`/reports/profit-loss?start_date=${startDate}&end_date=${endDate}`);
+      const response = await apiService.get(
+        `/reports/profit-loss?start_date=${requestedStartDate}&end_date=${requestedEndDate}`,
+      );
       setData(response.data.main);
+      setAppliedDates({
+        startDate: requestedStartDate,
+        endDate: requestedEndDate,
+      });
+      setHasLoadedReport(true);
     } catch (error) {
       console.error('Failed to fetch profit & loss:', error);
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate]);
+  }, []);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const handleApply = () => {
+    if (!loading) {
+      fetchData(startDate, endDate);
+    }
+  };
 
   useEffect(() => {
     const handleKeyPress = (e) => {
@@ -66,6 +82,7 @@ export default function ProfitLoss() {
       loading: 'جاري التحميل...',
       exportExcel: 'تصدير إكسل',
       print: 'طباعة',
+      apply: 'تطبيق',
       subtitle: "اضغط على حرف 'a' للتحويل للغة الإنجليزية",
       companyName: 'شركة زد إي آر بير (ZodicERP)',
       noData: 'لا توجد بيانات متاحة لهذه الفترة',
@@ -90,6 +107,7 @@ export default function ProfitLoss() {
       loading: 'Loading...',
       exportExcel: 'Export Excel',
       print: 'Print',
+      apply: 'Apply',
       subtitle: "Press 'a' to toggle language",
       companyName: 'ZodicERP Company',
       noData: 'No data available for this period',
@@ -179,7 +197,11 @@ export default function ProfitLoss() {
     worksheet['!cols'] = [{ wch: 60 }, { wch: 20 }];
 
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Profit & Loss');
-    XLSX.writeFile(workbook, `Profit_Loss_${startDate}_to_${endDate}.xlsx`);
+    const exportDates = appliedDates || { startDate, endDate };
+    XLSX.writeFile(
+      workbook,
+      `Profit_Loss_${exportDates.startDate}_to_${exportDates.endDate}.xlsx`,
+    );
   };
 
   return (
@@ -191,7 +213,7 @@ export default function ProfitLoss() {
           <span className="fr-sep">/</span>
           <a href="#">{currentLang.accounting}</a>
           <span className="fr-sep">/</span>
-          <a href="#">{currentLang.financialReports}</a>
+          <a href={financialReportsRoute()}>{currentLang.financialReports}</a>
           <span className="fr-sep">/</span>
           <span className="fr-current">{currentLang.title}</span>
         </div>
@@ -229,6 +251,14 @@ export default function ProfitLoss() {
           <div className="fr-form-actions">
             <button
               type="button"
+              className="btn btn-primary fr-btn"
+              onClick={handleApply}
+              disabled={loading}
+            >
+              <span>{currentLang.apply}</span>
+            </button>
+            <button
+              type="button"
               className="btn btn-excel fr-btn"
               onClick={handleExportExcel}
             >
@@ -251,7 +281,7 @@ export default function ProfitLoss() {
             <span className="material-icons-outlined">sync</span>
             <span>{currentLang.loading}</span>
           </div>
-        ) : data ? (
+        ) : hasLoadedReport && data ? (
           <div className="fr-table-card">
             <div className="fr-table-wrapper">
               <div className="space-y-12">
@@ -335,12 +365,12 @@ export default function ProfitLoss() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : hasLoadedReport ? (
           <div className="fr-empty-state">
             <span className="material-icons-outlined">search_off</span>
             <p className="mt-4">{currentLang.noData}</p>
           </div>
-        )}
+        ) : null}
       </div>
 
       <style jsx>{`{

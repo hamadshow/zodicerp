@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Head, usePage } from '@inertiajs/react';
-import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
+import ReportHeader, { ReportFormActions, ReportFormGroup } from '../../components/ReportHeader';
 import { apiService } from '../../../../services/api';
+import { exportReportToExcel } from '../../../../Components/ExportReportExcel';
 
 export default function TrialBalance() {
   const { props } = usePage();
@@ -10,25 +11,88 @@ export default function TrialBalance() {
   const translations = localization.translations || {};
   const currentLocale = localization.current_locale || 'en';
 
-  const t = (key, fallback) => {
+  const t = useCallback((key, fallback) => {
     return translations[`TrialBalance.${key}`] || fallback;
-  };
+  }, [translations]);
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [data, setData] = useState([]);
+  const [reportError, setReportError] = useState('');
+  const [exportError, setExportError] = useState('');
+  const [appliedPeriod, setAppliedPeriod] = useState(null);
+  const [appliedFilters, setAppliedFilters] = useState(null);
   const [lang, setLang] = useState(currentLocale);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (selectedFromDate = '', selectedToDate = '') => {
     try {
       setLoading(true);
-      const response = await apiService.get('/reports/trial-balance');
-      setData(Array.isArray(response.data) ? response.data : []);
+      setReportError('');
+      setExportError('');
+      const params = new URLSearchParams();
+
+      if (selectedFromDate) {
+        params.set('start_date', selectedFromDate);
+      }
+
+      if (selectedToDate) {
+        params.set('as_of_date', selectedToDate);
+      }
+
+      const queryString = params.toString();
+      const response = await apiService.get(
+        queryString ? `/reports/trial-balance?${queryString}` : '/reports/trial-balance',
+      );
+      const reportData = Array.isArray(response.data) ? response.data : [];
+      setData(reportData);
+      setAppliedPeriod({
+        from: response.headers?.['x-trial-balance-start-date'] || selectedFromDate,
+        to: response.headers?.['x-trial-balance-as-of-date'] || selectedToDate,
+      });
+      setAppliedFilters({ from: selectedFromDate, to: selectedToDate });
+      setReportError('');
+      setExportError('');
     } catch (error) {
       console.error('Failed to fetch trial balance:', error);
+      setData([]);
+      setAppliedPeriod(null);
+      setAppliedFilters(null);
+      setReportError(t('load_error', 'Unable to load the Trial Balance report. Please try again.'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
+
+  const handleApplyFilters = () => {
+    if (!fromDate && !toDate) {
+      fetchData();
+      return;
+    }
+
+    if (!fromDate || !toDate) {
+      window.alert(t('date_range_required', 'Please select both From Date and To Date.'));
+      return;
+    }
+
+    if (Number.isNaN(new Date(fromDate).getTime()) || Number.isNaN(new Date(toDate).getTime())) {
+      window.alert(t('invalid_date', 'Please enter valid dates.'));
+      return;
+    }
+
+    if (fromDate > toDate) {
+      window.alert(t('date_range_invalid', 'From Date cannot be after To Date.'));
+      return;
+    }
+
+    fetchData(fromDate, toDate);
+  };
+
+  const handleResetFilters = () => {
+    setFromDate('');
+    setToDate('');
+    fetchData();
+  };
 
   useEffect(() => {
     fetchData();
@@ -52,7 +116,7 @@ export default function TrialBalance() {
     }).format(num);
   };
 
-  const translateAccountName = (code, name) => {
+  const translateAccountName = useCallback((code, name) => {
     const accountTranslations = {
       '1': t('assets', 'Assets'),
       '2': t('liabilities', 'Liabilities'),
@@ -63,94 +127,26 @@ export default function TrialBalance() {
     };
     
     return lang === 'ar' ? name : (accountTranslations[code] || name);
-  };
+  }, [lang, t]);
 
   const handleAccountClick = (row) => {
     if (row.AccType !== 1) return;
     
-    // Construct path to general ledger based on current location
     const currentPath = window.location.pathname;
     const glPath = currentPath.replace('trial-balance', 'general-ledger');
     
-    // Open in a new tab with the accountId as a query parameter
     const fullUrl = `${glPath}?accountId=${row.AccID}`;
     window.open(fullUrl, '_blank');
   };
 
-  const handleExportExcel = () => {
-    if (data.length === 0) return;
-
-    const workbook = XLSX.utils.book_new();
-    
-    // Prepare headers
-    const headers = [
-      [t('title', 'Trial Balance')],
-      [''],
-      [
-        t('account_name', 'Account Name'), 
-        t('beginning', 'Beginning Balances') + ' (' + t('debit', 'Debit') + ')',
-        t('beginning', 'Beginning Balances') + ' (' + t('credit', 'Credit') + ')',
-        t('current', 'CURRENT') + ' (' + t('debit', 'Debit') + ')',
-        t('current', 'CURRENT') + ' (' + t('credit', 'Credit') + ')',
-        t('balance', 'BALANCE (Ending Balance)') + ' (' + t('debit', 'Debit') + ')',
-        t('balance', 'BALANCE (Ending Balance)') + ' (' + t('credit', 'Credit') + ')'
-      ]
-    ];
-
-    // Prepare rows
-    const rows = data.map(row => {
-      const indentation = '  '.repeat(row.depth);
-      const name = (row.AccType === 0 ? (lang === 'ar' ? 'إجمالي ' : 'Total ') : '') + 
-                   row.AccCode + ' - ' + translateAccountName(row.AccCode, row.AccName);
-      
-      return [
-        indentation + name,
-        row.beginning_debit || 0,
-        row.beginning_credit || 0,
-        row.current_debit || 0,
-        row.current_credit || 0,
-        row.ending_debit || 0,
-        row.ending_credit || 0
-      ];
-    });
-
-    // Add Grand Total row
-    rows.push([
-      t('grand_total', 'GRAND TOTAL'),
-      grandTotals.beginning_debit || 0,
-      grandTotals.beginning_credit || 0,
-      grandTotals.current_debit || 0,
-      grandTotals.current_credit || 0,
-      grandTotals.ending_debit || 0,
-      grandTotals.ending_credit || 0
-    ]);
-
-    const worksheet = XLSX.utils.aoa_to_sheet([...headers, ...rows]);
-    
-    // Set column widths
-    worksheet['!cols'] = [
-      { wch: 50 }, // Account Name
-      { wch: 15 }, // Beg Debit
-      { wch: 15 }, // Beg Credit
-      { wch: 15 }, // Curr Debit
-      { wch: 15 }, // Curr Credit
-      { wch: 15 }, // End Debit
-      { wch: 15 }  // End Credit
-    ];
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Trial Balance');
-    XLSX.writeFile(workbook, `Trial_Balance_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
-
   const grandTotals = data.reduce((acc, row) => {
-    // Only sum top-level accounts to get the grand total (to avoid double counting)
     if (row.depth === 0) {
-      acc.beginning_debit += row.beginning_debit || 0;
-      acc.beginning_credit += row.beginning_credit || 0;
-      acc.current_debit += row.current_debit || 0;
-      acc.current_credit += row.current_credit || 0;
-      acc.ending_debit += row.ending_debit || 0;
-      acc.ending_credit += row.ending_credit || 0;
+      acc.beginning_debit += Number(row.beginning_debit || 0);
+      acc.beginning_credit += Number(row.beginning_credit || 0);
+      acc.current_debit += Number(row.current_debit || 0);
+      acc.current_credit += Number(row.current_credit || 0);
+      acc.ending_debit += Number(row.ending_debit || 0);
+      acc.ending_credit += Number(row.ending_credit || 0);
     }
     return acc;
   }, {
@@ -161,6 +157,112 @@ export default function TrialBalance() {
     ending_debit: 0,
     ending_credit: 0
   });
+
+  const filtersChangedSinceReport = !appliedFilters
+    || fromDate !== appliedFilters.from
+    || toDate !== appliedFilters.to;
+
+  const handleExportExcel = useCallback(() => {
+    setExportError('');
+
+    if (data.length === 0) {
+      setExportError(t('no_data_to_export', 'There is no Trial Balance data to export.'));
+      return;
+    }
+
+    const periodFrom = appliedPeriod?.from || t('default_period', 'Report default');
+    const periodTo = appliedPeriod?.to || t('default_period', 'Report default');
+    const columns = [
+      { header: t('account_name', 'Account Name'), width: 50 },
+      { header: `${t('beginning', 'Beginning Balances')} (${t('debit', 'Debit')})`, width: 18 },
+      { header: `${t('beginning', 'Beginning Balances')} (${t('credit', 'Credit')})`, width: 18 },
+      { header: `${t('current', 'CURRENT')} (${t('debit', 'Debit')})`, width: 18 },
+      { header: `${t('current', 'CURRENT')} (${t('credit', 'Credit')})`, width: 18 },
+      { header: `${t('balance', 'BALANCE (Ending Balance)')} (${t('debit', 'Debit')})`, width: 18 },
+      { header: `${t('balance', 'BALANCE (Ending Balance)')} (${t('credit', 'Credit')})`, width: 18 },
+    ];
+    const rows = data.map((row) => {
+      const indentation = '  '.repeat(Math.max(0, Number(row.depth) || 0));
+      const accountName = `${row.AccCode} - ${translateAccountName(row.AccCode, row.AccName)}`;
+      const name = row.AccType === 0
+        ? `${t('total', 'Total')} ${accountName}`
+        : accountName;
+
+      return {
+        values: [
+          indentation + name,
+          Number(row.beginning_debit ?? 0),
+          Number(row.beginning_credit ?? 0),
+          Number(row.current_debit ?? 0),
+          Number(row.current_credit ?? 0),
+          Number(row.ending_debit ?? 0),
+          Number(row.ending_credit ?? 0),
+        ],
+      };
+    });
+    const totalsRow = {
+      label: t('grand_total', 'GRAND TOTAL'),
+      values: [
+        grandTotals.beginning_debit,
+        grandTotals.beginning_credit,
+        grandTotals.current_debit,
+        grandTotals.current_credit,
+        grandTotals.ending_debit,
+        grandTotals.ending_credit,
+      ],
+    };
+
+    const filename = appliedPeriod?.from && appliedPeriod?.to
+      ? `Trial_Balance_${appliedPeriod.from}_to_${appliedPeriod.to}.xlsx`
+      : `Trial_Balance_${new Date().toISOString().slice(0, 10)}.xlsx`;
+
+    const workbook = exportReportToExcel({
+      title: t('title', 'Trial Balance'),
+      metaRows: [
+        [`${t('from_date', 'From Date')}: ${periodFrom}`, `${t('to_date', 'To Date')}: ${periodTo}`],
+      ],
+      columns,
+      rows,
+      totalsRow,
+      sheetName: 'Trial Balance',
+      filename,
+      onError: () => setExportError(t('export_error', 'Unable to export the Trial Balance. Please try again.')),
+    });
+    if (!workbook) console.error('Failed to export trial balance workbook');
+  }, [data, appliedPeriod, grandTotals, t, translateAccountName]);
+
+  const handleExportPdf = useCallback(async () => {
+    setExportError('');
+
+    if (data.length === 0) {
+      setExportError(t('no_data_to_export', 'There is no Trial Balance data to export.'));
+      return;
+    }
+
+    try {
+      const html2pdf = (await import('html2pdf.js')).default;
+      const element = document.getElementById('trial-balance-report');
+      if (!element) throw new Error('Report element not found');
+
+      const filename = appliedPeriod?.from && appliedPeriod?.to
+        ? `Trial_Balance_${appliedPeriod.from}_to_${appliedPeriod.to}.pdf`
+        : `Trial_Balance_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const worker = html2pdf().set({
+        margin: 10,
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+      });
+
+      await worker.from(element).save();
+    } catch (error) {
+      console.error('Failed to export trial balance PDF:', error);
+      setExportError(t('pdf_export_error', 'Unable to export the Trial Balance PDF. Please try again.'));
+    }
+  }, [data, appliedPeriod, t]);
 
   return (
     <AdminLayout activeMenu="Financial Reports">
@@ -176,45 +278,85 @@ export default function TrialBalance() {
           <span className="fr-current">{t('title', 'Trial Balance')}</span>
         </div>
 
-        <div className="fr-header-card">
-          <div>
-            <h1 className="fr-title">{t('title', 'Trial Balance')}</h1>
-            <p className="fr-subtitle">{t('subtitle', "Trial balance summary of debit and credit balances by account.")}</p>
-          </div>
-        </div>
+        <ReportHeader
+          title={t('title', 'Trial Balance')}
+          subtitle={t('subtitle', "Trial balance summary of debit and credit balances by account.")}
+          onExportExcel={handleExportExcel}
+          onExportPdf={handleExportPdf}
+          onPrint={() => window.print()}
+          exportExcelLabel={t('export_excel', 'Export Excel')}
+          exportPdfLabel={t('export_pdf', 'Export Report (PDF)')}
+          printButtonLabel={t('print', 'Print')}
+          exportExcelDisabled={loading || data.length === 0 || filtersChangedSinceReport}
+          exportPdfDisabled={loading || data.length === 0 || filtersChangedSinceReport}
+          exportDropdownDisabled={loading}
+        >
+          <ReportFormGroup
+            label={t('from_date', 'From Date')}
+            htmlFor="tb-date-from"
+          >
+            <input
+              id="tb-date-from"
+              type="date"
+              className="report-header__form-control"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+            />
+          </ReportFormGroup>
 
-        <div className="fr-filters-card">
-          <div className="fr-filters-grid">
-            <div className="fr-form-group">
-              <label htmlFor="fr-lang">Language</label>
-              <select id="fr-lang" className="fr-input" value={lang} onChange={(e) => setLang(e.target.value)}>
-                <option value="en">{t('english', 'English')}</option>
-                <option value="ar">{t('arabic', 'Arabic')}</option>
-              </select>
-            </div>
-          </div>
-          <div className="fr-form-actions">
-            <button 
-              type="button"
-              className="btn btn-excel fr-btn"
-              onClick={handleExportExcel} 
-              disabled={loading || data.length === 0}
-            >
-              <span className="material-icons-outlined">description</span>
-              <span>{t('export_excel', 'Export Excel')}</span>
-            </button>
-            <button 
-              type="button"
-              className="btn btn-primary fr-btn"
-              onClick={() => window.print()}
-            >
-              <span className="material-icons-outlined">print</span>
-              <span>{t('print', 'Print')}</span>
-            </button>
-          </div>
-        </div>
+          <ReportFormGroup
+            label={t('to_date', 'To Date')}
+            htmlFor="tb-date-to"
+          >
+            <input
+              id="tb-date-to"
+              type="date"
+              className="report-header__form-control"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+            />
+          </ReportFormGroup>
 
-        <div className="fr-table-card">
+          <ReportFormGroup
+            label={t('language', 'Language')}
+            htmlFor="tb-lang"
+          >
+            <select
+              id="tb-lang"
+              className="report-header__form-control"
+              value={lang}
+              onChange={(e) => setLang(e.target.value)}
+            >
+              <option value="en">{t('english', 'English')}</option>
+              <option value="ar">{t('arabic', 'Arabic')}</option>
+            </select>
+          </ReportFormGroup>
+
+          <ReportFormActions>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleApplyFilters}
+              disabled={loading}
+            >
+              <span className="material-icons-outlined">filter_alt</span>
+              <span>{t('apply', 'Apply')}</span>
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleResetFilters}
+              disabled={loading}
+            >
+              <span>{t('reset', 'Reset')}</span>
+            </button>
+          </ReportFormActions>
+        </ReportHeader>
+
+        {reportError && <div className="fr-error-banner" role="alert">{reportError}</div>}
+        {exportError && <div className="fr-error-banner" role="alert">{exportError}</div>}
+
+        <div className="fr-table-card" id="trial-balance-report">
           <div className="fr-table-wrapper">
             <table className="fr-table">
               <thead>
@@ -291,37 +433,6 @@ export default function TrialBalance() {
         .trial-balance-page.rtl { direction: rtl; text-align: right; }
         .trial-balance-page.ltr { direction: ltr; text-align: left; }
         
-        .report-table-card {
-          background: white;
-          border-radius: 8px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          overflow: hidden;
-          border: 1px solid #e2e8f0;
-        }
-
-        .table-responsive {
-          overflow-x: auto;
-        }
-        
-        .trial-balance-table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 13px;
-        }
-        
-        .trial-balance-table th, 
-        .trial-balance-table td {
-          border: 1px solid #e2e8f0;
-          padding: 10px 15px;
-        }
-        
-        .trial-balance-table thead th {
-          background-color: #f8fafc;
-          font-weight: 600;
-          text-align: center;
-          color: #475569;
-        }
-        
         .main-header th {
           background-color: #f1f5f9;
           color: #1e293b;
@@ -379,13 +490,6 @@ export default function TrialBalance() {
         .text-center { text-align: center !important; }
         .font-bold { font-weight: 700; }
         .py-10 { padding-top: 2.5rem; padding-bottom: 2.5rem; }
-
-        @media print {
-          .report-header__actions, .subtitle { display: none; }
-          .financial-reports-page { padding: 0; }
-          .report-table-card { border: none; box-shadow: none; }
-          .trial-balance-table th { background-color: #eee !important; -webkit-print-color-adjust: exact; }
-        }
       `}</style>
     </AdminLayout>
   );

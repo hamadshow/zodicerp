@@ -34,6 +34,9 @@
 /vendor
 /.composer-cache
 /.composer-home
+/.composer_cache
+composer_output*.txt
+/outputs/
 Homestead.json
 Homestead.yaml
 Thumbs.db

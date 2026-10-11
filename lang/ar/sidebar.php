@@ -112,6 +112,7 @@ return [
     'chart_of_accounts' => 'شجرة الحسابات',
     'journal_entries' => 'قيود اليومية',
     'financial_reports' => 'التقارير المالية',
+    'accrual_prepayment' => 'الاستحقاقات والمصروفات المقدمة',
     
     'plugin' => 'الإضافات',
     'investing_stack' => 'الاستثمار',

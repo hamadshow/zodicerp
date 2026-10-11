@@ -279,6 +279,7 @@ const AdminLayout = ({
       submenuItems: [
         { icon: 'account_tree', label: translations['sidebar.chart_of_accounts'] || 'Chart of Accounts', href: getLocalizedRoute('admin.chart-of-accounts'), permission: 'chart_of_accounts.view' },
         { icon: 'edit_note', label: translations['sidebar.journal_entries'] || 'Journal Entries', href: getLocalizedRoute('admin.journal-entries'), permission: 'journal_entries.view' },
+        { icon: 'receipt_long', label: translations['sidebar.accrual_prepayment'] || 'Accrual & Prepayment', href: getLocalizedRoute('admin.accrual-prepayment'), permission: 'accounting.view' },
         { icon: 'bar_chart', label: translations['sidebar.financial_reports'] || 'Financial Reports', href: getLocalizedRoute('admin.financial-reports.index'), permission: 'financial_reports.view' },
         { icon: 'event_repeat', label: translations['sidebar.fiscal_periods'] || 'Fiscal Periods', href: getLocalizedRoute('admin.fiscal-periods.index'), permission: 'accounting.view' },
       ],

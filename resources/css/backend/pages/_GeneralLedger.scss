@@ -3,68 +3,6 @@
   background-color: #f8fafc;
 }
 
-.gl-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  margin-bottom: 20px;
-}
-
-.gl-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--dark-color);
-  margin: 0 0 4px;
-}
-
-.gl-subtitle {
-  font-size: 0.9rem;
-  color: var(--gray-color);
-  margin: 0;
-}
-
-.gl-filters-card {
-  background-color: #ffffff;
-  border-radius: 10px;
-  padding: 16px 18px;
-  box-shadow: var(--shadow-md);
-  border: 1px solid #e2e8f0;
-  margin-bottom: 18px;
-}
-
-.gl-filters-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  align-items: flex-end;
-}
-
-.gl-form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.gl-form-group label {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: var(--dark-color);
-}
-
-.gl-input {
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 6px;
-  border: 1px solid #cbd5e1;
-  font-size: 0.85rem;
-}
-
-.gl-form-actions {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-}
-
 .gl-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

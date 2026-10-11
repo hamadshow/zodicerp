@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { toast } from 'react-toastify';
 import AdminLayout from '../components/AdminLayout';
 import '../../../../css/backend/main.scss';
 
@@ -151,10 +152,17 @@ export default function FinancialReports({ activeReport }) {
   };
 
   const toggleFavorite = async (reportId) => {
+    if (togglingId !== null) {
+      return;
+    }
+
+    const previousIsFavorite =
+      reports.find((report) => report.id === reportId)?.is_favorite ?? false;
+
     setReports((prev) =>
       prev.map((report) =>
         report.id === reportId
-          ? { ...report, is_favorite: !report.is_favorite }
+          ? { ...report, is_favorite: !previousIsFavorite }
           : report,
       ),
     );
@@ -190,9 +198,13 @@ export default function FinancialReports({ activeReport }) {
       setReports((prev) =>
         prev.map((report) =>
           report.id === reportId
-            ? { ...report, is_favorite: !report.is_favorite }
+            ? { ...report, is_favorite: previousIsFavorite }
             : report,
         ),
+      );
+
+      toast.error(
+        t('favorite_update_error', 'Unable to update favorite status. Please try again.'),
       );
     } finally {
       setTogglingId(null);
@@ -284,6 +296,8 @@ export default function FinancialReports({ activeReport }) {
             } ${
               togglingId === report.id ? 'report-favorite-loading' : ''
             }`}
+            disabled={togglingId === report.id}
+            aria-busy={togglingId === report.id}
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();

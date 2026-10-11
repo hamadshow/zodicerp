@@ -229,39 +229,65 @@ class FinancialReportController extends Controller
             return response()->json(['message' => 'Report not available.'], 404);
         }
 
-        $existingQuery = UserFavoriteReport::query()
+        $favoriteQuery = UserFavoriteReport::query()
             ->where('user_id', $user->id)
             ->where('report_id', $reportId);
 
         if ($hasFavoriteCompanyColumn && $companyId) {
-            $existingQuery->where(function ($q) use ($companyId) {
+            $favoriteQuery->where(function ($q) use ($companyId) {
                 $q->whereNull('company_id')->orWhere('company_id', $companyId);
             });
         }
 
-        $existing = $existingQuery->exists();
+        $favorite = $favoriteQuery->first();
 
-        if ($existing) {
-            $existingQuery->delete();
-            $isFavorite = false;
-        } else {
-            $attributes = [
-                'user_id' => $user->id,
+        if ($favorite) {
+            $favorite->delete();
+
+            return response()->json([
+                'success' => true,
                 'report_id' => $reportId,
-            ];
+                'is_favorite' => false,
+            ]);
+        }
 
-            if ($hasFavoriteCompanyColumn) {
-                $attributes['company_id'] = $companyId;
+        $attributes = [
+            'user_id' => $user->id,
+            'report_id' => $reportId,
+        ];
+
+        if ($hasFavoriteCompanyColumn) {
+            $attributes['company_id'] = $companyId;
+        }
+
+        try {
+            UserFavoriteReport::firstOrCreate($attributes);
+        } catch (\Illuminate\Database\QueryException $e) {
+            if (str_contains($e->getMessage(), 'Duplicate entry') || str_contains($e->getMessage(), 'UNIQUE')) {
+                $existingFavorite = UserFavoriteReport::query()
+                    ->where('user_id', $user->id)
+                    ->where('report_id', $reportId)
+                    ->when($hasFavoriteCompanyColumn && $companyId, function ($query) use ($companyId) {
+                        $query->where(function ($q) use ($companyId) {
+                            $q->whereNull('company_id')->orWhere('company_id', $companyId);
+                        });
+                    })
+                    ->first();
+
+                return response()->json([
+                    'success' => true,
+                    'report_id' => $reportId,
+                    'is_favorite' => (bool) $existingFavorite,
+                ]);
             }
 
-            UserFavoriteReport::create($attributes);
-            $isFavorite = true;
+            throw $e;
         }
 
         return response()->json([
             'success' => true,
             'report_id' => $reportId,
-            'is_favorite' => $isFavorite,
+            'is_favorite' => true,
         ]);
     }
 
@@ -1028,7 +1054,9 @@ class FinancialReportController extends Controller
         // 5. Flatten the tree for the table display
         $flatList = $this->flattenTrialBalanceTree($tree);
 
-        return response()->json($flatList);
+        return response()->json($flatList)
+            ->header('X-Trial-Balance-Start-Date', $startDate)
+            ->header('X-Trial-Balance-As-Of-Date', $asOfDate);
     }
 
     private function buildTrialBalanceTree(&$accountData, $parentId = null, $depth = 0)

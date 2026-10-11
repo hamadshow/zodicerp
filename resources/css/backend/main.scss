@@ -25,6 +25,9 @@
 @use 'components/modal';
 @use 'components/badges';
 @use 'components/HierarchyManager';
+@use 'components/ReportHeader';
+
+
 
 // Page-specific styles
 @use 'pages/Ads';
@@ -90,6 +93,7 @@
 @use 'pages/PaymentVoucher';
 @use 'pages/Career';
 @use 'pages/JobApplications';
+@use 'pages/Journal';
 
 // Existing/Additional pages
 
@@ -118,6 +122,7 @@
 @use 'pages/ChartOfAccounts';
 @use 'pages/JournalEntity';
 @use 'pages/FinancialReports';
+@use 'pages/Accrual_Prepayment';
 @use 'pages/CustomerGroup';
 @use 'pages/Customer';
 @use 'pages/Sales';

@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
 import SearchableComboBox from '../../components/SearchableComboBox';
 import Pagination from '../../components/Pagination';
+import ReportHeader, { ReportFormGroup, ReportFormActions } from '../../components/ReportHeader';
 import { apiService } from '../../../../services/api';
 
 const STATUS_OPTIONS = [
@@ -321,102 +322,89 @@ export default function GeneralLedger() {
           <span>{t('general_ledger', 'General Ledger')}</span>
         </div>
 
-        <div className="gl-header">
-          <div>
-            <h1 className="gl-title">{t('general_ledger', 'General Ledger')}</h1>
-            <p className="gl-subtitle">
-              {t('general_ledger_desc', 'Detailed posting history with running balance by account.')}
-            </p>
-          </div>
-        </div>
+        <ReportHeader
+          title={t('general_ledger', 'General Ledger')}
+          subtitle={t('general_ledger_desc', 'Detailed posting history with running balance by account.')}
+          onExportExcel={handleExportExcel}
+          exportExcelDisabled={!filters.accountId || loading || !ledger}
+          exportDropdownDisabled={!filters.accountId || loading}
+          showPrint={true}
+          printDisabled={true}
+        >
+          <ReportFormGroup
+            label={t('account', 'Account')}
+            htmlFor="gl-account"
+          >
+            <SearchableComboBox
+              options={accountOptions}
+              value={filters.accountId}
+              onChange={(val) => handleFilterChange('accountId', val)}
+              placeholder={t('select_account', 'Select account')}
+            />
+          </ReportFormGroup>
 
-        <div className="gl-filters-card">
-          <div className="gl-filters-grid">
-            <div className="gl-form-group">
-              <label htmlFor="gl-account">{t('account', 'Account')}</label>
-              <SearchableComboBox
-                options={accountOptions}
-                value={filters.accountId}
-                onChange={(val) => handleFilterChange('accountId', val)}
-                placeholder={t('select_account', 'Select account')}
-              />
-            </div>
-            <div className="gl-form-group">
-              <label htmlFor="gl-date-from">{t('date_from', 'Date from')}</label>
-              <input
-                id="gl-date-from"
-                type="date"
-                className="gl-input"
-                value={filters.dateFrom}
-                onChange={(e) =>
-                  handleFilterChange('dateFrom', e.target.value)
-                }
-              />
-            </div>
-            <div className="gl-form-group">
-              <label htmlFor="gl-date-to">{t('date_to', 'Date to')}</label>
-              <input
-                id="gl-date-to"
-                type="date"
-                className="gl-input"
-                value={filters.dateTo}
-                onChange={(e) =>
-                  handleFilterChange('dateTo', e.target.value)
-                }
-              />
-            </div>
-            <div className="gl-form-group">
-              <label htmlFor="gl-status">{t('journal_status', 'Journal status')}</label>
-              <select
-                id="gl-status"
-                className="gl-input"
-                value={filters.status}
-                onChange={(e) =>
-                  handleFilterChange('status', e.target.value)
-                }
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="gl-form-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleApplyFilters}
-                disabled={!filters.accountId || loading}
-                style={{ marginRight: '8px' }}
-              >
-                <span className="material-icons-outlined">filter_alt</span>
-                <span>{t('apply_filters', 'Apply filters')}</span>
-              </button>
-              <button
-                type="button"
-                className="btn btn-excel"
-                onClick={handleExportExcel}
-                disabled={!filters.accountId || loading || !ledger}
-                style={{
-                  backgroundColor: '#4caf50',
-                  color: 'white',
-                  borderColor: '#4caf50',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '8px 16px',
-                  borderRadius: '4px',
-                  cursor: (!filters.accountId || loading || !ledger) ? 'not-allowed' : 'pointer',
-                  opacity: (!filters.accountId || loading || !ledger) ? 0.6 : 1
-                }}
-              >
-                <span className="material-icons-outlined">description</span>
-                <span>{t('export_excel', 'Export Excel')}</span>
-              </button>
-            </div>
-          </div>
-        </div>
+          <ReportFormGroup
+            label={t('date_from', 'Date from')}
+            htmlFor="gl-date-from"
+          >
+            <input
+              id="gl-date-from"
+              type="date"
+              className="report-header__form-control"
+              value={filters.dateFrom}
+              onChange={(e) =>
+                handleFilterChange('dateFrom', e.target.value)
+              }
+            />
+          </ReportFormGroup>
+
+          <ReportFormGroup
+            label={t('date_to', 'Date to')}
+            htmlFor="gl-date-to"
+          >
+            <input
+              id="gl-date-to"
+              type="date"
+              className="report-header__form-control"
+              value={filters.dateTo}
+              onChange={(e) =>
+                handleFilterChange('dateTo', e.target.value)
+              }
+            />
+          </ReportFormGroup>
+
+          <ReportFormGroup
+            label={t('journal_status', 'Journal status')}
+            htmlFor="gl-status"
+          >
+            <select
+              id="gl-status"
+              className="report-header__form-control"
+              value={filters.status}
+              onChange={(e) =>
+                handleFilterChange('status', e.target.value)
+              }
+            >
+              {STATUS_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </ReportFormGroup>
+
+          <ReportFormActions>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleApplyFilters}
+              disabled={!filters.accountId || loading}
+            >
+              <span className="material-icons-outlined">filter_alt</span>
+              <span>{t('apply_filters', 'Apply filters')}</span>
+            </button>
+          </ReportFormActions>
+        </ReportHeader>
 
         {ledger && (
           <div className="gl-summary">

@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
 import Pagination from '../../components/Pagination';
 import { apiService } from '../../../../services/api';
+import ReportHeader, { ReportFormGroup, ReportFormActions } from '../../components/ReportHeader';
 
 export default function JournalReport() {
   const { props } = usePage();
@@ -23,17 +24,32 @@ export default function JournalReport() {
     return message;
   };
 
-  const STATUS_OPTIONS = [
-    { value: 'posted', label: t('posted_only', 'Posted Only') },
-    { value: 'unposted', label: t('unposted_only', 'Unposted Only') },
-    { value: 'all', label: t('all', 'All') },
-  ];
+  const formatJournalDate = (value) => {
+    if (value === null || value === undefined || value === '') return '';
 
-  const BALANCE_STATUS_OPTIONS = [
-    { value: 'balanced', label: t('balanced', 'Balanced') },
-    { value: 'unbalanced', label: t('unbalanced', 'Unbalanced') },
-    { value: 'all', label: t('all', 'All') },
-  ];
+    const pad2 = (n) => String(n).padStart(2, '0');
+
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) return '';
+      return `${pad2(value.getDate())}-${pad2(value.getMonth() + 1)}-${value.getFullYear()}`;
+    }
+
+    const raw = String(value);
+    const cleaned = raw
+      .replace(/\*\*/g, '')
+      .replace(/&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, '')
+      .trim();
+
+    const ymd = cleaned.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (ymd) return `${pad2(ymd[3])}-${pad2(ymd[2])}-${ymd[1]}`;
+
+    const dmy = cleaned.match(/(\d{1,2})-(\d{1,2})-(\d{4})/);
+    if (dmy) return `${pad2(dmy[1])}-${pad2(dmy[2])}-${dmy[3]}`;
+
+    const parsed = new Date(cleaned);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return `${pad2(parsed.getDate())}-${pad2(parsed.getMonth() + 1)}-${parsed.getFullYear()}`;
+  };
 
   const [journals, setJournals] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -45,6 +61,7 @@ export default function JournalReport() {
     status: 'all',
     balanceStatus: 'all',
   });
+  const [appliedFilters, setAppliedFilters] = useState(null);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -119,14 +136,16 @@ export default function JournalReport() {
       dateFrom: q.dateFrom,
       dateTo: q.dateTo,
       status: q.status,
+      balanceStatus: q.balanceStatus,
     }));
     setCurrentPage(q.page);
-    loadJournals(q, q.page);
   }, []);
 
   const handlePageChange = (newPage) => {
+    if (!appliedFilters) return;
+
     setCurrentPage(newPage);
-    loadJournals(filters, newPage);
+    loadJournals(appliedFilters, newPage);
   };
 
   const handleFilterChange = (field, value) => {
@@ -137,8 +156,10 @@ export default function JournalReport() {
   };
 
   const handleApplyFilters = () => {
+    const selectedFilters = { ...filters };
+    setAppliedFilters(selectedFilters);
     setCurrentPage(1);
-    loadJournals(filters, 1);
+    loadJournals(selectedFilters, 1);
   };
 
   // Real Chart-of-Accounts code (accounts.AccCode) resolved through the
@@ -182,7 +203,7 @@ export default function JournalReport() {
         const lines = entry.lines || [];
         if (lines.length === 0) {
           rows.push({
-            [t('date', 'Date')]: entry.date,
+            [t('date', 'Date')]: formatJournalDate(entry.date),
             [t('entry_code', 'Entry Code')]: entry.entry_code,
             [t('description', 'Description')]: entry.description,
             [t('reference', 'Reference')]: entry.reference || '',
@@ -198,7 +219,7 @@ export default function JournalReport() {
         } else {
           lines.forEach((line, index) => {
             rows.push({
-              [t('date', 'Date')]: index === 0 ? entry.date : '',
+              [t('date', 'Date')]: index === 0 ? formatJournalDate(entry.date) : '',
               [t('entry_code', 'Entry Code')]: index === 0 ? entry.entry_code : '',
               [t('description', 'Description')]: index === 0 ? entry.description : '',
               [t('reference', 'Reference')]: index === 0 ? (entry.reference || '') : '',
@@ -267,96 +288,52 @@ export default function JournalReport() {
           <span className="fr-current">{t('journal', 'Journal')}</span>
         </div>
 
-        <div className="fr-header-card">
-          <div>
-            <h1 className="fr-title">{t('title', 'Journal Report')}</h1>
-            <p className="fr-subtitle">{t('subtitle', 'List of all journal entries and their corresponding transaction lines.')}</p>
-          </div>
-        </div>
+        <ReportHeader
+          title={t('title', 'Journal Report')}
+          subtitle={t('subtitle', 'List of all journal entries and their corresponding transaction lines.')}
+          onExportExcel={handleExportExcel}
+          exportExcelDisabled={loading || journals.length === 0}
+          exportDropdownDisabled={loading}
+          showPrint={true}
+          printDisabled={true}
+        >
+          <ReportFormGroup
+            label={t('date_from', 'Date from')}
+            htmlFor="jr-date-from"
+          >
+            <input
+              id="jr-date-from"
+              type="date"
+              className="report-header__form-control"
+              value={filters.dateFrom}
+              onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+            />
+          </ReportFormGroup>
 
-        <div className="fr-filters-card">
-          <div className="fr-filters-grid">
-            <div className="fr-form-group">
-              <label htmlFor="fr-search">{t('search', 'Search')}</label>
-              <input
-                id="fr-search"
-                type="text"
-                className="fr-input"
-                placeholder={t('entry_code_ref', 'Entry code, reference...')}
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-              />
-            </div>
-            <div className="fr-form-group">
-              <label htmlFor="fr-date-from">{t('date_from', 'Date from')}</label>
-              <input
-                id="fr-date-from"
-                type="date"
-                className="fr-input"
-                value={filters.dateFrom}
-                onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
-              />
-            </div>
-            <div className="fr-form-group">
-              <label htmlFor="fr-date-to">{t('date_to', 'Date to')}</label>
-              <input
-                id="fr-date-to"
-                type="date"
-                className="fr-input"
-                value={filters.dateTo}
-                onChange={(e) => handleFilterChange('dateTo', e.target.value)}
-              />
-            </div>
-            <div className="fr-form-group">
-              <label htmlFor="fr-status">{t('status', 'Status')}</label>
-              <select
-                id="fr-status"
-                className="fr-input"
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="fr-form-group">
-              <label htmlFor="fr-balance-status">{t('balance_status', 'Balance Status')}</label>
-              <select
-                id="fr-balance-status"
-                className="fr-input"
-                value={filters.balanceStatus}
-                onChange={(e) => handleFilterChange('balanceStatus', e.target.value)}
-              >
-                {BALANCE_STATUS_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="fr-form-actions">
+          <ReportFormGroup
+            label={t('date_to', 'Date to')}
+            htmlFor="jr-date-to"
+          >
+            <input
+              id="jr-date-to"
+              type="date"
+              className="report-header__form-control"
+              value={filters.dateTo}
+              onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+            />
+          </ReportFormGroup>
+
+          <ReportFormActions>
             <button
               type="button"
-              className="btn btn-primary fr-btn"
+              className="btn btn-primary"
               onClick={handleApplyFilters}
             >
               <span className="material-icons-outlined">filter_alt</span>
               <span>{t('apply', 'Apply filters')}</span>
             </button>
-            <button
-              type="button"
-              className="btn btn-excel fr-btn"
-              onClick={handleExportExcel}
-            >
-              <span className="material-icons-outlined">description</span>
-              <span>{t('export', 'Export Excel')}</span>
-            </button>
-          </div>
-        </div>
+          </ReportFormActions>
+        </ReportHeader>
 
         {error && <div className="fr-error-banner">{error}</div>}
 
@@ -387,7 +364,7 @@ export default function JournalReport() {
                           <td colSpan="5">
                             <div className="entry-header-inner">
                               <div className="entry-header-main">
-                                <span className="entry-date">{entry.date}</span>
+                                <span className="entry-date">{formatJournalDate(entry.date)}</span>
                                 <button
                                   type="button"
                                   className="entry-code-link"
@@ -463,286 +440,10 @@ export default function JournalReport() {
         )}
 
         <div className="fr-footer-row">
-          <p>{new Date().toLocaleString(locale === 'ar' ? 'ar-SA' : 'en-US', { dateStyle: 'full', timeStyle: 'short' })}</p>
+          <p>{formatJournalDate(new Date())}</p>
           <p>{t('accrual_basis', 'Accrual Basis')}</p>
         </div>
       </div>
-
-      <style jsx global>{`{
-        /* Financial Reports design tokens */
-        --fr-surface: #ffffff;
-        --fr-surface-alt: #f8fafc;
-        --fr-border: #e2e8f0;
-        --fr-border-strong: #cbd5e1;
-        --fr-text: #1e293b;
-        --fr-text-light: #64748b;
-        --fr-text-lighter: #94a3b8;
-        --fr-accent: #1e88e5;
-        --fr-success: #2e7d32;
-        --fr-shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
-        --fr-radius: 10px;
-        --fr-input-height: 36px;
-        --fr-btn-height: 36px;
-      }
-      .fr-page {
-        padding: 24px;
-        background-color: #f8fafc;
-        min-height: 100vh;
-      }
-      .fr-breadcrumb {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.85rem;
-        color: var(--fr-text-light);
-        margin-bottom: 16px;
-      }
-      .fr-breadcrumb a {
-        color: var(--primary-color);
-        font-weight: 500;
-        text-decoration: none;
-      }
-      .fr-breadcrumb a:hover {
-        text-decoration: underline;
-      }
-      .fr-breadcrumb .fr-sep {
-        color: var(--fr-text-lighter);
-      }
-      .fr-breadcrumb .fr-current {
-        font-weight: 600;
-        color: var(--fr-text);
-      }
-      .fr-header-card {
-        background-color: var(--fr-surface);
-        border-radius: var(--fr-radius);
-        box-shadow: var(--fr-shadow-md);
-        border: 1px solid var(--fr-border);
-        padding: 16px 18px;
-        margin-bottom: 18px;
-      }
-      .fr-header-card .fr-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--fr-text);
-        margin: 0 0 4px;
-      }
-      .fr-header-card .fr-subtitle {
-        font-size: 0.9rem;
-        color: var(--fr-text-light);
-        margin: 0;
-      }
-      .fr-filters-card {
-        background-color: var(--fr-surface);
-        border-radius: var(--fr-radius);
-        box-shadow: var(--fr-shadow-md);
-        border: 1px solid var(--fr-border);
-        padding: 16px 18px;
-        margin-bottom: 18px;
-      }
-      .fr-filters-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 16px;
-        align-items: flex-end;
-      }
-      .fr-form-group {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-      .fr-form-group label {
-        font-size: 0.8rem;
-        font-weight: 500;
-        color: var(--fr-text);
-      }
-      .fr-input {
-        width: 100%;
-        padding: 8px 10px;
-        border-radius: 6px;
-        border: 1px solid var(--fr-border-strong);
-        font-size: 0.85rem;
-      }
-      .fr-form-actions {
-        display: flex;
-        justify-content: flex-start;
-        align-items: center;
-        gap: 8px;
-        margin-top: 16px;
-        padding-top: 12px;
-        border-top: 1px solid var(--fr-border);
-      }
-      .fr-table-card {
-        background-color: var(--fr-surface);
-        border-radius: var(--fr-radius);
-        box-shadow: var(--fr-shadow-md);
-        border: 1px solid var(--fr-border);
-        padding: 16px;
-        margin-bottom: 18px;
-      }
-      .fr-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 0.85rem;
-      }
-      .fr-table th,
-      .fr-table td {
-        padding: 8px 10px;
-        border-bottom: 1px solid var(--fr-border);
-      }
-      .fr-table th {
-        text-align: left;
-        background-color: var(--fr-surface-alt);
-        font-weight: 600;
-        color: #0f172a;
-      }
-      .fr-table .fr-amount-header {
-        text-align: right;
-      }
-      .fr-table .fr-amount {
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-      }
-      .fr-table .fr-amount-debit {
-        color: #1e88e5;
-        font-weight: 600;
-      }
-      .fr-table .fr-amount-credit {
-        color: #2e7d32;
-        font-weight: 600;
-      }
-      .fr-table tfoot tr {
-        background-color: #f9fafb;
-      }
-      .entry-header-row { background-color: #f9f9f9; }
-      .entry-header-row td { padding: 12px 8px; border-bottom: 1px solid var(--fr-border); }
-      .entry-header-inner { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
-      .entry-header-main { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-      .entry-header-meta { display: flex; align-items: center; gap: 12px; font-size: 11px; color: var(--fr-text-light); flex-wrap: wrap; }
-      .entry-date { font-size: 12px; color: var(--fr-text-light); }
-      .entry-code-link { background: none; border: none; color: var(--primary-color); font-weight: 700; padding: 0; cursor: pointer; }
-      .main-desc { font-weight: 700; font-size: 14px; }
-      .entry-total-row td { padding: 10px 8px; font-size: 13px; border-top: 2px solid #0f172a; border-bottom: 1px solid var(--fr-border); background: #f9f9f9; }
-      .entry-total-label { font-weight: 800; text-transform: uppercase; font-size: 11px; color: var(--fr-text); text-align: right; }
-      .entry-total-debit, .entry-total-credit { font-weight: 800; }
-      .line-row td { padding: 10px 8px; font-size: 13px; border-bottom: 1px solid var(--fr-border); }
-      .line-acc-code {
-        white-space: nowrap;
-        font-family: 'Inter', monospace;
-        direction: ltr;
-        unicode-bidi: isolate;
-        color: var(--fr-text-light);
-      }
-      .fr-badge {
-        padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 10px;
-        font-weight: 700;
-        text-transform: uppercase;
-      }
-      .fr-badge-success { background: #d4edda; color: #155724; }
-      .fr-badge-danger { background: #f8d7da; color: #721c24; }
-      .fr-badge-warning { background: #fff3cd; color: #856404; }
-      .entry-spacer { height: 24px; }
-      .fr-footer-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 24px 0 0;
-        border-top: 1px solid var(--fr-border);
-        font-size: 13px;
-        color: var(--fr-text-light);
-        margin-top: 80px;
-      }
-      .rtl { direction: rtl; }
-      .rtl .fr-table th, .rtl .fr-table td { text-align: right; }
-      .rtl .fr-table .fr-amount { text-align: left; }
-      .rtl .fr-table th.fr-amount-header { text-align: left; }
-      .rtl .fr-table td.entry-total-label { text-align: left; }
-      @media print {
-        .fr-breadcrumb, .fr-header-card, .fr-filters-card, .fr-form-actions, .fr-footer-row { display: none !important; }
-        .fr-page { background: #fff; padding: 0; }
-        .fr-table-card { box-shadow: none; padding: 20px; }
-      }
-      .fr-loading-banner {
-        padding: 16px;
-        text-align: center;
-        color: var(--fr-text-light);
-        background: var(--fr-surface);
-        border: 1px solid var(--fr-border);
-        border-radius: var(--fr-radius);
-        margin-bottom: 18px;
-        font-size: 0.85rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .fr-empty-state {
-        padding: 40px 16px;
-        text-align: center;
-        color: var(--fr-text-light);
-        background: var(--fr-surface);
-        border: 1px solid var(--fr-border);
-        border-radius: var(--fr-radius);
-        margin-bottom: 18px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 8px;
-      }
-      .fr-empty-state .material-icons-outlined {
-        font-size: 48px;
-        color: var(--fr-text-lighter);
-      }
-      .fr-error-banner {
-        padding: 12px 16px;
-        background: #fef2f2;
-        border: 1px solid #fecaca;
-        border-radius: var(--fr-radius);
-        margin-bottom: 18px;
-        font-size: 0.85rem;
-        color: #991b1b;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-      .fr-table-wrapper .report-row .name-cell,
-      .fr-table-wrapper .report-row .balance-cell {
-        padding: 8px 8px;
-      }
-      .fr-table-wrapper .report-row .acc-name {
-        font-size: 0.85rem;
-      }
-      .fr-table-wrapper .report-row .toggle-btn {
-        background: none;
-        border: none;
-        padding: 0;
-        cursor: pointer;
-        color: var(--fr-text-lighter);
-        display: flex;
-        align-items: center;
-        transition: color 0.2s;
-      }
-      .fr-table-wrapper .report-row .toggle-btn:hover {
-        color: var(--primary-color);
-      }
-      @media (max-width: 768px) {
-        .fr-filters-card {
-          padding: 12px 14px;
-        }
-        .fr-filters-grid {
-          gap: 12px;
-        }
-        .fr-table-card {
-          padding: 12px;
-        }
-        .fr-header-card {
-          padding: 14px 16px;
-        }
-        .fr-form-actions {
-          flex-direction: column;
-        }
-      }
-      `}</style>
     </AdminLayout>
   );
 }
