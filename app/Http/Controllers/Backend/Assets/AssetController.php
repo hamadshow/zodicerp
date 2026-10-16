@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Backend\Assets;
 
 use App\Http\Controllers\Controller;
+use App\Models\Account;
 use App\Models\Assets\Asset;
 use App\Models\Assets\AssetCategory;
 use App\Models\Employee;
@@ -97,6 +98,18 @@ class AssetController extends Controller
         $warehouses = Warehouses::select('id', 'name')->get();
         $units = ItemUnit::select('id', 'name')->where('unit_type', 1)->get();
         $employees = Employee::select('id', 'name')->get();
+        // GL accounts for the asset / depreciation selectors (same source as AssetCategory)
+        $accounts = Account::where('AccStopped', false)
+            ->select('AccID', 'AccName', 'AccCode', 'Nature')
+            ->orderBy('AccCode')
+            ->get();
+        // currencies.currency_id is NOT NULL on assets, so the form must always
+        // offer a currency (same active-currency source as AssetDisposal/Purchases)
+        $currencies = DB::table('currencies')
+            ->where('status', 'active')
+            ->whereNull('deleted_at')
+            ->orderBy('code')
+            ->get(['id', 'code', 'name', 'is_base']);
 
         return Inertia::render('Backend/08-Assets/Assets', [
             'asset' => null,
@@ -104,6 +117,8 @@ class AssetController extends Controller
             'warehouses' => $warehouses,
             'units' => $units,
             'employees' => $employees,
+            'accounts' => $accounts,
+            'currencies' => $currencies,
         ]);
     }
 
@@ -122,6 +137,18 @@ class AssetController extends Controller
         $warehouses = Warehouses::select('id', 'name')->get();
         $units = ItemUnit::select('id', 'name')->get();
         $employees = Employee::select('id', 'name')->get();
+        // GL accounts for the asset / depreciation selectors (same source as AssetCategory)
+        $accounts = Account::where('AccStopped', false)
+            ->select('AccID', 'AccName', 'AccCode', 'Nature')
+            ->orderBy('AccCode')
+            ->get();
+        // currencies.currency_id is NOT NULL on assets, so the form must always
+        // offer a currency (same active-currency source as AssetDisposal/Purchases)
+        $currencies = DB::table('currencies')
+            ->where('status', 'active')
+            ->whereNull('deleted_at')
+            ->orderBy('code')
+            ->get(['id', 'code', 'name', 'is_base']);
 
         return Inertia::render('Backend/08-Assets/Assets', [
             'asset' => $asset,
@@ -129,6 +156,8 @@ class AssetController extends Controller
             'warehouses' => $warehouses,
             'units' => $units,
             'employees' => $employees,
+            'accounts' => $accounts,
+            'currencies' => $currencies,
         ]);
     }
 
@@ -143,7 +172,15 @@ class AssetController extends Controller
         $request->validate([
             'name_en' => 'required|string|max:255',
             'category_id' => 'required|exists:asset_categories,id',
+            'unit_id' => 'required|exists:item_units,id',
+            'currency_id' => 'required|exists:currencies,id',
+            'purchase_date' => 'required|date',
+            'unit_cost' => 'required|numeric|min:0',
+            'employee_id' => 'nullable|exists:employees,id',
             'status' => 'required|string',
+            'Account_id' => 'nullable|exists:accounts,AccID',
+            'depAcc_id' => 'nullable|exists:accounts,AccID',
+            'AccumlateDepAcc_id' => 'nullable|exists:accounts,AccID',
         ]);
 
         try {
@@ -173,6 +210,9 @@ class AssetController extends Controller
             $data['name_ar'] = $request->input('name_ar') ?: $request->input('name_en');
             $data['asset_number'] = $assetNumber;
             $data['created_by'] = $user->id;
+            // Server-assigned ownership (overwrites anything the client posted):
+            // asset lifecycle queries scope by assets.company_id.
+            $data['company_id'] = $user->company_id ?? 1;
 
             // Cost basis invariant: total_cost = unit_cost × quantity. The asset
             // form does not post total_cost, so derive it here (never NULL) —
@@ -228,7 +268,13 @@ class AssetController extends Controller
                 'request_data' => $request->all(),
             ]);
 
-            return back()->withErrors(['error' => 'Failed to create asset: '.$e->getMessage()])->withInput();
+            // with('error') is required: AdminLayout -> showError only reacts to
+            // flash.error, while a plain withErrors(['error' => ...]) entry is
+            // rendered by no component - which made a failed save look successful.
+            return back()
+                ->withErrors(['error' => 'Failed to create asset: '.$e->getMessage()])
+                ->with('error', 'Failed to create asset: '.$e->getMessage())
+                ->withInput();
         }
     }
 
@@ -252,8 +298,16 @@ class AssetController extends Controller
         $request->validate([
             'name_en' => 'required|string|max:255',
             'category_id' => 'required|exists:asset_categories,id',
+            'unit_id' => 'required|exists:item_units,id',
+            'currency_id' => 'required|exists:currencies,id',
+            'purchase_date' => 'required|date',
+            'unit_cost' => 'required|numeric|min:0',
+            'employee_id' => 'nullable|exists:employees,id',
             'status' => 'required|string|in:active,idle,under_maintenance,disposed,sold,transferred',
             'depreciation_method' => 'nullable|string|in:straight_line,declining_balance,units_of_production',
+            'Account_id' => 'nullable|exists:accounts,AccID',
+            'depAcc_id' => 'nullable|exists:accounts,AccID',
+            'AccumlateDepAcc_id' => 'nullable|exists:accounts,AccID',
         ]);
 
         try {
@@ -274,7 +328,9 @@ class AssetController extends Controller
                 'accumulated_depreciation', 'net_book_value',
                 'warehouse_id', 'department_id', 'employee_id', 'location_description',
                 'status', 'condition',
-                'inventory_account_id', 'tax_id', 'tax_amount', 'specifications',
+                'inventory_account_id',
+                'Account_id', 'depAcc_id', 'AccumlateDepAcc_id',
+                'tax_id', 'tax_amount', 'specifications',
                 'depreciation_start_date', 'is_depreciable', 'depreciation_method',
                 'useful_life_years', 'depreciation_rate',
             ]);
@@ -283,14 +339,21 @@ class AssetController extends Controller
             $data['name_en'] = $request->input('name_en');
             $data['name_ar'] = $request->input('name_ar') ?: $request->input('name_en');
 
-            // Cost basis invariant (same rule as store): keep total_cost =
-            // unit_cost × quantity when the form did not post an explicit value.
+            // Cost basis invariant (same rule as store): total_cost =
+            // unit_cost × quantity. The edit form spreads the whole asset row
+            // into its payload, so the STORED total_cost is echoed back on
+            // every save — the old "derive only when empty" condition never
+            // fired and editing unit_cost silently left a stale total_cost
+            // behind. The depreciation schedule / disposal cost basis reads
+            // total_cost, so its amounts drifted away from the form's Unit
+            // Cost. unit_cost is the field the user actually edits: it is
+            // authoritative here (the form is not a source for total_cost).
             $unitCost = (float) ($data['unit_cost'] ?? 0);
             $quantity = (float) ($data['quantity'] ?? 1);
             if ($quantity <= 0) {
                 $quantity = 1;
             }
-            if ($unitCost > 0 && empty($data['total_cost'])) {
+            if ($unitCost > 0) {
                 $data['total_cost'] = round($unitCost * $quantity, 4);
             }
 
@@ -373,9 +436,11 @@ class AssetController extends Controller
                 ->exists();
 
             if ($hasPostedJournals) {
-                return back()->withErrors([
-                    'error' => 'Cannot delete an asset with posted accounting entries. Reverse the depreciation/disposal first.'
-                ]);
+                $journalError = 'Cannot delete an asset with posted accounting entries. Reverse the depreciation/disposal first.';
+
+                return back()
+                    ->withErrors(['error' => $journalError])
+                    ->with('error', $journalError);
             }
 
             if ($asset->image_path && Storage::disk('public')->exists($asset->image_path)) {
@@ -390,7 +455,14 @@ class AssetController extends Controller
             ])
                 ->with('success', 'Asset deleted successfully.');
         } catch (Exception $e) {
-            return back()->withErrors(['error' => 'Failed to delete asset.']);
+            Log::error('Asset deletion failed: '.$e->getMessage(), [
+                'asset_id' => $asset->id,
+                'user_id' => $user->id,
+            ]);
+
+            return back()
+                ->withErrors(['error' => 'Failed to delete asset.'])
+                ->with('error', 'Failed to delete asset.');
         }
     }
 }

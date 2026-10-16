@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Backend\Accounting;
 
 use App\Exports\InventoryValuationExport;
 use App\Http\Controllers\Controller;
+use App\Models\Company;
 use App\Models\FinancialReport;
 use App\Models\UserFavoriteReport;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -291,24 +293,65 @@ class FinancialReportController extends Controller
         ]);
     }
 
-    public function coaReport(): Response
+    /**
+     * Company identity (name + logo) shared by the printable financial
+     * reports. Stored logos are returned as data URIs so printed pages
+     * never depend on authenticated storage URLs.
+     */
+    private function printCompanyData(Request $request): array
     {
-        return Inertia::render('Backend/07-Accounting/FinancialReports/COAReport');
+        $user = $request->user() ?: $request->user('employee');
+        $company = $user?->company_id
+            ? Company::query()->select(['company_name', 'logo'])->find($user->company_id)
+            : null;
+        $logo = $company?->logo;
+        $logoUrl = null;
+
+        if ($logo && filter_var($logo, FILTER_VALIDATE_URL)) {
+            $logoUrl = $logo;
+        } elseif ($logo) {
+            $logoPath = ltrim(str_replace('\\', '/', $logo), '/');
+            $logoPath = preg_replace('#^(?:public/|storage/)#', '', $logoPath);
+            $disk = Storage::disk('public');
+
+            if ($disk->exists($logoPath)) {
+                $mimeType = $disk->mimeType($logoPath) ?: 'image/png';
+                $logoUrl = 'data:' . $mimeType . ';base64,' . base64_encode($disk->get($logoPath));
+            }
+        }
+
+        return [
+            'company_name' => $company?->company_name,
+            'logo_url' => $logoUrl,
+        ];
     }
 
-    public function generalLedger(): Response
+    public function coaReport(Request $request): Response
     {
-        return Inertia::render('Backend/07-Accounting/FinancialReports/GeneralLedger');
+        return Inertia::render('Backend/07-Accounting/FinancialReports/COAReport', [
+            'printCompany' => $this->printCompanyData($request),
+        ]);
     }
 
-    public function trialBalance(): Response
+    public function generalLedger(Request $request): Response
     {
-        return Inertia::render('Backend/07-Accounting/FinancialReports/TrialBalance');
+        return Inertia::render('Backend/07-Accounting/FinancialReports/GeneralLedger', [
+            'printCompany' => $this->printCompanyData($request),
+        ]);
     }
 
-    public function journalReport(): Response
+    public function trialBalance(Request $request): Response
     {
-        return Inertia::render('Backend/07-Accounting/FinancialReports/Journal');
+        return Inertia::render('Backend/07-Accounting/FinancialReports/TrialBalance', [
+            'printCompany' => $this->printCompanyData($request),
+        ]);
+    }
+
+    public function journalReport(Request $request): Response
+    {
+        return Inertia::render('Backend/07-Accounting/FinancialReports/Journal', [
+            'printCompany' => $this->printCompanyData($request),
+        ]);
     }
 
     public function balanceSheet(): Response
@@ -1021,7 +1064,10 @@ class FinancialReportController extends Controller
             ->join('journal_entries as e', 'e.entry_code', '=', 'l.journal_entry_code')
             ->where('e.company_id', $companyId)
             ->whereIn('e.status', self::POSTED_STATUSES)
-            ->where('e.date', '<=', $asOfDate)
+            // e.date is a datetime column; compare at date granularity so the
+            // end-of-period boundary stays inclusive (entry at 'Y-m-d H:i:s'
+            // on as_of_date must not be dropped by the string comparison).
+            ->whereDate('e.date', '<=', $asOfDate)
             ->select('l.account_id', DB::raw("SUM(CASE WHEN e.entry_type = 'Opening' THEN l.debit ELSE 0 END) as beginning_debit"), DB::raw("SUM(CASE WHEN e.entry_type = 'Opening' THEN l.credit ELSE 0 END) as beginning_credit"), DB::raw("SUM(CASE WHEN (e.entry_type IS NULL OR e.entry_type <> 'Opening') AND e.date >= ? THEN l.debit ELSE 0 END) as current_debit"), DB::raw("SUM(CASE WHEN (e.entry_type IS NULL OR e.entry_type <> 'Opening') AND e.date >= ? THEN l.credit ELSE 0 END) as current_credit"))
             ->addBinding([$startDate, $startDate], 'select')
             ->groupBy('l.account_id')

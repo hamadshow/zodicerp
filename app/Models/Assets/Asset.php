@@ -45,6 +45,9 @@ class Asset extends Model
         'status',
         'condition',
         'inventory_account_id',
+        'Account_id',
+        'depAcc_id',
+        'AccumlateDepAcc_id',
         'tax_id',
         'tax_amount',
         'image_path',
@@ -54,6 +57,7 @@ class Asset extends Model
         'depreciation_method',
         'useful_life_years',
         'depreciation_rate',
+        'company_id',
         'created_by',
         'updated_by',
     ];

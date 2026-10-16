@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Head, Link, router, usePage, useForm } from '@inertiajs/react';
 import AdminLayout from '../components/AdminLayout';
+import SearchableComboBox from '../components/SearchableComboBox';
 import MediaPickerModal from '../Media/MediaPickerModal';
 
 const resolveMediaUrl = (value) => {
@@ -336,9 +337,11 @@ const AssetsList = ({ assets, warehouses, categories, employees, filters = {} })
 // Form Component (Create/Edit)
 // ==========================================
 
-const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
+const AssetsForm = ({ asset, categories, warehouses, units, employees, accounts, currencies }) => {
     const { props } = usePage();
     const { localization } = props;
+    const isArabic = localization?.current_locale === 'ar';
+    const t = (en, ar) => (isArabic ? ar : en);
     const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
     
     // Safety guards for props
@@ -346,6 +349,15 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
     const safeWarehouses = Array.isArray(warehouses) ? warehouses : [];
     const safeUnits = Array.isArray(units) ? units : [];
     const safeEmployees = Array.isArray(employees) ? employees : [];
+    const safeAccounts = Array.isArray(accounts) ? accounts : [];
+    const safeCurrencies = Array.isArray(currencies) ? currencies : [];
+
+    // assets.currency_id is NOT NULL: preselect the base currency (same
+    // default-currency rule as PurchaseInvoice) so create always submits one.
+    const defaultCurrencyId = useMemo(() => {
+        const base = safeCurrencies.find(c => c.is_base) || safeCurrencies[0];
+        return base ? String(base.id) : '';
+    }, [safeCurrencies]);
     
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -370,6 +382,7 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
         description: '',
         
         // Financials
+        currency_id: defaultCurrencyId,
         purchase_date: '',
         unit_cost: '',
         current_value: '',
@@ -381,6 +394,11 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
         depreciation_rate: '',
         useful_life_years: '',
         useful_life_months: '',
+        
+        // Accounting accounts (accounts.AccID)
+        Account_id: '',
+        depAcc_id: '',
+        AccumlateDepAcc_id: '',
         
         // Warranty
         warranty_expiry: '',
@@ -408,8 +426,12 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                 warehouse_id: asset.warehouse_id || '',
                 unit_id: asset.unit_id || '',
                 employee_id: asset.employee_id || '',
+                Account_id: asset.Account_id || '',
+                depAcc_id: asset.depAcc_id || '',
+                AccumlateDepAcc_id: asset.AccumlateDepAcc_id || '',
                 status: asset.status || 'active',
                 description: asset.description || '',
+                currency_id: asset.currency_id || defaultCurrencyId,
                 purchase_date: asset.purchase_date ? String(asset.purchase_date).split('T')[0] : '',
                 unit_cost: asset.unit_cost || '',
                 current_value: asset.current_value || '',
@@ -448,6 +470,29 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
             setData('image', file);
         }
     };
+
+    // Each GL selector is scoped to a single account Nature, so the shared
+    // option list is built per dropdown. A payload that carries no Nature at
+    // all (older backend selects) keeps the full list instead of blanking the
+    // dropdowns.
+    const hasAccountNature = useMemo(
+        () => safeAccounts.some(acc => acc.Nature != null && acc.Nature !== ''),
+        [safeAccounts]
+    );
+
+    const buildAccountOptions = (nature) => {
+        const source = hasAccountNature
+            ? safeAccounts.filter(acc => acc.Nature === nature)
+            : safeAccounts;
+        return source.map(acc => ({
+            value: String(acc.AccID),
+            label: `${acc.AccCode} - ${acc.AccName}`,
+        }));
+    };
+
+    const assetAccountOptions = useMemo(() => buildAccountOptions('Fixed Assets'), [safeAccounts, hasAccountNature]);
+    const depExpenseAccountOptions = useMemo(() => buildAccountOptions('Depreciation'), [safeAccounts, hasAccountNature]);
+    const accumDepAccountOptions = useMemo(() => buildAccountOptions('Accumulated Depreciation'), [safeAccounts, hasAccountNature]);
 
     const submit = (e) => {
         e.preventDefault();
@@ -561,7 +606,7 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                                     </div>
                                     <div className="form-grid">
                                         <div className="form-group">
-                                            <label className="form-label">Unit</label>
+                                            <label className="form-label">Unit <span className="text-error">*</span></label>
                                             <select 
                                                 className="form-control"
                                                 value={data.unit_id}
@@ -639,9 +684,23 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                                     <h3 className="assets-section-title">Financials</h3>
                                 </div>
                                 <div className="assets-section-content">
+                                    <div className="form-group">
+                                        <label className="form-label">{t('Currency', 'العملة')} <span className="text-error">*</span></label>
+                                        <select
+                                            className="form-control"
+                                            value={data.currency_id}
+                                            onChange={e => setData('currency_id', e.target.value)}
+                                        >
+                                            <option value="">{t('Select Currency', 'اختر العملة')}</option>
+                                            {safeCurrencies.map(c => (
+                                                <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
+                                            ))}
+                                        </select>
+                                        {errors.currency_id && <div className="text-error">{errors.currency_id}</div>}
+                                    </div>
                                     <div className="form-grid">
                                         <div className="form-group">
-                                            <label className="form-label">Purchase Date</label>
+                                            <label className="form-label">Purchase Date <span className="text-error">*</span></label>
                                             <input 
                                                 type="date" 
                                                 className="form-control" 
@@ -651,7 +710,7 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                                             {errors.purchase_date && <div className="text-error">{errors.purchase_date}</div>}
                                         </div>
                                         <div className="form-group">
-                                            <label className="form-label">Unit Cost</label>
+                                            <label className="form-label">Unit Cost <span className="text-error">*</span></label>
                                             <input 
                                                 type="number" 
                                                 step="0.01"
@@ -749,6 +808,47 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees }) => {
                                             </div>
                                         </>
                                     )}
+                                </div>
+                            </div>
+
+                            {/* Accounting (GL) Accounts */}
+                            <div className="assets-section-card">
+                                <div className="assets-section-header">
+                                    <h3 className="assets-section-title">{t('Accounting', 'الحسابات المحاسبية')}</h3>
+                                </div>
+                                <div className="assets-section-content">
+                                    <div className="form-grid">
+                                        <div className="form-group">
+                                            <label className="form-label">{t('Asset Account', 'حساب الأصل')}</label>
+                                            <SearchableComboBox
+                                                options={assetAccountOptions}
+                                                value={data.Account_id !== '' && data.Account_id != null ? String(data.Account_id) : ''}
+                                                onChange={val => setData('Account_id', val)}
+                                                placeholder={t('Select Account', 'اختر الحساب')}
+                                            />
+                                            {errors.Account_id && <div className="text-error">{errors.Account_id}</div>}
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">{t('Depreciation Expense Account', 'حساب مصروف الإهلاك')}</label>
+                                            <SearchableComboBox
+                                                options={depExpenseAccountOptions}
+                                                value={data.depAcc_id !== '' && data.depAcc_id != null ? String(data.depAcc_id) : ''}
+                                                onChange={val => setData('depAcc_id', val)}
+                                                placeholder={t('Select Account', 'اختر الحساب')}
+                                            />
+                                            {errors.depAcc_id && <div className="text-error">{errors.depAcc_id}</div>}
+                                        </div>
+                                        <div className="form-group">
+                                            <label className="form-label">{t('Accumulated Depreciation Account', 'حساب مجمع الإهلاك')}</label>
+                                            <SearchableComboBox
+                                                options={accumDepAccountOptions}
+                                                value={data.AccumlateDepAcc_id !== '' && data.AccumlateDepAcc_id != null ? String(data.AccumlateDepAcc_id) : ''}
+                                                onChange={val => setData('AccumlateDepAcc_id', val)}
+                                                placeholder={t('Select Account', 'اختر الحساب')}
+                                            />
+                                            {errors.AccumlateDepAcc_id && <div className="text-error">{errors.AccumlateDepAcc_id}</div>}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

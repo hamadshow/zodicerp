@@ -3,6 +3,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
 import Pagination from '../../components/Pagination';
+import PrintReport from '../../../../Components/PrintReport';
 import { apiService } from '../../../../services/api';
 import ReportHeader, { ReportFormGroup, ReportFormActions } from '../../components/ReportHeader';
 
@@ -52,6 +53,8 @@ export default function JournalReport() {
   };
 
   const [journals, setJournals] = useState([]);
+  const [printJournals, setPrintJournals] = useState(null);
+  const [printPreparing, setPrintPreparing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [filters, setFilters] = useState({
@@ -179,6 +182,40 @@ export default function JournalReport() {
     }));
   };
 
+  const handlePrint = async () => {
+    if (loading || printPreparing || journals.length === 0) return;
+
+    setPrintPreparing(true);
+    setError('');
+    try {
+      const response = await apiService.get('/journals', {
+        search: filters.search || undefined,
+        date_from: filters.dateFrom || undefined,
+        date_to: filters.dateTo || undefined,
+        status: filters.status === 'all' ? undefined : filters.status,
+        balance_status: filters.balanceStatus === 'all' ? undefined : filters.balanceStatus,
+        all: true,
+        with_lines: true,
+      });
+      const allJournals = Array.isArray(response.data) ? response.data : response.data?.data || [];
+      setPrintJournals(allJournals);
+      window.requestAnimationFrame(() => window.print());
+    } catch (e) {
+      const message = e?.response?.data?.message || t('failed_to_load', 'Failed to load journal report.');
+      setError(message);
+    } finally {
+      setPrintPreparing(false);
+    }
+  };
+
+  useEffect(() => {
+    const clearPrintJournals = () => setPrintJournals(null);
+    window.addEventListener('afterprint', clearPrintJournals);
+    return () => window.removeEventListener('afterprint', clearPrintJournals);
+  }, []);
+
+  const displayedJournals = printJournals || journals;
+
   const handleExportExcel = async () => {
     if (loading) return;
     setLoading(true);
@@ -188,6 +225,7 @@ export default function JournalReport() {
         date_from: filters.dateFrom || undefined,
         date_to: filters.dateTo || undefined,
         status: filters.status === 'all' ? undefined : filters.status,
+        balance_status: filters.balanceStatus === 'all' ? undefined : filters.balanceStatus,
         all: true,
         with_lines: true,
       });
@@ -295,7 +333,8 @@ export default function JournalReport() {
           exportExcelDisabled={loading || journals.length === 0}
           exportDropdownDisabled={loading}
           showPrint={true}
-          printDisabled={true}
+          onPrint={handlePrint}
+          printDisabled={loading || printPreparing || journals.length === 0}
         >
           <ReportFormGroup
             label={t('date_from', 'Date from')}
@@ -342,7 +381,16 @@ export default function JournalReport() {
             <span className="material-icons-outlined">sync</span>
             <span>{t('loading', 'Loading...')}</span>
           </div>
-        ) : journals.length > 0 ? (
+        ) : displayedJournals.length > 0 ? (
+          <PrintReport
+            className="journal-report-print"
+            companyName={props.printCompany?.company_name}
+            companyLogo={props.printCompany?.logo_url}
+            reportTitle={t('title', 'Journal Report')}
+            dateFrom={filters.dateFrom}
+            dateTo={filters.dateTo}
+            locale={locale}
+          >
           <div className="fr-table-card">
             <div className="fr-table-wrapper">
               <table className="fr-table">
@@ -356,7 +404,7 @@ export default function JournalReport() {
                   </tr>
                 </thead>
                 <tbody>
-                  {journals.map((entry) => {
+                  {displayedJournals.map((entry) => {
                     const isBalanced = Math.abs((Number(entry.total_debit) || 0) - (Number(entry.total_credit) || 0)) < 0.001;
                     return (
                       <React.Fragment key={entry.entry_code}>
@@ -420,8 +468,8 @@ export default function JournalReport() {
                     );
                   })}
                 </tbody>
-                {totalRecords > perPage && (
-                  <tbody className="no-print mt-8 flex justify-center">
+                {!printJournals && totalRecords > perPage && (
+                  <tbody className="no-print print-report__no-print mt-8 flex justify-center">
                     <Pagination
                       currentPage={currentPage}
                       totalPages={Math.ceil(totalRecords / perPage)}
@@ -432,6 +480,7 @@ export default function JournalReport() {
               </table>
             </div>
           </div>
+          </PrintReport>
         ) : (
           <div className="fr-empty-state">
             <span className="material-icons-outlined">description</span>

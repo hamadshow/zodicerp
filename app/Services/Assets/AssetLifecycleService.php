@@ -541,9 +541,18 @@ class AssetLifecycleService
     /**
      * Resolve depreciation accounts for an asset.
      *
-     * Primary source: the asset's category account mapping columns
-     * (account_depreciation_id / account_accumulated_depreciation_id),
-     * inherited from the nearest configured ancestor when categories nest.
+     * Primary source: the asset's OWN GL mapping saved on the asset form
+     * (assets.depAcc_id / assets.AccumlateDepAcc_id, both storing
+     * accounts.AccID). Fallback: the asset's category account mapping
+     * columns (asset_categories.account_depreciation_id /
+     * account_accumulated_depreciation_id), inherited from the nearest
+     * configured ancestor when categories nest.
+     *
+     * CAUTION: account_depreciation_id / account_accumulated_depreciation_id
+     * are asset_CATEGORIES columns. They only ever reach this object through
+     * the LEFT JOIN in getDepreciableAsset(); they must not be mistaken for
+     * asset-level fields (that confusion made posting ignore the accounts the
+     * asset form displays and use the category's generic accounts instead).
      *
      * No silent fallback to arbitrary accounts: if the mapping is missing,
      * a clear exception blocks the posting.
@@ -554,10 +563,18 @@ class AssetLifecycleService
     {
         $companyId = $this->companyId();
 
-        $expenseId = $asset->account_depreciation_id ?? null;
-        $accumId = $asset->account_accumulated_depreciation_id ?? null;
+        // Asset-level overrides (stored as accounts.AccID) win over the
+        // category mapping so the posted journal matches the asset form.
+        $expenseId = $asset->depAcc_id ?? null;
+        $accumId = $asset->AccumlateDepAcc_id ?? null;
 
-        // Inherit from ancestors when the direct category has no mapping.
+        // Direct-category mapping (joined column), then inherit from
+        // ancestors when the direct category has no mapping.
+        if (!$expenseId || !$accumId) {
+            $expenseId = $expenseId ?: ($asset->account_depreciation_id ?? null);
+            $accumId = $accumId ?: ($asset->account_accumulated_depreciation_id ?? null);
+        }
+
         if (!$expenseId || !$accumId) {
             $categoryId = $asset->category_id ?? null;
             while ($categoryId && (!$expenseId || !$accumId)) {

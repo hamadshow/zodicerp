@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import PrintReport, { PrintReportButton } from '../../../../Components/PrintReport';
 import AdminLayout from '../../components/AdminLayout';
 import { apiService } from '../../../../services/api';
 
@@ -40,6 +41,9 @@ const flattenTree = (nodes, depth = 0, list = []) => {
 };
 
 export default function COAReport() {
+  const { props } = usePage();
+  const localization = props.localization || {};
+  const company = props.printCompany || {};
   const [loading, setLoading] = useState(true);
   const [accounts, setAccounts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -83,9 +87,6 @@ export default function COAReport() {
     });
   }, [accounts, searchTerm, typeFilter, statusFilter]);
 
-  const handlePrint = () => {
-    window.print();
-  };
 
   const handleExport = () => {
     alert('Export feature coming soon');
@@ -149,10 +150,10 @@ export default function COAReport() {
             </div>
           </div>
           <div className="fr-form-actions">
-            <button type="button" className="btn btn-primary fr-btn" onClick={handlePrint}>
+            <PrintReportButton className="btn btn-primary fr-btn" disabled={loading}>
               <span className="material-icons-outlined">print</span>
               <span>{t('print', 'Print')}</span>
-            </button>
+            </PrintReportButton>
             <button type="button" className="btn btn-excel fr-btn" onClick={handleExport}>
               <span className="material-icons-outlined">description</span>
               <span>{t('export', 'Export')}</span>
@@ -160,6 +161,12 @@ export default function COAReport() {
           </div>
         </div>
 
+        <PrintReport
+          companyName={company.company_name}
+          companyLogo={company.logo_url}
+          reportTitle="Chart of Accounts"
+          locale={localization.current_locale || route().params.lang || 'en'}
+        >
         <div className="fr-table-card">
           <div className="fr-table-wrapper">
             <table className="fr-table">
@@ -216,6 +223,7 @@ export default function COAReport() {
             </table>
           </div>
         </div>
+        </PrintReport>
       </div>
 
       <style jsx>{`{

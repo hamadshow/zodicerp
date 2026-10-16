@@ -3,6 +3,7 @@ import { Head, usePage } from '@inertiajs/react';
 import AdminLayout from '../../components/AdminLayout';
 import ReportHeader, { ReportFormActions, ReportFormGroup } from '../../components/ReportHeader';
 import { apiService } from '../../../../services/api';
+import PrintReport from '../../../../Components/PrintReport';
 import { exportReportToExcel } from '../../../../Components/ExportReportExcel';
 
 export default function TrialBalance() {
@@ -173,6 +174,7 @@ export default function TrialBalance() {
     const periodFrom = appliedPeriod?.from || t('default_period', 'Report default');
     const periodTo = appliedPeriod?.to || t('default_period', 'Report default');
     const columns = [
+      { header: t('account_code', 'Account Code'), width: 12 },
       { header: t('account_name', 'Account Name'), width: 50 },
       { header: `${t('beginning', 'Beginning Balances')} (${t('debit', 'Debit')})`, width: 18 },
       { header: `${t('beginning', 'Beginning Balances')} (${t('credit', 'Credit')})`, width: 18 },
@@ -183,13 +185,14 @@ export default function TrialBalance() {
     ];
     const rows = data.map((row) => {
       const indentation = '  '.repeat(Math.max(0, Number(row.depth) || 0));
-      const accountName = `${row.AccCode} - ${translateAccountName(row.AccCode, row.AccName)}`;
+      const accountName = translateAccountName(row.AccCode, row.AccName);
       const name = row.AccType === 0
         ? `${t('total', 'Total')} ${accountName}`
         : accountName;
 
       return {
         values: [
+          row.AccCode,
           indentation + name,
           Number(row.beginning_debit ?? 0),
           Number(row.beginning_credit ?? 0),
@@ -201,8 +204,9 @@ export default function TrialBalance() {
       };
     });
     const totalsRow = {
-      label: t('grand_total', 'GRAND TOTAL'),
+      label: '',
       values: [
+        t('grand_total', 'GRAND TOTAL'),
         grandTotals.beginning_debit,
         grandTotals.beginning_credit,
         grandTotals.current_debit,
@@ -284,6 +288,7 @@ export default function TrialBalance() {
           onExportExcel={handleExportExcel}
           onExportPdf={handleExportPdf}
           onPrint={() => window.print()}
+          printDisabled={loading}
           exportExcelLabel={t('export_excel', 'Export Excel')}
           exportPdfLabel={t('export_pdf', 'Export Report (PDF)')}
           printButtonLabel={t('print', 'Print')}
@@ -356,7 +361,15 @@ export default function TrialBalance() {
         {reportError && <div className="fr-error-banner" role="alert">{reportError}</div>}
         {exportError && <div className="fr-error-banner" role="alert">{exportError}</div>}
 
-        <div className="fr-table-card" id="trial-balance-report">
+        <PrintReport
+          companyName={props.printCompany?.company_name}
+          companyLogo={props.printCompany?.logo_url}
+          reportTitle={t('title', 'Trial Balance')}
+          dateFrom={appliedPeriod?.from || undefined}
+          dateTo={appliedPeriod?.to || undefined}
+          locale={lang}
+        >
+          <div className="fr-table-card" id="trial-balance-report">
           <div className="fr-table-wrapper">
             <table className="fr-table">
               <thead>
@@ -427,6 +440,7 @@ export default function TrialBalance() {
             </table>
           </div>
         </div>
+        </PrintReport>
       </div>
 
       <style jsx>{`
@@ -490,6 +504,40 @@ export default function TrialBalance() {
         .text-center { text-align: center !important; }
         .font-bold { font-weight: 700; }
         .py-10 { padding-top: 2.5rem; padding-bottom: 2.5rem; }
+
+        /* Overrides the shared 'size: A4 portrait' from PrintReport.scss for
+           this wide 7-column report. This style tag renders after the shared
+           stylesheet in the document, so its @page rule wins the cascade
+           while the shared 12mm margin still applies. @page only affects
+           paged media, so screen rendering is unchanged, and other reports
+           keep the shared portrait default. */
+        @page {
+          size: A4 landscape;
+        }
+
+        @media print {
+          .fr-error-banner { display: none !important; }
+
+          .trial-balance-page .fr-table-card {
+            border: none !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          .trial-balance-page .fr-table { font-size: 9pt; }
+
+          .trial-balance-page .fr-table th,
+          .trial-balance-page .fr-table td { padding: 4px 6px; }
+
+          .trial-balance-page .amount-cell { width: auto; }
+
+          .trial-balance-page .account-col { min-width: 0; }
+
+          .trial-balance-page .main-header th { font-size: 11px; }
+
+          .trial-balance-page .sub-header th { font-size: 9px; }
+        }
       `}</style>
     </AdminLayout>
   );

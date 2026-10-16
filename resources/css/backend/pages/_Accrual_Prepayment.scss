@@ -1,61 +1,132 @@
 @use '../base/variables' as *;
 @use '../base/mixins' as *;
 
+// =========================================================
+// Accrual / Prepayment — page-scoped styles only.
+// Root scope class is applied by the page itself, so nothing
+// here can leak into other screens.
+// =========================================================
+
 .accrual-prepayment-page {
-    padding: $spacing-lg;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
 }
 
+// ---------------------------------------------------------
+// Summary cards: balanced responsive row (3 → 2 → 1)
+// ---------------------------------------------------------
+
 .accrual-prepayment__stats {
-    margin-bottom: $spacing-lg;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: $spacing-md;
+
+    @media (max-width: 992px) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (max-width: 640px) {
+        grid-template-columns: 1fr;
+    }
 }
 
 .accrual-prepayment__stat {
     background: $white;
     border: 1px solid $border-color;
     border-radius: $radius-lg;
-    padding: $spacing-lg;
+    padding: $spacing-md $spacing-lg;
     box-shadow: $shadow-sm;
-    min-height: 110px;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: $spacing-xs;
+    align-items: center;
+    gap: $spacing-md;
+    min-height: 84px;
+    transition: transform $transition-fast, box-shadow $transition-fast;
 
-    strong {
-        font-size: 1.5rem;
-        font-weight: $font-weight-bold;
-        color: $dark-color;
-        line-height: 1.2;
+    &:hover {
+        transform: translateY(-2px);
+        box-shadow: $shadow-md;
     }
 
-    &--primary {
-        background: rgba($primary-color, 0.04);
+    > div {
+        min-width: 0;
+    }
+
+    strong {
+        display: block;
+        font-size: 1.35rem;
+        font-weight: $font-weight-bold;
+        color: $dark-color;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     &--highlight {
-        background: linear-gradient(135deg, rgba($primary-color, 0.08), rgba($success-color, 0.08));
+        background: linear-gradient(135deg, rgba($primary-color, 0.06), rgba($success-color, 0.08));
+        border-color: rgba($primary-color, 0.25);
+    }
+
+    // Two-up layout: the highlight card keeps full width so the row stays balanced.
+    @media (max-width: 992px) {
+        grid-column: span 1;
+    }
+
+    @media (max-width: 992px) and (min-width: 641px) {
+        &--highlight {
+            grid-column: 1 / -1;
+        }
+    }
+}
+
+.accrual-prepayment__stat-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: $radius-lg;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    i {
+        font-size: 22px;
+        line-height: 1;
+    }
+
+    &--prepayment {
+        background: rgba($primary-color, 0.12);
+        color: $primary-color;
+    }
+
+    &--accrual {
+        background: rgba($warning-color, 0.16);
+        color: darken($warning-color, 18%);
+    }
+
+    &--remaining {
+        background: rgba($success-color, 0.12);
+        color: $success-color;
     }
 }
 
 .accrual-prepayment__stat-label {
+    display: block;
     color: $gray-color;
-    font-size: $font-size-sm;
+    font-size: $font-size-xs;
     font-weight: $font-weight-medium;
+    margin-bottom: 2px;
 }
 
+// ---------------------------------------------------------
+// Filters: compact, single aligned row
+// ---------------------------------------------------------
+
 .accrual-prepayment__filters {
-    display: grid;
-    grid-template-columns: repeat(6, minmax(150px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
     gap: $spacing-md;
-    align-items: end;
-
-    @media (max-width: 1200px) {
-        grid-template-columns: repeat(2, minmax(180px, 1fr));
-    }
-
-    @media (max-width: 768px) {
-        grid-template-columns: 1fr;
-    }
 }
 
 .accrual-prepayment__filter-field {
@@ -68,22 +139,66 @@
         color: $gray-color;
         font-weight: $font-weight-medium;
     }
-}
 
-.accrual-prepayment__filter-field--search {
-    grid-column: span 2;
+    &--search {
+        flex: 1 1 260px;
+        max-width: 420px;
+    }
 
-    @media (max-width: 768px) {
-        grid-column: auto;
+    &--type {
+        flex: 0 0 200px;
     }
 }
 
-.accrual-prepayment__filter-actions {
-    display: flex;
-    gap: $spacing-sm;
-    flex-wrap: wrap;
-    justify-content: flex-start;
+.accrual-prepayment__search-box {
+    position: relative;
+
+    input {
+        width: 100%;
+        height: 42px;
+        padding: 8px 12px 8px 40px;
+        border: 1px solid $border-color;
+        border-radius: $radius-md;
+        font-size: $font-size-sm;
+        color: $dark-color;
+        background-color: $light-color;
+        transition: all 0.2s ease;
+
+        &:focus {
+            outline: none;
+            border-color: $info-color;
+            background-color: #ffffff;
+            box-shadow: 0 0 0 3px rgba($info-color, 0.1);
+        }
+
+        &::placeholder {
+            color: $text-light;
+        }
+    }
+
+    i {
+        position: absolute;
+        inset-inline-start: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: $text-light;
+        font-size: 20px;
+        pointer-events: none;
+    }
+
+    [dir='rtl'] & input {
+        padding-left: 12px;
+        padding-right: 40px;
+    }
 }
+
+.accrual-prepayment__filter-field--type .form-select {
+    height: 42px;
+}
+
+// ---------------------------------------------------------
+// Card + header
+// ---------------------------------------------------------
 
 .accrual-prepayment__card {
     background: $white;
@@ -97,13 +212,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: $spacing-md;
     padding: $spacing-lg $spacing-xl;
     border-bottom: 1px solid $border-color;
     background: rgba($light-color, 0.35);
 
     h2 {
         margin: 0;
-        font-size: 1.5rem;
+        font-size: 1.4rem;
         font-weight: $font-weight-bold;
         color: $dark-color;
     }
@@ -114,49 +230,91 @@
         font-size: $font-size-sm;
     }
 
+    .accrual-prepayment__add-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: $spacing-xs;
+        white-space: nowrap;
+        font-weight: $font-weight-semibold;
+        box-shadow: $shadow-sm;
+
+        i {
+            font-size: 1.15rem;
+            line-height: 1;
+        }
+    }
+
     @media (max-width: 768px) {
         flex-direction: column;
-        align-items: flex-start;
-        gap: $spacing-md;
+        align-items: stretch;
+
+        .accrual-prepayment__add-button {
+            width: 100%;
+        }
     }
 }
 
-.accrual-prepayment__add-button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: $spacing-sm;
-    white-space: nowrap;
-    font-weight: $font-weight-semibold;
-    box-shadow: $shadow-sm;
-
-    i {
-        font-size: 1.15rem;
-        line-height: 1;
-    }
-
-    @media (max-width: 768px) {
-        width: 100%;
-    }
-}
+// ---------------------------------------------------------
+// Table: fits the content area — no forced horizontal scroll
+// ---------------------------------------------------------
 
 .accrual-prepayment__table-wrap {
-    padding: $spacing-xl;
+    padding: $spacing-xl $spacing-lg $spacing-lg;
+
+    // The shared container already draws its own border/shadow; soften the
+    // nesting so the card frame reads as one surface.
+    .table-container {
+        border: 0;
+        box-shadow: none;
+        overflow-x: visible;
+    }
+
+    // Cancel the shared 900px minimum: column widths below keep the table
+    // within the content area at every breakpoint this page supports.
+    .table-custom {
+        min-width: 0;
+        table-layout: auto;
+    }
+
+    td {
+        max-width: 280px;
+    }
+}
+
+.accrual-prepayment__cell-text {
+    display: block;
+    text-align: start;
+    overflow-wrap: anywhere;
+    line-height: 1.45;
+}
+
+.accrual-prepayment__reference {
+    display: inline-block;
+    font-variant-numeric: tabular-nums;
+    font-weight: $font-weight-semibold;
+    color: $dark-color;
+    letter-spacing: 0.3px;
 }
 
 .accrual-prepayment__badge {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    padding: 0.4rem 0.75rem;
+    gap: 4px;
+    padding: 0.3rem 0.7rem;
     border-radius: 999px;
     font-size: $font-size-xs;
     font-weight: $font-weight-semibold;
-    text-transform: capitalize;
     background: rgba($gray-color, 0.08);
     color: $dark-color;
     white-space: nowrap;
 
+    i {
+        font-size: 14px;
+        line-height: 1;
+    }
+
+    // Single-word type labels: capitalize reads identically in both locales.
     &--prepayment {
         background: rgba($primary-color, 0.1);
         color: $primary-color;
@@ -166,43 +324,67 @@
         background: rgba($warning-color, 0.15);
         color: darken($warning-color, 15%);
     }
+}
 
-    &--supplier_advance {
-        background: rgba($success-color, 0.1);
-        color: $success-color;
-    }
+.accrual-prepayment__amount {
+    display: block;
+    text-align: end;
+    font-variant-numeric: tabular-nums;
+    font-weight: $font-weight-medium;
+    color: $dark-color;
+    white-space: nowrap;
 
-    &--status {
-        min-width: 90px;
-    }
-
-    &--draft {
-        background: rgba($gray-color, 0.12);
+    &--muted {
         color: $gray-color;
+        font-weight: $font-weight-normal;
     }
 
-    &--active {
-        background: rgba($success-color, 0.12);
-        color: $success-color;
-    }
-
-    &--pending {
-        background: rgba($warning-color, 0.18);
-        color: darken($warning-color, 20%);
-    }
-
-    &--completed {
-        background: rgba($primary-color, 0.12);
-        color: $primary-color;
+    &--strong {
+        font-weight: $font-weight-semibold;
+        color: darken($success-color, 8%);
     }
 }
 
-.accrual-prepayment__actions {
+.accrual-prepayment__account {
+    gap: 2px;
+
+    > span {
+        text-align: start;
+    }
+}
+
+.accrual-prepayment__account-secondary {
     display: flex;
-    align-items: center;
-    gap: $spacing-sm;
-    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px;
+    color: $gray-color;
+    font-size: $font-size-xs;
+    overflow-wrap: anywhere;
+
+    i {
+        font-size: 14px;
+        flex-shrink: 0;
+        transform: translateY(2px);
+
+        [dir='rtl'] & {
+            transform: translateY(2px) scaleX(-1);
+        }
+    }
 }
+
+// Shared action buttons in the operations column stay compact.
+.accrual-prepayment-page .actions-cell {
+    gap: 6px;
+
+    .action-btn {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+// ---------------------------------------------------------
+// Modal
+// ---------------------------------------------------------
 
 .accrual-prepayment__modal {
     padding: $spacing-xl;
@@ -212,6 +394,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: $spacing-md;
     padding-bottom: $spacing-md;
     border-bottom: 1px solid $border-color;
 
@@ -219,13 +402,14 @@
         margin: 0;
         font-size: 1.2rem;
         font-weight: $font-weight-bold;
+        color: $dark-color;
     }
 }
 
 .accrual-prepayment__form-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: $spacing-md;
+    gap: $spacing-md $spacing-lg;
     margin-top: $spacing-lg;
 
     @media (max-width: 768px) {
@@ -237,6 +421,7 @@
     display: flex;
     flex-direction: column;
     gap: $spacing-xs;
+    min-width: 0;
 
     label {
         font-size: $font-size-xs;
@@ -254,47 +439,4 @@
     justify-content: flex-end;
     gap: $spacing-sm;
     margin-top: $spacing-xl;
-}
-
-.accrual-prepayment__preview {
-    margin-top: $spacing-lg;
-
-    h4 {
-        margin-bottom: $spacing-md;
-        font-size: 1rem;
-        font-weight: $font-weight-bold;
-    }
-}
-
-.accrual-prepayment__preview-box {
-    border: 1px solid $border-color;
-    border-radius: $radius-lg;
-    background: $light-color;
-    padding: $spacing-lg;
-}
-
-.accrual-prepayment__preview-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: $spacing-sm 0;
-    border-bottom: 1px solid $border-color;
-
-    &:last-child {
-        border-bottom: none;
-    }
-
-    > div {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-}
-
-[dir='rtl'] {
-    .accrual-prepayment__header,
-    .accrual-prepayment__modal-header,
-    .accrual-prepayment__preview-row {
-        direction: rtl;
-    }
 }

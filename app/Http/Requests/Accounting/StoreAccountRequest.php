@@ -38,7 +38,7 @@ class StoreAccountRequest extends FormRequest
                 'required_without:AccParent',
                 'nullable',
                 'string',
-                Rule::in(['asset', 'Inventory', 'Accounts Receivable', 'cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income']),
+                Rule::in(['asset', 'Fixed Assets', 'Depreciation', 'Accumulated Depreciation', 'Inventory', 'Accounts Receivable', 'Accounts Payable', 'cash', 'bank', 'expense', 'COGs', 'liability', 'equity', 'income']),
             ],
             'AccDmType' => [
                 'required_without:AccParent',

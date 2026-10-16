@@ -1,0 +1,138 @@
+.print-report {
+  min-width: 0;
+}
+
+.print-report__header {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .print-report,
+  .print-report * {
+    visibility: visible !important;
+  }
+
+  .print-report {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    color: #172033 !important;
+    background: #fff !important;
+    font-family: Arial, Tahoma, sans-serif !important;
+    font-size: 10pt !important;
+  }
+
+  .print-report__header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6mm 10mm;
+    padding: 0 0 6mm;
+    margin: 0 0 6mm;
+    border-bottom: 1.5pt solid #26364a;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-report__brand {
+    display: flex !important;
+    align-items: center;
+    gap: 4mm;
+    min-width: 0;
+  }
+
+  .print-report__logo {
+    display: block !important;
+    width: auto !important;
+    max-width: 32mm !important;
+    height: auto !important;
+    max-height: 20mm !important;
+    object-fit: contain;
+  }
+
+  .print-report__company {
+    color: #172033 !important;
+    font-size: 15pt !important;
+    font-weight: 700 !important;
+  }
+
+  .print-report__title-block {
+    grid-column: 1 / -1;
+    text-align: center;
+  }
+
+  .print-report__title {
+    margin: 0 0 2mm !important;
+    color: #172033 !important;
+    font-size: 17pt !important;
+    font-weight: 700 !important;
+  }
+
+  .print-report__date-range {
+    display: flex !important;
+    justify-content: center;
+    gap: 8mm;
+    color: #475569 !important;
+    font-size: 9pt !important;
+  }
+
+  .print-report__printed-at {
+    justify-self: end;
+    color: #64748b !important;
+    font-size: 8pt !important;
+  }
+
+  .print-report__button,
+  .print-report__no-print {
+    display: none !important;
+  }
+
+  .print-report__content {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-report__content table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .print-report__content thead {
+    display: table-header-group;
+  }
+
+  .print-report__content tfoot {
+    display: table-footer-group;
+  }
+
+  .print-report__content tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

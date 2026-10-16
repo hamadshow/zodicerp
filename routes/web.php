@@ -513,9 +513,11 @@ Route::group([
         Route::get('journal-entries', function () {
             return Inertia::render('Backend/07-Accounting/JournalEntity');
         })->name('journal-entries');
-        Route::get('accrual-prepayment', function () {
-            return Inertia::render('Backend/07-Accounting/Accrual_Prepayment');
-        })->name('accrual-prepayment');
+        $expenseAdjustmentController = \App\Http\Controllers\Backend\Accounting\ExpenseAdjustmentController::class;
+        Route::get('accrual-prepayment', [$expenseAdjustmentController, 'index'])->name('accrual-prepayment');
+        Route::post('accrual-prepayment', [$expenseAdjustmentController, 'store'])->name('accrual-prepayment.store');
+        Route::put('accrual-prepayment/{id}', [$expenseAdjustmentController, 'update'])->name('accrual-prepayment.update');
+        Route::delete('accrual-prepayment/{id}', [$expenseAdjustmentController, 'destroy'])->name('accrual-prepayment.destroy');
         $fpc = \App\Http\Controllers\Backend\Accounting\FiscalPeriodController::class;
         Route::get('fiscal-periods', [$fpc, 'index'])->name('fiscal-periods.index');
         Route::post('fiscal-periods', [$fpc, 'store'])->name('fiscal-periods.store');

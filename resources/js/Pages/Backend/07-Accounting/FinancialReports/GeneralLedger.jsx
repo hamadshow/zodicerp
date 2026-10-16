@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import AdminLayout from '../../components/AdminLayout';
 import SearchableComboBox from '../../components/SearchableComboBox';
 import Pagination from '../../components/Pagination';
+import PrintReport from '../../../../Components/PrintReport';
 import ReportHeader, { ReportFormGroup, ReportFormActions } from '../../components/ReportHeader';
 import { apiService } from '../../../../services/api';
 
@@ -62,6 +63,7 @@ export default function GeneralLedger() {
     status: 'posted',
   });
   const [ledger, setLedger] = useState(null);
+  const [printLedger, setPrintLedger] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -258,6 +260,35 @@ export default function GeneralLedger() {
     }
   };
 
+  const handlePrint = async () => {
+    if (!filters.accountId || loading || !ledger) return;
+
+    setLoading(true);
+    setError('');
+    try {
+      const response = await apiService.get('/reports/general-ledger', {
+        account_id: Number(filters.accountId),
+        date_from: filters.dateFrom || undefined,
+        date_to: filters.dateTo || undefined,
+        status: filters.status || undefined,
+        per_page: -1,
+      });
+      setPrintLedger(response.data);
+      window.requestAnimationFrame(() => window.print());
+    } catch (e) {
+      const message = e?.response?.data?.message || t('failed_to_load', 'Failed to load general ledger.');
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const clearPrintLedger = () => setPrintLedger(null);
+    window.addEventListener('afterprint', clearPrintLedger);
+    return () => window.removeEventListener('afterprint', clearPrintLedger);
+  }, []);
+
   const handleJournalClick = (code) => {
     if (!code) return;
     router.get(route('admin.journal-entries', {
@@ -268,11 +299,13 @@ export default function GeneralLedger() {
     }));
   };
 
+  const displayedLedger = printLedger || ledger;
+
   const rowsWithOpening = useMemo(() => {
-    if (!ledger) return [];
-    const result = [...ledger.entries];
-    // Only show opening balance row on the first page
-    if (currentPage === 1 && ledger.opening_balance !== 0) {
+    if (!displayedLedger) return [];
+    const result = [...displayedLedger.entries];
+    // Printing fetches every matching entry, so include its opening balance regardless of the UI page.
+    if ((printLedger || currentPage === 1) && displayedLedger.opening_balance !== 0) {
       result.unshift({
         isOpening: true,
         date: '',
@@ -282,12 +315,12 @@ export default function GeneralLedger() {
         description: t('opening_balance', 'Opening balance'),
         debit: 0,
         credit: 0,
-        running_balance: ledger.opening_balance,
+        running_balance: displayedLedger.opening_balance,
         status: '',
       });
     }
     return result;
-  }, [ledger, currentPage]);
+  }, [displayedLedger, printLedger, currentPage]);
 
   const accountLabel = useMemo(() => {
     if (!ledger?.account) return '';
@@ -329,7 +362,8 @@ export default function GeneralLedger() {
           exportExcelDisabled={!filters.accountId || loading || !ledger}
           exportDropdownDisabled={!filters.accountId || loading}
           showPrint={true}
-          printDisabled={true}
+          onPrint={handlePrint}
+          printDisabled={!filters.accountId || loading || !ledger}
         >
           <ReportFormGroup
             label={t('account', 'Account')}
@@ -406,7 +440,18 @@ export default function GeneralLedger() {
           </ReportFormActions>
         </ReportHeader>
 
-        {ledger && (
+        {error && <div className="error-banner">{error}</div>}
+
+        {displayedLedger && (
+          <PrintReport
+            className="general-ledger-print"
+            companyName={props.printCompany?.company_name}
+            companyLogo={props.printCompany?.logo_url}
+            reportTitle={`${t('general_ledger', 'General Ledger')} - ${accountLabel}`}
+            dateFrom={filters.dateFrom}
+            dateTo={filters.dateTo}
+            locale={locale}
+          >
           <div className="gl-summary">
             <div className="gl-summary-item">
               <span className="gl-summary-label">{t('account', 'Account')}</span>
@@ -419,21 +464,17 @@ export default function GeneralLedger() {
             <div className="gl-summary-item">
               <span className="gl-summary-label">{t('opening_balance', 'Opening balance')}</span>
               <span className="gl-summary-value">
-                {formatBalanceWithDirection(ledger.opening_balance, natureLabel)}
+                {formatBalanceWithDirection(displayedLedger.opening_balance, natureLabel)}
               </span>
             </div>
             <div className="gl-summary-item">
               <span className="gl-summary-label">{t('closing_balance', 'Closing balance')}</span>
               <span className="gl-summary-value">
-                {formatBalanceWithDirection(ledger.closing_balance, natureLabel)}
+                {formatBalanceWithDirection(displayedLedger.closing_balance, natureLabel)}
               </span>
             </div>
           </div>
-        )}
-
-        {error && <div className="error-banner">{error}</div>}
-
-        <div className="gl-table-card">
+          <div className="gl-table-card">
           <table className="gl-table">
             <thead>
               <tr>
@@ -511,28 +552,28 @@ export default function GeneralLedger() {
                   </tr>
                 ))}
             </tbody>
-            {ledger && (
+            {displayedLedger && (
               <tfoot>
                 <tr>
                   <td colSpan={5} className="gl-total-label">
                     {t('totals', 'Totals')}
                   </td>
                   <td className="gl-amount gl-amount-debit">
-                    {ledger.total_debit.toFixed(2)}
+                    {displayedLedger.total_debit.toFixed(2)}
                   </td>
                   <td className="gl-amount gl-amount-credit">
-                    {ledger.total_credit.toFixed(2)}
+                    {displayedLedger.total_credit.toFixed(2)}
                   </td>
                   <td className="gl-amount">
-                    {formatBalanceWithDirection(ledger.closing_balance, natureLabel)}
+                    {formatBalanceWithDirection(displayedLedger.closing_balance, natureLabel)}
                   </td>
                 </tr>
               </tfoot>
             )}
           </table>
           
-          {ledger && totalRecords > perPage && (
-            <div className="gl-pagination-wrapper" style={{ padding: '1rem' }}>
+          {ledger && !printLedger && totalRecords > perPage && (
+            <div className="gl-pagination-wrapper gl-print-no" style={{ padding: '1rem' }}>
               <Pagination
                 currentPage={currentPage}
                 totalPages={Math.ceil(totalRecords / perPage)}
@@ -540,7 +581,9 @@ export default function GeneralLedger() {
               />
             </div>
           )}
-        </div>
+          </div>
+          </PrintReport>
+        )}
       </div>
     </AdminLayout>
   );
