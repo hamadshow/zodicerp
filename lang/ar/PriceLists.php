@@ -50,6 +50,9 @@ return [
     'filter_currency' => 'العملة',
     'filter_validity' => 'الصلاحية',
     'filter_product' => 'المنتج',
+    'price_status' => 'حالة السعر',
+    'with_price' => 'له سعر',
+    'without_price' => 'بدون سعر',
     'filter_unit' => 'الوحدة',
     'clear_filters' => 'مسح الفلاتر',
 
@@ -88,6 +91,10 @@ return [
 
     // Detail / items
     'manage_items' => 'بنود التسعير',
+    'catalog_products' => 'كتالوج المنتجات',
+    'pricing_items_count' => 'بنود التسعير',
+    'add_product_price' => 'إضافة بند تسعير',
+    'no_catalog_products' => 'لا توجد منتجات مؤهلة تطابق عوامل التصفية الحالية.',
     'add_item' => 'إضافة بند تسعير',
     'edit_item' => 'تعديل بند تسعير',
     'product' => 'المنتج',
@@ -105,6 +112,8 @@ return [
     'search_product' => 'ابحث عن منتج بالاسم أو الكود أو الباركود...',
     'select_product' => 'اختر منتجًا',
     'select_unit' => 'اختر وحدة',
+    'no_product_units' => 'لا توجد وحدات فرعية متاحة لهذا المنتج.',
+    'no_subunits' => 'لا توجد وحدات فرعية',
     'unit_scoped_hint' => 'وحدات المنتج المحدد.',
     'min_quantity_derived_hint' => 'يُشتق الحد الأدنى للكمية من الوحدة المحددة.',
     'no_items' => 'لا توجد بنود تسعير بعد. أضف منتجًا وشرائح الكميات الخاصة به.',
@@ -138,6 +147,8 @@ return [
     'item_deleted_success' => 'تم حذف بند التسعير بنجاح.',
     'delete_item_confirm' => 'حذف بند التسعير؟',
     'duplicate_tier' => 'يوجد بند تسعير بنفس المنتج والوحدة وأقل كمية في هذه القائمة.',
+    'product_not_eligible' => 'اختر منتجًا نشطًا وقابلًا للبيع تابعًا لشركتك.',
+    'unit_not_eligible' => 'اختر وحدة متاحة لشركتك.',
     'min_quantity_positive' => 'يجب أن تكون أقل كمية أكبر من صفر.',
     'delete_blocked_documents' => 'قائمة الأسعار مرتبطة بعروض أسعار أو أوامر بيع أو فواتير قائمة ولا يمكن حذفها. قم بتعطيلها بدلًا من ذلك.',
     'item_not_in_list' => 'بند التسعير لا ينتمي إلى قائمة الأسعار المحددة.',

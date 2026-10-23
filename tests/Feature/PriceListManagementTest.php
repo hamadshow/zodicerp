@@ -45,6 +45,573 @@ class PriceListManagementTest extends TestCase
             );
     }
 
+    public function test_product_lookup_returns_actual_variations_with_composite_names(): void
+    {
+        [$parentId, $unitId] = $this->fixtureProductAndUnit();
+        $subunitId = $this->fixtureSubunitFor($unitId);
+
+        DB::table('products')->where('id', $parentId)->update([
+            'name' => 'Shirt Adidas',
+            'sku' => 'SHIRT-PARENT',
+            'product_type' => Products::PRODUCT_TYPE_VARIATION,
+            'parent_id' => null,
+            'is_variation' => 0,
+        ]);
+
+        $simpleId = $this->nextId('products');
+        DB::table('products')->insert([
+            'id' => $simpleId,
+            'product_code' => 'TEST-PL-SIMPLE-'.$simpleId,
+            'name' => 'Shirt Basic',
+            'slug' => 'shirt-basic-'.$simpleId,
+            'status' => 'active',
+            'sku' => 'SHIRT-BASIC',
+            'unit_id' => $unitId,
+            'price' => 100,
+            'company_id' => 1,
+            'product_type' => Products::PRODUCT_TYPE_SIMPLE,
+            'is_variation' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $attributeIds = [];
+        foreach (['Color' => 1, 'Size' => 2, 'Brand' => 3] as $title => $order) {
+            $attributeIds[$title] = $this->nextId('item_attributes');
+            DB::table('item_attributes')->insert([
+                'id' => $attributeIds[$title],
+                'title' => $title,
+                'slug' => strtolower($title),
+                'order' => $order,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $detailIds = [];
+        foreach ([
+            'Black' => $attributeIds['Color'],
+            'White' => $attributeIds['Color'],
+            'XL' => $attributeIds['Size'],
+            'L' => $attributeIds['Size'],
+            'Adidas' => $attributeIds['Brand'],
+        ] as $title => $attributeId) {
+            $detailId = $this->nextId('item_attributes_details');
+            $detailIds[$title] = $detailId;
+            DB::table('item_attributes_details')->insert([
+                'id' => $detailId,
+                'attribute_set_id' => $attributeId,
+                'title' => $title,
+                'slug' => strtolower($title),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $variantIds = [];
+        foreach ([
+            ['Black', 'XL'],
+            ['White', 'L'],
+        ] as $index => [$color, $size]) {
+            $childId = $this->nextId('products');
+            $variantIds[] = $childId;
+            DB::table('products')->insert([
+                'id' => $childId,
+                'product_code' => 'TEST-PL-VARIANT-'.$childId,
+                'name' => 'Child SKU '.$index,
+                'slug' => 'child-sku-'.$childId,
+                'status' => 'active',
+                'sku' => 'SHIRT-'.$index,
+                'unit_id' => $unitId,
+                'price' => 100,
+                'company_id' => 1,
+                'product_type' => Products::PRODUCT_TYPE_SIMPLE,
+                'parent_id' => $parentId,
+                'is_variation' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $variationId = $this->nextId('product_variations');
+            DB::table('product_variations')->insert([
+                'id' => $variationId,
+                'product_id' => $childId,
+                'configurable_product_id' => $parentId,
+                'is_default' => $index === 0,
+            ]);
+
+            foreach ([
+                $attributeIds['Color'] => $detailIds[$color],
+                $attributeIds['Size'] => $detailIds[$size],
+                $attributeIds['Brand'] => $detailIds['Adidas'],
+            ] as $attributeId => $detailId) {
+                DB::table('product_variation_items')->insert([
+                    'id' => $this->nextId('product_variation_items'),
+                    'variation_id' => $variationId,
+                    'attribute_id' => $attributeId,
+                    'attribute_value' => (string) $detailId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+        }
+
+        $this->actingAs($this->admin());
+
+        $lookupResponse = $this->getJson(route('admin.inventory.price-lists.search-products', [
+            'query' => 'Shirt',
+        ]))->assertOk();
+
+        $options = collect($lookupResponse->json('products'))->keyBy('id');
+        $this->assertCount(3, $options);
+        $this->assertArrayNotHasKey($parentId, $options->all());
+        $this->assertSame('Shirt Adidas, Black, XL', $options[$variantIds[0]]['display_name']);
+        $this->assertSame('Shirt Adidas, White, L', $options[$variantIds[1]]['display_name']);
+        $this->assertSame('Shirt Basic', $options[$simpleId]['display_name']);
+        $this->assertSame('Child SKU 0', $options[$variantIds[0]]['name']);
+        $this->assertSame([$subunitId], array_column($options[$simpleId]['unit_options'], 'id'));
+        $this->assertSame([$subunitId], array_column($options[$variantIds[0]]['unit_options'], 'id'));
+
+        $whiteOptions = $this->getJson(route('admin.inventory.price-lists.search-products', [
+            'query' => 'White',
+        ]))->assertOk()->json('products');
+        $this->assertSame([$variantIds[1]], array_column($whiteOptions, 'id'));
+
+        $this->guardWritablePriceListTables();
+        $priceListId = $this->fixturePriceList();
+        foreach ($variantIds as $variantId) {
+            $this->post(route('admin.inventory.price-lists.items.store', ['price_list' => $priceListId]), [
+                'product_id' => $variantId,
+                'unit_id' => $subunitId,
+                'min_quantity' => 1,
+                'unit_price' => 75,
+                'discount_percentage' => 0,
+                'discount_amount' => 0,
+            ])->assertRedirect();
+        }
+
+        $this->get(route('admin.inventory.price-lists.show', ['price_list' => $priceListId]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('items.data.0.product.id', $variantIds[0])
+                ->where('items.data.0.product.display_name', 'Shirt Adidas, Black, XL')
+                ->where('items.data.0.product.unit_options.0.id', $subunitId)
+                ->where('tierProducts.0.product_name', 'Shirt Adidas, Black, XL')
+            );
+
+        $this->get(route('admin.inventory.price-lists.show', [
+            'price_list' => $priceListId,
+            'search' => 'White',
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('items.data', 1)
+                ->where('items.data.0.product.id', $variantIds[1])
+                ->where('items.data.0.product.display_name', 'Shirt Adidas, White, L')
+            );
+
+        $this->assertSame('Child SKU 0', DB::table('products')->where('id', $variantIds[0])->value('name'));
+        $this->assertSame($variantIds, DB::table('price_list_items')
+            ->where('price_list_id', $priceListId)
+            ->orderBy('product_id')
+            ->pluck('product_id')
+            ->map(fn ($productId) => (int) $productId)
+            ->all());
+
+        foreach ([$simpleId, ...$variantIds] as $sellableId) {
+            $this->get(route('admin.inventory.price-lists.show', [
+                'price_list' => $priceListId,
+                'product_id' => $sellableId,
+            ]))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page
+                    ->has('catalogProducts.data', 1)
+                    ->where('catalogProducts.total', 1)
+                    ->where('catalogProducts.data.0.id', $sellableId));
+        }
+
+        $this->get(route('admin.inventory.price-lists.show', [
+            'price_list' => $priceListId,
+            'product_id' => $parentId,
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('catalogProducts.total', 0));
+    }
+
+    public function test_product_unit_families_are_returned_for_catalog_and_reject_foreign_units(): void
+    {
+        $this->guardWritablePriceListTables();
+        [$productId, $baseUnitId] = $this->fixtureProductAndUnit();
+        $baseSubunitId = $this->fixtureSubunitFor($baseUnitId);
+        $extraSubunitId = $this->nextId('item_units');
+        $extraSubunitIdTwo = $extraSubunitId + 1;
+        $secondBaseUnitId = $extraSubunitId + 2;
+        $secondSubunitId = $extraSubunitId + 3;
+        $secondSubunitIdTwo = $extraSubunitId + 4;
+        $emptyBaseUnitId = $extraSubunitId + 5;
+        $otherProductId = $this->nextId('products');
+        $unitlessProductId = $otherProductId + 1;
+
+        DB::table('products')->where('id', $productId)->update([
+            'name' => 'Unit Family Primary Product',
+        ]);
+
+        DB::table('item_units')->insert([
+            [
+                'id' => $extraSubunitId,
+                'name' => 'Test PL Dozen',
+                'unit_type' => 2,
+                'base_unit' => $baseUnitId,
+                'conversion_factor' => 24,
+                'active' => 1,
+                'company_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $extraSubunitIdTwo,
+                'name' => 'Test PL Pallet',
+                'unit_type' => 2,
+                'base_unit' => $baseUnitId,
+                'conversion_factor' => 48,
+                'active' => 1,
+                'company_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $secondBaseUnitId,
+                'name' => 'Test PL Pair',
+                'unit_type' => 1,
+                'base_unit' => null,
+                'conversion_factor' => 1,
+                'active' => 1,
+                'company_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $secondSubunitId,
+                'name' => 'Test PL Pack',
+                'unit_type' => 2,
+                'base_unit' => $secondBaseUnitId,
+                'conversion_factor' => 6,
+                'active' => 1,
+                'company_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $secondSubunitIdTwo,
+                'name' => 'Test PL Case',
+                'unit_type' => 2,
+                'base_unit' => $secondBaseUnitId,
+                'conversion_factor' => 12,
+                'active' => 1,
+                'company_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $emptyBaseUnitId,
+                'name' => 'Test PL Single',
+                'unit_type' => 1,
+                'base_unit' => null,
+                'conversion_factor' => 1,
+                'active' => 1,
+                'company_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        foreach ([
+            [
+                'id' => $otherProductId,
+                'product_code' => 'TEST-PL-OTHER-UNIT-'.$otherProductId,
+                'name' => 'Unit Family Other Product',
+                'slug' => 'unit-family-other-'.$otherProductId,
+                'sku' => 'UNIT-OTHER-'.$otherProductId,
+                'unit_id' => $secondBaseUnitId,
+            ],
+            [
+                'id' => $unitlessProductId,
+                'product_code' => 'TEST-PL-UNITLESS-'.$unitlessProductId,
+                'name' => 'Unit Family Unitless Product',
+                'slug' => 'unit-family-unitless-'.$unitlessProductId,
+                'sku' => 'UNIT-EMPTY-'.$unitlessProductId,
+                'unit_id' => $emptyBaseUnitId,
+            ],
+        ] as $product) {
+            DB::table('products')->insert(array_merge($product, [
+                'status' => 'active',
+                'company_id' => 1,
+                'product_type' => Products::PRODUCT_TYPE_SIMPLE,
+                'is_variation' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]));
+        }
+
+        $this->actingAs($this->admin());
+        $lookup = $this->getJson(route('admin.inventory.price-lists.search-products', [
+            'query' => 'Unit Family',
+        ]))->assertOk()->json('products');
+        $lookupById = collect($lookup)->keyBy('id');
+
+        $this->assertSame(
+            [$baseSubunitId, $extraSubunitId, $extraSubunitIdTwo],
+            array_column($lookupById[$productId]['unit_options'], 'id')
+        );
+        $this->assertNotContains($baseUnitId, array_column($lookupById[$productId]['unit_options'], 'id'));
+        $this->assertSame(
+            [$secondSubunitIdTwo, $secondSubunitId],
+            array_column($lookupById[$otherProductId]['unit_options'], 'id')
+        );
+        $this->assertSame([], $lookupById[$unitlessProductId]['unit_options']);
+
+        $priceListId = $this->fixturePriceList();
+        $this->get(route('admin.inventory.price-lists.show', [
+            'price_list' => $priceListId,
+            'search' => 'Unit Family',
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('catalogProducts.data', fn ($rows) => collect($rows)
+                    ->keyBy('id')
+                    ->get($productId)['subunits'][0]['id'] === $baseSubunitId
+                    && count(collect($rows)->keyBy('id')->get($productId)['subunits']) === 3
+                    && collect($rows)->keyBy('id')->get($productId)['subunits'][0]['name'] === 'Test PL Box'));
+
+        $this->from(route('admin.inventory.price-lists.show', ['price_list' => $priceListId]))
+            ->post(route('admin.inventory.price-lists.items.store', ['price_list' => $priceListId]), [
+                'product_id' => $productId,
+                'unit_id' => $baseUnitId,
+                'min_quantity' => 1,
+                'unit_price' => 10,
+            ])
+            ->assertRedirect(route('admin.inventory.price-lists.show', ['price_list' => $priceListId]))
+            ->assertSessionHasErrors('unit_id');
+
+        $this->from(route('admin.inventory.price-lists.show', ['price_list' => $priceListId]))
+            ->post(route('admin.inventory.price-lists.items.store', ['price_list' => $priceListId]), [
+                'product_id' => $productId,
+                'unit_id' => $secondSubunitId,
+                'min_quantity' => 6,
+                'unit_price' => 10,
+            ])
+            ->assertRedirect(route('admin.inventory.price-lists.show', ['price_list' => $priceListId]))
+            ->assertSessionHasErrors('unit_id');
+
+        $this->post(route('admin.inventory.price-lists.items.store', ['price_list' => $priceListId]), [
+            'product_id' => $productId,
+            'unit_id' => $baseSubunitId,
+            'min_quantity' => 12,
+            'unit_price' => 10,
+            'discount_percentage' => 10,
+            'effective_date' => '2026-01-01',
+            'expiry_date' => '2026-12-31',
+        ])->assertRedirect();
+
+        $savedItemId = (int) DB::table('price_list_items')
+            ->where('price_list_id', $priceListId)
+            ->where('product_id', $productId)
+            ->value('id');
+        $this->assertSame($baseSubunitId, (int) DB::table('price_list_items')->where('id', $savedItemId)->value('unit_id'));
+
+        $this->put(route('admin.inventory.price-lists.items.update', [
+            'price_list' => $priceListId,
+            'item' => $savedItemId,
+        ]), [
+            'product_id' => $productId,
+            'unit_id' => $baseSubunitId,
+            'min_quantity' => 12,
+            'unit_price' => 10,
+            'discount_percentage' => 10,
+            'effective_date' => '2026-01-01',
+            'expiry_date' => '2026-12-31',
+        ])->assertRedirect();
+
+        $this->assertSame($baseSubunitId, (int) DB::table('price_list_items')->where('id', $savedItemId)->value('unit_id'));
+        $this->assertSame('9.0000', DB::table('price_list_items')->where('id', $savedItemId)->value('final_price'));
+    }
+
+    public function test_catalog_price_status_is_scoped_to_the_current_list_and_sellable_product(): void
+    {
+        $this->guardWritablePriceListTables();
+        [$pricedProductId, $unitId] = $this->fixtureProductAndUnit();
+        $subunitId = $this->fixtureSubunitFor($unitId);
+        DB::table('products')->where('id', $pricedProductId)->update([
+            'name' => 'CatalogStatusTest priced',
+        ]);
+        $otherListProductId = $this->nextId('products');
+        $serviceProductId = $otherListProductId + 1;
+        $foreignProductId = $serviceProductId + 1;
+        $inactiveProductId = $foreignProductId + 1;
+
+        foreach ([
+            [
+                'id' => $otherListProductId,
+                'product_code' => 'TEST-PL-OTHER-'.$otherListProductId,
+                'name' => 'CatalogStatusTest other',
+                'slug' => 'other-list-only-'.$otherListProductId,
+                'sku' => 'OTHER-LIST-'.$otherListProductId,
+                'product_type' => Products::PRODUCT_TYPE_SIMPLE,
+                'company_id' => 1,
+            ],
+            [
+                'id' => $serviceProductId,
+                'product_code' => 'TEST-PL-SERVICE-'.$serviceProductId,
+                'name' => 'CatalogStatusTest service',
+                'slug' => 'unpriced-service-'.$serviceProductId,
+                'sku' => 'SERVICE-'.$serviceProductId,
+                'product_type' => Products::PRODUCT_TYPE_SERVICE,
+                'company_id' => 1,
+            ],
+            [
+                'id' => $foreignProductId,
+                'product_code' => 'TEST-PL-FOREIGN-'.$foreignProductId,
+                'name' => 'Unscoped product',
+                'slug' => 'unscoped-product-'.$foreignProductId,
+                'sku' => 'FOREIGN-'.$foreignProductId,
+                'product_type' => Products::PRODUCT_TYPE_SIMPLE,
+                'company_id' => null,
+            ],
+            [
+                'id' => $inactiveProductId,
+                'product_code' => 'TEST-PL-INACTIVE-'.$inactiveProductId,
+                'name' => 'CatalogStatusTest inactive',
+                'slug' => 'inactive-product-'.$inactiveProductId,
+                'sku' => 'INACTIVE-'.$inactiveProductId,
+                'product_type' => Products::PRODUCT_TYPE_SIMPLE,
+                'company_id' => 1,
+                'status' => 'inactive',
+            ],
+        ] as $product) {
+            DB::table('products')->insert(array_merge($product, [
+                'status' => $product['status'] ?? 'active',
+                'unit_id' => $unitId,
+                'price' => 20,
+                'is_variation' => 0,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]));
+        }
+
+        $priceListId = $this->fixturePriceList();
+        $otherPriceListId = $this->fixturePriceList();
+        DB::table('price_list_items')->insert([
+            'id' => $this->nextId('price_list_items'),
+            'price_list_id' => $otherPriceListId,
+            'product_id' => $otherListProductId,
+            'unit_id' => $subunitId,
+            'min_quantity' => 1,
+            'unit_price' => 45,
+            'discount_percentage' => 0,
+            'discount_amount' => 0,
+        ]);
+
+        $this->actingAs($this->admin());
+        $this->post(route('admin.inventory.price-lists.items.store', ['price_list' => $priceListId]), [
+            'product_id' => $pricedProductId,
+            'unit_id' => $subunitId,
+            'min_quantity' => 1,
+            'unit_price' => 30,
+        ])->assertRedirect();
+
+        $this->get(route('admin.inventory.price-lists.show', [
+            'price_list' => $priceListId,
+            'search' => 'CatalogStatusTest',
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('catalogProducts.total', 3)
+                ->where('catalogProducts.data', fn ($rows) => collect($rows)->keyBy('id')->get($pricedProductId)['price_status'] === 'with_price'
+                    && collect($rows)->keyBy('id')->get($otherListProductId)['price_status'] === 'without_price')
+                ->where('items.total', 1));
+
+        $this->get(route('admin.inventory.price-lists.show', [
+            'price_list' => $priceListId,
+            'price_status' => 'without_price',
+            'per_page' => 5,
+            'catalog_page' => 2,
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('catalogProducts.current_page', 2)
+                ->where('catalogProducts.total', fn ($total) => $total >= 5)
+                ->where('catalogProducts.data', fn ($rows) => count($rows) === 5
+                    && collect($rows)->pluck('id')->unique()->count() === 5));
+
+        $this->get(route('admin.inventory.price-lists.show', [
+            'price_list' => $priceListId,
+            'search' => 'CatalogStatusTest',
+            'price_status' => 'with_price',
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.price_status', 'with_price')
+                ->where('catalogProducts.total', 1)
+                ->where('catalogProducts.data.0.id', $pricedProductId)
+                ->where('items.total', 1));
+
+        $this->get(route('admin.inventory.price-lists.show', [
+            'price_list' => $priceListId,
+            'search' => 'CatalogStatusTest',
+            'price_status' => 'without_price',
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('filters.price_status', 'without_price')
+                ->where('catalogProducts.total', 2)
+                ->where('catalogProducts.data', fn ($rows) => collect($rows)->pluck('id')->sort()->values()->all()
+                    === collect([$otherListProductId, $serviceProductId])->sort()->values()->all())
+                ->where('items.total', 0));
+
+        $this->get(route('admin.inventory.price-lists.show', [
+            'price_list' => $priceListId,
+            'search' => 'CatalogStatusTest',
+            'product_id' => $pricedProductId,
+            'price_status' => 'with_price',
+            'unit_id' => $subunitId,
+            'item_status' => 'active',
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('catalogProducts.total', 1)
+                ->where('items.total', 1));
+
+        $currentItemId = (int) DB::table('price_list_items')
+            ->where('price_list_id', $priceListId)
+            ->where('product_id', $pricedProductId)
+            ->value('id');
+        $this->delete(route('admin.inventory.price-lists.items.destroy', [
+            'price_list' => $priceListId,
+            'item' => $currentItemId,
+        ]))->assertRedirect();
+
+        $this->get(route('admin.inventory.price-lists.show', [
+            'price_list' => $priceListId,
+            'search' => 'CatalogStatusTest priced',
+            'price_status' => 'without_price',
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('catalogProducts.total', 1)
+                ->where('catalogProducts.data.0.price_status', 'without_price')
+                ->where('items.total', 0));
+
+        $this->from(route('admin.inventory.price-lists.show', ['price_list' => $priceListId]))
+            ->post(route('admin.inventory.price-lists.items.store', ['price_list' => $priceListId]), [
+                'product_id' => $foreignProductId,
+                'unit_id' => $subunitId,
+                'min_quantity' => 1,
+                'unit_price' => 10,
+            ])
+            ->assertRedirect(route('admin.inventory.price-lists.show', ['price_list' => $priceListId]))
+            ->assertSessionHasErrors('product_id');
+    }
+
     public function test_price_list_can_be_created_from_the_screen_and_opens_its_items(): void
     {
         $this->guardWritablePriceListTables();
@@ -165,6 +732,7 @@ class PriceListManagementTest extends TestCase
     {
         $this->guardWritablePriceListTables();
         [$productId, $unitId] = $this->fixtureProductAndUnit();
+        $unitId = $this->fixtureSubunitFor($unitId);
         $priceListId = $this->fixturePriceList();
 
         $this->actingAs($this->admin());
@@ -244,6 +812,7 @@ class PriceListManagementTest extends TestCase
     {
         $this->guardWritablePriceListTables();
         [$productId, $unitId] = $this->fixtureProductAndUnit();
+        $unitId = $this->fixtureSubunitFor($unitId);
         $priceListId = $this->fixturePriceList();
 
         $this->actingAs($this->admin());
@@ -280,6 +849,7 @@ class PriceListManagementTest extends TestCase
     {
         $this->guardWritablePriceListTables();
         [$productId, $unitId] = $this->fixtureProductAndUnit();
+        $unitId = $this->fixtureSubunitFor($unitId);
         $priceListId = $this->fixturePriceList();
 
         foreach ([1, 10, 50] as $index => $minQuantity) {
@@ -316,6 +886,7 @@ class PriceListManagementTest extends TestCase
     {
         $this->guardWritablePriceListTables();
         [$productId, $unitId] = $this->fixtureProductAndUnit();
+        $unitId = $this->fixtureSubunitFor($unitId);
         $priceListId = $this->fixturePriceList();
 
         $customer = Customer::query()->firstOrFail();
@@ -454,18 +1025,32 @@ class PriceListManagementTest extends TestCase
     private function fixtureProductAndUnit(): array
     {
         $unitId = $this->nextId('item_units');
+        $subunitId = $unitId + 1;
         $productId = $this->nextId('products');
 
         DB::table('item_units')->insert([
-            'id' => $unitId,
-            'name' => 'Test PL Piece',
-            'unit_type' => 1,
-            'base_unit' => null,
-            'conversion_factor' => 1,
-            'active' => 1,
-            'company_id' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
+            [
+                'id' => $unitId,
+                'name' => 'Test PL Piece',
+                'unit_type' => 1,
+                'base_unit' => null,
+                'conversion_factor' => 1,
+                'active' => 1,
+                'company_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'id' => $subunitId,
+                'name' => 'Test PL Box',
+                'unit_type' => 2,
+                'base_unit' => $unitId,
+                'conversion_factor' => 10,
+                'active' => 1,
+                'company_id' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
         ]);
 
         DB::table('products')->insert([
@@ -484,6 +1069,15 @@ class PriceListManagementTest extends TestCase
         ]);
 
         return [$productId, $unitId];
+    }
+
+    private function fixtureSubunitFor(int $baseUnitId): int
+    {
+        return (int) DB::table('item_units')
+            ->where('base_unit', $baseUnitId)
+            ->where('unit_type', 2)
+            ->orderBy('id')
+            ->value('id');
     }
 
     private function nextId(string $table): int

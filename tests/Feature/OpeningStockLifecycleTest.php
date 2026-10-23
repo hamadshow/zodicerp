@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\ItemUnit;
+use App\Models\OpeningStock;
 use App\Models\Products;
 use App\Models\User;
 use App\Models\Warehouses;
@@ -11,6 +12,7 @@ use App\Services\Inventory\WeightedAverageCostService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 /**
@@ -22,8 +24,8 @@ use Tests\TestCase;
  *  - updates products.quantity as a derived cache (D3),
  *  - is fully transactional (any failure rolls back everything),
  *  - allows exactly one active record per (company, warehouse, product),
- *  - edits via exact reversal-and-replacement, deletes via exact reversal,
- *    never destroying history.
+ *  - edits preserve the document identity while reversing old lines exactly,
+ *    deletes reverse current lines, and history is never destroyed.
  */
 class OpeningStockLifecycleTest extends TestCase
 {
@@ -112,6 +114,140 @@ class OpeningStockLifecycleTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    /** @test */
+    public function opening_stock_form_returns_sellable_variant_ids_and_product_unit_options(): void
+    {
+        $suffix = uniqid();
+        DB::table('products')->where('id', $this->productId)->update([
+            'name' => 'OSL Shirt',
+            'product_type' => Products::PRODUCT_TYPE_VARIATION,
+            'is_variation' => 0,
+        ]);
+
+        $childId = Products::query()->insertGetId([
+            'product_code' => 'OSL-CHILD-'.$suffix,
+            'name' => 'OSL Child SKU',
+            'slug' => 'osl-child-'.$suffix,
+            'sku' => 'OSL-CHILD-SKU-'.$suffix,
+            'unit_id' => $this->baseUnitId,
+            'cost_per_item' => 15,
+            'company_id' => $this->companyId,
+            'status' => 'active',
+            'product_type' => Products::PRODUCT_TYPE_SIMPLE,
+            'is_variation' => 1,
+            'parent_id' => $this->productId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $subunitId = ItemUnit::query()->insertGetId([
+            'name' => 'OSL Box '.$suffix,
+            'unit_type' => 2,
+            'base_unit' => $this->baseUnitId,
+            'conversion_factor' => 12,
+            'active' => 1,
+            'company_id' => $this->companyId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $unrelatedBaseId = ItemUnit::query()->insertGetId([
+            'name' => 'OSL Other Base '.$suffix,
+            'unit_type' => 1,
+            'conversion_factor' => 1,
+            'active' => 1,
+            'company_id' => $this->companyId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        ItemUnit::query()->insert([
+            'name' => 'OSL Other Pack '.$suffix,
+            'unit_type' => 2,
+            'base_unit' => $unrelatedBaseId,
+            'conversion_factor' => 6,
+            'active' => 1,
+            'company_id' => $this->companyId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $attributeId = DB::table('item_attributes')->insertGetId([
+            'title' => 'Color',
+            'slug' => 'osl-color-'.$suffix,
+            'order' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $colorId = DB::table('item_attributes_details')->insertGetId([
+            'attribute_set_id' => $attributeId,
+            'title' => 'Black',
+            'slug' => 'osl-black-'.$suffix,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $sizeAttributeId = DB::table('item_attributes')->insertGetId([
+            'title' => 'Size',
+            'slug' => 'osl-size-'.$suffix,
+            'order' => 2,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $sizeId = DB::table('item_attributes_details')->insertGetId([
+            'attribute_set_id' => $sizeAttributeId,
+            'title' => 'XL',
+            'slug' => 'osl-xl-'.$suffix,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $brandAttributeId = DB::table('item_attributes')->insertGetId([
+            'title' => 'Brand',
+            'slug' => 'osl-brand-'.$suffix,
+            'order' => 3,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $brandId = DB::table('item_attributes_details')->insertGetId([
+            'attribute_set_id' => $brandAttributeId,
+            'title' => 'Adidas',
+            'slug' => 'osl-adidas-'.$suffix,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $variationId = DB::table('product_variations')->insertGetId([
+            'product_id' => $childId,
+            'configurable_product_id' => $this->productId,
+            'is_default' => true,
+        ]);
+        foreach ([
+            $attributeId => $colorId,
+            $sizeAttributeId => $sizeId,
+            $brandAttributeId => $brandId,
+        ] as $attribute => $value) {
+            DB::table('product_variation_items')->insert([
+                'variation_id' => $variationId,
+                'attribute_id' => $attribute,
+                'attribute_value' => (string) $value,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $this->get(route('admin.inventory.opening-stock.index', ['country' => 'sa', 'lang' => 'ar']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('products', function ($products) use ($childId, $subunitId) {
+                    $byId = collect($products)->keyBy('id');
+                    $child = $byId->get($childId);
+
+                    return ! $byId->has($this->productId)
+                        && $child['display_name'] === 'OSL Shirt, Black, XL, Adidas'
+                        && array_column($child['unit_options'], 'id') === [$this->baseUnitId, $subunitId];
+                })
+                ->where('warehouses', fn ($warehouses) => collect($warehouses)
+                    ->contains(fn ($warehouse) => (int) $warehouse['id'] === $this->warehouseId))
+                ->missing('units'));
     }
 
     /* =====================================================================
@@ -303,6 +439,34 @@ class OpeningStockLifecycleTest extends TestCase
     }
 
     /** @test */
+    public function inactive_units_are_rejected_for_opening_stock()
+    {
+        $suffix = uniqid();
+        $inactiveUnitId = ItemUnit::query()->insertGetId([
+            'name' => 'OSL Inactive '.$suffix,
+            'unit_type' => 2,
+            'base_unit' => $this->baseUnitId,
+            'conversion_factor' => 12,
+            'active' => 0,
+            'company_id' => $this->companyId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        try {
+            app(OpeningStockService::class)->create([
+                'warehouse_id' => $this->warehouseId,
+                'items' => [
+                    ['product_id' => $this->productId, 'unit_id' => $inactiveUnitId, 'quantity' => 1, 'cost_price' => 12],
+                ],
+            ]);
+            $this->fail('Expected inactive unit validation to fail.');
+        } catch (\Illuminate\Validation\ValidationException $exception) {
+            $this->assertArrayHasKey('items.0.unit_id', $exception->errors());
+        }
+    }
+
+    /** @test */
     public function the_same_product_may_open_in_different_warehouses()
     {
         $suffix = uniqid();
@@ -408,39 +572,62 @@ class OpeningStockLifecycleTest extends TestCase
     }
 
     /* =====================================================================
-     | Update: reversal-and-replacement (D4)
+     | Update: stable document with reversible line history (D4)
      ===================================================================== */
 
     /** @test */
-    public function update_supersedes_the_old_document_and_creates_a_new_one()
+    public function update_preserves_document_identity_and_reverses_old_stock_effects()
     {
         $service = app(OpeningStockService::class);
 
         $header = $service->create([
             'warehouse_id' => $this->warehouseId,
+            'movement_date' => '2026-01-01',
+            'notes' => 'Initial opening',
             'items' => [
                 ['product_id' => $this->productId, 'unit_id' => $this->baseUnitId, 'quantity' => 10, 'cost_price' => 5],
             ],
         ]);
+        $headerCount = DB::table('inventory_movement_headers')->where('type', 'opening')->count();
+        $voucherNum = $header->voucher_num;
 
-        $newHeader = $service->update((int) $header->id, [
+        $this->put(route('admin.inventory.opening-stock.update', [
+            'country' => 'sa',
+            'lang' => 'ar',
+            'openingStock' => $header->id,
+        ]), [
             'warehouse_id' => $this->warehouseId,
+            'movement_date' => '2026-02-01',
+            'notes' => 'Edited opening',
             'items' => [
                 ['product_id' => $this->productId, 'unit_id' => $this->baseUnitId, 'quantity' => 20, 'cost_price' => 7],
             ],
-        ]);
+        ])
+            ->assertRedirect(route('admin.inventory.opening-stock.index', ['country' => 'sa', 'lang' => 'ar']))
+            ->assertSessionHas('success', 'Opening stock updated successfully');
 
-        // Old document kept as a superseded audit row; new document created.
-        $this->assertSame('out', DB::table('inventory_movement_headers')->where('id', $header->id)->value('direction'));
-        $this->assertStringContainsString('[SUPERSEDED', (string) DB::table('inventory_movement_headers')->where('id', $header->id)->value('notes'));
-        $this->assertNotSame((int) $header->id, (int) $newHeader->id);
-        $this->assertSame('in', $newHeader->direction);
+        $updatedHeader = DB::table('inventory_movement_headers')->where('id', $header->id)->first();
 
-        // New document carries the replacement line.
-        $lines = DB::table('inventory_movement_lines')->where('stock_movement_id', $newHeader->id)->get();
+        $this->assertSame((int) $header->id, (int) $updatedHeader->id);
+        $this->assertSame($voucherNum, $updatedHeader->voucher_num);
+        $this->assertSame('2026-02-01', $updatedHeader->movement_date);
+        $this->assertSame('Edited opening', $updatedHeader->notes);
+        $this->assertSame('in', $updatedHeader->direction);
+        $this->assertSame($headerCount, DB::table('inventory_movement_headers')->where('type', 'opening')->count());
+
+        $historicalLine = DB::table('inventory_movement_lines')
+            ->where('stock_movement_id', $header->id)
+            ->where('is_current', false)
+            ->first();
+        $this->assertNotNull($historicalLine, 'The original line must remain for immutable cost history.');
+        $lines = DB::table('inventory_movement_lines')
+            ->where('stock_movement_id', $header->id)
+            ->where('is_current', true)
+            ->get();
         $this->assertCount(1, $lines);
         $this->assertSame(20.0, (float) $lines->first()->quantity);
         $this->assertEqualsWithDelta(7.0, (float) $lines->first()->cost_price, 0.000001);
+        $this->assertCount(1, OpeningStock::with('items')->findOrFail($header->id)->items);
 
         // WAC: original +10@5, reversal -10@5, new +20@7 => 20 @ 7.
         $balance = DB::table('inventory_cost_balances')
@@ -460,6 +647,69 @@ class OpeningStockLifecycleTest extends TestCase
         );
 
         $this->assertSame(20.0, (float) DB::table('products')->where('id', $this->productId)->value('quantity'));
+        $this->assertSame(0, app(\App\Services\Inventory\ReconciliationService::class)
+            ->report($this->warehouseId)['summary']['balance_mismatches']);
+    }
+
+    /** @test */
+    public function update_can_add_and_remove_items_without_duplicate_stock()
+    {
+        $suffix = uniqid();
+        $secondProductId = Products::query()->insertGetId([
+            'product_code' => 'OSL-PRD-2-'.$suffix,
+            'name' => 'OSL Second Product',
+            'slug' => 'osl-second-product-'.$suffix,
+            'sku' => 'OSL-SKU-2-'.$suffix,
+            'quantity' => 0,
+            'unit_id' => $this->baseUnitId,
+            'cost_per_item' => 10,
+            'company_id' => $this->companyId,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $service = app(OpeningStockService::class);
+        $header = $service->create([
+            'warehouse_id' => $this->warehouseId,
+            'items' => [
+                ['product_id' => $this->productId, 'unit_id' => $this->baseUnitId, 'quantity' => 8, 'cost_price' => 4],
+            ],
+        ]);
+
+        $updated = $service->update((int) $header->id, [
+            'warehouse_id' => $this->warehouseId,
+            'items' => [
+                ['product_id' => $secondProductId, 'unit_id' => $this->baseUnitId, 'quantity' => 5, 'cost_price' => 6],
+            ],
+        ]);
+
+        $this->assertSame((int) $header->id, (int) $updated->id);
+        $this->assertSame(0.0, (float) DB::table('products')->where('id', $this->productId)->value('quantity'));
+        $this->assertSame(5.0, (float) DB::table('products')->where('id', $secondProductId)->value('quantity'));
+        $this->assertSame(
+            [$secondProductId],
+            DB::table('inventory_movement_lines')
+                ->where('stock_movement_id', $header->id)
+                ->where('is_current', true)
+                ->pluck('product_id')
+                ->map(fn ($id) => (int) $id)
+                ->all()
+        );
+        $this->assertSame(
+            1,
+            DB::table('inventory_movement_lines')
+                ->where('stock_movement_id', $header->id)
+                ->where('is_current', false)
+                ->count()
+        );
+
+        $service->delete((int) $header->id);
+        $this->assertSame(0.0, (float) DB::table('products')->where('id', $secondProductId)->value('quantity'));
+        $this->assertSame(
+            0.0,
+            (float) DB::table('inventory_cost_balances')->where('product_id', $secondProductId)->value('quantity')
+        );
     }
 
     /** @test */

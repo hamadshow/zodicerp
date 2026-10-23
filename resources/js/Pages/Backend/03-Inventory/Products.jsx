@@ -230,8 +230,8 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                 // Domain: parent_id is authoritative for "is a variation";
                 // a variable product is always a parent/template, never a child.
                 const type = String(product.product_type || 'simple').toLowerCase();
-                const isChild = Boolean(product.parent_id) && type !== 'variable';
-                const isVariableParent = type === 'variable'
+                const isChild = Boolean(product.parent_id) && type !== 'variation';
+                const isVariableParent = type === 'variation'
                     || (!isChild && type !== 'service' && Number(product.variations_count || 0) > 0);
 
                 if (isChild) {
@@ -1120,14 +1120,14 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
     const shouldHideGlobalSections = useMemo(() => {
         return (
             (Array.isArray(data.variations) && data.variations.length > 0) ||
-            data.product_type === 'variable' ||
+            data.product_type === 'variation' ||
             hasSelectedAttributes
         );
     }, [data.variations, data.product_type, hasSelectedAttributes]);
 
     // Product Type is the authoritative UI condition: variable-only controls
     // (attributes/variations) render exclusively for variable products.
-    const isVariableProduct = data.product_type === 'variable';
+    const isVariableProduct = data.product_type === 'variation';
 
     const toggleOption = (attributeId, detailId) => {
         setSelectedVariationOptions(prev => {
@@ -2216,7 +2216,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                     // (422), so drop client-side variation
                                                     // state to keep payload and UI consistent.
                                                     // DB records are untouched until save.
-                                                    if (data.product_type === 'variable' && nextType !== 'variable') {
+                                                    if (data.product_type === 'variation' && nextType !== 'variation') {
                                                         setData(curr => ({ ...curr, product_type: nextType, variations: [] }));
                                                         setSelectedAttributeIds([]);
                                                         setSelectedVariationOptions({});
@@ -2230,7 +2230,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                 }}
                                             >
                                                 <option value="simple">{t('simple_product', 'Simple Product')}</option>
-                                                <option value="variable">{t('variable_product', 'Variable Product')}</option>
+                                                <option value="variation">{t('variable_product', 'Variable Product')}</option>
                                                 <option value="service">{t('service_product', 'Service')}</option>
                                             </select>
                                             {errors.product_type && <div className="error-msg">{errors.product_type}</div>}
@@ -3208,15 +3208,15 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                                 setSelectedVariationOptions({});
                                                                 setVariationAttributeValues({});
                                                                 setData(curr => (
-                                                                    curr.product_type === 'variable'
+                                                                    curr.product_type === 'variation'
                                                                         ? { ...curr, product_type: 'simple', variations: [] }
                                                                         : curr
                                                                 ));
                                                             } else {
                                                                 setData(curr => (
-                                                                    curr.product_type === 'service' || curr.product_type === 'variable'
+                                                                    curr.product_type === 'service' || curr.product_type === 'variation'
                                                                         ? curr
-                                                                        : { ...curr, product_type: 'variable' }
+                                                                        : { ...curr, product_type: 'variation' }
                                                                 ));
                                                             }
                                                         }}

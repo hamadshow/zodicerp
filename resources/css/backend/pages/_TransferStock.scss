@@ -1,173 +1,442 @@
-.transfer-stock-container {
-  padding: 20px;
-  direction: ltr;
-  unicode-bidi: isolate;
-  font-family: inherit;
+/* Transfer Stock Module — page-scoped styles for TransferStock.jsx.
+ *
+ * Element classes are declared with BEM concatenation (&__element), which
+ * compiles to standalone top-level selectors: the view dialog renders inside
+ * the shared Headless UI Modal (portaled to the document body), so its
+ * content cannot rely on the .stock-transfer-module ancestor.
+ *
+ * Shared building blocks (.form-control, .form-group, .btn*, .action-btn,
+ * .table-wrapper, .searchable-combobox, StatsCards, NavigationLink) come
+ * from the shared stylesheets — this file only adds module layout, the
+ * line-item table, summary, badges and the view dialog content.
+ */
 
-  .page-header {
-    margin-bottom: 20px;
+@use '../base/variables' as *;
+@use '../base/mixins' as *;
+
+.stock-transfer-module {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  color: $text-primary;
+
+  /* ---------- Page header ---------- */
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+
     h1 {
-      font-size: 24px;
-      color: #333;
-      margin-bottom: 10px;
+      margin: 0;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: $text-primary;
     }
   }
 
-  .card {
-    background: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    padding: 25px;
-    margin-bottom: 20px;
+  &__subtitle {
+    margin: 4px 0 0;
+    font-size: 0.875rem;
+    color: $text-muted;
+  }
 
-    .card-title {
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* ---------- Validation / flash-style alerts ---------- */
+
+  &__alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 1px solid rgba($danger-color, 0.3);
+    background: rgba($danger-color, 0.06);
+    border-radius: $radius-md;
+    color: #b91c1c;
+    font-size: 0.875rem;
+    line-height: 1.5;
+
+    .material-icons-outlined {
       font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 20px;
-      border-bottom: 1px solid #eee;
-      padding-bottom: 10px;
+      line-height: 1.4;
     }
   }
 
-  .form-grid {
+  /* ---------- Form sections ---------- */
+
+  &__section {
+    background: $white;
+    border: 1px solid $border-color;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+    padding: 20px 24px;
+  }
+
+  &__section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid $border-color;
+
+    h3 {
+      margin: 0;
+      font-size: 0.875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: $text-muted;
+    }
+  }
+
+  &__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-    margin-bottom: 20px;
+    gap: 16px;
+    margin-bottom: 14px;
 
-    .form-group {
-      display: flex;
-      flex-direction: column;
+    &--three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
 
-      label {
-        margin-bottom: 8px;
-        font-weight: 500;
-        color: #555;
+      @include media-breakpoint-down('lg') {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      input, select, textarea {
-        padding: 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
-
-        &:focus {
-          border-color: #3b82f6;
-          outline: none;
-        }
-      }
-
-      textarea {
-        resize: vertical;
-      }
-
-      .error-message {
-        color: #ef4444;
-        font-size: 12px;
-        margin-top: 4px;
+      @include media-breakpoint-down('md') {
+        grid-template-columns: 1fr;
       }
     }
   }
 
-  .items-table-container {
+  &__hint {
+    margin: 0 0 14px;
+    font-size: 0.8rem;
+    line-height: 1.5;
+    color: $text-muted;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 0;
+
+    label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: $text-secondary;
+    }
+  }
+
+  .required {
+    color: $danger-color;
+    font-weight: 700;
+  }
+
+  .error-msg {
+    display: block;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: $danger-color;
+  }
+
+  .form-control.error {
+    border-color: $danger-color;
+    box-shadow: 0 0 0 2px rgba($danger-color, 0.12);
+  }
+
+  /* ---------- Line-item table ---------- */
+
+  &__items-wrap {
     overflow-x: auto;
-    
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 600px;
+    border: 1px solid $border-color;
+    border-radius: $radius-md;
+    background: $white;
+  }
 
-      th, td {
-        padding: 12px;
-        text-align: left;
-        border-bottom: 1px solid #eee;
-      }
+  &__items-table {
+    width: 100%;
+    min-width: 640px;
+    border-collapse: collapse;
 
-      th {
-        background-color: #f8f9fa;
-        font-weight: 600;
-        color: #444;
-      }
+    th {
+      padding: 10px 12px;
+      background: $light-color;
+      border-bottom: 1px solid $border-color;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: $text-muted;
+      text-align: start;
+      white-space: nowrap;
+    }
 
-      .action-column {
-        width: 50px;
-        text-align: center;
-      }
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba($border-color, 0.7);
+      vertical-align: top;
+      font-size: 0.875rem;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover td {
+      background: rgba($info-color, 0.02);
     }
   }
 
-  .btn {
-    padding: 10px 20px;
-    border-radius: 4px;
-    border: none;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background 0.3s;
-
-    &.btn-primary {
-      background-color: #3b82f6;
-      color: white;
-      &:hover { background-color: #2563eb; }
-    }
-
-    &.btn-danger {
-      background-color: #ef4444;
-      color: white;
-      &:hover { background-color: #dc2626; }
-    }
-
-    &.btn-secondary {
-      background-color: #6b7280;
-      color: white;
-      &:hover { background-color: #4b5563; }
-    }
-
-    &.btn-add {
-      background-color: #10b981;
-      color: white;
-      margin-top: 15px;
-      display: inline-block;
-      &:hover { background-color: #059669; }
-    }
+  &__col-index,
+  &__row-index {
+    width: 44px;
+    text-align: center;
+    color: $text-muted;
   }
 
-  .form-actions {
+  &__row-index {
+    font-weight: 600;
+    padding-top: 12px; /* aligns with the ~40px control beside it */
+  }
+
+  &__col-unit {
+    width: 180px;
+  }
+
+  &__col-qty {
+    width: 160px;
+  }
+
+  &__col-actions {
+    width: 72px;
+    text-align: center;
+  }
+
+  /* ---------- Summary strip (form mode) ---------- */
+
+  &__summary {
     display: flex;
     justify-content: flex-end;
-    gap: 15px;
-    margin-top: 30px;
+    align-items: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    padding: 10px 14px;
+    background: $light-color;
+    border: 1px solid $border-color;
+    border-radius: $radius-md;
+    font-size: 0.85rem;
+    color: $text-muted;
+  }
+
+  &__summary-item strong {
+    color: $text-primary;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Form footer ---------- */
+
+  &__form-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  /* ---------- List table extras ---------- */
+
+  &__number {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  &__row-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: $radius-full;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  .badge-success {
+    background: rgba($success-color, 0.12);
+    color: #047857;
+  }
+
+  .badge-danger {
+    background: rgba($danger-color, 0.12);
+    color: #b91c1c;
   }
 }
 
-/* Conversion transparency for a single logical transfer document */
-.transfer-stock-container {
-  .price-authority-note {
-    background: #eff6ff;
-    border-left: 3px solid #3b82f6;
-    color: #64748b;
-    font-size: 0.8rem;
-    line-height: 1.5;
-    padding: 8px 12px;
-    border-radius: 4px;
-    margin: 0 0 12px;
+td.stock-transfer-module__col-actions {
+  vertical-align: middle;
+  padding-top: 12px;
+}
+
+/* ---------- View dialog (portaled outside the module root) ---------- */
+
+.stock-transfer-module__modal {
+  display: flex;
+  flex-direction: column;
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
+  background: $white;
+  font-size: 0.875rem;
+}
+
+.stock-transfer-module__modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid $border-color;
+
+  h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: $text-primary;
+  }
+}
+
+.stock-transfer-module__modal-close {
+  border: 0;
+  background: transparent;
+  padding: 0 6px;
+  border-radius: $radius-sm;
+  font-size: 1.6rem;
+  line-height: 1;
+  color: $text-muted;
+  cursor: pointer;
+
+  &:hover {
+    background: $light-color;
+    color: $text-primary;
+  }
+}
+
+.stock-transfer-module__modal-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px 16px;
+  padding: 14px 20px;
+  background: $light-color;
+  border-bottom: 1px solid $border-color;
+  font-size: 0.85rem;
+  color: $text-secondary;
+
+  strong {
+    color: $text-primary;
   }
 
-  .field-hint {
-    font-size: 0.75rem;
-    color: #64748b;
-    margin-top: 4px;
-  }
-
-  .conversion-cell {
-    &__base {
-      font-weight: 600;
-      color: #111827;
-    }
-  }
-
-  .conversion-note {
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: $radius-full;
     font-size: 0.72rem;
-    color: #64748b;
-    margin-top: 2px;
+    font-weight: 700;
+    line-height: 1.3;
   }
+}
+
+.stock-transfer-module__modal-meta .badge-success {
+  background: rgba($success-color, 0.12);
+  color: #047857;
+}
+
+.stock-transfer-module__modal-meta .badge-danger {
+  background: rgba($danger-color, 0.12);
+  color: #b91c1c;
+}
+
+.stock-transfer-module__modal-table-wrap {
+  overflow-x: auto;
+}
+
+.stock-transfer-module__table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    padding: 10px 14px;
+    background: $light-color;
+    border-bottom: 1px solid $border-color;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $text-muted;
+    text-align: start;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba($border-color, 0.7);
+    text-align: start;
+    font-variant-numeric: tabular-nums;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  .text-end {
+    text-align: end;
+  }
+}
+
+.stock-transfer-module__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px 20px;
+  font-size: 0.9rem;
+  color: $text-muted;
+}
+
+.stock-transfer-module__spinner {
+  animation: stock-transfer-spin 1s linear infinite;
+}
+
+@keyframes stock-transfer-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.stock-transfer-module__empty {
+  padding: 32px 20px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: $text-muted;
 }

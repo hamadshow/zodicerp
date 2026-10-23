@@ -53,6 +53,7 @@ class OpeningStock extends Model
 
     public function items(): HasMany
     {
-        return $this->hasMany(OpeningStockItem::class, 'stock_movement_id');
+        return $this->hasMany(OpeningStockItem::class, 'stock_movement_id')
+            ->where('is_current', true);
     }
 }

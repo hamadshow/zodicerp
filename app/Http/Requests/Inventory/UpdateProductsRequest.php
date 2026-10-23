@@ -96,11 +96,11 @@ class UpdateProductsRequest extends FormRequest
 
             // Product Domain (Phase 1):
             // - parent_id set  => the row is a variation child (attribute combos in payload).
-            // - parent_id null => a standalone product; only a variable parent carries variations.
+            // - parent_id null => a standalone product; only a variation parent carries variations.
             'variations' => [
                 'nullable',
                 'array',
-                Rule::requiredIf(fn () => $this->input('product_type') === Products::PRODUCT_TYPE_VARIABLE && ! $this->filled('parent_id')),
+                Rule::requiredIf(fn () => $this->input('product_type') === Products::PRODUCT_TYPE_VARIATION && ! $this->filled('parent_id')),
                 Rule::prohibitedIf(fn () => in_array($this->input('product_type'), [Products::PRODUCT_TYPE_SIMPLE, Products::PRODUCT_TYPE_SERVICE], true) && ! $this->filled('parent_id')),
             ],
             'variations.*.sku' => ['nullable', 'string', 'max:150'],

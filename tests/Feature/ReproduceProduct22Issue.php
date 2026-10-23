@@ -33,7 +33,7 @@ class ReproduceProduct22Issue extends TestCase
         $payload = [
             'name' => $product->name,
             'status' => 'active',
-            'product_type' => 'variable',
+            'product_type' => 'variation',
             'is_featured' => 1, // Try to set to 1
             'sku' => $product->sku,
             'stock_status' => 'in_stock',

@@ -50,6 +50,9 @@ return [
     'filter_currency' => 'Currency',
     'filter_validity' => 'Validity',
     'filter_product' => 'Product',
+    'price_status' => 'Price Status',
+    'with_price' => 'With Price',
+    'without_price' => 'Without Price',
     'filter_unit' => 'Unit',
     'clear_filters' => 'Clear filters',
 
@@ -88,6 +91,10 @@ return [
 
     // Detail / items
     'manage_items' => 'Pricing Items',
+    'catalog_products' => 'Product Catalog',
+    'pricing_items_count' => 'Pricing Items',
+    'add_product_price' => 'Add Pricing Item',
+    'no_catalog_products' => 'No eligible products match the current filters.',
     'add_item' => 'Add Pricing Item',
     'edit_item' => 'Edit Pricing Item',
     'product' => 'Product',
@@ -105,6 +112,8 @@ return [
     'search_product' => 'Search product by name, SKU or barcode...',
     'select_product' => 'Select a product',
     'select_unit' => 'Select a unit',
+    'no_product_units' => 'No subunits available for this product.',
+    'no_subunits' => 'No subunits',
     'unit_scoped_hint' => 'Units of the selected product.',
     'min_quantity_derived_hint' => 'Min Qty is derived from the selected unit.',
     'no_items' => 'This price list has no pricing items yet. Add a product and its quantity tiers.',
@@ -138,6 +147,8 @@ return [
     'item_deleted_success' => 'Pricing item deleted successfully.',
     'delete_item_confirm' => 'Delete this pricing item?',
     'duplicate_tier' => 'A pricing item with the same product, unit and minimum quantity already exists in this list.',
+    'product_not_eligible' => 'Select an active sellable product from your company.',
+    'unit_not_eligible' => 'Select a unit available to your company.',
     'min_quantity_positive' => 'Minimum quantity must be greater than zero.',
     'delete_blocked_documents' => 'This price list is referenced by existing sales quotations, orders or invoices and cannot be deleted. Deactivate it instead.',
     'item_not_in_list' => 'This pricing item does not belong to the selected price list.',

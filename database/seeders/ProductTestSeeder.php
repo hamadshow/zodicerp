@@ -109,7 +109,7 @@ class ProductTestSeeder extends Seeder
                     'name' => 'Test Variable Product',
                     'slug' => 'test-variable-product',
                     'product_code' => 'PRD-TEST-002',
-                    'product_type' => 'variable',
+                    'product_type' => 'variation',
                     'status' => 'active',
                     'price' => 200.00, // Base price
                     'quantity' => 100,

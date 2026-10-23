@@ -351,7 +351,7 @@ Every legitimate stock-changing operation must produce, in one transaction:
 - **D3 (derived cache) partially implemented:** opening stock now writes
   `products.quantity` with the BASE quantity and conversion snapshots on the
   line; `products.quantity` itself was widened to `DECIMAL(16,4)` (see below).
-- **D4 (update/delete): implemented as reversal-and-replacement.**
+- **D4 (update/delete): edits preserve the opening document identity.**
 - **D7 (one active opening per product/warehouse): implemented** (conservative
   default). A second submission for the same product+warehouse is rejected;
   edit via update instead.
@@ -364,14 +364,17 @@ Single authority for opening stock (`app/Services/Inventory/OpeningStockService.
   products; converts document qty → base (`UnitConversionService`); cost is
   entered per document unit and divided by the conversion factor for the WAC;
   writes header + lines + ICTs + derived quantity in ONE transaction.
-- `update()` — **reverse-old-document + create-new-document**: movement lines
-  are referenced by immutable ICTs (`ict.movement_line_id` is a RESTRICT FK),
-  so lines can never be rewritten in place. The old document is reversed
-  exactly (`WAC::reverse` per ICT + derived-quantity rollback) and kept as an
-  audit row marked `[SUPERSEDED date]`; the replacement is a fresh document.
-  The correction is dated `max(new date, today)` to honor WAC chronology.
+- `update()` — **reverse-old-lines + retain the same document header**:
+  movement lines are referenced by immutable ICTs, so prior lines are kept
+  for audit and marked non-current. Their cost and derived-quantity effects
+  are reversed via `WAC::reverse`, then the replacement lines are written
+  under the same header. The header ID and voucher number are preserved; only
+  a legitimate create generates a new reference. Corrections are posted at
+  `max(new date, today)` to honor WAC chronology while the document keeps its
+  entered date.
 - `delete()` — exact reversal; header kept as an audit row (direction →
-  `'out'`, `[REVERSED date]`). History is never destroyed.
+  `'out'`, `[REVERSED date]`) and its current lines are marked non-current.
+  History is never destroyed.
 - Legacy pre-Phase 3 lines without ICTs reverse the derived quantity only and
   become Phase 7 reconciliation flags.
 
@@ -383,6 +386,12 @@ per source, refuses when the stock has already been consumed (negative guard).
 This is the general reversal primitive Phases 4–6 will reuse.
 
 ## Schema change (proven necessary)
+
+`inventory_movement_lines.is_current` distinguishes current opening-stock
+lines from immutable lines retained after an edit or reversal. Deleting or
+rewriting transaction-linked lines would break the WAC audit trail; retaining
+them without a current marker would double-count the opening balance. Opening
+Stock reads, reconciliation, and valuation use only current lines.
 
 **`products.quantity` was `INT(11)`.** Every fractional base quantity written
 by ANY flow (box→piece conversions, decimal GRNs, opening stock) was silently

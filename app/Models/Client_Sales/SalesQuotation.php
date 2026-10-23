@@ -15,6 +15,21 @@ class SalesQuotation extends Model
 {
     use HasFactory, SoftDeletes;
 
+    /**
+     * Mirrors the sales_quotations.status enum. The API contract for the
+     * quotation form (store/update validation) is derived from this list so
+     * the form, the validator and the database can never drift apart.
+     */
+    public const STATUSES = [
+        'draft',
+        'sent',
+        'under_review',
+        'accepted',
+        'rejected',
+        'expired',
+        'converted',
+    ];
+
     protected $table = 'sales_quotations';
 
     protected $fillable = [
@@ -43,6 +58,7 @@ class SalesQuotation extends Model
         'customer_notes',
         'internal_notes',
         'created_by',
+        'company_id',
     ];
 
     protected $casts = [
@@ -60,6 +76,11 @@ class SalesQuotation extends Model
         'base_total' => 'decimal:2',
         'probability_percentage' => 'decimal:2',
     ];
+
+    public static function statuses(): array
+    {
+        return self::STATUSES;
+    }
 
     public function customer()
     {

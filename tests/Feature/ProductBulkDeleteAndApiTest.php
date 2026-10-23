@@ -157,9 +157,9 @@ class ProductBulkDeleteAndApiTest extends TestCase
         $this->assertNotNull($product->slug, 'slug must be generated (NOT NULL schema).');
     }
 
-    public function test_api_store_rejects_non_canonical_product_type(): void
+    public function test_api_store_rejects_legacy_variable_product_type(): void
     {
-        $response = $this->postJson('/api/products', $this->apiPayload(['product_type' => 'bundle']));
+        $response = $this->postJson('/api/products', $this->apiPayload(['product_type' => 'variable']));
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['product_type']);
@@ -173,19 +173,19 @@ class ProductBulkDeleteAndApiTest extends TestCase
         $response->assertJsonValidationErrors(['product_type']);
     }
 
-    public function test_api_store_variable_with_null_parent_works(): void
+    public function test_api_store_variation_parent_with_null_parent_works(): void
     {
-        $id = $this->createApiProduct(['product_type' => 'variable', 'parent_id' => null]);
+        $id = $this->createApiProduct(['product_type' => 'variation', 'parent_id' => null]);
 
         $product = Products::find($id);
-        $this->assertSame('variable', $product->product_type);
+        $this->assertSame('variation', $product->product_type);
         $this->assertNull($product->parent_id);
         $this->assertFalse((bool) $product->is_variation, 'A variable parent must never be flagged as a variation.');
     }
 
-    public function test_api_store_variation_child_of_variable_parent_works(): void
+    public function test_api_store_variation_child_of_variation_parent_works(): void
     {
-        $parentId = $this->createApiProduct(['product_type' => 'variable']);
+        $parentId = $this->createApiProduct(['product_type' => 'variation']);
 
         $response = $this->postJson('/api/products', $this->apiPayload([
             'product_type' => 'simple',
@@ -215,12 +215,12 @@ class ProductBulkDeleteAndApiTest extends TestCase
         $response->assertJsonValidationErrors(['parent_id']);
     }
 
-    public function test_api_store_rejects_variable_child(): void
+    public function test_api_store_rejects_variation_parent_as_child(): void
     {
-        $parentId = $this->createApiProduct(['product_type' => 'variable']);
+        $parentId = $this->createApiProduct(['product_type' => 'variation']);
 
         $response = $this->postJson('/api/products', $this->apiPayload([
-            'product_type' => 'variable',
+            'product_type' => 'variation',
             'parent_id' => $parentId,
         ]));
 
@@ -230,7 +230,7 @@ class ProductBulkDeleteAndApiTest extends TestCase
 
     public function test_api_store_rejects_service_child(): void
     {
-        $parentId = $this->createApiProduct(['product_type' => 'variable']);
+        $parentId = $this->createApiProduct(['product_type' => 'variation']);
 
         $response = $this->postJson('/api/products', $this->apiPayload([
             'product_type' => 'service',
@@ -381,7 +381,7 @@ class ProductBulkDeleteAndApiTest extends TestCase
         $response = $this->postJson(route('admin.inventory.products.store'), [
             'name' => $label.'-parent-'.uniqid(),
             'status' => 'active',
-            'product_type' => 'variable',
+            'product_type' => 'variation',
             'stock_status' => 'in_stock',
             'sku' => self::FIXTURE_PREFIX.strtoupper(uniqid()),
             'variations' => $variations,

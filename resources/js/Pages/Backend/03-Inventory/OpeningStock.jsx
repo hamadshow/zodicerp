@@ -9,8 +9,9 @@ import { formatDate } from '@/utils/date';
 import * as XLSX from 'xlsx';
 import html2pdf from 'html2pdf.js';
 
-export default function OpeningStock({ openingStocks, warehouses, products, units, filters = {} }) {
+export default function OpeningStock({ openingStocks, warehouses, products, filters = {} }) {
     const [mode, setMode] = useState('list'); 
+    const [editingOpeningStockId, setEditingOpeningStockId] = useState(null);
     const openingStockRef = useRef(null);
     const printRef = useRef(null);
     const { props } = usePage();
@@ -246,26 +247,16 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
         });
     };
 
-    const warehouseOptions = useMemo(() => {
-        return (warehouses || []).map(w => ({
-            value: String(w.id),
-            label: w.name_en || w.name_ar || w.name || ''
-        }));
-    }, [warehouses]);
-
     const productOptions = useMemo(() => {
         return (products || []).map(p => ({
             value: String(p.id),
-            label: p.name_en || p.name_ar || p.name || ''
+            label: `${p.display_name || p.name_en || p.name_ar || p.name || ''}${p.sku ? ` (${p.sku})` : ''}`
         }));
     }, [products]);
 
-    const unitOptions = useMemo(() => {
-        return (units || []).map(u => ({
-            value: String(u.id),
-            label: u.name_en || u.name_ar || u.name || ''
-        }));
-    }, [units]);
+    const productsById = useMemo(() => {
+        return new Map((products || []).map(product => [String(product.id), product]));
+    }, [products]);
 
     const { data, setData, post, put, delete: destroy, processing, reset } = useForm({
         id: '',
@@ -285,6 +276,7 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
 
     const handleCreate = () => {
         reset();
+        setEditingOpeningStockId(null);
         setData(prev => ({
             ...prev,
             movement_date: new Date().toISOString().split('T')[0],
@@ -296,7 +288,6 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
                 item_name_en: '',
                 quantity: 1,
                 unit_id: '',
-                warehouse_id: '',
                 cost_price: 0,
                 line_total: 0,
             }]
@@ -306,19 +297,25 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
 
     const handleEdit = (openingStock) => {
         const toNum = (v) => (v === null || v === undefined ? 0 : Number(v));
+        setEditingOpeningStockId(openingStock.id);
         setData({
             ...openingStock,
             items: (openingStock.items || []).map(it => {
-                const qty = toNum(it.quantity);
-                const costPrice = toNum(it.cost_price);
+                const qty = toNum(it.original_quantity ?? it.quantity);
+                const conversionFactor = toNum(it.conversion_factor_snapshot) || 1;
+                const costPrice = toNum(it.cost_price) * conversionFactor;
+                const product = productsById.get(String(it.product_id));
+                const availableUnits = product?.unit_options || [];
+                const unitId = String(it.unit_id || '');
+                const line = { ...it };
+                delete line.warehouse_id;
                 
                 return {
-                    ...it,
+                    ...line,
                     quantity: qty,
                     cost_price: costPrice,
-                    line_total: toNum(it.line_total),
-                    unit_id: it.unit_id || it.product?.unit_id || '',
-                    warehouse_id: it.warehouse_id || '',
+                    line_total: (qty * costPrice).toFixed(2),
+                    unit_id: availableUnits.some(unit => String(unit.id) === unitId) ? unitId : '',
                     item_name_ar: it.product?.name_ar || '',
                     item_name_en: it.product?.name_en || '',
                 };
@@ -340,15 +337,20 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (mode === 'create') {
+        const onSuccess = () => {
+            setMode('list');
+            setEditingOpeningStockId(null);
+        };
+
+        if (editingOpeningStockId === null) {
             post(getLocalizedRoute('admin.inventory.opening-stock.store'), {
                 preserveScroll: true,
-                onSuccess: () => setMode('list'),
+                onSuccess,
             });
         } else {
-            put(getLocalizedRoute('admin.inventory.opening-stock.update', { openingStock: data.id }), {
+            put(getLocalizedRoute('admin.inventory.opening-stock.update', { openingStock: editingOpeningStockId }), {
                 preserveScroll: true,
-                onSuccess: () => setMode('list'),
+                onSuccess,
             });
         }
     };
@@ -379,7 +381,7 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
     const handleExportExcel = () => {
         const itemsData = data.items.map((item, index) => ({
             '#': index + 1,
-            'Product': products.find(p => p.id == item.product_id)?.name_en || '',
+            'Product': productsById.get(String(item.product_id))?.display_name || productsById.get(String(item.product_id))?.name || '',
             'Description': item.item_name_ar || '',
             'Quantity': Number(item.quantity),
             'Cost Price': Number(item.cost_price),
@@ -407,7 +409,6 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
                 item_name_en: '',
                 quantity: 1,
                 unit_id: '',
-                warehouse_id: '',
                 cost_price: 0,
                 line_total: 0,
             }
@@ -426,13 +427,19 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
         newItems[index][field] = value;
 
         if (field === 'product_id') {
-            const product = products.find(p => p.id == value);
+            const product = productsById.get(String(value));
             if (product) {
                 newItems[index].item_name_ar = product.name_ar || product.name || '';
                 newItems[index].item_name_en = product.name_en || product.name || '';
                 newItems[index].cost_price = product.cost_per_item || product.purchase_price || 0;
-                newItems[index].unit_id = product.unit_id || '';
-                newItems[index].warehouse_id = newItems[index].warehouse_id || (warehouses?.[0]?.id || '');
+                const unitId = String(product.unit_id || '');
+                newItems[index].unit_id = (product.unit_options || [])
+                    .some(unit => String(unit.id) === unitId) ? unitId : '';
+            } else {
+                newItems[index].item_name_ar = '';
+                newItems[index].item_name_en = '';
+                newItems[index].cost_price = 0;
+                newItems[index].unit_id = '';
             }
         }
 
@@ -613,19 +620,20 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
                                 <table>
                                     <thead>
                                         <tr>
-                                            <th style={{width: '50px'}} className="text-center">#</th>
-                                            <th style={{width: '25%'}}>Item</th>
-                                            <th style={{width: '10%'}}>Unit</th>
-                                            <th style={{width: '15%'}}>Warehouse</th>
+                                            <th style={{width: '5%'}} className="text-center">#</th>
+                                            <th style={{width: '32%'}}>Item</th>
+                                            <th style={{width: '14%'}}>Unit</th>
                                             <th style={{width: '10%'}} className="text-center">Qty</th>
                                             <th style={{width: '15%'}} className="text-right">Cost Price</th>
-                                            <th style={{width: '15%'}} className="text-right">Total</th>
-                                            <th style={{width: '50px'}}></th>
+                                            <th style={{width: '16%'}} className="text-right">Total</th>
+                                            <th style={{width: '8%'}} className="text-center">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {data.items.map((item, index) => (
-                                            <tr key={index}>
+                                        {data.items.map((item, index) => {
+                                            const itemUnits = productsById.get(String(item.product_id))?.unit_options || [];
+
+                                            return <tr key={index}>
                                                 <td className="text-center">{index + 1}</td>
                                                 <td>
                                                     <div style={{ marginBottom: '5px' }}>
@@ -647,21 +655,13 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
                                                     <select
                                                         value={item.unit_id ? String(item.unit_id) : ''}
                                                         onChange={e => handleItemChange(index, 'unit_id', e.target.value)}
+                                                        disabled={!item.product_id || itemUnits.length === 0}
                                                     >
-                                                        <option value="">Select Unit</option>
-                                                        {unitOptions.map(unit => (
-                                                            <option key={unit.value} value={unit.value}>{unit.label}</option>
-                                                        ))}
-                                                    </select>
-                                                </td>
-                                                <td>
-                                                    <select
-                                                        value={item.warehouse_id ? String(item.warehouse_id) : ''}
-                                                        onChange={e => handleItemChange(index, 'warehouse_id', e.target.value)}
-                                                    >
-                                                        <option value="">Select Warehouse</option>
-                                                        {warehouseOptions.map(warehouse => (
-                                                            <option key={warehouse.value} value={warehouse.value}>{warehouse.label}</option>
+                                                        <option value="">
+                                                            {!item.product_id ? 'Select Product First' : itemUnits.length ? 'Select Unit' : 'No units available'}
+                                                        </option>
+                                                        {itemUnits.map(unit => (
+                                                            <option key={unit.id} value={String(unit.id)}>{unit.name}</option>
                                                         ))}
                                                     </select>
                                                 </td>
@@ -697,8 +697,8 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
                                                         ✕
                                                     </button>
                                                 </td>
-                                            </tr>
-                                        ))}
+                                            </tr>;
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -748,7 +748,10 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
                     </form>
 
                     <div className="sticky-actions-footer">
-                        <button type="button" className="btn btn-cancel" onClick={() => setMode('list')}>
+                        <button type="button" className="btn btn-cancel" onClick={() => {
+                            setMode('list');
+                            setEditingOpeningStockId(null);
+                        }}>
                             Cancel
                         </button>
                         <button type="button" className="btn btn-save" onClick={handleSubmit} disabled={processing}>
@@ -797,7 +800,7 @@ export default function OpeningStock({ openingStocks, warehouses, products, unit
                                 {data.items.map((item, index) => (
                                     <tr key={index}>
                                         <td>{index + 1}</td>
-                                        <td>{products.find(p => p.id == item.product_id)?.name_en || item.item_name_ar || '-'}</td>
+                                        <td>{productsById.get(String(item.product_id))?.display_name || item.item_name_ar || '-'}</td>
                                         <td>{Number(item.quantity)}</td>       
                                         <td className="text-right">{Number(item.cost_price).toFixed(2)}</td>
                                         <td className="text-right">{Number(item.line_total).toFixed(2)}</td>

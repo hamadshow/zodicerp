@@ -251,7 +251,45 @@
   /* 3. Items Table */
   .invoice-items-section {
     padding: 0;
-    
+
+    /* Gating / validation messaging for the customer & price list context. */
+    .items-disabled-notice {
+      margin: 0;
+      padding: 0.75rem 1rem;
+      background-color: var(--background-light);
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 0.8125rem;
+
+      &.error {
+        background-color: rgba(var(--danger-color-rgb, 220, 38, 38), 0.08);
+        color: var(--danger-color);
+        font-weight: 600;
+      }
+    }
+
+    .items-context-notice {
+      padding: 0.5rem 1rem;
+      color: var(--text-secondary);
+      font-size: 0.8125rem;
+      font-style: italic;
+    }
+
+    td .error-msg {
+      display: block;
+      margin-top: 2px;
+      color: var(--danger-color);
+      font-size: 0.7rem;
+      white-space: normal;
+    }
+
+    .items-empty-row {
+      padding: 1.25rem 1rem;
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
     .items-table-wrapper {
       overflow-x: auto;
       

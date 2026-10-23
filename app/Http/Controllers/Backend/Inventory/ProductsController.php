@@ -440,14 +440,14 @@ class ProductsController extends Controller
 
             $product->categories()->sync(is_array($categoryIds) ? $categoryIds : []);
 
-            // Variable product handling
-            if (($data['product_type'] ?? 'simple') === Products::PRODUCT_TYPE_VARIABLE) {
+            // Configurable parent handling
+            if (($data['product_type'] ?? 'simple') === Products::PRODUCT_TYPE_VARIATION) {
                 $variations = $request->input('variations', []);
                 $variationFiles = $request->file('variations', []);
 
                 if (! is_array($variations) || count($variations) === 0) {
                     throw ValidationException::withMessages([
-                        'variations' => ['Variations are required for variable products.'],
+                        'variations' => ['Variations are required for configurable products.'],
                     ]);
                 }
 
@@ -787,14 +787,14 @@ class ProductsController extends Controller
             $product->update($data);
             $product->categories()->sync(is_array($categoryIds) ? $categoryIds : []);
 
-            // Variable product handling
-            if (($data['product_type'] ?? $product->product_type) === Products::PRODUCT_TYPE_VARIABLE) {
+            // Configurable parent handling
+            if (($data['product_type'] ?? $product->product_type) === Products::PRODUCT_TYPE_VARIATION) {
                 $variations = $request->input('variations', []);
                 $variationFiles = $request->file('variations', []);
 
                 if (! is_array($variations) || count($variations) === 0) {
                     throw ValidationException::withMessages([
-                        'variations' => ['Variations are required for variable products.'],
+                        'variations' => ['Variations are required for configurable products.'],
                     ]);
                 }
 

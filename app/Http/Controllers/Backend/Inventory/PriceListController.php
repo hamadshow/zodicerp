@@ -11,14 +11,18 @@ use App\Models\Client_Sales\SalesQuotation;
 use App\Models\Currency;
 use App\Models\ItemUnit;
 use App\Models\Products;
+use App\Models\ProductVariation;
 use App\Models\Vendor_Purchases\PriceList;
 use App\Models\Vendor_Purchases\PriceListItem;
 use App\Services\CompanyContext;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -164,14 +168,20 @@ class PriceListController extends Controller
 
         $filters = $this->itemFilters($request);
         $today = Carbon::now()->format('Y-m-d');
+        $companyId = $this->companyContext->id();
 
         $itemsQuery = PriceListItem::query()
             ->where('price_list_id', $priceList->id)
+            ->whereHas('product', fn ($query) => $query->where('company_id', $companyId))
             ->with([
                 'product' => function ($query) {
                     $query->select([
-                        'id', 'name', 'sku', 'barcode', 'product_code', 'unit_id',
+                        'id', 'name', 'sku', 'barcode', 'product_code', 'unit_id', 'brand_id',
                         'price', 'sale_price', 'product_type', 'is_variation', 'parent_id', 'status',
+                    ])->with([
+                        'parent:id,name,brand_id,product_type',
+                        'parent.brand:id,name',
+                        'brand:id,name',
                     ])->withCount('children');
                 },
                 'unit:id,name,conversion_factor,unit_type,base_unit',
@@ -185,13 +195,31 @@ class PriceListController extends Controller
                     $productQuery->where('name', 'like', "%{$search}%")
                         ->orWhere('sku', 'like', "%{$search}%")
                         ->orWhere('product_code', 'like', "%{$search}%")
-                        ->orWhere('barcode', 'like', "%{$search}%");
+                        ->orWhere('barcode', 'like', "%{$search}%")
+                        ->orWhereHas('parent', function ($parentQuery) use ($search) {
+                            $parentQuery->where('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereExists(function ($variationQuery) use ($search) {
+                            $variationQuery->selectRaw('1')
+                                ->from('product_variations')
+                                ->join('product_variation_items as variation_items', 'variation_items.variation_id', '=', 'product_variations.id')
+                                ->join('item_attributes_details as attribute_details', function ($join) {
+                                    $join->on('attribute_details.id', '=', 'variation_items.attribute_value')
+                                        ->on('attribute_details.attribute_set_id', '=', 'variation_items.attribute_id');
+                                })
+                                ->whereColumn('product_variations.product_id', 'products.id')
+                                ->where('attribute_details.title', 'like', "%{$search}%");
+                        });
                 });
             });
         }
 
         if ($filters['product_id'] !== '') {
             $itemsQuery->where('product_id', (int) $filters['product_id']);
+        }
+
+        if ($filters['price_status'] === 'without_price') {
+            $itemsQuery->whereRaw('1 = 0');
         }
 
         if ($filters['unit_id'] !== '') {
@@ -204,14 +232,156 @@ class PriceListController extends Controller
 
         $items = $itemsQuery->paginate($filters['per_page'])->withQueryString();
 
+        $catalogQuery = $this->eligibleSellableProductsQuery($companyId)
+            ->with([
+                'unit:id,name,conversion_factor,unit_type,base_unit',
+                'unit.parent:id,name,conversion_factor',
+                'brand:id,name',
+                'parent:id,name,brand_id,product_type',
+                'parent.brand:id,name',
+            ])
+            ->select([
+                'products.id', 'products.name', 'products.sku', 'products.barcode',
+                'products.product_code', 'products.unit_id', 'products.brand_id',
+                'products.price', 'products.sale_price', 'products.product_type',
+                'products.is_variation', 'products.parent_id',
+                'products.status', 'products.company_id',
+            ])
+            ->selectSub(
+                PriceListItem::query()
+                    ->selectRaw('count(*)')
+                    ->where('price_list_id', $priceList->id)
+                    ->whereColumn('price_list_items.product_id', 'products.id'),
+                'pricing_items_count'
+            );
+
+        if ($filters['search'] !== '') {
+            $search = $filters['search'];
+            $catalogQuery->where(function ($query) use ($search) {
+                $query->where('products.name', 'like', "%{$search}%")
+                    ->orWhere('products.sku', 'like', "%{$search}%")
+                    ->orWhere('products.product_code', 'like', "%{$search}%")
+                    ->orWhere('products.barcode', 'like', "%{$search}%")
+                    ->orWhereHas('parent', fn ($parentQuery) => $parentQuery
+                        ->where('name', 'like', "%{$search}%"))
+                    ->orWhereExists(function ($variationQuery) use ($search) {
+                        $variationQuery->selectRaw('1')
+                            ->from('product_variations')
+                            ->join('product_variation_items as variation_items', 'variation_items.variation_id', '=', 'product_variations.id')
+                            ->join('item_attributes_details as attribute_details', function ($join) {
+                                $join->on('attribute_details.id', '=', 'variation_items.attribute_value')
+                                    ->on('attribute_details.attribute_set_id', '=', 'variation_items.attribute_id');
+                            })
+                            ->whereColumn('product_variations.product_id', 'products.id')
+                            ->whereColumn('product_variations.configurable_product_id', 'products.parent_id')
+                            ->whereNull('attribute_details.deleted_at')
+                            ->where('attribute_details.title', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($filters['product_id'] !== '') {
+            $catalogQuery->where('products.id', (int) $filters['product_id']);
+        }
+
+        $catalogPriceExists = function ($query) use ($priceList, $filters, $today) {
+            $query->selectRaw('1')
+                ->from('price_list_items')
+                ->where('price_list_items.price_list_id', $priceList->id)
+                ->whereColumn('price_list_items.product_id', 'products.id');
+
+            if ($filters['unit_id'] !== '') {
+                $query->where('price_list_items.unit_id', (int) $filters['unit_id']);
+            }
+
+            switch ($filters['item_status']) {
+                case 'active':
+                    $query->where(function ($dateQuery) use ($today) {
+                        $dateQuery->whereNull('price_list_items.effective_date')
+                            ->orWhere('price_list_items.effective_date', '<=', $today);
+                    })->where(function ($dateQuery) use ($today) {
+                        $dateQuery->whereNull('price_list_items.expiry_date')
+                            ->orWhere('price_list_items.expiry_date', '>=', $today);
+                    });
+                    break;
+                case 'scheduled':
+                    $query->whereNotNull('price_list_items.effective_date')
+                        ->where('price_list_items.effective_date', '>', $today);
+                    break;
+                case 'expired':
+                    $query->whereNotNull('price_list_items.expiry_date')
+                        ->where('price_list_items.expiry_date', '<', $today);
+                    break;
+            }
+        };
+
+        if ($filters['price_status'] === 'with_price') {
+            $catalogQuery->whereExists($catalogPriceExists);
+        } elseif ($filters['price_status'] === 'without_price') {
+            $catalogQuery->whereNotExists(function ($query) use ($priceList) {
+                $query->selectRaw('1')
+                    ->from('price_list_items')
+                    ->where('price_list_items.price_list_id', $priceList->id)
+                    ->whereColumn('price_list_items.product_id', 'products.id');
+            });
+        }
+
+        if ($filters['unit_id'] !== '' || $filters['item_status'] !== '') {
+            $catalogQuery->whereExists($catalogPriceExists);
+        }
+
+        $catalogProducts = $catalogQuery
+            ->orderBy('products.name')
+            ->orderBy('products.id')
+            ->paginate($filters['per_page'], ['*'], 'catalog_page')
+            ->withQueryString();
+
+        $catalogDisplayNames = $this->variationDisplayNames(
+            $catalogProducts->getCollection()
+        );
+        $catalogUnitOptions = $this->unitOptionsByProducts(
+            $catalogProducts->getCollection(),
+            $companyId
+        );
+        $catalogProducts->through(function (Products $product) use ($catalogDisplayNames, $catalogUnitOptions) {
+            $row = $product->only([
+                'id', 'name', 'sku', 'barcode', 'product_code', 'unit_id',
+                'price', 'sale_price', 'product_type', 'is_variation', 'parent_id', 'status',
+            ]);
+            $row['unit'] = $product->unit
+                ? array_merge($product->unit->only([
+                    'id', 'name', 'conversion_factor', 'unit_type', 'base_unit',
+                ]), [
+                    'parent' => $product->unit->parent?->only(['id', 'name', 'conversion_factor']),
+                ])
+                : null;
+            $row['unit_options'] = $catalogUnitOptions[$product->id] ?? [];
+            $row['subunits'] = $row['unit_options'];
+            $row['display_name'] = $catalogDisplayNames[$product->id] ?? $product->name;
+            $row['pricing_items_count'] = (int) $product->pricing_items_count;
+            $row['price_status'] = (int) $product->pricing_items_count > 0
+                ? 'with_price'
+                : 'without_price';
+
+            return $row;
+        });
+
         // Display-only validity status, derived server side with the same date
         // rules ProductPriceResolver applies (no pricing arithmetic happens here).
-        $items->through(function (PriceListItem $item) use ($today) {
+        $itemDisplayNames = $this->variationDisplayNames(
+            $items->getCollection()->pluck('product')->filter()->values()
+        );
+        $itemProducts = $items->getCollection()->pluck('product')->filter()->values();
+        $itemUnitOptions = $this->unitOptionsByProducts($itemProducts, $companyId);
+
+        $items->through(function (PriceListItem $item) use ($today, $itemDisplayNames, $itemUnitOptions) {
             $row = $item->toArray();
             $row['status'] = $this->itemStatus($item, $today);
             $row['product'] = $item->product ? array_merge($item->product->toArray(), [
+                'display_name' => $itemDisplayNames[$item->product->id] ?? $item->product->name,
                 'children_count' => (int) ($item->product->children_count ?? 0),
                 'is_parent_with_children' => (int) ($item->product->children_count ?? 0) > 0,
+                'unit_options' => $itemUnitOptions[$item->product->id] ?? [],
             ]) : null;
             $row['unit'] = $item->unit ? array_merge($item->unit->toArray(), [
                 'parent' => $item->unit->parent ? $item->unit->parent->only(['id', 'name', 'conversion_factor']) : null,
@@ -222,24 +392,34 @@ class PriceListController extends Controller
 
         $tierProducts = PriceListItem::query()
             ->where('price_list_id', $priceList->id)
-            ->with(['product:id,name,sku'])
+            ->whereHas('product', fn ($query) => $query->where('company_id', $companyId))
+            ->with(['product' => function ($query) {
+                $query->select('id', 'name', 'sku', 'parent_id', 'product_type', 'brand_id')
+                    ->with(['parent:id,name,brand_id,product_type', 'parent.brand:id,name', 'brand:id,name']);
+            }])
             ->select('product_id', 'unit_id')
             ->selectRaw('count(*) as tiers_count')
             ->selectRaw('min(min_quantity) as min_quantity_from')
             ->groupBy('product_id', 'unit_id')
             ->orderBy('product_id')
-            ->get()
-            ->map(function (PriceListItem $row) {
-                return [
-                    'product_id' => $row->product_id,
-                    'product_name' => $row->product?->name,
-                    'product_sku' => $row->product?->sku,
-                    'unit_id' => $row->unit_id,
-                    'tiers_count' => (int) $row->tiers_count,
-                    'min_quantity_from' => $row->min_quantity_from,
-                ];
-            })
-            ->values();
+            ->get();
+
+        $tierProductDisplayNames = $this->variationDisplayNames(
+            $tierProducts->pluck('product')->filter()->values()
+        );
+
+        $tierProducts = $tierProducts->map(function (PriceListItem $row) use ($tierProductDisplayNames) {
+            return [
+                'product_id' => $row->product_id,
+                'product_name' => $row->product
+                    ? ($tierProductDisplayNames[$row->product->id] ?? $row->product->name)
+                    : null,
+                'product_sku' => $row->product?->sku,
+                'unit_id' => $row->unit_id,
+                'tiers_count' => (int) $row->tiers_count,
+                'min_quantity_from' => $row->min_quantity_from,
+            ];
+        })->values();
 
         // Quantity tier ladder for the product currently filtered on, so the
         // configured "1+ / 10+ / 50+" steps are readable at a glance.
@@ -248,6 +428,7 @@ class PriceListController extends Controller
             $tierLadder = PriceListItem::query()
                 ->where('price_list_id', $priceList->id)
                 ->where('product_id', (int) $filters['product_id'])
+                ->whereHas('product', fn ($query) => $query->where('company_id', $companyId))
                 ->with(['unit:id,name,conversion_factor'])
                 ->orderBy('min_quantity')
                 ->orderBy('unit_id')
@@ -275,6 +456,7 @@ class PriceListController extends Controller
             'priceList' => array_merge($priceList->toArray(), [
                 'currency' => $priceList->currency?->only(['id', 'code', 'name', 'symbol']),
             ]),
+            'catalogProducts' => $catalogProducts,
             'items' => $items,
             'tierProducts' => $tierProducts,
             'tierLadder' => $tierLadder,
@@ -415,7 +597,7 @@ class PriceListController extends Controller
 
         $validated = $this->validateItem($request, $priceList, $item);
 
-        $item->update($validated);
+        DB::transaction(fn () => $item->update($validated));
 
         return redirect()->back()->with('success', __('PriceLists.item_updated_success'));
     }
@@ -443,44 +625,408 @@ class PriceListController extends Controller
 
         $products = Products::query()
             ->where('company_id', $companyId)
-            ->with(['unit:id,name,conversion_factor,base_unit'])
+            ->whereNull('parent_id')
+            ->whereIn('product_type', Products::PRODUCT_TYPES)
+            ->where('status', 'active')
+            ->with([
+                'unit:id,name,conversion_factor,base_unit',
+                'brand:id,name',
+                'variations.product' => function ($query) {
+                    $query->select([
+                        'id', 'name', 'sku', 'barcode', 'product_code', 'unit_id', 'brand_id',
+                        'price', 'sale_price', 'product_type', 'is_variation', 'parent_id', 'status',
+                    ])->where('company_id', $this->companyContext->id())
+                        ->where('status', 'active')
+                        ->with(['unit:id,name,conversion_factor,base_unit', 'brand:id,name']);
+                },
+                'variations.items.attribute.details',
+            ])
             ->withCount('children')
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
                         ->orWhere('sku', 'like', "%{$search}%")
                         ->orWhere('product_code', 'like', "%{$search}%")
-                        ->orWhere('barcode', 'like', "%{$search}%");
+                        ->orWhere('barcode', 'like', "%{$search}%")
+                        ->orWhereHas('variations.product', function ($childQuery) use ($search) {
+                            $childQuery->where('sku', 'like', "%{$search}%")
+                                ->orWhere('product_code', 'like', "%{$search}%")
+                                ->orWhere('barcode', 'like', "%{$search}%")
+                                ->orWhere('name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('variations.items.attribute.details', function ($detailQuery) use ($search) {
+                            $detailQuery->where('item_attributes_details.title', 'like', "%{$search}%");
+                        });
                 });
             })
             ->select([
-                'id', 'name', 'sku', 'barcode', 'product_code', 'unit_id',
+                'id', 'name', 'sku', 'barcode', 'product_code', 'unit_id', 'brand_id',
                 'price', 'sale_price', 'cost_per_item', 'product_type', 'is_variation', 'parent_id', 'status',
             ])
             ->orderBy('name')
             ->limit(25)
-            ->get()
-            ->map(function (Products $product) {
-                return [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'sku' => $product->sku,
-                    'barcode' => $product->barcode,
-                    'product_code' => $product->product_code,
-                    'unit_id' => $product->unit_id,
-                    'unit_name' => $product->unit?->name,
-                    'price' => $product->price,
-                    'sale_price' => $product->sale_price,
-                    'product_type' => $product->product_type,
-                    'is_variation' => (bool) $product->is_variation,
-                    'parent_id' => $product->parent_id,
-                    'children_count' => (int) ($product->children_count ?? 0),
-                    'status' => $product->status,
-                ];
+            ->get();
+
+        $selectableProducts = collect();
+        $sellableProducts = collect();
+
+        foreach ($products as $product) {
+            if ($product->product_type !== Products::PRODUCT_TYPE_VARIATION) {
+                $sellableProducts->push($product);
+                $selectableProducts->push($this->priceListProductOption($product, $product->name));
+
+                continue;
+            }
+
+            $validVariations = $product->variations
+                ->filter(function (ProductVariation $variation) use ($product) {
+                    $child = $variation->product;
+
+                    return $child
+                        && (int) $child->parent_id === (int) $product->id
+                        && $child->product_type === Products::PRODUCT_TYPE_SIMPLE;
+                })
+                ->groupBy(fn (ProductVariation $variation) => (int) $variation->product_id);
+
+            if ($validVariations->isEmpty()) {
+                Log::warning('Variation product has no valid child products for price-list selection.', [
+                    'product_id' => $product->id,
+                ]);
+
+                continue;
+            }
+
+            foreach ($validVariations as $childId => $links) {
+                if ($links->count() !== 1) {
+                    Log::warning('Child product has multiple variation links; omitted from price-list selection.', [
+                        'product_id' => (int) $childId,
+                        'configurable_product_id' => $product->id,
+                        'variation_link_count' => $links->count(),
+                    ]);
+
+                    continue;
+                }
+
+                $variation = $links->first();
+                $child = $variation->product;
+                $attributeValues = $this->variationAttributeValues($variation);
+                if (
+                    $search !== ''
+                    && ! $this->productMatchesSearch($product, $search)
+                    && ! $this->variationMatchesSearch($child, $attributeValues, $search)
+                ) {
+                    continue;
+                }
+
+                $brand = $product->brand?->name ?: $child->brand?->name;
+                $displayName = $this->compositeVariationName(
+                    $product->name,
+                    $attributeValues,
+                    $brand
+                );
+
+                $sellableProducts->push($child);
+                $selectableProducts->push($this->priceListProductOption($child, $displayName));
+            }
+        }
+
+        $unitOptionsByProduct = $this->unitOptionsByProducts($sellableProducts, $companyId);
+        $products = $selectableProducts
+            ->sortBy(fn (array $product) => Str::lower($product['display_name']))
+            ->take(25)
+            ->map(function (array $product) use ($unitOptionsByProduct) {
+                $product['unit_options'] = $unitOptionsByProduct[$product['id']] ?? [];
+
+                return $product;
             })
             ->values();
 
         return response()->json(['products' => $products]);
+    }
+
+    /**
+     * The product's unit_id identifies its head unit. item_units.base_unit is
+     * a self-referencing FK; only active unit_type=2 children are selectable.
+     *
+     * @param  Collection<int, Products>  $products
+     * @return array<int, array<int, array<string, mixed>>>
+     */
+    private function unitOptionsByProducts(Collection $products, int $companyId): array
+    {
+        $baseUnitIds = $products
+            ->pluck('unit_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($baseUnitIds->isEmpty()) {
+            return [];
+        }
+
+        $units = ItemUnit::query()
+            ->where('active', true)
+            ->where(function ($query) use ($companyId) {
+                $query->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->where(function ($query) use ($baseUnitIds) {
+                $query->whereIn('id', $baseUnitIds)
+                    ->orWhereIn('base_unit', $baseUnitIds);
+            })
+            ->with('parent:id,name,conversion_factor')
+            ->orderBy('name')
+            ->orderBy('id')
+            ->get(['id', 'name', 'unit_type', 'base_unit', 'conversion_factor', 'active', 'company_id'])
+            ->groupBy('base_unit');
+
+        $unitsById = $units->flatten(1)->keyBy('id');
+        $optionsByProduct = [];
+
+        foreach ($products as $product) {
+            $baseId = (int) $product->unit_id;
+            $base = $unitsById->get($baseId);
+            if (! $base) {
+                $optionsByProduct[$product->id] = [];
+
+                continue;
+            }
+
+            $subunits = $units->get($baseId, collect())
+                ->filter(
+                    fn (ItemUnit $unit) => (int) $unit->unit_type === 2
+                )
+                ->unique('id')
+                ->values();
+
+            $nameCounts = $subunits
+                ->countBy(fn (ItemUnit $unit) => Str::lower(trim($unit->name)));
+            $options = $subunits->map(function (ItemUnit $unit) use ($nameCounts) {
+                $name = trim($unit->name);
+                $displayName = $nameCounts[Str::lower($name)] > 1
+                    ? $name.' ('.trim((string) $unit->conversion_factor).')'
+                    : $name;
+
+                return [
+                    'id' => $unit->id,
+                    'name' => $unit->name,
+                    'display_name' => $displayName,
+                    'unit_type' => $unit->unit_type,
+                    'base_unit' => $unit->base_unit,
+                    'conversion_factor' => $unit->conversion_factor,
+                    'active' => $unit->active,
+                    'parent' => $unit->parent?->only(['id', 'name', 'conversion_factor']),
+                ];
+            });
+
+            $labelCounts = $options->countBy(fn (array $unit) => Str::lower($unit['display_name']));
+            $optionsByProduct[$product->id] = $options
+                ->map(function (array $unit) use ($labelCounts) {
+                    if ($labelCounts[Str::lower($unit['display_name'])] > 1) {
+                        $unit['display_name'] .= ' (#'.$unit['id'].')';
+                    }
+
+                    return $unit;
+                })
+                ->values()
+                ->all();
+        }
+
+        return $optionsByProduct;
+    }
+
+    /**
+     * Sellable records are active root simple/service products and active
+     * simple child SKUs connected to an active variation parent.
+     */
+    private function eligibleSellableProductsQuery(int $companyId): Builder
+    {
+        return Products::query()
+            ->where('products.company_id', $companyId)
+            ->where('products.status', 'active')
+            ->where(function ($query) use ($companyId) {
+                $query->where(function ($rootQuery) {
+                    $rootQuery->whereNull('products.parent_id')
+                        ->whereIn('products.product_type', [
+                            Products::PRODUCT_TYPE_SIMPLE,
+                            Products::PRODUCT_TYPE_SERVICE,
+                        ]);
+                })->orWhere(function ($variationQuery) use ($companyId) {
+                    $variationQuery->where('products.product_type', Products::PRODUCT_TYPE_SIMPLE)
+                        ->whereNotNull('products.parent_id')
+                        ->whereExists(function ($parentQuery) use ($companyId) {
+                            $parentQuery->selectRaw('1')
+                                ->from('products as variation_parents')
+                                ->whereColumn('variation_parents.id', 'products.parent_id')
+                                ->where('variation_parents.company_id', $companyId)
+                                ->where('variation_parents.product_type', Products::PRODUCT_TYPE_VARIATION)
+                                ->where('variation_parents.status', 'active')
+                                ->whereNull('variation_parents.deleted_at');
+                        })
+                        ->whereExists(function ($linkQuery) {
+                            $linkQuery->selectRaw('1')
+                                ->from('product_variations')
+                                ->whereColumn('product_variations.product_id', 'products.id')
+                                ->whereColumn('product_variations.configurable_product_id', 'products.parent_id');
+                        })
+                        ->whereRaw(
+                            '(select count(*) from product_variations as selectable_variations where selectable_variations.product_id = products.id and selectable_variations.configurable_product_id = products.parent_id) = 1'
+                        );
+                });
+            });
+    }
+
+    /**
+     * Build display-only names for child SKUs without changing their stored names.
+     *
+     * @param  Collection<int, Products>  $products
+     * @return array<int, string>
+     */
+    private function variationDisplayNames(Collection $products): array
+    {
+        $children = $products
+            ->filter(fn ($product) => $product instanceof Products
+                && $product->parent_id !== null
+                && $product->product_type === Products::PRODUCT_TYPE_SIMPLE)
+            ->keyBy(fn (Products $product) => (int) $product->id);
+
+        if ($children->isEmpty()) {
+            return [];
+        }
+
+        $variations = ProductVariation::query()
+            ->with(['items.attribute.details'])
+            ->whereIn('product_id', $children->keys())
+            ->get()
+            ->groupBy('product_id');
+
+        $displayNames = [];
+
+        foreach ($children as $child) {
+            $parent = $child->parent;
+            if (! $parent || $parent->product_type !== Products::PRODUCT_TYPE_VARIATION) {
+                continue;
+            }
+
+            $links = $variations->get($child->id, collect())
+                ->filter(fn (ProductVariation $variation) => (int) $variation->configurable_product_id === (int) $parent->id);
+
+            if ($links->isEmpty()) {
+                continue;
+            }
+
+            if ($links->count() !== 1) {
+                Log::warning('Child product has multiple variation links; composite price-list name was omitted.', [
+                    'product_id' => $child->id,
+                    'configurable_product_id' => $parent->id,
+                    'variation_link_count' => $links->count(),
+                ]);
+
+                continue;
+            }
+
+            $values = $this->variationAttributeValues($links->first());
+            $brand = $parent->brand?->name ?: $child->brand?->name;
+            $displayNames[$child->id] = $this->compositeVariationName($parent->name, $values, $brand);
+        }
+
+        return $displayNames;
+    }
+
+    private function variationAttributeValues(ProductVariation $variation): array
+    {
+        return $variation->items
+            ->sort(function ($left, $right) {
+                $leftOrder = $left->attribute?->order ?? PHP_INT_MAX;
+                $rightOrder = $right->attribute?->order ?? PHP_INT_MAX;
+                $order = $leftOrder <=> $rightOrder;
+
+                return $order !== 0 ? $order : ((int) $left->attribute_id <=> (int) $right->attribute_id);
+            })
+            ->map(function ($item) {
+                $detail = $item->attribute?->details
+                    ->first(fn ($detail) => (int) $detail->id === (int) $item->attribute_value);
+
+                return trim((string) ($detail?->title ?? ''));
+            })
+            ->filter(fn (string $value) => $value !== '')
+            ->values()
+            ->all();
+    }
+
+    private function productMatchesSearch(Products $product, string $search): bool
+    {
+        foreach ([$product->name, $product->sku, $product->product_code, $product->barcode] as $value) {
+            if ($value !== null && Str::contains(Str::lower((string) $value), Str::lower($search))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function variationMatchesSearch(Products $product, array $attributeValues, string $search): bool
+    {
+        if ($this->productMatchesSearch($product, $search)) {
+            return true;
+        }
+
+        foreach ($attributeValues as $value) {
+            if (Str::contains(Str::lower($value), Str::lower($search))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function compositeVariationName(string $baseName, array $values, ?string $brand): string
+    {
+        $parts = [];
+
+        foreach (array_merge([$baseName], $values, [$brand]) as $part) {
+            $part = trim((string) ($part ?? ''));
+            if ($part === '') {
+                continue;
+            }
+
+            $normalizedPart = Str::lower($part);
+            $normalizedParts = array_map(fn (string $existing) => Str::lower($existing), $parts);
+            if (in_array($normalizedPart, $normalizedParts, true)) {
+                continue;
+            }
+
+            $existingName = Str::lower(implode(', ', $parts));
+            $partPattern = '/(?<![\pL\pN])'.preg_quote($normalizedPart, '/').'(?![\pL\pN])/u';
+            if (preg_match($partPattern, $existingName) === 1) {
+                continue;
+            }
+
+            $parts[] = $part;
+        }
+
+        return implode(', ', $parts);
+    }
+
+    private function priceListProductOption(Products $product, string $displayName): array
+    {
+        return [
+            'id' => $product->id,
+            'name' => $product->name,
+            'display_name' => $displayName,
+            'sku' => $product->sku,
+            'barcode' => $product->barcode,
+            'product_code' => $product->product_code,
+            'unit_id' => $product->unit_id,
+            'unit' => $product->unit?->only(['id', 'name', 'conversion_factor', 'base_unit']),
+            'unit_name' => $product->unit?->name,
+            'price' => $product->price,
+            'sale_price' => $product->sale_price,
+            'product_type' => $product->product_type,
+            'is_variation' => (bool) $product->is_variation,
+            'parent_id' => $product->parent_id,
+            'children_count' => (int) ($product->children_count ?? 0),
+            'status' => $product->status,
+        ];
     }
 
     /* ---------------------------------------------------------------------
@@ -548,6 +1094,39 @@ class PriceListController extends Controller
             'min_quantity.gt' => __('PriceLists.min_quantity_positive'),
         ]);
 
+        $companyId = $this->companyContext->id();
+        $isEligibleProduct = $this->eligibleSellableProductsQuery($companyId)
+            ->where('products.id', (int) $validated['product_id'])
+            ->exists();
+        $isUnchangedCompanyProduct = $item !== null
+            && (int) $item->product_id === (int) $validated['product_id']
+            && Products::query()
+                ->where('id', (int) $validated['product_id'])
+                ->where('company_id', $companyId)
+                ->exists();
+
+        if (! $isEligibleProduct && ! $isUnchangedCompanyProduct) {
+            throw ValidationException::withMessages([
+                'product_id' => __('PriceLists.product_not_eligible'),
+            ]);
+        }
+
+        $product = Products::query()
+            ->where('id', (int) $validated['product_id'])
+            ->first(['id', 'unit_id']);
+        $allowedUnitIds = $product
+            ? collect($this->unitOptionsByProducts(collect([$product]), $companyId)[$product->id] ?? [])
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+            : collect();
+        $isCompanyUnit = $allowedUnitIds->contains((int) $validated['unit_id']);
+
+        if (! $isCompanyUnit) {
+            throw ValidationException::withMessages([
+                'unit_id' => __('PriceLists.unit_not_eligible'),
+            ]);
+        }
+
         // unique(price_list_id, product_id, unit_id, min_quantity)
         $duplicate = PriceListItem::query()
             ->where('price_list_id', $priceList->id)
@@ -605,6 +1184,10 @@ class PriceListController extends Controller
         return [
             'search' => trim((string) $request->input('search', '')),
             'product_id' => $request->filled('product_id') ? (string) $request->input('product_id') : '',
+            'price_status' => in_array($request->input('price_status'), ['with_price', 'without_price'], true)
+                ? (string) $request->input('price_status')
+                : '',
+            'catalog_page' => max(1, (int) $request->input('catalog_page', 1)),
             'unit_id' => $request->filled('unit_id') ? (string) $request->input('unit_id') : '',
             'item_status' => in_array($request->input('item_status'), self::ITEM_STATUSES, true) ? (string) $request->input('item_status') : '',
             'sort_by' => in_array($sortBy, self::ITEM_SORTABLE, true) ? $sortBy : 'min_quantity',

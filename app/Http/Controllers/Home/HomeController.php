@@ -282,7 +282,7 @@ class HomeController extends Controller
             }
         }
 
-        if ($product->product_type === 'variable' && $product->variations->count() > 0) {
+        if ($product->product_type === Products::PRODUCT_TYPE_VARIATION && $product->variations->count() > 0) {
             foreach ($product->variations as $variation) {
                 $variationProduct = $variation->product;
                 if ($variationProduct) {
@@ -313,7 +313,7 @@ class HomeController extends Controller
         $sizes = [];
         $variants = [];
 
-        if ($product->product_type === 'variable' && $product->variations->count() > 0) {
+        if ($product->product_type === Products::PRODUCT_TYPE_VARIATION && $product->variations->count() > 0) {
             // Collect all attribute detail IDs
             $detailIds = [];
             foreach ($product->variations as $variation) {
@@ -400,7 +400,7 @@ class HomeController extends Controller
         $minPrice = $product->price;
         $maxPrice = $product->price;
 
-        if ($product->product_type === 'variable') {
+        if ($product->product_type === Products::PRODUCT_TYPE_VARIATION) {
             // Collect prices from children, fallback to parent price if child price is missing
             $prices = $product->children->map(function ($child) use ($product) {
                 return $child->price ?? $product->price;

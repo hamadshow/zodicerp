@@ -6,18 +6,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Phase 1 — Product Domain stabilization.
- *
- * The live database carries enum('simple','variable','Service') while the original
- * migration declared enum('simple','variable') (schema drift). This migration:
- *
- *   1. Normalizes the value 'Service' to the lowercase semantic 'service'.
- *   2. Re-aligns the migration-defined enum with the real business domain:
- *      enum('simple','variable','service') — all lowercase.
- *
- * Both steps are idempotent and safe to re-run. A tiny window of read queries
- * could still see 'Service' while the data update below runs; that is handled
- * by the case-insensitive model helpers rather than risky locking.
+ * Normalize legacy product-type enums without dropping values during conversion.
  */
 return new class extends Migration
 {
@@ -27,14 +16,21 @@ return new class extends Migration
             return;
         }
 
-        // 1. Normalize existing 'Service' rows (case-insensitive match, idempotent).
-        $affected = DB::table('products')
-            ->whereRaw('LOWER(product_type) = ?', ['service'])
-            ->where('product_type', '!=', 'service')
+        $this->assertKnownValues();
+
+        DB::statement(
+            "ALTER TABLE products MODIFY product_type VARCHAR(16) NOT NULL DEFAULT 'simple'"
+        );
+
+        $legacyVariableCount = DB::table('products')
+            ->whereRaw('BINARY product_type = ?', ['variable'])
+            ->update(['product_type' => 'variation']);
+        DB::table('products')
+            ->whereRaw('BINARY product_type = ?', ['Service'])
             ->update(['product_type' => 'service']);
 
-        if ($affected > 0) {
-            Log::info("Phase 1: normalized {$affected} product(s) from 'Service' to 'service'.");
+        if ($legacyVariableCount > 0) {
+            logger()->info("Normalized {$legacyVariableCount} legacy configurable product type value(s).");
         }
 
         // 1.5. Normalize contradictory variation state: any child (parent_id set)
@@ -50,14 +46,9 @@ return new class extends Migration
             Log::info("Phase 1: corrected is_variation on {$fixedFlags} variation child(ren).");
         }
 
-        // 2. Align the enum definition (skipped when already correct).
-        $type = DB::selectOne("SHOW COLUMNS FROM products WHERE Field = 'product_type'")->Type ?? null;
-
-        if ($type !== "enum('simple','variable','service')") {
-            DB::statement(
-                "ALTER TABLE products MODIFY product_type ENUM('simple','variable','service') NOT NULL DEFAULT 'simple'"
-            );
-        }
+        DB::statement(
+            "ALTER TABLE products MODIFY product_type ENUM('simple','variation','service') NOT NULL DEFAULT 'simple'"
+        );
     }
 
     public function down(): void
@@ -66,17 +57,48 @@ return new class extends Migration
             return;
         }
 
-        // Restore the pre-Phase-1 enum casing and convert lowercase services back.
-        $affected = DB::table('products')
-            ->where('product_type', 'service')
+        $this->assertKnownValues();
+
+        DB::statement(
+            "ALTER TABLE products MODIFY product_type VARCHAR(16) NOT NULL DEFAULT 'simple'"
+        );
+        DB::table('products')
+            ->whereRaw('BINARY product_type = ?', ['variation'])
+            ->update(['product_type' => 'variable']);
+        DB::table('products')
+            ->whereRaw('BINARY product_type = ?', ['service'])
             ->update(['product_type' => 'Service']);
 
         DB::statement(
             "ALTER TABLE products MODIFY product_type ENUM('simple','variable','Service') NOT NULL DEFAULT 'simple'"
         );
+    }
 
-        if ($affected > 0) {
-            Log::info("Phase 1 rollback: reverted {$affected} product(s) from 'service' to 'Service'.");
+    private function assertKnownValues(): void
+    {
+        $acceptedValues = ['simple', 'variation', 'service', 'variable', 'Service'];
+        $placeholders = implode(',', array_fill(0, count($acceptedValues), '?'));
+        $invalidRows = DB::table('products')
+            ->select(['id', 'product_type'])
+            ->where(function ($query) use ($placeholders, $acceptedValues) {
+                $query->whereNull('product_type')
+                    ->orWhereRaw(
+                        "BINARY product_type NOT IN ({$placeholders})",
+                        $acceptedValues
+                    );
+            })
+            ->limit(20)
+            ->get();
+
+        if ($invalidRows->isNotEmpty()) {
+            $invalid = $invalidRows
+                ->map(fn ($row) => "id={$row->id}, product_type=".var_export($row->product_type, true))
+                ->implode('; ');
+
+            throw new \RuntimeException(
+                'Cannot normalize products.product_type: reconcile blank or unsupported values before migrating. '
+                .'Sample rows: '.$invalid
+            );
         }
     }
 };

@@ -34,13 +34,13 @@ class Products extends Model
      */
     public const PRODUCT_TYPE_SIMPLE = 'simple';
 
-    public const PRODUCT_TYPE_VARIABLE = 'variable';
+    public const PRODUCT_TYPE_VARIATION = 'variation';
 
     public const PRODUCT_TYPE_SERVICE = 'service';
 
     public const PRODUCT_TYPES = [
         self::PRODUCT_TYPE_SIMPLE,
-        self::PRODUCT_TYPE_VARIABLE,
+        self::PRODUCT_TYPE_VARIATION,
         self::PRODUCT_TYPE_SERVICE,
     ];
 
@@ -149,7 +149,7 @@ class Products extends Model
 
     public function isVariable(): bool
     {
-        return $this->product_type === self::PRODUCT_TYPE_VARIABLE;
+        return $this->product_type === self::PRODUCT_TYPE_VARIATION;
     }
 
     public function isSimple(): bool
@@ -172,9 +172,9 @@ class Products extends Model
      * ProductController so web + API cannot drift apart:
      *
      *   simple   : parent_id must be null (standalone SKU)
-     *   variable : parent_id must be null (parent/template)
+     *   variation: parent_id must be null (configurable parent/template)
      *   service  : parent_id must be null (non-stock sellable)
-     *   variation: product_type = simple AND parent_id = variable product id
+     *   child SKU: product_type = simple AND parent_id = variation product id
      *
      * $productTypeMode: 'required' for full create/update payloads,
      * 'sometimes' for partial (PATCH-style) updates.
@@ -244,7 +244,7 @@ class Products extends Model
                 'nullable',
                 // The parent must exist AND be a variable product.
                 \Illuminate\Validation\Rule::exists('products', 'id')->where(function ($query) {
-                    $query->where('product_type', self::PRODUCT_TYPE_VARIABLE);
+                    $query->where('product_type', self::PRODUCT_TYPE_VARIATION);
                 }),
                 function ($attribute, $value, $fail) {
                     if ($value === null) {

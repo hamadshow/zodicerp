@@ -1245,6 +1245,10 @@ class FinancialReportController extends Controller
             ->join('inventory_movement_headers as h', 'h.id', '=', 'i.stock_movement_id')
             ->leftJoin('item_units as u', 'i.unit_id', '=', 'u.id')
             ->where('h.company_id', $companyId)
+            ->where(function ($query) {
+                $query->where('h.type', '!=', 'opening')
+                    ->orWhere('i.is_current', true);
+            })
             ->whereIn('i.product_id', $productIds)
             ->select(
                 'i.product_id',

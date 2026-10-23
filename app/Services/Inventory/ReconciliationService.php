@@ -143,6 +143,10 @@ class ReconciliationService
                     })
                     ->where('h.company_id', $companyId)
                     ->where('h.warehouse_id', $warehouseId)
+                    ->where(function ($query) {
+                        $query->where('h.type', '!=', 'opening')
+                            ->orWhere('l.is_current', true);
+                    })
                     ->where('l.product_id', $productId)
                     ->whereNull('ict.id')
                     ->orderBy('h.movement_date')
@@ -350,6 +354,10 @@ class ReconciliationService
             $ledgerTotal = (float) DB::table('inventory_movement_headers as h')
                 ->join('inventory_movement_lines as l', 'l.stock_movement_id', '=', 'h.id')
                 ->where('h.company_id', $companyId)
+                ->where(function ($query) {
+                    $query->where('h.type', '!=', 'opening')
+                        ->orWhere('l.is_current', true);
+                })
                 ->where('l.product_id', $productId)
                 ->selectRaw("COALESCE(SUM(CASE WHEN h.direction = 'in' THEN l.quantity ELSE -l.quantity END), 0) as total")
                 ->value('total');
@@ -377,6 +385,10 @@ class ReconciliationService
         $query = DB::table('inventory_movement_headers as h')
             ->join('inventory_movement_lines as l', 'l.stock_movement_id', '=', 'h.id')
             ->where('h.company_id', $companyId)
+            ->where(function ($query) {
+                $query->where('h.type', '!=', 'opening')
+                    ->orWhere('l.is_current', true);
+            })
             ->groupBy('l.product_id', 'h.warehouse_id')
             ->selectRaw(
                 "CONCAT(l.product_id, ':', h.warehouse_id) as pkey,
@@ -418,6 +430,10 @@ class ReconciliationService
                     ->where('ict.company_id', $companyId);
             })
             ->where('h.company_id', $companyId)
+            ->where(function ($query) {
+                $query->where('h.type', '!=', 'opening')
+                    ->orWhere('l.is_current', true);
+            })
             ->whereNull('ict.id')
             ->groupBy('l.product_id', 'h.warehouse_id')
             ->selectRaw('CONCAT(l.product_id, \':\', h.warehouse_id) as pkey, COUNT(*) as legacy_lines');
@@ -438,6 +454,7 @@ class ReconciliationService
                                 FROM inventory_movement_headers h
                                 JOIN inventory_movement_lines l ON l.stock_movement_id = h.id
                                 WHERE h.company_id = {$companyId}
+                                  AND (h.type <> 'opening' OR l.is_current = 1)
                                   AND h.warehouse_id = {$warehouseId}
                                   AND l.product_id = p.id), 0) as ledger_total
                FROM products p
@@ -448,6 +465,7 @@ class ReconciliationService
                                 FROM inventory_movement_headers h
                                 JOIN inventory_movement_lines l ON l.stock_movement_id = h.id
                                 WHERE h.company_id = {$companyId}
+                                  AND (h.type <> 'opening' OR l.is_current = 1)
                                   AND l.product_id = p.id), 0) as ledger_total
                FROM products p
                WHERE p.company_id = {$companyId}";

@@ -733,17 +733,7 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees, accounts,
                                             />
                                             {errors.current_value && <div className="text-error">{errors.current_value}</div>}
                                         </div>
-                                        <div className="form-group">
-                                            <label className="form-label">Salvage Value</label>
-                                            <input 
-                                                type="number" 
-                                                step="0.01"
-                                                className="form-control" 
-                                                value={data.salvage_value}
-                                                onChange={e => setData('salvage_value', e.target.value)}
-                                            />
-                                            {errors.salvage_value && <div className="text-error">{errors.salvage_value}</div>}
-                                        </div>
+                                        
                                     </div>
                                 </div>
                             </div>
@@ -804,6 +794,17 @@ const AssetsForm = ({ asset, categories, warehouses, units, employees, accounts,
                                                         value={data.depreciation_rate}
                                                         onChange={e => setData('depreciation_rate', e.target.value)}
                                                     />
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="form-label">Salvage Value</label>
+                                                    <input 
+                                                        type="number" 
+                                                        step="0.01"
+                                                        className="form-control" 
+                                                        value={data.salvage_value}
+                                                        onChange={e => setData('salvage_value', e.target.value)}
+                                                    />
+                                                    {errors.salvage_value && <div className="text-error">{errors.salvage_value}</div>}
                                                 </div>
                                             </div>
                                         </>

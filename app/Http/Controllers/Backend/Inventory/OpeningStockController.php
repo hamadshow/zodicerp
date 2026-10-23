@@ -9,7 +9,9 @@ use App\Models\Products;
 use App\Models\Warehouses;
 use App\Services\CompanyContext;
 use App\Services\Inventory\OpeningStockService;
+use App\Services\SellableProductCatalog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -18,6 +20,7 @@ class OpeningStockController extends Controller
     public function __construct(
         private CompanyContext $companyContext,
         private OpeningStockService $openingStockService,
+        private SellableProductCatalog $sellableProductCatalog,
     ) {}
 
     /**
@@ -27,28 +30,133 @@ class OpeningStockController extends Controller
      */
     private function scopedOptionLists(int $companyId): array
     {
+        $products = $this->sellableProductCatalog
+            ->sellableQuery($companyId)
+            ->where('products.product_type', Products::PRODUCT_TYPE_SIMPLE)
+            ->with(['unit:id,name,unit_type,base_unit,conversion_factor'])
+            ->select([
+                'products.id',
+                'products.name',
+                'products.sku',
+                'products.barcode',
+                'products.unit_id',
+                'products.cost_per_item',
+                'products.parent_id',
+                'products.brand_id',
+                'products.product_type',
+                'products.company_id',
+            ])
+            ->orderBy('products.id', 'desc')
+            ->limit(2000)
+            ->get();
+
+        $displayNames = $this->sellableProductCatalog->displayNames($products);
+        $unitOptionsByProduct = $this->unitOptionsByProducts($products, $companyId);
+        $products->each(function (Products $product) use ($displayNames, $unitOptionsByProduct) {
+            $product->setAttribute('display_name', $displayNames[$product->id] ?? $product->name);
+            $product->setAttribute('unit_options', $unitOptionsByProduct[$product->id] ?? []);
+        });
+
         return [
             'warehouses' => Warehouses::query()
                 ->where('company_id', $companyId)
                 ->select(['id', 'name'])
                 ->orderBy('id')
                 ->get(),
-            'products' => Products::query()
-                ->where('company_id', $companyId)
-                ->select(['id', 'name', 'sku', 'barcode'])
-                ->orderBy('id', 'desc')
-                ->limit(2000)
-                ->get(),
-            'units' => ItemUnit::query()
-                ->where(function ($q) use ($companyId) {
-                    $q->where('company_id', $companyId)->orWhereNull('company_id');
-                })
-                ->select(['id', 'name'])
-                ->where('active', true)
-                ->where('unit_type', 1)
-                ->orderBy('id')
-                ->get(),
+            'products' => $products,
         ];
+    }
+
+    /**
+     * Return only units UnitConversionService can convert to each product's
+     * configured base unit: the base, direct subunits, and explicit conversions.
+     *
+     * @param  Collection<int, Products>  $products
+     * @return array<int, array<int, array{id:int,name:string,unit_type:int,base_unit:?int,conversion_factor:string}>>
+     */
+    private function unitOptionsByProducts(Collection $products, int $companyId): array
+    {
+        $units = ItemUnit::query()
+            ->where('active', true)
+            ->where(function ($query) use ($companyId) {
+                $query->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->get(['id', 'name', 'unit_type', 'base_unit', 'conversion_factor'])
+            ->keyBy('id');
+
+        $baseUnitByProduct = [];
+        foreach ($products as $product) {
+            $unit = $units->get((int) $product->unit_id);
+            $visited = [];
+            while ($unit && $unit->base_unit && (int) $unit->base_unit !== (int) $unit->id) {
+                if (isset($visited[$unit->id])) {
+                    $unit = null;
+                    break;
+                }
+                $visited[$unit->id] = true;
+                $unit = $units->get((int) $unit->base_unit);
+            }
+            if ($unit) {
+                $baseUnitByProduct[$product->id] = (int) $unit->id;
+            }
+        }
+
+        $baseUnitIds = collect($baseUnitByProduct)->values()->unique()->all();
+        $convertedUnitIdsByBase = [];
+        if ($baseUnitIds !== []) {
+            $conversions = DB::table('item_unit_conversions')
+                ->where('is_active', true)
+                ->where(function ($query) use ($companyId) {
+                    $query->where('company_id', $companyId)->orWhereNull('company_id');
+                })
+                ->where(function ($query) use ($baseUnitIds) {
+                    $query->whereIn('from_unit_id', $baseUnitIds)
+                        ->orWhereIn('to_unit_id', $baseUnitIds);
+                })
+                ->get(['from_unit_id', 'to_unit_id']);
+
+            foreach ($conversions as $conversion) {
+                if (in_array((int) $conversion->to_unit_id, $baseUnitIds, true)) {
+                    $convertedUnitIdsByBase[(int) $conversion->to_unit_id][] = (int) $conversion->from_unit_id;
+                }
+                if (in_array((int) $conversion->from_unit_id, $baseUnitIds, true)) {
+                    $convertedUnitIdsByBase[(int) $conversion->from_unit_id][] = (int) $conversion->to_unit_id;
+                }
+            }
+        }
+
+        $optionsByProduct = [];
+        foreach ($products as $product) {
+            $baseId = $baseUnitByProduct[$product->id] ?? null;
+            if ($baseId === null) {
+                $optionsByProduct[$product->id] = [];
+                continue;
+            }
+
+            $eligibleIds = collect([$baseId])
+                ->merge($units
+                    ->filter(fn (ItemUnit $unit) => (int) $unit->unit_type === 2 && (int) $unit->base_unit === $baseId)
+                    ->keys())
+                ->merge($convertedUnitIdsByBase[$baseId] ?? [])
+                ->unique()
+                ->filter(fn ($id) => $units->has((int) $id))
+                ->values();
+
+            $optionsByProduct[$product->id] = $eligibleIds
+                ->map(fn ($id) => $units->get((int) $id))
+                ->sortBy(fn (ItemUnit $unit) => (int) $unit->id === $baseId ? -1 : (int) $unit->id)
+                ->map(fn (ItemUnit $unit) => [
+                    'id' => (int) $unit->id,
+                    'name' => (string) $unit->name,
+                    'unit_type' => (int) $unit->unit_type,
+                    'base_unit' => $unit->base_unit === null ? null : (int) $unit->base_unit,
+                    'conversion_factor' => (string) $unit->conversion_factor,
+                ])
+                ->values()
+                ->all();
+        }
+
+        return $optionsByProduct;
     }
 
     /**
@@ -138,32 +246,7 @@ class OpeningStockController extends Controller
         }
 
         $openingStocks = $query->paginate($perPage)->withQueryString();
-
-        // Products list deduped: a product family shares the parent's name;
-        // variations must not flood the picker (behavior-preserving cap).
-        $products = Products::query()
-            ->where('company_id', $this->companyContext->id())
-            ->whereNull('parent_id')
-            ->select(['id', 'name', 'sku', 'barcode'])
-            ->orderBy('id', 'desc')
-            ->limit(2000)
-            ->get();
-
-        $warehouses = Warehouses::query()
-            ->where('company_id', $this->companyContext->id())
-            ->select(['id', 'name'])
-            ->orderBy('id')
-            ->get();
-
-        $units = ItemUnit::query()
-            ->where(function ($q) {
-                $q->where('company_id', $this->companyContext->id())->orWhereNull('company_id');
-            })
-            ->select(['id', 'name'])
-            ->where('active', true)
-            ->where('unit_type', 1)
-            ->orderBy('id')
-            ->get();
+        $optionLists = $this->scopedOptionLists($this->companyContext->id());
 
         $filters = [
             'search' => $search,
@@ -184,9 +267,8 @@ class OpeningStockController extends Controller
                 'to' => $openingStocks->lastItem(),
             ],
             'pagination' => $openingStocks->linkCollection(),
-            'warehouses' => $warehouses,
-            'products' => $products,
-            'units' => $units,
+            'warehouses' => $optionLists['warehouses'],
+            'products' => $optionLists['products'],
             'filters' => $filters,
             'initialShowForm' => false,
         ]);
@@ -234,35 +316,13 @@ class OpeningStockController extends Controller
 
         $openingStock->load(['warehouse', 'items.product', 'creator']);
 
-        $warehouses = Warehouses::query()
-            ->where('company_id', $this->companyContext->id())
-            ->select(['id', 'name'])
-            ->orderBy('id')
-            ->get();
-
-        $products = Products::query()
-            ->where('company_id', $this->companyContext->id())
-            ->select(['id', 'name', 'sku', 'barcode'])
-            ->orderBy('id', 'desc')
-            ->limit(2000)
-            ->get();
-
-        $units = ItemUnit::query()
-            ->where(function ($q) {
-                $q->where('company_id', $this->companyContext->id())->orWhereNull('company_id');
-            })
-            ->select(['id', 'name'])
-            ->where('active', true)
-            ->where('unit_type', 1)
-            ->orderBy('id')
-            ->get();
+        $optionLists = $this->scopedOptionLists($this->companyContext->id());
         
         return Inertia::render('Backend/03-Inventory/OpeningStock', [
             'viewing' => true,
             'openingStock' => $openingStock,
-            'warehouses' => $warehouses,
-            'products' => $products,
-            'units' => $units,
+            'warehouses' => $optionLists['warehouses'],
+            'products' => $optionLists['products'],
             'openingStocks' => [],
             'pagination' => [],
             'initialShowForm' => true,
@@ -270,8 +330,7 @@ class OpeningStockController extends Controller
     }
 
     /**
-     * Replace an opening stock document's items (D4: reversal-and-replacement
-     * via OpeningStockService). Routed since Phase 3.
+     * Update an opening stock document in place through the inventory service.
      */
     public function update(Request $request, $id)
     {

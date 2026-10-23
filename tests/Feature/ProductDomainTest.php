@@ -10,7 +10,7 @@ use Tests\TestCase;
 /**
  * Phase 1 — Product Domain stabilization tests.
  *
- * Covers the three supported product types (simple / variable / service),
+ * Covers the three supported product types (simple / variation / service),
  * the authoritative variation semantics (parent_id != null, mirrored to the
  * legacy is_variation flag), and the service non-stock rule.
  *
@@ -50,13 +50,13 @@ class ProductDomainTest extends TestCase
 
     public function test_product_type_constants_exactly_match_the_domain(): void
     {
-        $this->assertSame(['simple', 'variable', 'service'], Products::PRODUCT_TYPES);
+        $this->assertSame(['simple', 'variation', 'service'], Products::PRODUCT_TYPES);
     }
 
     public function test_product_type_helpers_classify_correctly(): void
     {
         $simple = new Products(['product_type' => 'simple']);
-        $variable = new Products(['product_type' => 'variable']);
+        $variable = new Products(['product_type' => 'variation']);
         $service = new Products(['product_type' => 'service']);
 
         $this->assertTrue($simple->isSimple());
@@ -73,13 +73,17 @@ class ProductDomainTest extends TestCase
         $this->assertTrue($variable->managesStock());
     }
 
-    public function test_store_rejects_unknown_product_type(): void
+    public function test_store_rejects_legacy_variable_product_type(): void
     {
-        $response = $this->postJsonProduct(['product_type' => 'bundle']);
+        $name = 'PDOM-invalid-type-'.uniqid();
+        $response = $this->postJsonProduct([
+            'name' => $name,
+            'product_type' => 'variable',
+        ]);
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors(['product_type']);
-        $this->assertNoFixtureProducts('bundle');
+        $this->assertSame(0, Products::where('name', $name)->count());
     }
 
     // ------------------------------------------------------------------
@@ -94,7 +98,7 @@ class ProductDomainTest extends TestCase
         $child = Products::find($childId);
 
         // Parent: the template — not itself a variation.
-        $this->assertSame('variable', $parent->product_type);
+        $this->assertSame('variation', $parent->product_type);
         $this->assertNull($parent->parent_id);
         $this->assertFalse($parent->isVariation(), 'A variable parent must never be flagged as a variation.');
 
@@ -111,12 +115,14 @@ class ProductDomainTest extends TestCase
 
     public function test_model_booted_hook_mirrors_is_variation_on_save(): void
     {
+        [$parentId] = $this->createVariableFamily('PDOM-mirror-parent');
+
         // Simulate legacy contradictory state being written directly...
         $child = new Products([
             'name' => self::FIXTURE_PREFIX.'mirror-child-'.uniqid(),
             'product_code' => 'PRD-PDOM-'.strtoupper(uniqid()),
             'slug' => 'pdom-mirror-'.uniqid(),
-            'parent_id' => 999999999, // non-FK-enforcing tables accept any id
+            'parent_id' => $parentId,
             'product_type' => 'simple',
             'is_variation' => false,
             'status' => 'active',
@@ -136,7 +142,7 @@ class ProductDomainTest extends TestCase
         // Try to create a variable product that is itself a child.
         $response = $this->postJsonProduct([
             'name' => 'PDOM-nested-variable-'.uniqid(),
-            'product_type' => 'variable',
+            'product_type' => 'variation',
             'parent_id' => $parentId,
         ]);
 
@@ -151,7 +157,7 @@ class ProductDomainTest extends TestCase
 
         $response = $this->postJsonProduct([
             'name' => 'PDOM-child-of-service-'.uniqid(),
-            'product_type' => 'variable',
+            'product_type' => 'variation',
             'parent_id' => $serviceId,
         ]);
 
@@ -184,7 +190,7 @@ class ProductDomainTest extends TestCase
     {
         $response = $this->postJsonProduct([
             'name' => 'PDOM-variable-no-vars-'.uniqid(),
-            'product_type' => 'variable',
+            'product_type' => 'variation',
         ]);
 
         $response->assertStatus(422);
@@ -364,6 +370,81 @@ class ProductDomainTest extends TestCase
         $this->assertFalse((bool) $product->is_variation);
     }
 
+    public function test_edit_simple_product_to_variation_persists_type_and_creates_children(): void
+    {
+        $id = $this->createProduct('PDOM-simple-to-variation-'.uniqid(), ['product_type' => 'simple']);
+
+        $response = $this->putJson(route('admin.inventory.products.update', $id), [
+            'name' => 'PDOM-simple-to-variation-parent-'.uniqid(),
+            'status' => 'active',
+            'product_type' => 'variation',
+            'stock_status' => 'in_stock',
+            'variations' => [
+                ['sku' => self::FIXTURE_PREFIX.'STV-'.strtoupper(uniqid()), 'price' => 19],
+            ],
+        ]);
+        $response->assertStatus(200);
+
+        $parent = Products::findOrFail($id);
+        $child = Products::where('parent_id', $id)->firstOrFail();
+
+        $this->assertSame('variation', $parent->product_type);
+        $this->assertSame('simple', $child->product_type);
+        $this->assertSame($id, (int) $child->parent_id);
+        $this->assertTrue((bool) $child->is_variation);
+    }
+
+    public function test_edit_variation_parent_to_simple_removes_child_skus(): void
+    {
+        [$parentId, $childId] = $this->createVariableFamily('PDOM-variation-to-simple');
+
+        $response = $this->putJson(route('admin.inventory.products.update', $parentId), [
+            'name' => 'PDOM-variation-to-simple-'.uniqid(),
+            'status' => 'active',
+            'product_type' => 'simple',
+            'stock_status' => 'in_stock',
+        ]);
+        $response->assertStatus(200);
+
+        $this->assertSame('simple', Products::findOrFail($parentId)->product_type);
+        $this->assertNull(Products::find($childId));
+        $this->assertNotNull(Products::withTrashed()->find($childId), 'Removed child SKUs are retained as soft-deleted rows.');
+        $this->assertSame(0, (int) Products::findOrFail($parentId)->variations_count);
+    }
+
+    public function test_edit_variation_parent_to_service_removes_children_and_enforces_non_stock(): void
+    {
+        [$parentId, $childId] = $this->createVariableFamily('PDOM-variation-to-service');
+
+        $response = $this->putJson(route('admin.inventory.products.update', $parentId), [
+            'name' => 'PDOM-variation-to-service-'.uniqid(),
+            'status' => 'active',
+            'product_type' => 'service',
+            'stock_status' => 'in_stock',
+            'with_storehouse_management' => 1,
+            'quantity' => 55,
+        ]);
+        $response->assertStatus(200);
+
+        $service = Products::findOrFail($parentId);
+        $this->assertSame('service', $service->product_type);
+        $this->assertFalse((bool) $service->with_storehouse_management);
+        $this->assertSame(0, (int) $service->quantity);
+        $this->assertNull(Products::find($childId));
+        $this->assertNotNull(Products::withTrashed()->find($childId), 'Removed child SKUs are retained as soft-deleted rows.');
+    }
+
+    public function test_edit_page_loads_the_persisted_variation_type(): void
+    {
+        [$parentId] = $this->createVariableFamily('PDOM-reload-type');
+
+        $this->get(route('admin.inventory.products.edit', $parentId))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Backend/03-Inventory/Products')
+                ->where('product.product_type', 'variation'));
+    }
+
     public function test_edit_service_cannot_sneak_stock_back_in(): void
     {
         $id = $this->createProduct('PDOM-edit-service-'.uniqid(), ['product_type' => 'service']);
@@ -391,7 +472,7 @@ class ProductDomainTest extends TestCase
         $response = $this->putJson(route('admin.inventory.products.update', $parentId), [
             'name' => 'PDOM-edit-var-parent-'.uniqid(),
             'status' => 'active',
-            'product_type' => 'variable',
+            'product_type' => 'variation',
             'stock_status' => 'in_stock',
             'variations' => [
                 ['sku' => self::FIXTURE_PREFIX.'EV-A-'.strtoupper(uniqid()), 'price' => 11],
@@ -404,6 +485,7 @@ class ProductDomainTest extends TestCase
         $children = Products::where('parent_id', $parentId)->get();
 
         $this->assertSame(2, $children->count());
+        $this->assertSame('variation', $parent->product_type);
         $this->assertSame(2, (int) $parent->variations_count, 'variations_count must match the recreated variation set.');
         $this->assertSame(2, DB::table('product_variations')->where('configurable_product_id', $parentId)->count(), 'product_variations links must match the recreated set.');
 
@@ -460,7 +542,7 @@ class ProductDomainTest extends TestCase
     {
         $parentResponse = $this->postJsonProduct([
             'name' => $label.'-parent-'.uniqid(),
-            'product_type' => 'variable',
+            'product_type' => 'variation',
             'variations' => [
                 ['sku' => strtoupper($label).'-A-'.strtoupper(uniqid()), 'price' => 10],
             ],

@@ -2,6 +2,7 @@
 
 namespace App\Services\Inventory;
 
+use App\Models\ItemUnit;
 use App\Models\OpeningStock;
 use App\Models\Products;
 use App\Models\Warehouses;
@@ -26,9 +27,9 @@ use RuntimeException;
  *    quantity inside the same transaction (D3).
  *  - Everything happens in ONE database transaction: any failure rolls back
  *    movements, cost transactions, and quantity changes completely.
- *  - One active opening record per (company, warehouse, product). Edits are
- *    reversal-and-replacement (D4): the previous cost transactions are
- *    reversed exactly via WAC::reverse() and the new lines are applied.
+ *  - One active opening record per (company, warehouse, product). Edits keep
+ *    the document header stable, reverse previous cost transactions exactly,
+ *    retain historical lines, and apply the new current lines.
  *    Deleting reverses the lines and keeps the header as an audit row
  *    (direction flipped to 'out') — history is never destroyed.
  */
@@ -66,16 +67,13 @@ class OpeningStockService
     }
 
     /**
-     * Replace an opening stock document's items (D4).
+     * Update an opening stock document while keeping its header and reference.
      *
-     * Movement lines are referenced by immutable cost transactions
-     * (ict.movement_line_id is RESTRICT), so lines can never be rewritten in
-     * place. Instead the OLD document is reversed exactly (every ICT negated
-     * via WAC::reverse, derived quantity rolled back) and kept as an audit
-     * row marked [SUPERSEDED]; a NEW opening document is then created with
-     * the replacement items.
+     * Movement lines are referenced by immutable cost transactions, so old
+     * lines are retained as history and marked non-current. Their cost effects
+     * and derived quantities are reversed before new current lines are added.
      *
-     * The whole correction is dated at max(new date, today) so the WAC
+     * Cost corrections are dated at max(document date, today) so the WAC
      * chronology invariant (no backdated costing) is never violated.
      */
     public function update(int $headerId, array $data): object
@@ -88,6 +86,7 @@ class OpeningStockService
                 ->where('id', $headerId)
                 ->where('company_id', $companyId)
                 ->where('type', 'opening')
+                ->lockForUpdate()
                 ->first();
 
             // Missing OR cross-company target => 404 semantics (do not leak
@@ -104,30 +103,42 @@ class OpeningStockService
             $this->assertOwnership($companyId, $warehouseId, $data['items']);
             $this->assertNoPriorOpening($companyId, $warehouseId, $data['items'], (int) $headerId);
 
-            $effectiveDate = max($this->movementDate($data), now()->toDateString());
+            $documentDate = $this->movementDate($data);
+            $effectiveDate = max($documentDate, now()->toDateString());
 
             // 1) Reverse the old document exactly (WAC + derived quantity).
             $oldLines = DB::table('inventory_movement_lines')
                 ->where('stock_movement_id', $headerId)
+                ->where('is_current', true)
                 ->orderBy('id')
+                ->lockForUpdate()
                 ->get();
 
             foreach ($oldLines as $oldLine) {
                 $this->reverseLine($companyId, (int) $headerId, $oldLine, $effectiveDate);
             }
 
-            // 2) Keep the old header as a superseded audit row.
+            // 2) Keep immutable lines for audit, but exclude them from the
+            // current document and movement-ledger totals.
+            DB::table('inventory_movement_lines')
+                ->whereIn('id', $oldLines->pluck('id'))
+                ->update(['is_current' => false, 'updated_at' => now()]);
+
+            // 3) Update the existing document header without changing its ID
+            // or generated reference.
             DB::table('inventory_movement_headers')->where('id', $headerId)->update([
-                'direction' => 'out',
-                'notes' => trim(($header->notes ?? '').' [SUPERSEDED '.$effectiveDate.']'),
+                'movement_date' => $documentDate,
+                'warehouse_id' => $warehouseId,
+                'notes' => ($data['notes'] ?? null) ?: 'OpeningStock',
                 'updated_at' => now(),
             ]);
 
-            // 3) Create the replacement document with the new items.
-            $newHeaderId = $this->insertHeader($companyId, $warehouseId, $effectiveDate, $data['notes'] ?? null);
-            $this->applyItems($newHeaderId, $companyId, $warehouseId, $effectiveDate, $data['items']);
+            // 4) Add replacement lines to the same document. Keep WAC posting
+            // at the effective correction date, even when the document date
+            // itself is historical.
+            $this->applyItems($headerId, $companyId, $warehouseId, $documentDate, $data['items'], $effectiveDate);
 
-            return DB::table('inventory_movement_headers')->where('id', $newHeaderId)->first();
+            return DB::table('inventory_movement_headers')->where('id', $headerId)->first();
         });
     }
 
@@ -146,6 +157,7 @@ class OpeningStockService
                 ->where('id', $headerId)
                 ->where('company_id', $companyId)
                 ->where('type', 'opening')
+                ->lockForUpdate()
                 ->first();
 
             if (! $header) {
@@ -159,12 +171,18 @@ class OpeningStockService
 
             $lines = DB::table('inventory_movement_lines')
                 ->where('stock_movement_id', $headerId)
+                ->where('is_current', true)
                 ->orderBy('id')
+                ->lockForUpdate()
                 ->get();
 
             foreach ($lines as $line) {
                 $this->reverseLine($companyId, (int) $headerId, $line, $reversalDate);
             }
+
+            DB::table('inventory_movement_lines')
+                ->whereIn('id', $lines->pluck('id'))
+                ->update(['is_current' => false, 'updated_at' => now()]);
 
             DB::table('inventory_movement_headers')->where('id', $headerId)->update([
                 'direction' => 'out',
@@ -207,8 +225,14 @@ class OpeningStockService
      * The SAME base quantity drives the movement line, the cost transaction,
      * and products.quantity (movement contract).
      */
-    private function applyItems(int $headerId, int $companyId, int $warehouseId, string $movementDate, array $items): void
-    {
+    private function applyItems(
+        int $headerId,
+        int $companyId,
+        int $warehouseId,
+        string $movementDate,
+        array $items,
+        ?string $costTransactionDate = null,
+    ): void {
         foreach ($this->normalizedItems($items) as $item) {
             $lineId = DB::table('inventory_movement_lines')->insertGetId([
                 'stock_movement_id' => $headerId,
@@ -230,7 +254,7 @@ class OpeningStockService
                 $item['base_cost'],
                 'opening_stock_line',
                 $lineId,
-                $movementDate,
+                $costTransactionDate ?? $movementDate,
                 $headerId,
                 $lineId,
             );
@@ -336,8 +360,20 @@ class OpeningStockService
 
         $products = Products::query()
             ->whereIn('id', array_map('intval', array_column($items, 'product_id')))
+            ->orderBy('id')
+            ->lockForUpdate()
             ->get(['id', 'company_id', 'product_type'])
             ->keyBy('id');
+        $requestedUnitIds = collect($items)->pluck('unit_id')->map(fn ($id) => (int) $id)->unique();
+        $availableUnitIds = ItemUnit::query()
+            ->whereIn('id', $requestedUnitIds)
+            ->where('active', true)
+            ->where(function ($query) use ($companyId) {
+                $query->whereNull('company_id')->orWhere('company_id', $companyId);
+            })
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
 
         foreach ($items as $index => $item) {
             $product = $products->get((int) $item['product_id']);
@@ -348,9 +384,21 @@ class OpeningStockService
                 ]);
             }
 
+            if (! in_array((int) $item['unit_id'], $availableUnitIds, true)) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.unit_id" => ['Unit is inactive or does not belong to the active company.'],
+                ]);
+            }
+
             if ($product->product_type === Products::PRODUCT_TYPE_SERVICE) {
                 throw ValidationException::withMessages([
                     "items.{$index}.product_id" => ['Service products cannot hold stock.'],
+                ]);
+            }
+
+            if ($product->product_type === Products::PRODUCT_TYPE_VARIATION) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.product_id" => ['Variation templates cannot hold stock; select a child variant.'],
                 ]);
             }
         }
@@ -374,6 +422,7 @@ class OpeningStockService
             ->where('h.type', 'opening')
             ->where('h.direction', 'in')
             ->where('h.warehouse_id', $warehouseId)
+            ->where('l.is_current', true)
             ->whereIn('l.product_id', $productIds)
             ->when($excludeHeaderId !== null, fn ($q) => $q->where('h.id', '!=', $excludeHeaderId))
             ->distinct()

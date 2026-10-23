@@ -767,7 +767,7 @@ const ProductsForm = ({ product, brands, categories, itemAttributes }) => {
                                 >
                                     Advanced
                                 </button>
-                                {data.product_type === 'variable' && (
+                                {data.product_type === 'variation' && (
                                     <button 
                                         type="button" 
                                         className={`tab-btn ${activeTab === 'variations' ? 'active' : ''}`}
@@ -857,7 +857,7 @@ const ProductsForm = ({ product, brands, categories, itemAttributes }) => {
                                                 onChange={e => setData('product_type', e.target.value)}
                                             >
                                                 <option value="simple">Simple Product</option>
-                                                <option value="variable">Variable Product</option>
+                                                <option value="variation">Variable Product</option>
                                                 <option value="service">Service</option>
                                             </select>
                                         </div>
@@ -893,7 +893,7 @@ const ProductsForm = ({ product, brands, categories, itemAttributes }) => {
                                     </div>
                                 )}
 
-                                {activeTab === 'variations' && data.product_type === 'variable' && (
+                                {activeTab === 'variations' && data.product_type === 'variation' && (
                                     <div className="variations-tab">
                                         <div className="variation-generator mb-4 p-3 bg-gray-50 border rounded">
                                             <h4>Generate Variations</h4>

@@ -42,9 +42,8 @@ class ProductController extends BaseApiController
      * Store a newly created product.
      *
      * Uses the shared Product Domain contract (Products::domainRules) so the
-     * API cannot drift from the web Inventory flow: canonical product types
-     * only, variation = simple child of a variable parent, services handled
-     * by the model's non-stock enforcement.
+     * API cannot drift from the web Inventory flow: variation identifies a
+     * configurable parent, while its child SKUs are simple products with parent_id.
      */
     public function store(Request $request): JsonResponse
     {

@@ -75,7 +75,7 @@ const ProductCell = ({ product, __ }) => {
 
     return (
         <div className="price-lists-product">
-            <div className="price-lists-product__name">{product.name}</div>
+            <div className="price-lists-product__name">{product.display_name || product.name}</div>
             {isParent && (
                 <div className="price-lists-product__meta">
                     <span className="price-lists-badge price-lists-badge--parent" title={__('parent_product_hint')}>
@@ -105,6 +105,25 @@ const UnitCell = ({ unit, __ }) => {
         </div>
     );
 };
+
+const ProductUnitsCell = ({ unit, subunits = [], __ }) => (
+    <div className="price-lists-unit">
+        <UnitCell unit={unit} __={__} />
+        {subunits.length > 0 ? (
+            <div className="price-lists-product__meta">
+                {subunits.map((subunit) => (
+                    <span key={subunit.id}>
+                        {subunit.display_name || subunit.name}
+                    </span>
+                ))}
+            </div>
+        ) : (
+            <div className="price-lists-product__meta price-lists-muted">
+                {__('no_subunits')}
+            </div>
+        )}
+    </div>
+);
 
 const StatsCards = ({ cards }) => (
     <div className="stats-cards">
@@ -450,7 +469,7 @@ const PriceItemFormModal = ({
     show,
     priceList,
     item = null,
-    units = [],
+    product = null,
     getRoute,
     onClose,
 }) => {
@@ -463,9 +482,9 @@ const PriceItemFormModal = ({
     const currencyCode = priceList?.currency?.code || '';
 
     const form = useForm({
-        product_id: item?.product_id || '',
-        unit_id: item?.unit_id || '',
-        min_quantity: item?.min_quantity ?? 1,
+        product_id: item?.product_id || product?.id || '',
+        unit_id: item?.unit_id || product?.unit_id || '',
+        min_quantity: item?.min_quantity ?? product?.unit?.conversion_factor ?? 1,
         unit_price: item?.unit_price ?? '',
         discount_percentage: item?.discount_percentage ?? 0,
         discount_amount: item?.discount_amount ?? 0,
@@ -476,14 +495,17 @@ const PriceItemFormModal = ({
 
     const { data, setData, errors, processing } = form;
 
-    const [selectedProduct, setSelectedProduct] = useState(item?.product || null);
+    const selectedInitialProduct = item?.product || product;
+    const [selectedProduct, setSelectedProduct] = useState(selectedInitialProduct || null);
     const [productOptions, setProductOptions] = useState(() =>
-        item?.product
+        selectedInitialProduct
             ? [
                   {
-                      value: item.product_id,
-                      label: item.product.sku ? `${item.product.name} (${item.product.sku})` : item.product.name,
-                      product: item.product,
+                      value: item?.product_id || selectedInitialProduct.id,
+                      label: selectedInitialProduct.sku
+                          ? `${selectedInitialProduct.display_name || selectedInitialProduct.name} (${selectedInitialProduct.sku})`
+                          : selectedInitialProduct.display_name || selectedInitialProduct.name,
+                      product: selectedInitialProduct,
                   },
               ]
             : []
@@ -491,30 +513,7 @@ const PriceItemFormModal = ({
     const [searching, setSearching] = useState(false);
     const searchTimer = useRef(null);
 
-    // Existing item_units semantics (source of truth):
-    //   base_unit         -> the unit's parent (null for a main unit)
-    //   conversion_factor -> how many base units one of this unit equals
-    // The dialog scopes units to the selected product's own unit family —
-    // its base unit (products.unit_id) plus the valid children of that base
-    // unit — and derives Min Qty from the selected unit's conversion_factor
-    // instead of letting the user type a tier start.
-    const productUnits = useMemo(() => {
-        const list = units || [];
-        const baseId = selectedProduct?.unit_id ?? selectedProduct?.unit?.id ?? null;
-        if (!baseId) return [];
-        const base = list.find((unit) => String(unit.id) === String(baseId));
-        if (!base) return [];
-        return [
-            base,
-            ...list.filter(
-                (unit) =>
-                    unit.base_unit !== null &&
-                    unit.base_unit !== undefined &&
-                    String(unit.base_unit) === String(baseId) &&
-                    (unit.active === undefined || unit.active)
-            ),
-        ];
-    }, [units, selectedProduct]);
+    const productUnits = selectedProduct?.unit_options || [];
 
     const selectedUnit = useMemo(
         () => productUnits.find((unit) => String(unit.id) === String(data.unit_id)) || null,
@@ -540,7 +539,9 @@ const PriceItemFormModal = ({
                 setProductOptions(
                     products.map((product) => ({
                         value: product.id,
-                        label: product.sku ? `${product.name} (${product.sku})` : product.name,
+                        label: product.sku
+                            ? `${product.display_name || product.name} (${product.sku})`
+                            : product.display_name || product.name,
                         product,
                     }))
                 );
@@ -553,8 +554,7 @@ const PriceItemFormModal = ({
     };
 
     const handleUnitChange = (value) => {
-        // Min Qty mirrors the selected unit's existing conversion quantity
-        // (1 for the base unit itself); it is not a free-form input.
+        // Min Qty mirrors the selected subunit's conversion quantity.
         const factor = trimNumber(
             productUnits.find((unit) => String(unit.id) === String(value))?.conversion_factor
         );
@@ -563,25 +563,15 @@ const PriceItemFormModal = ({
     };
 
     const handleProductChange = (value) => {
-        setData((current) => ({
-            ...current,
-            product_id: value,
-            // A product change invalidates the previous product's unit family
-            // and its derived Min Qty.
-            unit_id: '',
-            min_quantity: 1,
-        }));
-
         const option = productOptions.find((entry) => String(entry.value) === String(value));
         const product = option?.product || null;
         setSelectedProduct(product);
-
-        if (product?.unit_id) {
-            // Pre-select the product's base unit (from the existing search
-            // response) and derive its Min Qty from its conversion data.
-            setData('unit_id', product.unit_id);
-            setData('min_quantity', trimNumber(product.unit?.conversion_factor) || 1);
-        }
+        setData((current) => ({
+            ...current,
+            product_id: value,
+            unit_id: '',
+            min_quantity: 1,
+        }));
     };
 
     const submit = (event) => {
@@ -687,15 +677,26 @@ const PriceItemFormModal = ({
                                 className={`form-control ${errors.unit_id ? 'is-invalid' : ''}`}
                                 value={data.unit_id}
                                 onChange={(event) => handleUnitChange(event.target.value)}
-                                disabled={!selectedProduct}
+                                disabled={!selectedProduct || productUnits.length === 0}
                             >
-                                <option value="">{selectedProduct ? __('select_unit', 'Select a unit') : __('select_product', 'Select a product')}</option>
+                                <option value="">
+                                    {!selectedProduct
+                                        ? __('select_product', 'Select a product')
+                                        : productUnits.length === 0
+                                          ? __('no_product_units')
+                                          : __('select_unit', 'Select a unit')}
+                                </option>
                                 {productUnits.map((unit) => (
                                     <option key={unit.id} value={unit.id}>
-                                        {unit.name}
+                                        {unit.display_name || unit.name}
                                     </option>
                                 ))}
                             </select>
+                            {selectedProduct && productUnits.length === 0 && (
+                                <div className="price-lists-form__hint" role="status">
+                                    {__('no_product_units')}
+                                </div>
+                            )}
                             {selectedUnit?.parent && (
                                 <div className="price-lists-form__hint">
                                     {interpolate(__('conversion_hint', '1 :unit = :factor :base'), {
@@ -1218,6 +1219,7 @@ const PriceListsList = ({
 
 const PriceListDetail = ({
     priceList,
+    catalogProducts,
     items,
     units = [],
     tierProducts = [],
@@ -1232,12 +1234,12 @@ const PriceListDetail = ({
     const pageErrors = props.errors || {};
 
     const currencyCode = priceList?.currency?.code || '';
-    const [itemFormState, setItemFormState] = useState({ open: false, item: null });
+    const [itemFormState, setItemFormState] = useState({ open: false, item: null, product: null });
 
     const navigate = (params = {}) =>
         router.get(
             getRoute('admin.inventory.price-lists.show', { price_list: priceList.id }),
-            cleanParams({ ...filters, page: 1, ...params }),
+            cleanParams({ ...filters, page: 1, catalog_page: 1, ...params }),
             { preserveState: true, preserveScroll: true, replace: true }
         );
 
@@ -1253,12 +1255,77 @@ const PriceListDetail = ({
     }, [units, tierProducts]);
 
     const productFilterOptions = useMemo(
-        () =>
-            tierProducts.map((row) => ({
-                value: row.product_id,
-                label: row.product_sku ? `${row.product_name} (${row.product_sku})` : row.product_name,
-            })),
-        [tierProducts]
+        () => {
+            const optionsById = new Map();
+            tierProducts.forEach((row) => {
+                optionsById.set(String(row.product_id), {
+                    value: row.product_id,
+                    label: row.product_sku ? `${row.product_name} (${row.product_sku})` : row.product_name,
+                });
+            });
+            (catalogProducts?.data || []).forEach((row) => {
+                optionsById.set(String(row.id), {
+                    value: row.id,
+                    label: row.sku ? `${row.display_name} (${row.sku})` : row.display_name,
+                });
+            });
+
+            return Array.from(optionsById.values());
+        },
+        [tierProducts, catalogProducts]
+    );
+
+    const catalogColumns = useMemo(
+        () => [
+            {
+                header: __('product'),
+                key: 'name',
+                render: (row) => <ProductCell product={row} __={__} />,
+            },
+            {
+                header: __('sku'),
+                key: 'sku',
+                render: (row) => row.sku || '—',
+            },
+            {
+                header: __('unit'),
+                key: 'unit_id',
+                render: (row) => (
+                    <ProductUnitsCell unit={row.unit} subunits={row.subunits || []} __={__} />
+                ),
+            },
+            {
+                header: __('price_status', 'Price Status'),
+                key: 'price_status',
+                render: (row) => (
+                    <span className="price-lists-badge price-lists-badge--type">
+                        {__(row.price_status, row.price_status)}
+                    </span>
+                ),
+            },
+            {
+                header: __('pricing_items_count'),
+                key: 'pricing_items_count',
+                render: (row) => (
+                    <span className="price-lists-num">{row.pricing_items_count ?? 0}</span>
+                ),
+            },
+            {
+                header: '',
+                key: 'add_price',
+                render: (row) => (
+                    <button
+                        type="button"
+                        className="price-lists-btn price-lists-btn--ghost"
+                        onClick={() => setItemFormState({ open: true, item: null, product: row })}
+                    >
+                        <span className="material-icons-outlined">add</span>
+                        {__('add_product_price')}
+                    </button>
+                ),
+            },
+        ],
+        [__, setItemFormState]
     );
 
     const columns = useMemo(
@@ -1460,7 +1527,7 @@ const PriceListDetail = ({
                             <button
                                 type="button"
                                 className="price-lists-btn price-lists-btn--primary"
-                                onClick={() => setItemFormState({ open: true, item: null })}
+                                onClick={() => setItemFormState({ open: true, item: null, product: null })}
                             >
                                 <span className="material-icons-outlined">add</span>
                                 {__('add_item')}
@@ -1564,6 +1631,22 @@ const PriceListDetail = ({
                         </div>
 
                         <div className="price-lists-filters__group">
+                            <label className="price-lists-filters__label" htmlFor="plif_price_status">
+                                {__('price_status', 'Price Status')}
+                            </label>
+                            <select
+                                id="plif_price_status"
+                                className="form-control"
+                                value={filters.price_status || ''}
+                                onChange={(event) => navigate({ price_status: event.target.value, page: 1 })}
+                            >
+                                <option value="">{__('all')}</option>
+                                <option value="with_price">{__('with_price')}</option>
+                                <option value="without_price">{__('without_price')}</option>
+                            </select>
+                        </div>
+
+                        <div className="price-lists-filters__group">
                             <label className="price-lists-filters__label" htmlFor="plif_unit">
                                 {__('filter_unit')}
                             </label>
@@ -1603,13 +1686,51 @@ const PriceListDetail = ({
                             type="button"
                             className="price-lists-btn price-lists-btn--ghost"
                             onClick={() =>
-                                navigate({ search: '', product_id: '', unit_id: '', item_status: '', page: 1 })
+                                navigate({
+                                    search: '',
+                                    product_id: '',
+                                    price_status: '',
+                                    unit_id: '',
+                                    item_status: '',
+                                    page: 1,
+                                })
                             }
                         >
                             <span className="material-icons-outlined">filter_alt_off</span>
                             {__('clear_filters')}
                         </button>
                     </div>
+
+                    <div className="price-lists-section__header price-lists-section__header--standalone">
+                        <h2 className="price-lists-section__title">
+                            {__('catalog_products')}
+                        </h2>
+                    </div>
+
+                    <Table
+                        tableData={catalogProducts?.data || []}
+                        columns={catalogColumns}
+                        currentPage={catalogProducts?.current_page || 1}
+                        totalPages={catalogProducts?.last_page || 1}
+                        totalRecords={catalogProducts?.total || 0}
+                        recordsPerPage={catalogProducts?.per_page || 10}
+                        onPageChange={(page) => navigate({ catalog_page: page })}
+                        onRecordsPerPageChange={(perPage) => navigate({ per_page: perPage, page: 1 })}
+                        serverSide={true}
+                        showToolbar={true}
+                        toolbarSearch={true}
+                        toolbarSearchPlaceholder={__('search_items')}
+                        toolbarSearchValue={filters.search || ''}
+                        onToolbarSearch={(value) => navigate({ search: value, page: 1 })}
+                        showRefreshButton={true}
+                        onRefresh={() =>
+                            router.reload({
+                                only: ['catalogProducts', 'items', 'stats', 'filters', 'tierProducts', 'tierLadder'],
+                            })
+                        }
+                        emptyIcon="inventory_2"
+                        emptyMessage={__('no_catalog_products')}
+                    />
 
                     {filters.product_id !== '' && filters.product_id !== undefined && (
                         <div className="price-lists-tiers">
@@ -1681,11 +1802,15 @@ const PriceListDetail = ({
                         toolbarSearchValue={filters.search || ''}
                         onToolbarSearch={(value) => navigate({ search: value, page: 1 })}
                         showRefreshButton={true}
-                        onRefresh={() => router.reload({ only: ['items', 'stats', 'filters', 'tierProducts', 'tierLadder'] })}
+                        onRefresh={() =>
+                            router.reload({
+                                only: ['catalogProducts', 'items', 'stats', 'filters', 'tierProducts', 'tierLadder'],
+                            })
+                        }
                         showAddButton={true}
                         addButtonText={__('add_item')}
-                        onAdd={() => setItemFormState({ open: true, item: null })}
-                        onEdit={(row) => setItemFormState({ open: true, item: row })}
+                        onAdd={() => setItemFormState({ open: true, item: null, product: null })}
+                        onEdit={(row) => setItemFormState({ open: true, item: row, product: null })}
                         onDelete={(row) => deleteItem(row)}
                         editTitle={__('edit_item')}
                         deleteTitle={__('delete_item_confirm')}
@@ -1697,13 +1822,13 @@ const PriceListDetail = ({
 
             {itemFormState.open && (
                 <PriceItemFormModal
-                    key={itemFormState.item?.id || 'new'}
+                    key={itemFormState.item?.id || itemFormState.product?.id || 'new'}
                     show={itemFormState.open}
                     priceList={priceList}
                     item={itemFormState.item}
-                    units={units}
+                    product={itemFormState.product}
                     getRoute={getRoute}
-                    onClose={() => setItemFormState({ open: false, item: null })}
+                    onClose={() => setItemFormState({ open: false, item: null, product: null })}
                 />
             )}
         </>
@@ -1718,6 +1843,7 @@ const PriceLists = ({
     mode = 'list',
     priceLists,
     priceList,
+    catalogProducts,
     items,
     units = [],
     currencies = [],
@@ -1771,6 +1897,7 @@ const PriceLists = ({
             ) : mode === 'detail' ? (
                 <PriceListDetail
                     priceList={priceList}
+                    catalogProducts={catalogProducts}
                     items={items}
                     units={units}
                     tierProducts={tierProducts}

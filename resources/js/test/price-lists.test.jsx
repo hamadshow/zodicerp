@@ -37,9 +37,10 @@ vi.mock('@inertiajs/react', () => ({
         const [data, setDataState] = React.useState(initialData);
 
         const setData = React.useCallback((key, value) => {
-            setDataState((previous) =>
-                typeof key === 'object' ? { ...previous, ...key } : { ...previous, [key]: value }
-            );
+            setDataState((previous) => {
+                if (typeof key === 'function') return key(previous);
+                return typeof key === 'object' ? { ...previous, ...key } : { ...previous, [key]: value };
+            });
         }, []);
 
         return {
@@ -95,13 +96,21 @@ const translations = {
     'PriceLists.filter_currency': 'Filter Currency',
     'PriceLists.filter_validity': 'Filter Validity',
     'PriceLists.filter_product': 'Filter Product',
+    'PriceLists.price_status': 'Price Status',
+    'PriceLists.with_price': 'With Price',
+    'PriceLists.without_price': 'Without Price',
     'PriceLists.filter_unit': 'Filter Unit',
     'PriceLists.clear_filters': 'Clear filters',
     'PriceLists.search_lists': 'Search price lists',
     'PriceLists.create_list': 'Create Price List',
     'PriceLists.edit_list': 'Edit Price List',
     'PriceLists.manage_items': 'Pricing Items',
+    'PriceLists.catalog_products': 'Product Catalog',
+    'PriceLists.pricing_items_count': 'Pricing Items',
+    'PriceLists.add_product_price': 'Add Pricing Item',
+    'PriceLists.no_catalog_products': 'No eligible products match the current filters.',
     'PriceLists.add_item': 'Add Pricing Item',
+    'PriceLists.edit_item': 'Edit pricing item',
     'PriceLists.save': 'Save',
     'PriceLists.saving': 'Saving...',
     'PriceLists.cancel': 'Cancel',
@@ -143,6 +152,8 @@ const translations = {
     'PriceLists.tier_ladder_hint': 'Configured steps for the selected product.',
     'PriceLists.search_product': 'Search product',
     'PriceLists.select_unit': 'Select a unit',
+    'PriceLists.no_product_units': 'No subunits available for this product.',
+    'PriceLists.no_subunits': 'No subunits',
     'PriceLists.indicative_product_price': 'Indicative product price',
     'PriceLists.estimated_final': 'Estimated (saved value is authoritative)',
     'PriceLists.assignment_hint': 'Assign from customers screen',
@@ -200,12 +211,16 @@ const itemRow = {
         name: 'Test Product',
         sku: 'SKU-5',
         product_type: 'simple',
+        unit_id: 8,
+        unit_options: [
+            { id: 9, name: 'Carton', display_name: 'Carton', unit_type: 2, base_unit: 8, conversion_factor: '10.0000', parent: { id: 8, name: 'Piece', conversion_factor: '1.0000' } },
+        ],
         is_parent_with_children: false,
         children_count: 0,
     },
     unit: {
         id: 9,
-        name: 'Box',
+        name: 'Carton',
         conversion_factor: '10.0000',
         base_unit: 8,
         parent: { id: 8, name: 'Piece', conversion_factor: '1.0000' },
@@ -230,6 +245,14 @@ const renderPage = (props) =>
             {...props}
         />
     );
+
+const selectProductOption = (label) => {
+    const option = [...document.querySelectorAll('.searchable-combobox-option')].find((element) =>
+        element.textContent.includes(label)
+    );
+    expect(option).toBeTruthy();
+    fireEvent.mouseDown(option);
+};
 
 describe('Price Lists screen (Inventory)', () => {
     beforeEach(() => {
@@ -378,6 +401,27 @@ describe('Price Lists screen (Inventory)', () => {
             baseProps({
                 mode: 'detail',
                 priceList: { ...priceListRow, currency: { id: 1, code: 'EGP', name: 'Egyptian Pound' } },
+                catalogProducts: {
+                    data: [
+                        {
+                            id: 5,
+                            name: 'Test Product',
+                            display_name: 'Test Product',
+                            sku: 'SKU-5',
+                            price_status: 'with_price',
+                            pricing_items_count: 1,
+                            unit: { id: 9, name: 'Box', conversion_factor: '10.0000' },
+                            subunits: [
+                                { id: 21, name: 'Carton', display_name: 'Carton (12.0000)' },
+                                { id: 22, name: 'Carton', display_name: 'Carton (24.0000)' },
+                            ],
+                        },
+                    ],
+                    current_page: 1,
+                    last_page: 1,
+                    total: 1,
+                    per_page: 10,
+                },
                 items: { data: [itemRow], current_page: 1, last_page: 1, total: 1, per_page: 10 },
                 units: [
                     { id: 9, name: 'Box', unit_type: 2, base_unit: 8, conversion_factor: '10.0000', active: true, parent: { id: 8, name: 'Piece', conversion_factor: '1.0000' } },
@@ -404,12 +448,51 @@ describe('Price Lists screen (Inventory)', () => {
             })
         );
 
-        expect(screen.getByText('Test Product')).toBeInTheDocument();
+        expect(screen.getAllByText('Test Product').length).toBeGreaterThan(0);
+        expect(screen.getByRole('heading', { name: 'Product Catalog' })).toBeInTheDocument();
+        expect(screen.getAllByText('With Price').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Box').length).toBeGreaterThan(0);
+        expect(screen.getByText('Carton (12.0000)')).toBeInTheDocument();
+        expect(screen.getByText('Carton (24.0000)')).toBeInTheDocument();
         expect(screen.getAllByText('SKU-5').length).toBeGreaterThan(0);
-        expect(screen.getByText('1 Box = 10 Piece')).toBeInTheDocument();
+        expect(screen.getByText('1 Carton = 10 Piece')).toBeInTheDocument();
         expect(screen.getAllByText('10+').length).toBeGreaterThan(0);
         expect(screen.getAllByText(/90\.00 EGP/).length).toBeGreaterThan(0);
         expect(screen.getByText('Quantity Tiers')).toBeInTheDocument();
+    });
+
+    it('filters the product catalog by price status and clears the filter', async () => {
+        const user = userEvent.setup();
+
+        renderPage(
+            baseProps({
+                mode: 'detail',
+                priceList: priceListRow,
+                catalogProducts: { data: [], current_page: 1, last_page: 1, total: 0, per_page: 10 },
+                items: { data: [], current_page: 1, last_page: 1, total: 0, per_page: 10 },
+                filters: {
+                    search: '',
+                    product_id: '',
+                    price_status: '',
+                    unit_id: '',
+                    item_status: '',
+                    sort_by: 'min_quantity',
+                    sort_dir: 'asc',
+                    per_page: 10,
+                },
+            })
+        );
+
+        await user.selectOptions(screen.getByLabelText('Price Status'), 'without_price');
+        expect(getSpy).toHaveBeenCalled();
+        const filterRequest = () => getSpy.mock.calls[getSpy.mock.calls.length - 1][1];
+        expect(filterRequest()).toMatchObject({ price_status: 'without_price', page: 1 });
+
+        await user.click(screen.getByRole('button', { name: /clear filters/i }));
+        expect(filterRequest()).not.toHaveProperty('price_status');
+        expect(filterRequest()).not.toHaveProperty('product_id');
+        expect(filterRequest()).not.toHaveProperty('unit_id');
+        expect(filterRequest()).not.toHaveProperty('item_status');
     });
 
     it('shows the price list information separately from the items and links to the edit page', async () => {
@@ -508,8 +591,11 @@ describe('Price Lists screen (Inventory)', () => {
                             id: 5,
                             name: 'Test Product',
                             sku: 'SKU-5',
-                            unit_id: 9,
-                            unit: { id: 9, name: 'Box', base_unit: 8, conversion_factor: '10.0000' },
+                            unit_id: 8,
+                            unit_options: [
+                                { id: 9, name: 'Carton', display_name: 'Carton', unit_type: 2, base_unit: 8, conversion_factor: '10.0000', parent: { id: 8, name: 'Piece', conversion_factor: '1.0000' } },
+                            ],
+                            unit: { id: 8, name: 'Piece', base_unit: null, conversion_factor: '1.0000' },
                             price: '120.00',
                             sale_price: null,
                             children_count: 0,
@@ -542,8 +628,10 @@ describe('Price Lists screen (Inventory)', () => {
         expect(searchUrl).toContain('/admin.inventory.price-lists.search-products');
 
         await screen.findAllByText('Test Product (SKU-5)');
-        fireEvent.mouseDown(document.querySelector('.searchable-combobox-option'));
+        selectProductOption('Test Product (SKU-5)');
 
+        await waitFor(() => expect(document.querySelector('#pli_unit').value).toBe(''));
+        await user.selectOptions(document.querySelector('#pli_unit'), '9');
         await waitFor(() => expect(document.querySelector('#pli_unit').value).toBe('9'));
 
         // Min Qty is derived read-only from the selected unit's conversion factor.
@@ -571,6 +659,11 @@ describe('Price Lists screen (Inventory)', () => {
                             name: 'Test Product',
                             sku: 'SKU-5',
                             unit_id: 9,
+                            unit_options: [
+                                { id: 21, name: 'Carton', display_name: 'Carton', unit_type: 2, base_unit: 9, conversion_factor: '12.0000', parent: { id: 9, name: 'Box', conversion_factor: '10.0000' } },
+                                { id: 22, name: 'Crate', display_name: 'Crate', unit_type: 2, base_unit: 9, conversion_factor: '24.0000', parent: { id: 9, name: 'Box', conversion_factor: '10.0000' } },
+                                { id: 23, name: 'Pallet', display_name: 'Pallet', unit_type: 2, base_unit: 9, conversion_factor: '48.0000', parent: { id: 9, name: 'Box', conversion_factor: '10.0000' } },
+                            ],
                             unit: { id: 9, name: 'Box', base_unit: 8, conversion_factor: '10.0000' },
                             price: '120.00',
                             sale_price: null,
@@ -581,6 +674,9 @@ describe('Price Lists screen (Inventory)', () => {
                             name: 'Second Product',
                             sku: 'SKU-6',
                             unit_id: 8,
+                            unit_options: [
+                                { id: 24, name: 'Pack', display_name: 'Pack', unit_type: 2, base_unit: 8, conversion_factor: '6.0000', parent: { id: 8, name: 'Piece', conversion_factor: '1.0000' } },
+                            ],
                             unit: { id: 8, name: 'Piece', base_unit: null, conversion_factor: '1.0000' },
                             price: '50.00',
                             sale_price: null,
@@ -616,19 +712,22 @@ describe('Price Lists screen (Inventory)', () => {
         expect(unitSelect).toBeDisabled();
         expect([...unitSelect.options].map((o) => o.textContent)).toEqual(['Select a product']);
 
-        // Selecting the product pre-selects its base unit (Box) and derives Min Qty.
-        fireEvent.mouseDown(document.querySelector('.searchable-combobox-option'));
-        await waitFor(() => expect(unitSelect.value).toBe('9'));
-        await waitFor(() => expect(document.querySelector('#pli_min_quantity').value).toBe('10'));
+        // Only subunits are selectable; the product's head unit is excluded.
+        selectProductOption('Test Product (SKU-5)');
+        await waitFor(() => expect(unitSelect.value).toBe(''));
+        expect([...unitSelect.options].map((option) => option.value)).toEqual(['', '21', '22', '23']);
+        expect([...unitSelect.options].map((option) => option.textContent)).not.toContain('Box');
+        expect([...unitSelect.options].map((option) => option.textContent)).not.toContain('Piece');
+        await user.selectOptions(unitSelect, '21');
+        await waitFor(() => expect(unitSelect.value).toBe('21'));
+        await waitFor(() => expect(document.querySelector('#pli_min_quantity').value).toBe('12'));
         expect(document.querySelector('#pli_min_quantity')).toHaveAttribute('readonly');
 
-        // Unit options are scoped to the product's own unit family:
-        // its base unit (Box) plus the children of that base unit (Carton).
-        // The parent unit (Piece) and unrelated units are never offered.
+        // The backend returns only this product's associated subunits.
         const optionNames = [...unitSelect.options].map((o) => o.textContent);
-        expect(optionNames).toContain('Box');
         expect(optionNames).toContain('Carton');
-        expect(optionNames).not.toContain('Piece');
+        expect(optionNames).toContain('Crate');
+        expect(optionNames).toContain('Pallet');
 
         // Switching the unit re-derives Min Qty from that unit's factor.
         await user.selectOptions(unitSelect, '21');
@@ -644,8 +743,73 @@ describe('Price Lists screen (Inventory)', () => {
         );
         fireEvent.mouseDown(secondOption);
 
-        await waitFor(() => expect(unitSelect.value).toBe('8'));
-        await waitFor(() => expect(document.querySelector('#pli_min_quantity').value).toBe('1'));
+        await waitFor(() => expect(unitSelect.value).toBe(''));
+        expect([...unitSelect.options].map((option) => option.value)).toEqual(['', '24']);
+        await waitFor(() => expect(document.querySelector('#pli_min_quantity').value).toBe(''));
+        expect([...unitSelect.options].map((option) => option.textContent)).not.toContain('Piece');
+    });
+
+    it('shows a clear empty subunit state when a product has no subunits', async () => {
+        const user = userEvent.setup();
+        window.axios = {
+            get: vi.fn().mockResolvedValue({
+                data: {
+                    products: [
+                        {
+                            id: 7,
+                            name: 'Unitless Product',
+                            sku: 'SKU-7',
+                            unit_id: 30,
+                            unit_options: [],
+                        },
+                    ],
+                },
+            }),
+        };
+
+        renderPage(
+            baseProps({
+                mode: 'detail',
+                priceList: priceListRow,
+                items: { data: [], current_page: 1, last_page: 1, total: 0, per_page: 10 },
+                catalogProducts: { data: [], current_page: 1, last_page: 1, total: 0, per_page: 10 },
+                units: [{ id: 99, name: 'Unrelated unit', unit_type: 1, base_unit: null, conversion_factor: '1.0000', active: true }],
+                tierProducts: [],
+                filters: { search: '', product_id: '', unit_id: '', item_status: '', sort_by: '', sort_dir: '', per_page: 10 },
+            })
+        );
+
+        await user.click(screen.getAllByRole('button', { name: /add pricing item/i })[0]);
+        await user.type(screen.getByPlaceholderText('Search product'), 'Unitless');
+        await screen.findAllByText('Unitless Product (SKU-7)');
+        selectProductOption('Unitless Product (SKU-7)');
+
+        const unitSelect = document.querySelector('#pli_unit');
+        await waitFor(() => expect(unitSelect).toBeDisabled());
+        expect([...unitSelect.options].map((option) => option.textContent)).toEqual([
+            'No subunits available for this product.',
+        ]);
+        expect([...unitSelect.options].some((option) => option.textContent === 'Unrelated unit')).toBe(false);
+    });
+
+    it('loads the saved unit ID when editing an existing pricing item', async () => {
+        const user = userEvent.setup();
+        renderPage(
+            baseProps({
+                mode: 'detail',
+                priceList: priceListRow,
+                items: { data: [itemRow], current_page: 1, last_page: 1, total: 1, per_page: 10 },
+                catalogProducts: { data: [], current_page: 1, last_page: 1, total: 0, per_page: 10 },
+                units: [],
+                tierProducts: [],
+                filters: { search: '', product_id: '', unit_id: '', item_status: '', sort_by: '', sort_dir: '', per_page: 10 },
+            })
+        );
+
+        await user.click(screen.getByTitle('Edit pricing item'));
+        const unitSelect = document.querySelector('#pli_unit');
+        expect(unitSelect.value).toBe('9');
+        expect([...unitSelect.options].map((option) => option.value)).toContain('9');
     });
 
     it('shows duplicate-tier validation returned by the server inside the item form', async () => {

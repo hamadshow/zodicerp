@@ -236,7 +236,7 @@ class SupplierController extends Controller
             }
 
             // Handle Variations
-            if ($request->product_type === Products::PRODUCT_TYPE_VARIABLE) {
+            if ($request->product_type === Products::PRODUCT_TYPE_VARIATION) {
                 $this->handleVariations($product, $request);
             }
 
@@ -425,8 +425,8 @@ class SupplierController extends Controller
     {
         $data = $request->all();
 
-        // If switching to variable or updating variable product
-        if (($data['product_type'] ?? $product->product_type) === Products::PRODUCT_TYPE_VARIABLE) {
+        // If switching to a variation parent or updating one
+        if (($data['product_type'] ?? $product->product_type) === Products::PRODUCT_TYPE_VARIATION) {
             $variations = $request->input('variations', []);
             $variationFiles = $request->file('variations', []);
 
@@ -582,7 +582,7 @@ class SupplierController extends Controller
                 'variations_count' => $total,
             ]);
         } else {
-            // Not variable anymore, delete variations
+            // No longer a variation parent, delete its child SKUs
             $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
             $product->variations()->delete();
             if (! empty($existingVariationProductIds) && is_array($existingVariationProductIds)) {
