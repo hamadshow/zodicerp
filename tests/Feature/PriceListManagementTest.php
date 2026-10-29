@@ -8,9 +8,11 @@ use App\Models\ItemUnit;
 use App\Models\Products;
 use App\Models\User;
 use App\Models\Warehouses;
+use App\Exports\PriceListItemsExport;
 use App\Services\ProductPriceResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -45,6 +47,220 @@ class PriceListManagementTest extends TestCase
             );
     }
 
+    public function test_price_list_detail_renders_one_unified_product_list_without_legacy_price_columns(): void
+    {
+        $this->guardWritablePriceListTables();
+        [$productId] = $this->fixtureProductAndUnit();
+        $priceListId = $this->fixturePriceList();
+        $this->actingAs($this->admin());
+
+        $this->get(route('admin.inventory.price-lists.show', ['price_list' => $priceListId]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('mode', 'detail')
+                ->has('products.data')
+                ->missing('items')
+                ->where('products.data.0.total_pricing_records_count', 0)
+                ->missing('products.data.0.pricing_items')
+                ->where('products.data', fn ($rows) => collect($rows)->every(
+                    fn ($row) => ! array_key_exists('price', $row)
+                        && ! array_key_exists('sale_price', $row)
+                ))
+            );
+    }
+
+    public function test_product_pricing_records_endpoint_returns_all_records_for_the_selected_product(): void
+    {
+        $this->guardWritablePriceListTables();
+        [$productId, $unitId] = $this->fixtureProductAndUnit();
+        $subunitId = $this->fixtureSubunitFor($unitId);
+        $priceListId = $this->fixturePriceList();
+        $this->actingAs($this->admin());
+
+        foreach ([10, 20] as $quantity) {
+            $this->post(route('admin.inventory.price-lists.items.store', ['price_list' => $priceListId]), [
+                'product_id' => $productId,
+                'unit_id' => $subunitId,
+                'min_quantity' => $quantity,
+                'unit_price' => 100,
+                'effective_date' => $quantity === 10 ? '2026-01-01' : '2027-01-01',
+            ])->assertRedirect();
+        }
+
+        $response = $this->getJson(route('admin.inventory.price-lists.products.items', [
+            'price_list' => $priceListId,
+            'product' => $productId,
+            'unit_id' => $subunitId,
+            'item_status' => 'active',
+        ]))->assertOk();
+
+        $this->assertCount(2, $response->json('items'));
+        $this->assertSame(
+            [10.0, 20.0],
+            array_map('floatval', array_column($response->json('items'), 'min_quantity'))
+        );
+        $this->assertArrayHasKey('status', $response->json('items.0'));
+        $this->assertArrayHasKey('unit', $response->json('items.0'));
+    }
+
+    public function test_product_pricing_records_endpoint_rejects_products_outside_the_sellable_catalog(): void
+    {
+        $this->guardWritablePriceListTables();
+        [$productId] = $this->fixtureProductAndUnit();
+        $priceListId = $this->fixturePriceList();
+        $this->actingAs($this->admin());
+
+        $this->getJson(route('admin.inventory.price-lists.products.items', [
+            'price_list' => $priceListId,
+            'product' => $productId + 99999,
+        ]))->assertNotFound();
+    }
+
+    public function test_price_list_import_creates_only_valid_records_for_the_selected_list(): void
+    {
+        $this->guardWritablePriceListTables();
+        [$productId, $baseUnitId] = $this->fixtureProductAndUnit();
+        $unitId = $this->fixtureSubunitFor($baseUnitId);
+        $priceListId = $this->fixturePriceList();
+        $otherPriceListId = $this->fixturePriceList();
+        $this->actingAs($this->admin());
+
+        $this->postJson(route('admin.inventory.price-lists.items.import', [
+            'price_list' => $priceListId,
+        ]), [
+            'rows' => [[
+                'product_id' => $productId,
+                'unit_id' => $unitId,
+                'min_quantity' => 5,
+                'unit_price' => 125.50,
+                'discount_percentage' => 5,
+                'discount_amount' => 1,
+                'effective_date' => '2026-01-01',
+                'expiry_date' => null,
+                'notes' => 'Imported tier',
+            ]],
+        ])
+            ->assertOk()
+            ->assertJsonPath('imported', 1);
+
+        $this->assertSame(1, DB::table('price_list_items')->where('price_list_id', $priceListId)->count());
+        $this->assertSame(0, DB::table('price_list_items')->where('price_list_id', $otherPriceListId)->count());
+        $this->assertSame(
+            '125.5000',
+            number_format((float) DB::table('price_list_items')->where('price_list_id', $priceListId)->value('unit_price'), 4, '.', '')
+        );
+    }
+
+    public function test_price_list_import_rejects_duplicate_rows_without_partial_writes(): void
+    {
+        $this->guardWritablePriceListTables();
+        [$productId, $baseUnitId] = $this->fixtureProductAndUnit();
+        $unitId = $this->fixtureSubunitFor($baseUnitId);
+        $priceListId = $this->fixturePriceList();
+        $this->actingAs($this->admin());
+
+        $row = [
+            'product_id' => $productId,
+            'unit_id' => $unitId,
+            'min_quantity' => 3,
+            'unit_price' => 50,
+        ];
+
+        $this->postJson(route('admin.inventory.price-lists.items.import', [
+            'price_list' => $priceListId,
+        ]), ['rows' => [$row, $row]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('rows');
+
+        $this->assertSame(0, DB::table('price_list_items')->where('price_list_id', $priceListId)->count());
+
+        $this->post(route('admin.inventory.price-lists.items.store', [
+            'price_list' => $priceListId,
+        ]), $row)->assertRedirect();
+
+        $this->postJson(route('admin.inventory.price-lists.items.import', [
+            'price_list' => $priceListId,
+        ]), ['rows' => [$row]])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('rows');
+
+        $this->assertSame(1, DB::table('price_list_items')->where('price_list_id', $priceListId)->count());
+    }
+
+    public function test_price_list_import_rejects_invalid_products_units_and_numeric_values_atomically(): void
+    {
+        $this->guardWritablePriceListTables();
+        [$productId, $baseUnitId] = $this->fixtureProductAndUnit();
+        $unitId = $this->fixtureSubunitFor($baseUnitId);
+        $priceListId = $this->fixturePriceList();
+        $this->actingAs($this->admin());
+
+        $response = $this->postJson(route('admin.inventory.price-lists.items.import', [
+            'price_list' => $priceListId,
+        ]), [
+            'rows' => [
+                [
+                    'product_id' => $productId + 99999,
+                    'unit_id' => $unitId,
+                    'min_quantity' => 1,
+                    'unit_price' => 25,
+                ],
+                [
+                    'product_id' => $productId,
+                    'unit_id' => $unitId + 99999,
+                    'min_quantity' => 1,
+                    'unit_price' => 25,
+                ],
+                [
+                    'product_id' => $productId,
+                    'unit_id' => $unitId,
+                    'min_quantity' => 1,
+                    'unit_price' => -1,
+                ],
+            ],
+        ]);
+
+        $response->assertUnprocessable()->assertJsonValidationErrors('rows');
+        $this->assertSame(0, DB::table('price_list_items')->where('price_list_id', $priceListId)->count());
+    }
+
+    public function test_price_list_export_is_limited_to_the_selected_price_list_and_includes_all_records(): void
+    {
+        $this->guardWritablePriceListTables();
+        [$productId, $baseUnitId] = $this->fixtureProductAndUnit();
+        $unitId = $this->fixtureSubunitFor($baseUnitId);
+        $priceListId = $this->fixturePriceList();
+        $otherPriceListId = $this->fixturePriceList();
+        $this->actingAs($this->admin());
+
+        foreach ([$priceListId, $otherPriceListId] as $listId) {
+            foreach ([1, 10] as $quantity) {
+                $this->post(route('admin.inventory.price-lists.items.store', [
+                    'price_list' => $listId,
+                ]), [
+                    'product_id' => $productId,
+                    'unit_id' => $unitId,
+                    'min_quantity' => $quantity,
+                    'unit_price' => 100 + $quantity,
+                ])->assertRedirect();
+            }
+        }
+
+        Excel::fake();
+
+        $this->get(route('admin.inventory.price-lists.items.export', [
+            'price_list' => $priceListId,
+        ]))->assertOk();
+
+        Excel::assertDownloaded("price-list-{$priceListId}.xlsx", function (PriceListItemsExport $export) use ($productId, $priceListId) {
+            $rows = $export->query()->get();
+
+            return $rows->count() === 2
+                && $rows->every(fn ($row) => (int) $row->price_list_id === $priceListId)
+                && $rows->pluck('product_id')->every(fn ($id) => (int) $id === $productId);
+        });
+    }
+
     public function test_product_lookup_returns_actual_variations_with_composite_names(): void
     {
         [$parentId, $unitId] = $this->fixtureProductAndUnit();
@@ -67,7 +283,6 @@ class PriceListManagementTest extends TestCase
             'status' => 'active',
             'sku' => 'SHIRT-BASIC',
             'unit_id' => $unitId,
-            'price' => 100,
             'company_id' => 1,
             'product_type' => Products::PRODUCT_TYPE_SIMPLE,
             'is_variation' => 0,
@@ -123,7 +338,6 @@ class PriceListManagementTest extends TestCase
                 'status' => 'active',
                 'sku' => 'SHIRT-'.$index,
                 'unit_id' => $unitId,
-                'price' => 100,
                 'company_id' => 1,
                 'product_type' => Products::PRODUCT_TYPE_SIMPLE,
                 'parent_id' => $parentId,
@@ -190,14 +404,23 @@ class PriceListManagementTest extends TestCase
             ])->assertRedirect();
         }
 
-        $this->get(route('admin.inventory.price-lists.show', ['price_list' => $priceListId]))
+        $this->get(route('admin.inventory.price-lists.show', [
+            'price_list' => $priceListId,
+            'product_id' => $variantIds[0],
+        ]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('items.data.0.product.id', $variantIds[0])
-                ->where('items.data.0.product.display_name', 'Shirt Adidas, Black, XL')
-                ->where('items.data.0.product.unit_options.0.id', $subunitId)
-                ->where('tierProducts.0.product_name', 'Shirt Adidas, Black, XL')
+                ->where('products.data', fn ($rows) => collect($rows)->contains(
+                    fn ($row) => (int) $row['id'] === $variantIds[0]
+                        && $row['display_name'] === 'Shirt Adidas, Black, XL'
+                        && (int) $row['unit_options'][0]['id'] === $subunitId
+                        && $row['total_pricing_records_count'] === 1
+                ))
             );
+        $this->getJson(route('admin.inventory.price-lists.products.items', [
+            'price_list' => $priceListId,
+            'product' => $variantIds[0],
+        ]))->assertOk()->assertJsonPath('items.0.unit_id', $subunitId);
 
         $this->get(route('admin.inventory.price-lists.show', [
             'price_list' => $priceListId,
@@ -205,9 +428,11 @@ class PriceListManagementTest extends TestCase
         ]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->has('items.data', 1)
-                ->where('items.data.0.product.id', $variantIds[1])
-                ->where('items.data.0.product.display_name', 'Shirt Adidas, White, L')
+                ->where('products.data', fn ($rows) => collect($rows)->contains(
+                    fn ($row) => (int) $row['id'] === $variantIds[1]
+                        && $row['display_name'] === 'Shirt Adidas, White, L'
+                        && $row['total_pricing_records_count'] === 1
+                ))
             );
 
         $this->assertSame('Child SKU 0', DB::table('products')->where('id', $variantIds[0])->value('name'));
@@ -225,9 +450,9 @@ class PriceListManagementTest extends TestCase
             ]))
                 ->assertOk()
                 ->assertInertia(fn (Assert $page) => $page
-                    ->has('catalogProducts.data', 1)
-                    ->where('catalogProducts.total', 1)
-                    ->where('catalogProducts.data.0.id', $sellableId));
+                ->has('products.data', 1)
+                ->where('products.total', 1)
+                ->where('products.data.0.id', $sellableId));
         }
 
         $this->get(route('admin.inventory.price-lists.show', [
@@ -235,7 +460,7 @@ class PriceListManagementTest extends TestCase
             'product_id' => $parentId,
         ]))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('catalogProducts.total', 0));
+            ->assertInertia(fn (Assert $page) => $page->where('products.total', 0));
     }
 
     public function test_product_unit_families_are_returned_for_catalog_and_reject_foreign_units(): void
@@ -377,11 +602,11 @@ class PriceListManagementTest extends TestCase
         ]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('catalogProducts.data', fn ($rows) => collect($rows)
+                ->where('products.data', fn ($rows) => collect($rows)
                     ->keyBy('id')
-                    ->get($productId)['subunits'][0]['id'] === $baseSubunitId
-                    && count(collect($rows)->keyBy('id')->get($productId)['subunits']) === 3
-                    && collect($rows)->keyBy('id')->get($productId)['subunits'][0]['name'] === 'Test PL Box'));
+                    ->get($productId)['unit_options'][0]['id'] === $baseSubunitId
+                    && count(collect($rows)->keyBy('id')->get($productId)['unit_options']) === 3
+                    && collect($rows)->keyBy('id')->get($productId)['unit_options'][0]['name'] === 'Test PL Box'));
 
         $this->from(route('admin.inventory.price-lists.show', ['price_list' => $priceListId]))
             ->post(route('admin.inventory.price-lists.items.store', ['price_list' => $priceListId]), [
@@ -491,7 +716,6 @@ class PriceListManagementTest extends TestCase
             DB::table('products')->insert(array_merge($product, [
                 'status' => $product['status'] ?? 'active',
                 'unit_id' => $unitId,
-                'price' => 20,
                 'is_variation' => 0,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -525,22 +749,22 @@ class PriceListManagementTest extends TestCase
         ]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('catalogProducts.total', 3)
-                ->where('catalogProducts.data', fn ($rows) => collect($rows)->keyBy('id')->get($pricedProductId)['price_status'] === 'with_price'
+                ->where('products.total', 3)
+                ->where('products.data', fn ($rows) => collect($rows)->keyBy('id')->get($pricedProductId)['price_status'] === 'with_price'
                     && collect($rows)->keyBy('id')->get($otherListProductId)['price_status'] === 'without_price')
-                ->where('items.total', 1));
+                ->where('products.data', fn ($rows) => collect($rows)->keyBy('id')->get($pricedProductId)['total_pricing_records_count'] === 1));
 
         $this->get(route('admin.inventory.price-lists.show', [
             'price_list' => $priceListId,
             'price_status' => 'without_price',
             'per_page' => 5,
-            'catalog_page' => 2,
+            'page' => 2,
         ]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('catalogProducts.current_page', 2)
-                ->where('catalogProducts.total', fn ($total) => $total >= 5)
-                ->where('catalogProducts.data', fn ($rows) => count($rows) === 5
+                ->where('products.current_page', 2)
+                ->where('products.total', fn ($total) => $total >= 5)
+                ->where('products.data', fn ($rows) => count($rows) === 5
                     && collect($rows)->pluck('id')->unique()->count() === 5));
 
         $this->get(route('admin.inventory.price-lists.show', [
@@ -551,9 +775,9 @@ class PriceListManagementTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.price_status', 'with_price')
-                ->where('catalogProducts.total', 1)
-                ->where('catalogProducts.data.0.id', $pricedProductId)
-                ->where('items.total', 1));
+                ->where('products.total', 1)
+                ->where('products.data.0.id', $pricedProductId)
+                ->where('products.data.0.total_pricing_records_count', 1));
 
         $this->get(route('admin.inventory.price-lists.show', [
             'price_list' => $priceListId,
@@ -563,10 +787,13 @@ class PriceListManagementTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('filters.price_status', 'without_price')
-                ->where('catalogProducts.total', 2)
-                ->where('catalogProducts.data', fn ($rows) => collect($rows)->pluck('id')->sort()->values()->all()
+                ->where('products.total', 2)
+                ->where('products.data', fn ($rows) => collect($rows)->pluck('id')->sort()->values()->all()
                     === collect([$otherListProductId, $serviceProductId])->sort()->values()->all())
-                ->where('items.total', 0));
+                ->where('products.data', fn ($rows) => collect($rows)->every(
+                    fn ($row) => $row['price_status'] === 'without_price'
+                        && $row['total_pricing_records_count'] === 0
+                )));
 
         $this->get(route('admin.inventory.price-lists.show', [
             'price_list' => $priceListId,
@@ -578,8 +805,9 @@ class PriceListManagementTest extends TestCase
         ]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('catalogProducts.total', 1)
-                ->where('items.total', 1));
+                ->where('products.total', 1)
+                ->where('products.data.0.id', $pricedProductId)
+                ->where('products.data.0.total_pricing_records_count', 1));
 
         $currentItemId = (int) DB::table('price_list_items')
             ->where('price_list_id', $priceListId)
@@ -597,9 +825,9 @@ class PriceListManagementTest extends TestCase
         ]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('catalogProducts.total', 1)
-                ->where('catalogProducts.data.0.price_status', 'without_price')
-                ->where('items.total', 0));
+                ->where('products.total', 1)
+                ->where('products.data.0.price_status', 'without_price')
+                ->where('products.data.0.total_pricing_records_count', 0));
 
         $this->from(route('admin.inventory.price-lists.show', ['price_list' => $priceListId]))
             ->post(route('admin.inventory.price-lists.items.store', ['price_list' => $priceListId]), [
@@ -643,9 +871,8 @@ class PriceListManagementTest extends TestCase
                 ->component('Backend/03-Inventory/PriceLists')
                 ->where('mode', 'detail')
                 ->where('priceList.id', $created->id)
-                ->has('items.data')
+                ->has('products.data')
                 ->has('units')
-                ->has('tierProducts')
                 ->has('stats.tiers')
             );
     }
@@ -833,19 +1060,23 @@ class PriceListManagementTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('mode', 'detail')
                 ->where('filters.item_status', 'scheduled')
-                ->where('items.data.0.status', 'scheduled')
-                ->has('tierProducts', 1)
+                ->where('products.data.0.total_pricing_records_count', 1)
             );
+
+        $this->getJson(route('admin.inventory.price-lists.products.items', [
+            'price_list' => $priceListId,
+            'product' => $productId,
+        ]))->assertOk()->assertJsonPath('items.0.status', 'scheduled');
 
         $this->get(route('admin.inventory.price-lists.show', [
             'price_list' => $priceListId,
             'item_status' => 'active',
         ]))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->has('items.data', 0));
+            ->assertInertia(fn (Assert $page) => $page->has('products.data', 0));
     }
 
-    public function test_tier_ladder_is_returned_for_the_filtered_product(): void
+    public function test_manage_prices_endpoint_returns_all_tiers_for_the_selected_product(): void
     {
         $this->guardWritablePriceListTables();
         [$productId, $unitId] = $this->fixtureProductAndUnit();
@@ -873,13 +1104,21 @@ class PriceListManagementTest extends TestCase
         ]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->has('tierLadder', 3)
-                ->where('tierLadder.0.min_quantity', '1.0000')
-                ->where('tierLadder.1.min_quantity', '10.0000')
-                ->where('tierLadder.2.min_quantity', '50.0000')
-                ->where('tierLadder.2.final_price', '80.0000')
-                ->has('tierProducts', 1)
-            );
+            ->has('products.data', 1)
+            ->where('products.data.0.id', $productId)
+            ->where('products.data.0.total_pricing_records_count', 3)
+        );
+
+        $this->getJson(route('admin.inventory.price-lists.products.items', [
+            'price_list' => $priceListId,
+            'product' => $productId,
+        ]))
+            ->assertOk()
+            ->assertJsonCount(3, 'items')
+            ->assertJsonPath('items.0.min_quantity', '1.0000')
+            ->assertJsonPath('items.1.min_quantity', '10.0000')
+            ->assertJsonPath('items.2.min_quantity', '50.0000')
+            ->assertJsonPath('items.2.final_price', '80.0000');
     }
 
     public function test_price_list_maintained_here_is_the_data_the_existing_resolver_consumes(): void
@@ -1061,8 +1300,6 @@ class PriceListManagementTest extends TestCase
             'status' => 'active',
             'sku' => 'SKU-PL-'.$productId,
             'unit_id' => $unitId,
-            'price' => 100,
-            'sale_price' => null,
             'company_id' => 1,
             'created_at' => now(),
             'updated_at' => now(),

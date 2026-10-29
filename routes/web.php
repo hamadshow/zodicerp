@@ -460,6 +460,7 @@ Route::group([
             Route::put('opening-stock/{openingStock}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'update'])->name('opening-stock.update');
             Route::delete('opening-stock/{openingStock}', [\App\Http\Controllers\Backend\Inventory\OpeningStockController::class, 'destroy'])->name('opening-stock.destroy');
             Route::post('products/bulk-import', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'bulkImport'])->name('products.bulkImport');
+            Route::patch('products/{product}/variations/{variation}', [\App\Http\Controllers\Backend\Inventory\ProductsController::class, 'updateVariation'])->name('products.variations.update');
             Route::resource('products', \App\Http\Controllers\Backend\Inventory\ProductsController::class);
             Route::get('categories/export', [\App\Http\Controllers\Backend\Inventory\CategoriesController::class, 'export'])->name('categories.export');
             Route::post('categories/import', [\App\Http\Controllers\Backend\Inventory\CategoriesController::class, 'import'])->name('categories.import');
@@ -477,6 +478,9 @@ Route::group([
             $plc = \App\Http\Controllers\Backend\Inventory\PriceListController::class;
             Route::prefix('price-lists')->name('price-lists.')->group(function () use ($plc) {
                 Route::get('search-products', [$plc, 'searchProducts'])->name('search-products');
+                Route::get('{price_list}/items/export', [$plc, 'exportItems'])->name('items.export');
+                Route::post('{price_list}/items/import', [$plc, 'importItems'])->name('items.import');
+                Route::get('{price_list}/products/{product}/items', [$plc, 'productItems'])->name('products.items');
                 Route::post('{price_list}/items', [$plc, 'storeItem'])->name('items.store');
                 Route::put('{price_list}/items/{item}', [$plc, 'updateItem'])->name('items.update');
                 Route::delete('{price_list}/items/{item}', [$plc, 'destroyItem'])->name('items.destroy');

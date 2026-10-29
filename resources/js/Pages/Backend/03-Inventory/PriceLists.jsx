@@ -1,5 +1,8 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
+import * as XLSX from 'xlsx';
+import axios from 'axios';
+import { useNotification } from '@/Components/Notifications/useNotification';
 import AdminLayout from '../components/AdminLayout';
 import Table from '../components/Table';
 import SearchableComboBox from '../components/SearchableComboBox';
@@ -60,6 +63,22 @@ const cleanParams = (params) =>
         Object.entries(params).filter(([, value]) => value !== '' && value !== null && value !== undefined)
     );
 
+const priceListImportColumns = [
+    'product_id',
+    'product_code',
+    'product_name',
+    'sku',
+    'unit_id',
+    'unit',
+    'min_quantity',
+    'unit_price',
+    'discount_percentage',
+    'discount_amount',
+    'effective_date',
+    'expiry_date',
+    'notes',
+];
+
 /* ------------------------------------------------------------------ *
  * Small presentational pieces
  * ------------------------------------------------------------------ */
@@ -105,25 +124,6 @@ const UnitCell = ({ unit, __ }) => {
         </div>
     );
 };
-
-const ProductUnitsCell = ({ unit, subunits = [], __ }) => (
-    <div className="price-lists-unit">
-        <UnitCell unit={unit} __={__} />
-        {subunits.length > 0 ? (
-            <div className="price-lists-product__meta">
-                {subunits.map((subunit) => (
-                    <span key={subunit.id}>
-                        {subunit.display_name || subunit.name}
-                    </span>
-                ))}
-            </div>
-        ) : (
-            <div className="price-lists-product__meta price-lists-muted">
-                {__('no_subunits')}
-            </div>
-        )}
-    </div>
-);
 
 const StatsCards = ({ cards }) => (
     <div className="stats-cards">
@@ -577,7 +577,7 @@ const PriceItemFormModal = ({
     const submit = (event) => {
         event.preventDefault();
 
-        const options = { preserveScroll: true, onSuccess: () => onClose() };
+        const options = { preserveScroll: true, onSuccess: () => onClose(true) };
 
         if (isEdit) {
             form.put(
@@ -639,15 +639,6 @@ const PriceItemFormModal = ({
                                         <div className="price-lists-picker-option__label">{option.label}</div>
                                         {option.product && (
                                             <div className="price-lists-picker-option__meta">
-                                                {option.product.sale_price || option.product.price ? (
-                                                    <span>
-                                                        {__('indicative_product_price')}:{' '}
-                                                        {formatMoney(
-                                                            option.product.sale_price || option.product.price,
-                                                            currencyCode
-                                                        )}
-                                                    </span>
-                                                ) : null}
                                                 {option.product.children_count > 0 && (
                                                     <span className="price-lists-badge price-lists-badge--parent">
                                                         {__('parent_product')}
@@ -863,6 +854,135 @@ const PriceItemFormModal = ({
         </Modal>
     );
 };
+
+const ManageProductPricesModal = ({
+    show,
+    priceList,
+    product,
+    items,
+    loading,
+    error,
+    currencyCode,
+    __,
+    onClose,
+    onAdd,
+    onEdit,
+    onDelete,
+}) => (
+    <Modal show={show} onClose={onClose} maxWidth="2xl">
+        <div className="price-lists-modal price-lists-manage-modal">
+            <div className="modal-header">
+                <div>
+                    <h3 className="modal-title">{__('manage_prices')}</h3>
+                    <div className="price-lists-manage-modal__product">
+                        <strong>{product?.display_name || product?.name}</strong>
+                        {product?.sku && <span>{__('sku')}: {product.sku}</span>}
+                    </div>
+                    <div className="price-lists-manage-modal__list">
+                        {priceList?.name_en || priceList?.name_ar} · {priceList?.code}
+                    </div>
+                </div>
+                <button type="button" className="modal-close" onClick={onClose} aria-label={__('close')}>
+                    <span className="material-icons-outlined">close</span>
+                </button>
+            </div>
+
+            <div className="price-lists-manage-modal__toolbar">
+                <span className="price-lists-badge price-lists-badge--type">
+                    {interpolate(__('pricing_items_count_value', ':count pricing records'), {
+                        count: items.length,
+                    })}
+                </span>
+                <button type="button" className="price-lists-btn price-lists-btn--primary" onClick={onAdd}>
+                    <span className="material-icons-outlined">add</span>
+                    {__('add_item')}
+                </button>
+            </div>
+
+            {error && (
+                <div className="price-lists-alert" role="alert">
+                    <span className="material-icons-outlined">error_outline</span>
+                    <span>{error}</span>
+                </div>
+            )}
+
+            {loading ? (
+                <div className="price-lists-note" role="status">
+                    <span className="material-icons-outlined">hourglass_top</span>
+                    <span>{__('loading_pricing_records')}</span>
+                </div>
+            ) : !error && items.length === 0 ? (
+                <div className="price-lists-empty-state">{__('no_product_prices')}</div>
+            ) : !error && (
+                <div className="price-lists-manage-modal__table-wrap">
+                    <table className="price-lists-manage-table">
+                        <thead>
+                            <tr>
+                                <th>{__('unit')}</th>
+                                <th>{__('min_quantity')}</th>
+                                <th>{__('unit_price')}</th>
+                                <th>{__('discount')}</th>
+                                <th>{__('final_price')}</th>
+                                <th>{__('effective_date')}</th>
+                                <th>{__('expiry_date')}</th>
+                                <th>{__('item_status')}</th>
+                                <th>{__('actions')}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {items.map((item) => (
+                                <tr key={item.id}>
+                                    <td><UnitCell unit={item.unit} __={__} /></td>
+                                    <td>{trimNumber(item.min_quantity)}</td>
+                                    <td>{formatMoney(item.unit_price, currencyCode)}</td>
+                                    <td>
+                                        {Number(item.discount_percentage) > 0 && (
+                                            <span>{trimNumber(item.discount_percentage)}%</span>
+                                        )}
+                                        {Number(item.discount_amount) > 0 && (
+                                            <span>{Number(item.discount_percentage) > 0 ? ' + ' : ''}{formatMoney(item.discount_amount, currencyCode)}</span>
+                                        )}
+                                        {Number(item.discount_percentage) <= 0 && Number(item.discount_amount) <= 0 && '—'}
+                                    </td>
+                                    <td className="price-lists-manage-table__final">
+                                        {formatMoney(item.final_price, currencyCode)}
+                                    </td>
+                                    <td>{formatDate(item.effective_date)}</td>
+                                    <td>{formatDate(item.expiry_date)}</td>
+                                    <td>
+                                        <StatusBadge status={item.status} label={__(item.status, item.status)} />
+                                    </td>
+                                    <td>
+                                        <div className="price-lists-manage-table__actions">
+                                            <button
+                                                type="button"
+                                                className="price-lists-btn price-lists-btn--ghost"
+                                                onClick={() => onEdit(item)}
+                                                aria-label={__('edit_item')}
+                                                title={__('edit_item')}
+                                            >
+                                                <span className="material-icons-outlined">edit</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                className="price-lists-btn price-lists-btn--ghost price-lists-btn--danger"
+                                                onClick={() => onDelete(item)}
+                                                aria-label={__('delete_item_confirm')}
+                                                title={__('delete_item_confirm')}
+                                            >
+                                                <span className="material-icons-outlined">delete</span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    </Modal>
+);
 
 /* ------------------------------------------------------------------ *
  * Price list table (list mode)
@@ -1219,11 +1339,9 @@ const PriceListsList = ({
 
 const PriceListDetail = ({
     priceList,
-    catalogProducts,
-    items,
+    products,
+    productFilterProduct = null,
     units = [],
-    tierProducts = [],
-    tierLadder = [],
     assigned = { customers: 0, groups: 0 },
     stats = {},
     filters = {},
@@ -1232,114 +1350,435 @@ const PriceListDetail = ({
 }) => {
     const { props } = usePage();
     const pageErrors = props.errors || {};
+    const { showSuccess, showError, showInfo } = useNotification();
 
     const currencyCode = priceList?.currency?.code || '';
-    const [itemFormState, setItemFormState] = useState({ open: false, item: null, product: null });
+    const [itemFormState, setItemFormState] = useState({
+        open: false,
+        item: null,
+        product: null,
+        returnToManage: false,
+    });
+    const [managePricesProduct, setManagePricesProduct] = useState(null);
+    const [managedItems, setManagedItems] = useState([]);
+    const [loadingManagedItems, setLoadingManagedItems] = useState(false);
+    const [managedItemsError, setManagedItemsError] = useState('');
+    const managedItemsRequestId = useRef(0);
+    const [productFilterOptions, setProductFilterOptions] = useState([]);
+    const [productFilterSearchError, setProductFilterSearchError] = useState('');
+    const [loadingProducts, setLoadingProducts] = useState(false);
+    const productFilterSearchTimer = useRef(null);
+    const excelMenuRef = useRef(null);
+    const importFileRef = useRef(null);
+    const [showExcelMenu, setShowExcelMenu] = useState(false);
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importRows, setImportRows] = useState([]);
+    const [importFileName, setImportFileName] = useState('');
+    const [importError, setImportError] = useState('');
+    const [importLoading, setImportLoading] = useState(false);
+
+    useEffect(() => {
+        const closeExcelMenu = (event) => {
+            if (excelMenuRef.current && !excelMenuRef.current.contains(event.target)) {
+                setShowExcelMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', closeExcelMenu);
+        return () => document.removeEventListener('mousedown', closeExcelMenu);
+    }, []);
+
+    useEffect(() => {
+        if (!showImportModal) return undefined;
+
+        const preventFileDropNavigation = (event) => {
+            if (Array.from(event.dataTransfer?.types || []).includes('Files')) {
+                event.preventDefault();
+            }
+        };
+        window.addEventListener('dragover', preventFileDropNavigation);
+        window.addEventListener('drop', preventFileDropNavigation);
+        return () => {
+            window.removeEventListener('dragover', preventFileDropNavigation);
+            window.removeEventListener('drop', preventFileDropNavigation);
+        };
+    }, [showImportModal]);
 
     const navigate = (params = {}) =>
         router.get(
             getRoute('admin.inventory.price-lists.show', { price_list: priceList.id }),
-            cleanParams({ ...filters, page: 1, catalog_page: 1, ...params }),
-            { preserveState: true, preserveScroll: true, replace: true }
+            cleanParams({ ...filters, page: 1, ...params }),
+            {
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onStart: () => setLoadingProducts(true),
+                onFinish: () => setLoadingProducts(false),
+            }
         );
 
-    const unitOptions = useMemo(() => {
-        const usedIds = new Set(tierProducts.map((row) => String(row.unit_id)));
-        const used = units.filter((unit) => usedIds.has(String(unit.id)));
+    useEffect(() => {
+        setProductFilterOptions(
+            productFilterProduct
+                ? [{
+                      value: productFilterProduct.id,
+                      label: productFilterProduct.sku
+                          ? `${productFilterProduct.display_name} (${productFilterProduct.sku})`
+                          : productFilterProduct.display_name,
+                  }]
+                : []
+        );
+    }, [productFilterProduct]);
 
-        return (used.length > 0 ? used : units).map((unit) => ({
+    useEffect(
+        () => () => {
+            if (productFilterSearchTimer.current) {
+                clearTimeout(productFilterSearchTimer.current);
+            }
+        },
+        []
+    );
+
+    const unitOptions = useMemo(() => {
+        return units.map((unit) => ({
             value: unit.id,
             label: unit.name,
             unit,
         }));
-    }, [units, tierProducts]);
+    }, [units]);
 
-    const productFilterOptions = useMemo(
-        () => {
-            const optionsById = new Map();
-            tierProducts.forEach((row) => {
-                optionsById.set(String(row.product_id), {
-                    value: row.product_id,
-                    label: row.product_sku ? `${row.product_name} (${row.product_sku})` : row.product_name,
+    const searchProductFilter = (term) => {
+        if (productFilterSearchTimer.current) {
+            clearTimeout(productFilterSearchTimer.current);
+        }
+
+        if (!term.trim()) {
+            setProductFilterOptions(
+                productFilterProduct
+                    ? [{
+                          value: productFilterProduct.id,
+                          label: productFilterProduct.sku
+                              ? `${productFilterProduct.display_name} (${productFilterProduct.sku})`
+                              : productFilterProduct.display_name,
+                      }]
+                    : []
+            );
+            setProductFilterSearchError('');
+            return;
+        }
+
+        productFilterSearchTimer.current = setTimeout(async () => {
+            try {
+                if (!window.axios) {
+                    throw new Error('Product search is unavailable.');
+                }
+                const response = await window.axios.get(
+                    getRoute('admin.inventory.price-lists.search-products'),
+                    { params: { query: term } }
+                );
+                setProductFilterOptions((response?.data?.products || []).map((product) => ({
+                    value: product.id,
+                    label: product.sku
+                        ? `${product.display_name || product.name} (${product.sku})`
+                        : product.display_name || product.name,
+                })));
+                setProductFilterSearchError('');
+            } catch (error) {
+                console.error('Unable to search products for the price list filter.', error);
+                setProductFilterSearchError(__('product_search_failed'));
+            }
+        }, 300);
+    };
+
+    const openAddPrice = (product) => {
+        const availableUnits = product.unit_options || [];
+        const filteredUnit = availableUnits.find(
+            (unit) => String(unit.id) === String(filters.unit_id || '')
+        );
+        const selectedUnit = filteredUnit || (availableUnits.length === 1 ? availableUnits[0] : null);
+        setItemFormState({
+            open: true,
+            item: null,
+            product: { ...product, unit_id: selectedUnit?.id || '' },
+            returnToManage: false,
+        });
+    };
+
+    const loadManagedItems = async (productId) => {
+        const requestId = ++managedItemsRequestId.current;
+        setLoadingManagedItems(true);
+        setManagedItemsError('');
+
+        try {
+            if (!window.axios) {
+                throw new Error('Pricing record loading is unavailable.');
+            }
+            const response = await window.axios.get(
+                getRoute('admin.inventory.price-lists.products.items', {
+                    price_list: priceList.id,
+                    product: productId,
+                })
+            );
+            if (requestId === managedItemsRequestId.current) {
+                setManagedItems(response?.data?.items || []);
+            }
+        } catch (error) {
+            console.error('Unable to load pricing records for the selected product.', error);
+            if (requestId === managedItemsRequestId.current) {
+                setManagedItems([]);
+                setManagedItemsError(__('pricing_records_load_failed'));
+            }
+        } finally {
+            if (requestId === managedItemsRequestId.current) {
+                setLoadingManagedItems(false);
+            }
+        }
+    };
+
+    const openManagePrices = (product) => {
+        setManagePricesProduct(product);
+        setManagedItems([]);
+        void loadManagedItems(product.id);
+    };
+
+    const resetImport = () => {
+        setImportRows([]);
+        setImportFileName('');
+        setImportError('');
+        if (importFileRef.current) importFileRef.current.value = '';
+    };
+
+    const downloadPriceListTemplate = () => {
+        const workbook = XLSX.utils.book_new();
+        const dataSheet = XLSX.utils.aoa_to_sheet([priceListImportColumns]);
+        const instructionsSheet = XLSX.utils.aoa_to_sheet([
+            [__('template_instructions_title')],
+            [__('template_required_columns')],
+            ['product_id', __('template_product_id')],
+            ['unit_id', __('template_unit_id')],
+            ['min_quantity', __('template_min_quantity')],
+            ['unit_price', __('template_unit_price')],
+            [__('template_optional_columns')],
+            ['discount_percentage', __('discount_percentage')],
+            ['discount_amount', __('discount_amount')],
+            ['effective_date', __('effective_date')],
+            ['expiry_date', __('expiry_date')],
+            ['notes', __('notes')],
+            [__('template_identifier_hint')],
+        ]);
+        XLSX.utils.book_append_sheet(workbook, dataSheet, 'Price List Items');
+        XLSX.utils.book_append_sheet(workbook, instructionsSheet, 'Instructions');
+        XLSX.writeFile(workbook, `price-list-${priceList.id}-template.xlsx`);
+    };
+
+    const handlePriceListFileUpload = (file) => {
+        if (!file) return;
+        if (!/\.(xlsx|xls)$/i.test(file.name)) {
+            resetImport();
+            setImportError(__('invalid_excel_file'));
+            return;
+        }
+
+        setImportFileName(file.name);
+        setImportError('');
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                if (!firstSheet) {
+                    throw new Error(__('empty_excel_file'));
+                }
+
+                const sheetRows = XLSX.utils.sheet_to_json(firstSheet, {
+                    header: 1,
+                    raw: false,
+                    defval: '',
                 });
-            });
-            (catalogProducts?.data || []).forEach((row) => {
-                optionsById.set(String(row.id), {
-                    value: row.id,
-                    label: row.sku ? `${row.display_name} (${row.sku})` : row.display_name,
-                });
-            });
+                if (sheetRows.length < 2) {
+                    throw new Error(__('empty_excel_file'));
+                }
 
-            return Array.from(optionsById.values());
-        },
-        [tierProducts, catalogProducts]
-    );
+                const headers = sheetRows[0].map((header) =>
+                    String(header).trim().toLowerCase().replace(/[\s-]+/g, '_')
+                );
+                const requiredColumns = ['product_id', 'unit_id', 'min_quantity', 'unit_price'];
+                const missingColumns = requiredColumns.filter((column) => !headers.includes(column));
+                if (missingColumns.length) {
+                    throw new Error(interpolate(__('missing_excel_columns'), {
+                        columns: missingColumns.join(', '),
+                    }));
+                }
 
-    const catalogColumns = useMemo(
-        () => [
-            {
-                header: __('product'),
-                key: 'name',
-                render: (row) => <ProductCell product={row} __={__} />,
-            },
-            {
-                header: __('sku'),
-                key: 'sku',
-                render: (row) => row.sku || '—',
-            },
-            {
-                header: __('unit'),
-                key: 'unit_id',
-                render: (row) => (
-                    <ProductUnitsCell unit={row.unit} subunits={row.subunits || []} __={__} />
-                ),
-            },
-            {
-                header: __('price_status', 'Price Status'),
-                key: 'price_status',
-                render: (row) => (
-                    <span className="price-lists-badge price-lists-badge--type">
-                        {__(row.price_status, row.price_status)}
-                    </span>
-                ),
-            },
-            {
-                header: __('pricing_items_count'),
-                key: 'pricing_items_count',
-                render: (row) => (
-                    <span className="price-lists-num">{row.pricing_items_count ?? 0}</span>
-                ),
-            },
-            {
-                header: '',
-                key: 'add_price',
-                render: (row) => (
+                const columnIndexes = Object.fromEntries(
+                    priceListImportColumns.map((column) => [column, headers.indexOf(column)])
+                );
+                const parsedRows = sheetRows.slice(1)
+                    .filter((row) => row.some((value) => String(value).trim() !== ''))
+                    .map((row) => Object.fromEntries(
+                        priceListImportColumns.map((column) => {
+                            const index = columnIndexes[column];
+                            return [column, index >= 0 ? String(row[index] ?? '').trim() : ''];
+                        })
+                    ));
+
+                if (!parsedRows.length) {
+                    throw new Error(__('empty_excel_file'));
+                }
+
+                setImportRows(parsedRows);
+                setImportError('');
+            } catch (error) {
+                setImportRows([]);
+                setImportError(error.message || __('excel_read_failed'));
+            }
+        };
+        reader.onerror = () => {
+            setImportRows([]);
+            setImportError(__('excel_read_failed'));
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    const submitPriceListImport = async () => {
+        if (importLoading || !importRows.length) return;
+        setImportLoading(true);
+        setImportError('');
+
+        try {
+            const response = await axios.post(
+                getRoute('admin.inventory.price-lists.items.import', { price_list: priceList.id }),
+                { rows: importRows }
+            );
+            showSuccess(response.data?.message || interpolate(__('import_success'), {
+                count: response.data?.imported ?? importRows.length,
+            }));
+            setShowImportModal(false);
+            resetImport();
+            router.reload({ only: ['products', 'stats', 'filters'] });
+        } catch (error) {
+            const responseErrors = error.response?.data?.errors;
+            const message = responseErrors
+                ? Object.values(responseErrors).flat(Infinity).join(' ')
+                : error.response?.data?.message || error.message || __('import_failed');
+            setImportError(message);
+            showError(message);
+        } finally {
+            setImportLoading(false);
+        }
+    };
+
+    const exportPriceList = () => {
+        window.location.href = getRoute('admin.inventory.price-lists.items.export', {
+            price_list: priceList.id,
+        });
+        showInfo(__('export_started'));
+    };
+
+    const renderPriceListImportModal = () => showImportModal ? (
+        <Modal show onClose={() => !importLoading && setShowImportModal(false)} maxWidth="2xl">
+            <div className="price-lists-import-modal">
+                <div className="modal-header">
+                    <h3 className="modal-title">{__('import_title')}</h3>
                     <button
                         type="button"
-                        className="price-lists-btn price-lists-btn--ghost"
-                        onClick={() => setItemFormState({ open: true, item: null, product: row })}
+                        className="modal-close"
+                        onClick={() => !importLoading && setShowImportModal(false)}
+                        aria-label={__('close')}
                     >
-                        <span className="material-icons-outlined">add</span>
-                        {__('add_product_price')}
+                        <span className="material-icons-outlined">close</span>
                     </button>
-                ),
-            },
-        ],
-        [__, setItemFormState]
-    );
+                </div>
+                <div className="modal-body">
+                    <p className="price-lists-import-hint">{__('import_hint')}</p>
+                    <input
+                        ref={importFileRef}
+                        className="price-lists-import-file-input"
+                        type="file"
+                        accept=".xlsx,.xls"
+                        onChange={(event) => handlePriceListFileUpload(event.target.files?.[0])}
+                    />
+                    <button
+                        type="button"
+                        className="price-lists-import-dropzone"
+                        disabled={importLoading}
+                        onClick={() => importFileRef.current?.click()}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                            event.preventDefault();
+                            handlePriceListFileUpload(event.dataTransfer.files?.[0]);
+                        }}
+                    >
+                        <span className="material-icons-outlined">cloud_upload</span>
+                        <strong>{__('click_to_upload')}</strong>
+                        <span>{__('excel_only')}</span>
+                    </button>
+                    {importFileName && (
+                        <div className="price-lists-import-filename">
+                            {__('selected_file')}: {importFileName}
+                        </div>
+                    )}
+                    {importRows.length > 0 && (
+                        <div className="price-lists-import-summary" role="status">
+                            {interpolate(__('import_rows_ready'), { count: importRows.length })}
+                            <button type="button" className="price-lists-btn price-lists-btn--ghost" onClick={resetImport}>
+                                {__('upload_different_file')}
+                            </button>
+                        </div>
+                    )}
+                    {importError && <div className="price-lists-alert" role="alert">{importError}</div>}
+                </div>
+                <div className="price-lists-import-actions">
+                    <button
+                        type="button"
+                        className="price-lists-btn"
+                        onClick={() => setShowImportModal(false)}
+                        disabled={importLoading}
+                    >
+                        {__('cancel')}
+                    </button>
+                    <button
+                        type="button"
+                        className="price-lists-btn price-lists-btn--primary"
+                        onClick={submitPriceListImport}
+                        disabled={importLoading || importRows.length === 0}
+                    >
+                        {importLoading ? __('importing') : __('confirm_import')}
+                    </button>
+                </div>
+            </div>
+        </Modal>
+    ) : null;
+
+    const openManageItemForm = (item = null) => {
+        const availableUnits = managePricesProduct?.unit_options || [];
+        const filterUnit = availableUnits.find(
+            (unit) => String(unit.id) === String(filters.unit_id || '')
+        );
+        const defaultUnit = filterUnit || (availableUnits.length === 1 ? availableUnits[0] : null);
+        const product = item
+            ? { ...managePricesProduct, unit_id: item.unit_id || managePricesProduct?.unit_id }
+            : { ...managePricesProduct, unit_id: defaultUnit?.id || '' };
+        setItemFormState({
+            open: true,
+            item: item ? { ...item, product } : null,
+            product,
+            returnToManage: true,
+        });
+    };
 
     const columns = useMemo(
         () => [
             {
                 header: __('product'),
-                key: 'product_id',
+                key: 'name',
                 sortable: true,
-                render: (row) => <ProductCell product={row.product} __={__} />,
+                render: (row) => <ProductCell product={row} __={__} />,
             },
             {
                 header: __('sku'),
                 key: 'sku',
-                render: (row) => row.product?.sku || '—',
+                sortable: true,
+                render: (row) => row.sku || '—',
             },
             {
                 header: __('unit'),
@@ -1347,77 +1786,46 @@ const PriceListDetail = ({
                 render: (row) => <UnitCell unit={row.unit} __={__} />,
             },
             {
-                header: __('min_quantity'),
-                key: 'min_quantity',
+                header: __('price_status'),
+                key: 'pricing_items_count',
                 sortable: true,
                 render: (row) => (
-                    <span className="price-lists-tier" title={__('tier_ladder')}>
-                        {interpolate(__('tier_label', ':quantity+'), {
-                            quantity: trimNumber(row.min_quantity),
-                        })}
-                    </span>
+                    <StatusBadge
+                        status={row.price_status}
+                        label={__(row.price_status, row.price_status)}
+                    />
                 ),
             },
             {
-                header: __('unit_price'),
-                key: 'unit_price',
-                sortable: true,
+                header: __('pricing_records'),
+                key: 'pricing_records_count',
+                render: (row) => interpolate(__('pricing_items_count_value', ':count pricing records'), {
+                    count: row.total_pricing_records_count ?? row.pricing_items_count ?? 0,
+                }),
+            },
+            {
+                header: __('actions'),
+                key: 'manage_prices',
                 render: (row) => (
-                    <span className="price-lists-num">{formatMoney(row.unit_price, currencyCode)}</span>
+                    <button
+                        type="button"
+                        className={`price-lists-btn ${row.total_pricing_records_count > 0 ? 'price-lists-btn--ghost' : 'price-lists-btn--primary'}`}
+                        onClick={() =>
+                            row.total_pricing_records_count > 0 ? openManagePrices(row) : openAddPrice(row)
+                        }
+                    >
+                        <span className="material-icons-outlined">
+                            {row.total_pricing_records_count > 0 ? 'tune' : 'add'}
+                        </span>
+                        {row.total_pricing_records_count > 0 ? __('manage_prices') : __('add_product_price')}
+                    </button>
                 ),
-            },
-            {
-                header: __('discount_percentage'),
-                key: 'discount_percentage',
-                render: (row) => (
-                    <span className="price-lists-num">
-                        {Number(row.discount_percentage) > 0
-                            ? `${trimNumber(row.discount_percentage)}%`
-                            : '—'}
-                    </span>
-                ),
-            },
-            {
-                header: __('discount_amount'),
-                key: 'discount_amount',
-                render: (row) => (
-                    <span className="price-lists-num">
-                        {Number(row.discount_amount) > 0 ? formatMoney(row.discount_amount, currencyCode) : '—'}
-                    </span>
-                ),
-            },
-            {
-                header: __('final_price'),
-                key: 'final_price',
-                sortable: true,
-                render: (row) => (
-                    <span className="price-lists-num price-lists-num--strong">
-                        {formatMoney(row.final_price, currencyCode)}
-                    </span>
-                ),
-            },
-            {
-                header: __('effective_date'),
-                key: 'effective_date',
-                sortable: true,
-                render: (row) => formatDate(row.effective_date),
-            },
-            {
-                header: __('expiry_date'),
-                key: 'expiry_date',
-                sortable: true,
-                render: (row) => formatDate(row.expiry_date),
-            },
-            {
-                header: __('item_status'),
-                key: 'status',
-                render: (row) => <StatusBadge status={row.status} label={__(row.status, row.status)} />,
             },
         ],
-        [__, currencyCode]
+        [__, openAddPrice, openManagePrices]
     );
 
-    const deleteItem = (row) => {
+    function deleteItem(row) {
         if (!window.confirm(__('delete_item_confirm'))) return;
 
         router.delete(
@@ -1425,9 +1833,12 @@ const PriceListDetail = ({
                 price_list: priceList.id,
                 item: row.id,
             }),
-            { preserveScroll: true }
+            {
+                preserveScroll: true,
+                onSuccess: () => setManagedItems((current) => current.filter((item) => item.id !== row.id)),
+            }
         );
-    };
+    }
 
     const deleteList = () => {
         const message = interpolate(
@@ -1524,10 +1935,65 @@ const PriceListDetail = ({
                         </div>
 
                         <div className="price-lists-detail-header__actions">
+                            <div className="price-lists-excel-dropdown" ref={excelMenuRef}>
+                                <button
+                                    type="button"
+                                    className="price-lists-excel-button"
+                                    onClick={() => setShowExcelMenu((visible) => !visible)}
+                                    aria-expanded={showExcelMenu}
+                                >
+                                    <span className="material-icons-outlined">grid_on</span>
+                                    <span>{__('excel')}</span>
+                                    <span className="material-icons-outlined">expand_more</span>
+                                </button>
+                                {showExcelMenu && (
+                                    <div className="price-lists-excel-menu">
+                                        <button
+                                            type="button"
+                                            className="price-lists-excel-menu__item"
+                                            onClick={() => {
+                                                setShowExcelMenu(false);
+                                                resetImport();
+                                                setShowImportModal(true);
+                                            }}
+                                        >
+                                            <span className="material-icons-outlined">upload</span>
+                                            {__('import_excel')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="price-lists-excel-menu__item"
+                                            onClick={() => {
+                                                setShowExcelMenu(false);
+                                                exportPriceList();
+                                            }}
+                                        >
+                                            <span className="material-icons-outlined">download</span>
+                                            {__('export_excel')}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className="price-lists-excel-menu__item"
+                                            onClick={() => {
+                                                setShowExcelMenu(false);
+                                                downloadPriceListTemplate();
+                                            }}
+                                        >
+                                            <span className="material-icons-outlined">description</span>
+                                            {__('download_template')}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                             <button
                                 type="button"
                                 className="price-lists-btn price-lists-btn--primary"
-                                onClick={() => setItemFormState({ open: true, item: null, product: null })}
+                                onClick={() => setItemFormState({
+                                    open: true,
+                                    item: null,
+                                    product: null,
+                                    returnToManage: false,
+                                })}
                             >
                                 <span className="material-icons-outlined">add</span>
                                 {__('add_item')}
@@ -1625,6 +2091,8 @@ const PriceListDetail = ({
                                 options={productFilterOptions}
                                 value={filters.product_id || ''}
                                 onChange={(value) => navigate({ product_id: value, page: 1 })}
+                                onSearch={searchProductFilter}
+                                disableFiltering={true}
                                 name="product_filter"
                                 placeholder={__('filter_product')}
                             />
@@ -1701,75 +2169,16 @@ const PriceListDetail = ({
                         </button>
                     </div>
 
-                    <div className="price-lists-section__header price-lists-section__header--standalone">
-                        <h2 className="price-lists-section__title">
-                            {__('catalog_products')}
-                        </h2>
-                    </div>
-
-                    <Table
-                        tableData={catalogProducts?.data || []}
-                        columns={catalogColumns}
-                        currentPage={catalogProducts?.current_page || 1}
-                        totalPages={catalogProducts?.last_page || 1}
-                        totalRecords={catalogProducts?.total || 0}
-                        recordsPerPage={catalogProducts?.per_page || 10}
-                        onPageChange={(page) => navigate({ catalog_page: page })}
-                        onRecordsPerPageChange={(perPage) => navigate({ per_page: perPage, page: 1 })}
-                        serverSide={true}
-                        showToolbar={true}
-                        toolbarSearch={true}
-                        toolbarSearchPlaceholder={__('search_items')}
-                        toolbarSearchValue={filters.search || ''}
-                        onToolbarSearch={(value) => navigate({ search: value, page: 1 })}
-                        showRefreshButton={true}
-                        onRefresh={() =>
-                            router.reload({
-                                only: ['catalogProducts', 'items', 'stats', 'filters', 'tierProducts', 'tierLadder'],
-                            })
-                        }
-                        emptyIcon="inventory_2"
-                        emptyMessage={__('no_catalog_products')}
-                    />
-
-                    {filters.product_id !== '' && filters.product_id !== undefined && (
-                        <div className="price-lists-tiers">
-                            <div className="price-lists-tiers__header">
-                                <span className="material-icons-outlined">stairs</span>
-                                <div>
-                                    <div className="price-lists-tiers__title">{__('tier_ladder')}</div>
-                                    <div className="price-lists-tiers__hint">{__('tier_ladder_hint')}</div>
-                                </div>
-                            </div>
-
-                            {tierLadder.length === 0 ? (
-                                <div className="price-lists-tiers__empty">{__('tier_ladder_empty')}</div>
-                            ) : (
-                                <div className="price-lists-tiers__items">
-                                    {tierLadder.map((tier) => (
-                                        <div className="price-lists-tiers__item" key={tier.id}>
-                                            <span className="price-lists-tier">
-                                                {interpolate(__('tier_label', ':quantity+'), {
-                                                    quantity: trimNumber(tier.min_quantity),
-                                                })}
-                                            </span>
-                                            <span className="material-icons-outlined">trending_flat</span>
-                                            <span className="price-lists-num price-lists-num--strong">
-                                                {formatMoney(tier.final_price, currencyCode)}
-                                            </span>
-                                            <span className="price-lists-tiers__unit">
-                                                / {tier.unit_name || '—'}
-                                            </span>
-                                            {Number(tier.discount_percentage) > 0 && (
-                                                <span className="price-lists-badge price-lists-badge--type">
-                                                    -{trimNumber(tier.discount_percentage)}%
-                                                </span>
-                                            )}
-                                            <StatusBadge status={tier.status} label={__(tier.status, tier.status)} />
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                    {productFilterSearchError && (
+                        <div className="price-lists-alert" role="alert">
+                            <span className="material-icons-outlined">error_outline</span>
+                            <span>{productFilterSearchError}</span>
+                        </div>
+                    )}
+                    {loadingProducts && (
+                        <div className="price-lists-note" role="status">
+                            <span className="material-icons-outlined">hourglass_top</span>
+                            <span>{__('loading_products')}</span>
                         </div>
                     )}
 
@@ -1778,12 +2187,12 @@ const PriceListDetail = ({
                     </div>
 
                     <Table
-                        tableData={items?.data || []}
+                        tableData={products?.data || []}
                         columns={columns}
-                        currentPage={items?.current_page || 1}
-                        totalPages={items?.last_page || 1}
-                        totalRecords={items?.total || 0}
-                        recordsPerPage={items?.per_page || 10}
+                        currentPage={products?.current_page || 1}
+                        totalPages={products?.last_page || 1}
+                        totalRecords={products?.total || 0}
+                        recordsPerPage={products?.per_page || 10}
                         onPageChange={(page) => navigate({ page })}
                         onRecordsPerPageChange={(perPage) => navigate({ per_page: perPage, page: 1 })}
                         serverSide={true}
@@ -1804,21 +2213,44 @@ const PriceListDetail = ({
                         showRefreshButton={true}
                         onRefresh={() =>
                             router.reload({
-                                only: ['catalogProducts', 'items', 'stats', 'filters', 'tierProducts', 'tierLadder'],
+                                only: ['products', 'productFilterProduct', 'stats', 'filters'],
                             })
                         }
                         showAddButton={true}
                         addButtonText={__('add_item')}
-                        onAdd={() => setItemFormState({ open: true, item: null, product: null })}
-                        onEdit={(row) => setItemFormState({ open: true, item: row, product: null })}
-                        onDelete={(row) => deleteItem(row)}
-                        editTitle={__('edit_item')}
-                        deleteTitle={__('delete_item_confirm')}
-                        emptyIcon="list_alt"
-                        emptyMessage={__('no_items')}
+                        onAdd={() => setItemFormState({
+                            open: true,
+                            item: null,
+                            product: null,
+                            returnToManage: false,
+                        })}
+                        emptyIcon="inventory_2"
+                        emptyMessage={__('no_products_match')}
                     />
                 </div>
             </BlankPage>
+
+            {renderPriceListImportModal()}
+
+            {managePricesProduct && !itemFormState.open && (
+                <ManageProductPricesModal
+                    show={true}
+                    priceList={priceList}
+                    product={managePricesProduct}
+                    items={managedItems}
+                    loading={loadingManagedItems}
+                    error={managedItemsError}
+                    currencyCode={currencyCode}
+                    __={__}
+                    onClose={() => {
+                        managedItemsRequestId.current += 1;
+                        setManagePricesProduct(null);
+                    }}
+                    onAdd={() => openManageItemForm()}
+                    onEdit={(item) => openManageItemForm(item)}
+                    onDelete={deleteItem}
+                />
+            )}
 
             {itemFormState.open && (
                 <PriceItemFormModal
@@ -1828,7 +2260,18 @@ const PriceListDetail = ({
                     item={itemFormState.item}
                     product={itemFormState.product}
                     getRoute={getRoute}
-                    onClose={() => setItemFormState({ open: false, item: null, product: null })}
+                    onClose={(saved = false) => {
+                        const returnToManage = itemFormState.returnToManage && managePricesProduct;
+                        setItemFormState({
+                            open: false,
+                            item: null,
+                            product: null,
+                            returnToManage: false,
+                        });
+                        if (saved && returnToManage) {
+                            void loadManagedItems(returnToManage.id);
+                        }
+                    }}
                 />
             )}
         </>
@@ -1843,8 +2286,8 @@ const PriceLists = ({
     mode = 'list',
     priceLists,
     priceList,
-    catalogProducts,
-    items,
+    products,
+    productFilterProduct,
     units = [],
     currencies = [],
     priceTypes = [],
@@ -1852,8 +2295,6 @@ const PriceLists = ({
     stats = {},
     nextCode = '',
     filters = {},
-    tierProducts = [],
-    tierLadder = [],
     assigned = { customers: 0, groups: 0 },
 }) => {
     const { props } = usePage();
@@ -1897,11 +2338,9 @@ const PriceLists = ({
             ) : mode === 'detail' ? (
                 <PriceListDetail
                     priceList={priceList}
-                    catalogProducts={catalogProducts}
-                    items={items}
+                    products={products}
+                    productFilterProduct={productFilterProduct}
                     units={units}
-                    tierProducts={tierProducts}
-                    tierLadder={tierLadder}
                     assigned={assigned}
                     stats={stats}
                     filters={filters}

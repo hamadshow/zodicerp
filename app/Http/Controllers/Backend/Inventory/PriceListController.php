@@ -14,6 +14,7 @@ use App\Models\Products;
 use App\Models\ProductVariation;
 use App\Models\Vendor_Purchases\PriceList;
 use App\Models\Vendor_Purchases\PriceListItem;
+use App\Exports\PriceListItemsExport;
 use App\Services\CompanyContext;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,10 +23,12 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Administration screen for the existing price list architecture
@@ -45,7 +48,7 @@ class PriceListController extends Controller
 
     private const LIST_SORTABLE = ['id', 'code', 'name_en', 'price_type', 'valid_from', 'valid_to', 'is_active', 'items_count'];
 
-    private const ITEM_SORTABLE = ['id', 'min_quantity', 'unit_price', 'final_price', 'effective_date', 'expiry_date', 'product_id'];
+    private const ITEM_SORTABLE = ['name', 'sku', 'pricing_items_count'];
 
     public function __construct(private CompanyContext $companyContext) {}
 
@@ -158,81 +161,65 @@ class PriceListController extends Controller
     }
 
     /**
-     * A single price list with its configured pricing items (tiers).
+     * A single price list with one row per eligible product and its pricing records.
      */
     public function show(Request $request, PriceList $priceList)
     {
         $this->assertOwnedPriceList($priceList);
-
         $priceList->load(['currency:id,code,name,symbol']);
 
         $filters = $this->itemFilters($request);
         $today = Carbon::now()->format('Y-m-d');
         $companyId = $this->companyContext->id();
+        $priceListId = (int) $priceList->id;
 
-        $itemsQuery = PriceListItem::query()
-            ->where('price_list_id', $priceList->id)
-            ->whereHas('product', fn ($query) => $query->where('company_id', $companyId))
-            ->with([
-                'product' => function ($query) {
-                    $query->select([
-                        'id', 'name', 'sku', 'barcode', 'product_code', 'unit_id', 'brand_id',
-                        'price', 'sale_price', 'product_type', 'is_variation', 'parent_id', 'status',
-                    ])->with([
-                        'parent:id,name,brand_id,product_type',
-                        'parent.brand:id,name',
-                        'brand:id,name',
-                    ])->withCount('children');
-                },
-                'unit:id,name,conversion_factor,unit_type,base_unit',
-                'unit.parent:id,name,conversion_factor',
-            ]);
+        $applyPriceRecordFilters = function ($query, bool $includeValidity = true) use ($priceListId, $filters, $today) {
+            $query->selectRaw('1')
+                ->from('price_list_items')
+                ->where('price_list_items.price_list_id', $priceListId)
+                ->whereColumn('price_list_items.product_id', 'products.id');
 
-        if ($filters['search'] !== '') {
-            $search = $filters['search'];
-            $itemsQuery->where(function ($q) use ($search) {
-                $q->whereHas('product', function ($productQuery) use ($search) {
-                    $productQuery->where('name', 'like', "%{$search}%")
-                        ->orWhere('sku', 'like', "%{$search}%")
-                        ->orWhere('product_code', 'like', "%{$search}%")
-                        ->orWhere('barcode', 'like', "%{$search}%")
-                        ->orWhereHas('parent', function ($parentQuery) use ($search) {
-                            $parentQuery->where('name', 'like', "%{$search}%");
-                        })
-                        ->orWhereExists(function ($variationQuery) use ($search) {
-                            $variationQuery->selectRaw('1')
-                                ->from('product_variations')
-                                ->join('product_variation_items as variation_items', 'variation_items.variation_id', '=', 'product_variations.id')
-                                ->join('item_attributes_details as attribute_details', function ($join) {
-                                    $join->on('attribute_details.id', '=', 'variation_items.attribute_value')
-                                        ->on('attribute_details.attribute_set_id', '=', 'variation_items.attribute_id');
-                                })
-                                ->whereColumn('product_variations.product_id', 'products.id')
-                                ->where('attribute_details.title', 'like', "%{$search}%");
+            if ($filters['unit_id'] !== '') {
+                $query->where('price_list_items.unit_id', (int) $filters['unit_id']);
+            }
+
+            if ($includeValidity) {
+                switch ($filters['item_status']) {
+                    case 'active':
+                        $query->where(function ($dateQuery) use ($today) {
+                            $dateQuery->whereNull('price_list_items.effective_date')
+                                ->orWhere('price_list_items.effective_date', '<=', $today);
+                        })->where(function ($dateQuery) use ($today) {
+                            $dateQuery->whereNull('price_list_items.expiry_date')
+                                ->orWhere('price_list_items.expiry_date', '>=', $today);
                         });
-                });
-            });
-        }
+                        break;
+                    case 'scheduled':
+                        $query->whereNotNull('price_list_items.effective_date')
+                            ->where('price_list_items.effective_date', '>', $today);
+                        break;
+                    case 'expired':
+                        $query->whereNotNull('price_list_items.expiry_date')
+                            ->where('price_list_items.expiry_date', '<', $today);
+                        break;
+                }
+            }
+        };
 
-        if ($filters['product_id'] !== '') {
-            $itemsQuery->where('product_id', (int) $filters['product_id']);
-        }
-
-        if ($filters['price_status'] === 'without_price') {
-            $itemsQuery->whereRaw('1 = 0');
-        }
-
+        $countQuery = PriceListItem::query()
+            ->selectRaw('count(*)')
+            ->where('price_list_id', $priceListId)
+            ->whereColumn('price_list_items.product_id', 'products.id');
         if ($filters['unit_id'] !== '') {
-            $itemsQuery->where('unit_id', (int) $filters['unit_id']);
+            $countQuery->where('unit_id', (int) $filters['unit_id']);
         }
 
-        $this->applyItemStatusFilter($itemsQuery, $filters['item_status'], $today);
+        $totalRecordsQuery = PriceListItem::query()
+            ->selectRaw('count(*)')
+            ->where('price_list_id', $priceListId)
+            ->whereColumn('price_list_items.product_id', 'products.id');
 
-        $itemsQuery->orderBy($filters['sort_by'], $filters['sort_dir']);
-
-        $items = $itemsQuery->paginate($filters['per_page'])->withQueryString();
-
-        $catalogQuery = $this->eligibleSellableProductsQuery($companyId)
+        $productsQuery = $this->eligibleSellableProductsQuery($companyId)
             ->with([
                 'unit:id,name,conversion_factor,unit_type,base_unit',
                 'unit.parent:id,name,conversion_factor',
@@ -243,21 +230,15 @@ class PriceListController extends Controller
             ->select([
                 'products.id', 'products.name', 'products.sku', 'products.barcode',
                 'products.product_code', 'products.unit_id', 'products.brand_id',
-                'products.price', 'products.sale_price', 'products.product_type',
-                'products.is_variation', 'products.parent_id',
+                'products.product_type', 'products.is_variation', 'products.parent_id',
                 'products.status', 'products.company_id',
             ])
-            ->selectSub(
-                PriceListItem::query()
-                    ->selectRaw('count(*)')
-                    ->where('price_list_id', $priceList->id)
-                    ->whereColumn('price_list_items.product_id', 'products.id'),
-                'pricing_items_count'
-            );
+            ->selectSub($countQuery, 'pricing_items_count');
+        $productsQuery->selectSub($totalRecordsQuery, 'total_pricing_records_count');
 
         if ($filters['search'] !== '') {
             $search = $filters['search'];
-            $catalogQuery->where(function ($query) use ($search) {
+            $productsQuery->where(function ($query) use ($search) {
                 $query->where('products.name', 'like', "%{$search}%")
                     ->orWhere('products.sku', 'like', "%{$search}%")
                     ->orWhere('products.product_code', 'like', "%{$search}%")
@@ -281,72 +262,36 @@ class PriceListController extends Controller
         }
 
         if ($filters['product_id'] !== '') {
-            $catalogQuery->where('products.id', (int) $filters['product_id']);
+            $productsQuery->where('products.id', (int) $filters['product_id']);
         }
-
-        $catalogPriceExists = function ($query) use ($priceList, $filters, $today) {
-            $query->selectRaw('1')
-                ->from('price_list_items')
-                ->where('price_list_items.price_list_id', $priceList->id)
-                ->whereColumn('price_list_items.product_id', 'products.id');
-
-            if ($filters['unit_id'] !== '') {
-                $query->where('price_list_items.unit_id', (int) $filters['unit_id']);
-            }
-
-            switch ($filters['item_status']) {
-                case 'active':
-                    $query->where(function ($dateQuery) use ($today) {
-                        $dateQuery->whereNull('price_list_items.effective_date')
-                            ->orWhere('price_list_items.effective_date', '<=', $today);
-                    })->where(function ($dateQuery) use ($today) {
-                        $dateQuery->whereNull('price_list_items.expiry_date')
-                            ->orWhere('price_list_items.expiry_date', '>=', $today);
-                    });
-                    break;
-                case 'scheduled':
-                    $query->whereNotNull('price_list_items.effective_date')
-                        ->where('price_list_items.effective_date', '>', $today);
-                    break;
-                case 'expired':
-                    $query->whereNotNull('price_list_items.expiry_date')
-                        ->where('price_list_items.expiry_date', '<', $today);
-                    break;
-            }
-        };
 
         if ($filters['price_status'] === 'with_price') {
-            $catalogQuery->whereExists($catalogPriceExists);
+            $productsQuery->whereExists(fn ($query) => $applyPriceRecordFilters($query));
         } elseif ($filters['price_status'] === 'without_price') {
-            $catalogQuery->whereNotExists(function ($query) use ($priceList) {
-                $query->selectRaw('1')
-                    ->from('price_list_items')
-                    ->where('price_list_items.price_list_id', $priceList->id)
-                    ->whereColumn('price_list_items.product_id', 'products.id');
-            });
+            $productsQuery->whereNotExists(fn ($query) => $applyPriceRecordFilters($query, false));
+        } elseif ($filters['item_status'] !== '') {
+            $productsQuery->whereExists(fn ($query) => $applyPriceRecordFilters($query));
         }
 
-        if ($filters['unit_id'] !== '' || $filters['item_status'] !== '') {
-            $catalogQuery->whereExists($catalogPriceExists);
+        if ($filters['item_status'] !== '' && $filters['price_status'] === 'without_price') {
+            $productsQuery->whereRaw('1 = 0');
         }
 
-        $catalogProducts = $catalogQuery
-            ->orderBy('products.name')
+        $products = $productsQuery
+            ->orderBy($filters['sort_by'] === 'pricing_items_count'
+                ? 'pricing_items_count'
+                : 'products.'.$filters['sort_by'], $filters['sort_dir'])
             ->orderBy('products.id')
-            ->paginate($filters['per_page'], ['*'], 'catalog_page')
+            ->paginate($filters['per_page'])
             ->withQueryString();
 
-        $catalogDisplayNames = $this->variationDisplayNames(
-            $catalogProducts->getCollection()
-        );
-        $catalogUnitOptions = $this->unitOptionsByProducts(
-            $catalogProducts->getCollection(),
-            $companyId
-        );
-        $catalogProducts->through(function (Products $product) use ($catalogDisplayNames, $catalogUnitOptions) {
+        $displayNames = $this->variationDisplayNames($products->getCollection());
+        $productUnitOptions = $this->unitOptionsByProducts($products->getCollection(), $companyId);
+        $products->through(function (Products $product) use ($displayNames, $productUnitOptions) {
+            $displayName = $displayNames[$product->id] ?? $product->name;
             $row = $product->only([
                 'id', 'name', 'sku', 'barcode', 'product_code', 'unit_id',
-                'price', 'sale_price', 'product_type', 'is_variation', 'parent_id', 'status',
+                'product_type', 'is_variation', 'parent_id', 'status',
             ]);
             $row['unit'] = $product->unit
                 ? array_merge($product->unit->only([
@@ -355,100 +300,30 @@ class PriceListController extends Controller
                     'parent' => $product->unit->parent?->only(['id', 'name', 'conversion_factor']),
                 ])
                 : null;
-            $row['unit_options'] = $catalogUnitOptions[$product->id] ?? [];
-            $row['subunits'] = $row['unit_options'];
-            $row['display_name'] = $catalogDisplayNames[$product->id] ?? $product->name;
+            $row['unit_options'] = $productUnitOptions[$product->id] ?? [];
+            $row['display_name'] = $displayName;
             $row['pricing_items_count'] = (int) $product->pricing_items_count;
-            $row['price_status'] = (int) $product->pricing_items_count > 0
-                ? 'with_price'
-                : 'without_price';
+            $row['total_pricing_records_count'] = (int) $product->total_pricing_records_count;
+            $row['price_status'] = $row['pricing_items_count'] > 0 ? 'with_price' : 'without_price';
 
             return $row;
         });
 
-        // Display-only validity status, derived server side with the same date
-        // rules ProductPriceResolver applies (no pricing arithmetic happens here).
-        $itemDisplayNames = $this->variationDisplayNames(
-            $items->getCollection()->pluck('product')->filter()->values()
-        );
-        $itemProducts = $items->getCollection()->pluck('product')->filter()->values();
-        $itemUnitOptions = $this->unitOptionsByProducts($itemProducts, $companyId);
-
-        $items->through(function (PriceListItem $item) use ($today, $itemDisplayNames, $itemUnitOptions) {
-            $row = $item->toArray();
-            $row['status'] = $this->itemStatus($item, $today);
-            $row['product'] = $item->product ? array_merge($item->product->toArray(), [
-                'display_name' => $itemDisplayNames[$item->product->id] ?? $item->product->name,
-                'children_count' => (int) ($item->product->children_count ?? 0),
-                'is_parent_with_children' => (int) ($item->product->children_count ?? 0) > 0,
-                'unit_options' => $itemUnitOptions[$item->product->id] ?? [],
-            ]) : null;
-            $row['unit'] = $item->unit ? array_merge($item->unit->toArray(), [
-                'parent' => $item->unit->parent ? $item->unit->parent->only(['id', 'name', 'conversion_factor']) : null,
-            ]) : null;
-
-            return $row;
-        });
-
-        $tierProducts = PriceListItem::query()
-            ->where('price_list_id', $priceList->id)
-            ->whereHas('product', fn ($query) => $query->where('company_id', $companyId))
-            ->with(['product' => function ($query) {
-                $query->select('id', 'name', 'sku', 'parent_id', 'product_type', 'brand_id')
-                    ->with(['parent:id,name,brand_id,product_type', 'parent.brand:id,name', 'brand:id,name']);
-            }])
-            ->select('product_id', 'unit_id')
-            ->selectRaw('count(*) as tiers_count')
-            ->selectRaw('min(min_quantity) as min_quantity_from')
-            ->groupBy('product_id', 'unit_id')
-            ->orderBy('product_id')
-            ->get();
-
-        $tierProductDisplayNames = $this->variationDisplayNames(
-            $tierProducts->pluck('product')->filter()->values()
-        );
-
-        $tierProducts = $tierProducts->map(function (PriceListItem $row) use ($tierProductDisplayNames) {
-            return [
-                'product_id' => $row->product_id,
-                'product_name' => $row->product
-                    ? ($tierProductDisplayNames[$row->product->id] ?? $row->product->name)
-                    : null,
-                'product_sku' => $row->product?->sku,
-                'unit_id' => $row->unit_id,
-                'tiers_count' => (int) $row->tiers_count,
-                'min_quantity_from' => $row->min_quantity_from,
-            ];
-        })->values();
-
-        // Quantity tier ladder for the product currently filtered on, so the
-        // configured "1+ / 10+ / 50+" steps are readable at a glance.
-        $tierLadder = [];
+        $productFilterProduct = null;
         if ($filters['product_id'] !== '') {
-            $tierLadder = PriceListItem::query()
-                ->where('price_list_id', $priceList->id)
-                ->where('product_id', (int) $filters['product_id'])
-                ->whereHas('product', fn ($query) => $query->where('company_id', $companyId))
-                ->with(['unit:id,name,conversion_factor'])
-                ->orderBy('min_quantity')
-                ->orderBy('unit_id')
-                ->get()
-                ->map(function (PriceListItem $item) use ($today) {
-                    return [
-                        'id' => $item->id,
-                        'unit_id' => $item->unit_id,
-                        'unit_name' => $item->unit?->name,
-                        'min_quantity' => $item->min_quantity,
-                        'unit_price' => $item->unit_price,
-                        'discount_percentage' => $item->discount_percentage,
-                        'discount_amount' => $item->discount_amount,
-                        // Stored generated column written by the database.
-                        'final_price' => $item->final_price,
-                        'status' => $this->itemStatus($item, $today),
-                    ];
-                })
-                ->values()
-                ->all();
+            $selectedProducts = $this->eligibleSellableProductsQuery($companyId)
+                ->with(['parent:id,name,brand_id,product_type', 'parent.brand:id,name', 'brand:id,name'])
+                ->where('products.id', (int) $filters['product_id'])
+                ->get(['products.id', 'products.name', 'products.sku', 'products.parent_id', 'products.product_type', 'products.brand_id']);
+            $selectedNames = $this->variationDisplayNames($selectedProducts);
+            if ($selectedProducts->isNotEmpty()) {
+                $selectedProduct = $selectedProducts->first();
+                $productFilterProduct = [
+                    'id' => $selectedProduct->id,
+                    'display_name' => $selectedNames[$selectedProduct->id] ?? $selectedProduct->name,
+                    'sku' => $selectedProduct->sku,
+                ];
+            }
         }
 
         return Inertia::render('Backend/03-Inventory/PriceLists', [
@@ -456,10 +331,8 @@ class PriceListController extends Controller
             'priceList' => array_merge($priceList->toArray(), [
                 'currency' => $priceList->currency?->only(['id', 'code', 'name', 'symbol']),
             ]),
-            'catalogProducts' => $catalogProducts,
-            'items' => $items,
-            'tierProducts' => $tierProducts,
-            'tierLadder' => $tierLadder,
+            'products' => $products,
+            'productFilterProduct' => $productFilterProduct,
             'units' => $this->unitOptions(),
             'priceTypes' => self::PRICE_TYPES,
             'assigned' => [
@@ -483,6 +356,148 @@ class PriceListController extends Controller
                     ->count(),
             ],
             'filters' => $filters,
+        ]);
+    }
+
+    /**
+     * Load all pricing records for one eligible product in a price list.
+     */
+    public function productItems(PriceList $priceList, Products $product)
+    {
+        $this->assertOwnedPriceList($priceList);
+        $companyId = $this->companyContext->id();
+
+        abort_unless(
+            $this->eligibleSellableProductsQuery($companyId)
+                ->where('products.id', $product->id)
+                ->exists(),
+            404
+        );
+
+        $today = Carbon::now()->format('Y-m-d');
+        $items = PriceListItem::query()
+            ->where('price_list_id', $priceList->id)
+            ->where('product_id', $product->id)
+            ->with(['unit:id,name,conversion_factor,unit_type,base_unit', 'unit.parent:id,name,conversion_factor'])
+            ->orderBy('unit_id')
+            ->orderBy('min_quantity')
+            ->get()
+            ->map(fn (PriceListItem $item) => [
+                'id' => $item->id,
+                'unit_id' => $item->unit_id,
+                'unit' => $item->unit ? array_merge($item->unit->only([
+                    'id', 'name', 'conversion_factor', 'unit_type', 'base_unit',
+                ]), [
+                    'parent' => $item->unit->parent?->only(['id', 'name', 'conversion_factor']),
+                ]) : null,
+                'min_quantity' => $item->min_quantity,
+                'unit_price' => $item->unit_price,
+                'discount_percentage' => $item->discount_percentage,
+                'discount_amount' => $item->discount_amount,
+                'final_price' => $item->final_price,
+                'effective_date' => $item->effective_date?->toDateString(),
+                'expiry_date' => $item->expiry_date?->toDateString(),
+                'status' => $this->itemStatus($item, $today),
+                'notes' => $item->notes,
+            ])
+            ->values();
+
+        return response()->json(['items' => $items]);
+    }
+
+    /**
+     * Export every pricing record in the selected price list.
+     */
+    public function exportItems(PriceList $priceList)
+    {
+        $this->assertOwnedPriceList($priceList);
+        $priceList->load('currency:id,code');
+
+        return Excel::download(
+            new PriceListItemsExport($priceList),
+            'price-list-'.$priceList->id.'.xlsx'
+        );
+    }
+
+    /**
+     * Import pricing tiers atomically into the selected price list.
+     */
+    public function importItems(Request $request, PriceList $priceList)
+    {
+        $this->assertOwnedPriceList($priceList);
+
+        $rows = array_values($request->validate([
+            'rows' => ['required', 'array', 'min:1', 'max:5000'],
+            'rows.*' => ['required', 'array'],
+        ])['rows']);
+
+        $rules = [
+            'product_id' => ['required', 'integer'],
+            'unit_id' => ['required', 'integer'],
+            'min_quantity' => ['required', 'numeric', 'decimal:0,4', 'gt:0', 'max:99999999.9999'],
+            'unit_price' => ['required', 'numeric', 'decimal:0,4', 'gte:0', 'max:99999999999.9999'],
+            'discount_percentage' => ['nullable', 'numeric', 'decimal:0,2', 'gte:0', 'lte:100'],
+            'discount_amount' => ['nullable', 'numeric', 'decimal:0,2', 'gte:0', 'max:9999999999999.99'],
+            'effective_date' => ['nullable', 'date'],
+            'expiry_date' => ['nullable', 'date', 'after_or_equal:effective_date'],
+            'notes' => ['nullable', 'string', 'max:500'],
+        ];
+
+        $validatedRows = [];
+        $rowErrors = [];
+        $batchTiers = [];
+
+        foreach ($rows as $index => $row) {
+            $line = $index + 2;
+            $validator = Validator::make($row, $rules);
+
+            if ($validator->fails()) {
+                $rowErrors[] = __('PriceLists.import_row_error', [
+                    'row' => $line,
+                    'errors' => implode('; ', $validator->errors()->all()),
+                ]);
+                continue;
+            }
+
+            try {
+                $validated = $this->validateItemData($validator->validated(), $priceList);
+                $tierKey = implode(':', [
+                    $validated['product_id'],
+                    $validated['unit_id'],
+                    number_format((float) $validated['min_quantity'], 4, '.', ''),
+                ]);
+
+                if (isset($batchTiers[$tierKey])) {
+                    throw ValidationException::withMessages([
+                        'min_quantity' => __('PriceLists.duplicate_tier'),
+                    ]);
+                }
+
+                $batchTiers[$tierKey] = true;
+                $validatedRows[] = $validated;
+            } catch (ValidationException $exception) {
+                $rowErrors[] = __('PriceLists.import_row_error', [
+                    'row' => $line,
+                    'errors' => implode('; ', collect($exception->errors())->flatten()->all()),
+                ]);
+            }
+        }
+
+        if ($rowErrors !== []) {
+            throw ValidationException::withMessages([
+                'rows' => $rowErrors,
+            ]);
+        }
+
+        DB::transaction(function () use ($validatedRows, $priceList) {
+            foreach ($validatedRows as $row) {
+                PriceListItem::create($row + ['price_list_id' => $priceList->id]);
+            }
+        });
+
+        return response()->json([
+            'imported' => count($validatedRows),
+            'message' => __('PriceLists.import_success', ['count' => count($validatedRows)]),
         ]);
     }
 
@@ -634,7 +649,7 @@ class PriceListController extends Controller
                 'variations.product' => function ($query) {
                     $query->select([
                         'id', 'name', 'sku', 'barcode', 'product_code', 'unit_id', 'brand_id',
-                        'price', 'sale_price', 'product_type', 'is_variation', 'parent_id', 'status',
+                        'product_type', 'is_variation', 'parent_id', 'status',
                     ])->where('company_id', $this->companyContext->id())
                         ->where('status', 'active')
                         ->with(['unit:id,name,conversion_factor,base_unit', 'brand:id,name']);
@@ -661,7 +676,7 @@ class PriceListController extends Controller
             })
             ->select([
                 'id', 'name', 'sku', 'barcode', 'product_code', 'unit_id', 'brand_id',
-                'price', 'sale_price', 'cost_per_item', 'product_type', 'is_variation', 'parent_id', 'status',
+                'product_type', 'is_variation', 'parent_id', 'status',
             ])
             ->orderBy('name')
             ->limit(25)
@@ -1019,8 +1034,6 @@ class PriceListController extends Controller
             'unit_id' => $product->unit_id,
             'unit' => $product->unit?->only(['id', 'name', 'conversion_factor', 'base_unit']),
             'unit_name' => $product->unit?->name,
-            'price' => $product->price,
-            'sale_price' => $product->sale_price,
             'product_type' => $product->product_type,
             'is_variation' => (bool) $product->is_variation,
             'parent_id' => $product->parent_id,
@@ -1094,6 +1107,11 @@ class PriceListController extends Controller
             'min_quantity.gt' => __('PriceLists.min_quantity_positive'),
         ]);
 
+        return $this->validateItemData($validated, $priceList, $item);
+    }
+
+    private function validateItemData(array $validated, PriceList $priceList, ?PriceListItem $item = null): array
+    {
         $companyId = $this->companyContext->id();
         $isEligibleProduct = $this->eligibleSellableProductsQuery($companyId)
             ->where('products.id', (int) $validated['product_id'])
@@ -1178,7 +1196,7 @@ class PriceListController extends Controller
 
     private function itemFilters(Request $request): array
     {
-        $sortBy = (string) $request->input('sort_by', 'min_quantity');
+        $sortBy = (string) $request->input('sort_by', 'name');
         $sortDir = strtolower((string) $request->input('sort_dir', 'asc'));
 
         return [
@@ -1187,10 +1205,9 @@ class PriceListController extends Controller
             'price_status' => in_array($request->input('price_status'), ['with_price', 'without_price'], true)
                 ? (string) $request->input('price_status')
                 : '',
-            'catalog_page' => max(1, (int) $request->input('catalog_page', 1)),
             'unit_id' => $request->filled('unit_id') ? (string) $request->input('unit_id') : '',
             'item_status' => in_array($request->input('item_status'), self::ITEM_STATUSES, true) ? (string) $request->input('item_status') : '',
-            'sort_by' => in_array($sortBy, self::ITEM_SORTABLE, true) ? $sortBy : 'min_quantity',
+            'sort_by' => in_array($sortBy, self::ITEM_SORTABLE, true) ? $sortBy : 'name',
             'sort_dir' => $sortDir === 'desc' ? 'desc' : 'asc',
             'per_page' => $this->perPage($request),
         ];
