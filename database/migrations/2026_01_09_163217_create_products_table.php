@@ -41,6 +41,7 @@ return new class extends Migration
 
             // Inventory
             $table->integer('quantity')->default(0);
+            $table->integer('reorder_point')->default(0);
             $table->string('stock_status')->default('in_stock'); // in_stock, out_of_stock, on_backorder
             $table->boolean('allow_checkout_when_out_of_stock')->default(false);
             $table->boolean('with_storehouse_management')->default(false);
@@ -49,11 +50,6 @@ return new class extends Migration
 
             // Pricing
             $table->decimal('cost_per_item', 15, 2)->nullable();
-            $table->decimal('price', 15, 2)->nullable();
-            $table->decimal('sale_price', 15, 2)->nullable();
-            $table->string('sale_type')->nullable(); // fixed, percent?
-            $table->timestamp('start_date')->nullable();
-            $table->timestamp('end_date')->nullable();
             $table->boolean('price_includes_tax')->default(false);
             $table->unsignedBigInteger('tax_id')->nullable();
 

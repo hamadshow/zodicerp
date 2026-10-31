@@ -254,6 +254,13 @@ export default function OpeningStock({ openingStocks, warehouses, products, filt
         }));
     }, [products]);
 
+    const warehouseOptions = useMemo(() => {
+        return (warehouses || []).map(warehouse => ({
+            value: String(warehouse.id),
+            label: warehouse.name_en || warehouse.name_ar || warehouse.name || ''
+        }));
+    }, [warehouses]);
+
     const productsById = useMemo(() => {
         return new Map((products || []).map(product => [String(product.id), product]));
     }, [products]);
@@ -304,8 +311,6 @@ export default function OpeningStock({ openingStocks, warehouses, products, filt
                 const qty = toNum(it.original_quantity ?? it.quantity);
                 const conversionFactor = toNum(it.conversion_factor_snapshot) || 1;
                 const costPrice = toNum(it.cost_price) * conversionFactor;
-                const product = productsById.get(String(it.product_id));
-                const availableUnits = product?.unit_options || [];
                 const unitId = String(it.unit_id || '');
                 const line = { ...it };
                 delete line.warehouse_id;
@@ -315,7 +320,8 @@ export default function OpeningStock({ openingStocks, warehouses, products, filt
                     quantity: qty,
                     cost_price: costPrice,
                     line_total: (qty * costPrice).toFixed(2),
-                    unit_id: availableUnits.some(unit => String(unit.id) === unitId) ? unitId : '',
+                    unit_id: unitId,
+                    saved_unit_name: it.unit?.name || '',
                     item_name_ar: it.product?.name_ar || '',
                     item_name_en: it.product?.name_en || '',
                 };
@@ -570,16 +576,14 @@ export default function OpeningStock({ openingStocks, warehouses, products, filt
                                 <h3>Warehouse Details</h3>
                                 <div className="form-group">
                                     <label>Warehouse <span className="required">*</span></label>
-                                    <select 
-                                        value={data.warehouse_id} 
-                                        onChange={e => setData('warehouse_id', e.target.value)}
-                                        className={errors.warehouse_id ? 'error' : ''}
-                                    >
-                                        <option value="">Select Warehouse</option>
-                                        {warehouses?.map(w => (
-                                            <option key={w.id} value={w.id}>{w.name_en || w.name_ar || w.name}</option>
-                                        ))}
-                                    </select>
+                                    <div className={`opening-stock-warehouse${errors.warehouse_id ? ' error' : ''}`}>
+                                        <SearchableComboBox
+                                            options={warehouseOptions}
+                                            value={data.warehouse_id ? String(data.warehouse_id) : ''}
+                                            onChange={(value) => setData('warehouse_id', value)}
+                                            placeholder="Select Warehouse"
+                                        />
+                                    </div>
                                     {errors.warehouse_id && <span className="error-msg">{errors.warehouse_id}</span>}
                                 </div>
                             </div>
@@ -652,8 +656,11 @@ export default function OpeningStock({ openingStocks, warehouses, products, filt
                                                     />
                                                 </td>
                                                 <td>
+                                                    {item.unit_id && !itemUnits.some(unit => String(unit.id) === String(item.unit_id)) ? (
+                                                        <input type="text" value={item.saved_unit_name || ''} disabled />
+                                                    ) : null}
                                                     <select
-                                                        value={item.unit_id ? String(item.unit_id) : ''}
+                                                        value={itemUnits.some(unit => String(unit.id) === String(item.unit_id)) ? String(item.unit_id) : ''}
                                                         onChange={e => handleItemChange(index, 'unit_id', e.target.value)}
                                                         disabled={!item.product_id || itemUnits.length === 0}
                                                     >

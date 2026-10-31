@@ -86,65 +86,6 @@ class ProductPriceResolver
             }
         }
 
-        $groupDiscountPct = '0.00';
-        if ($group && $group->discount_percentage !== null) {
-            $groupDiscountPct = $this->num($group->discount_percentage, self::DISCOUNT_SCALE);
-        }
-
-        if ($this->cmp($groupDiscountPct, '0') > 0) {
-            $base = $this->pickProductBasePrice($product);
-            if ($base !== null) {
-                $basePrice = $this->num($base, self::PRICE_SCALE);
-                $discountAmt = $this->mul($basePrice, $this->div($groupDiscountPct, '100.00', self::MATH_SCALE));
-                $final = $this->sub($basePrice, $discountAmt);
-                if ($this->cmp($final, '0') < 0) {
-                    $final = '0.0000';
-                }
-
-                return [
-                    'unit_price' => $basePrice,
-                    'final_price' => $this->num($final, self::PRICE_SCALE),
-                    'source' => 'customer_group_discount',
-                    'price_list_id' => null,
-                    'price_list_item_id' => null,
-                    'unit_id' => $unitId,
-                    'discount_percentage' => $groupDiscountPct,
-                    'discount_amount' => $this->num($discountAmt, self::DISCOUNT_SCALE),
-                    'resolved_at' => Carbon::now(),
-                ];
-            }
-        }
-
-        if ($product->sale_price !== null && (string) $product->sale_price !== '') {
-            $sp = $this->num($product->sale_price, self::PRICE_SCALE);
-            return [
-                'unit_price' => $sp,
-                'final_price' => $sp,
-                'source' => 'product_sale_price',
-                'price_list_id' => null,
-                'price_list_item_id' => null,
-                'unit_id' => $unitId,
-                'discount_percentage' => '0.00',
-                'discount_amount' => '0.00',
-                'resolved_at' => Carbon::now(),
-            ];
-        }
-
-        if ($product->price !== null && (string) $product->price !== '') {
-            $p = $this->num($product->price, self::PRICE_SCALE);
-            return [
-                'unit_price' => $p,
-                'final_price' => $p,
-                'source' => 'product_price',
-                'price_list_id' => null,
-                'price_list_item_id' => null,
-                'unit_id' => $unitId,
-                'discount_percentage' => '0.00',
-                'discount_amount' => '0.00',
-                'resolved_at' => Carbon::now(),
-            ];
-        }
-
         return [
             'unit_price' => null,
             'final_price' => null,
@@ -263,19 +204,6 @@ class ProductPriceResolver
             'discount_amount' => $this->num($totalDiscount, self::DISCOUNT_SCALE),
             'resolved_at' => Carbon::now(),
         ];
-    }
-
-    private function pickProductBasePrice(Products $product): ?string
-    {
-        if ($product->sale_price !== null && (string) $product->sale_price !== '') {
-            return (string) $product->sale_price;
-        }
-
-        if ($product->price !== null && (string) $product->price !== '') {
-            return (string) $product->price;
-        }
-
-        return null;
     }
 
     private function toNumeric(mixed $value): string

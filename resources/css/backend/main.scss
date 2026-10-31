@@ -73,6 +73,7 @@
 @use 'pages/Payroll-Advance';
 @use 'pages/RolesAndPermissions';
 @use 'pages/Purchase_quotations';
+@use 'pages/GoodsReceipt';
 @use 'pages/PurchaseInvoice';
 @use 'pages/PurchasesReturn';
 @use 'pages/SalesReturn';
@@ -260,4 +261,3 @@ select,
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
-

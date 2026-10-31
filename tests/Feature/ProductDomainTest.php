@@ -222,7 +222,7 @@ class ProductDomainTest extends TestCase
             'name' => 'PDOM-simple-with-vars-'.uniqid(),
             'product_type' => 'simple',
             'variations' => [
-                ['sku' => self::FIXTURE_PREFIX.'SV-A', 'price' => 10],
+                ['sku' => self::FIXTURE_PREFIX.'SV-A'],
             ],
         ]);
 
@@ -237,7 +237,7 @@ class ProductDomainTest extends TestCase
             'name' => 'PDOM-service-with-vars-'.uniqid(),
             'product_type' => 'service',
             'variations' => [
-                ['sku' => self::FIXTURE_PREFIX.'SEV-A', 'price' => 10],
+                ['sku' => self::FIXTURE_PREFIX.'SEV-A'],
             ],
         ]);
 
@@ -380,7 +380,7 @@ class ProductDomainTest extends TestCase
             'product_type' => 'variation',
             'stock_status' => 'in_stock',
             'variations' => [
-                ['sku' => self::FIXTURE_PREFIX.'STV-'.strtoupper(uniqid()), 'price' => 19],
+                ['sku' => self::FIXTURE_PREFIX.'STV-'.strtoupper(uniqid())],
             ],
         ]);
         $response->assertStatus(200);
@@ -475,8 +475,8 @@ class ProductDomainTest extends TestCase
             'product_type' => 'variation',
             'stock_status' => 'in_stock',
             'variations' => [
-                ['sku' => self::FIXTURE_PREFIX.'EV-A-'.strtoupper(uniqid()), 'price' => 11],
-                ['sku' => self::FIXTURE_PREFIX.'EV-B-'.strtoupper(uniqid()), 'price' => 22],
+                ['sku' => self::FIXTURE_PREFIX.'EV-A-'.strtoupper(uniqid())],
+                ['sku' => self::FIXTURE_PREFIX.'EV-B-'.strtoupper(uniqid())],
             ],
         ]);
         $response->assertStatus(200);
@@ -493,6 +493,221 @@ class ProductDomainTest extends TestCase
             $this->assertSame('simple', $child->product_type);
             $this->assertTrue((bool) $child->is_variation);
         }
+    }
+
+    public function test_editing_one_variation_preserves_child_and_link_ids_and_other_variation_data(): void
+    {
+        [$parentId, $firstChildId] = $this->createVariableFamily('PDOM-variation-update');
+        $firstLinkId = (int) DB::table('product_variations')->where('product_id', $firstChildId)->value('id');
+        $firstSku = Products::findOrFail($firstChildId)->sku;
+        $secondSku = self::FIXTURE_PREFIX.'VU-B-'.strtoupper(uniqid());
+
+        $response = $this->putJson(route('admin.inventory.products.update', $parentId), [
+            'name' => 'PDOM-variation-update-parent-'.uniqid(),
+            'status' => 'active',
+            'product_type' => 'variation',
+            'stock_status' => 'in_stock',
+            'variations' => [
+                ['id' => $firstLinkId, 'sku' => $firstSku, 'stock' => 5],
+                ['sku' => $secondSku, 'stock' => 13],
+            ],
+        ]);
+        $response->assertStatus(200);
+
+        $secondChildId = (int) Products::where('parent_id', $parentId)->where('sku', $secondSku)->value('id');
+        $secondLinkId = (int) DB::table('product_variations')->where('product_id', $secondChildId)->value('id');
+
+        $response = $this->putJson(route('admin.inventory.products.update', $parentId), [
+            'name' => 'PDOM-variation-update-parent-'.uniqid(),
+            'status' => 'active',
+            'product_type' => 'variation',
+            'stock_status' => 'in_stock',
+            'variations' => [
+                ['id' => $firstLinkId, 'sku' => $firstSku, 'stock' => 6],
+                ['id' => $secondLinkId, 'sku' => $secondSku, 'stock' => 13],
+            ],
+        ]);
+        $response->assertStatus(200);
+
+        $this->assertSame($firstChildId, (int) Products::where('parent_id', $parentId)->where('sku', $firstSku)->value('id'));
+        $this->assertSame($secondChildId, (int) Products::where('parent_id', $parentId)->where('sku', $secondSku)->value('id'));
+        $this->assertSame($firstLinkId, (int) DB::table('product_variations')->where('product_id', $firstChildId)->value('id'));
+        $this->assertSame($secondLinkId, (int) DB::table('product_variations')->where('product_id', $secondChildId)->value('id'));
+        $this->assertSame(6, (int) Products::findOrFail($firstChildId)->quantity);
+        $this->assertSame(13, (int) Products::findOrFail($secondChildId)->quantity);
+        $this->assertSame(2, DB::table('product_variations')->where('configurable_product_id', $parentId)->count());
+
+        $this->putJson(route('admin.inventory.products.update', $parentId), [
+            'name' => Products::findOrFail($parentId)->name,
+            'status' => 'active',
+            'product_type' => 'variation',
+            'variations' => [
+                ['id' => $firstLinkId, 'sku' => $firstSku, 'stock' => 6],
+            ],
+        ])->assertOk();
+
+        $this->assertNotNull(Products::find($secondChildId), 'An omitted row must not be deleted during an ordinary edit.');
+        $this->assertSame($secondLinkId, (int) DB::table('product_variations')->where('product_id', $secondChildId)->value('id'));
+    }
+
+    public function test_individual_variation_editor_updates_only_selected_child_and_validates_tax_scope(): void
+    {
+        [$parentId, $firstChildId] = $this->createVariableFamily('PDOM-individual-editor');
+        $parent = Products::findOrFail($parentId);
+        $parent->update([
+            'cost_per_item' => 80,
+            'price_includes_tax' => true,
+            'reorder_point' => 44,
+            'minimum_order_quantity' => 4,
+            'maximum_order_quantity' => 40,
+            'weight' => 12,
+            'length' => 13,
+            'wide' => 14,
+            'height' => 15,
+        ]);
+
+        $firstLinkId = (int) DB::table('product_variations')->where('product_id', $firstChildId)->value('id');
+        $secondSku = self::FIXTURE_PREFIX.'IE-B-'.strtoupper(uniqid());
+        $response = $this->putJson(route('admin.inventory.products.update', $parentId), [
+            'name' => $parent->name,
+            'status' => 'active',
+            'product_type' => 'variation',
+            'stock_status' => 'in_stock',
+            'variations' => [
+                [
+                    'id' => $firstLinkId,
+                    'sku' => Products::findOrFail($firstChildId)->sku,
+                    'stock' => 5,
+                    'cost_per_item' => 2,
+                    'reorder_point' => 1,
+                    'minimum_order_quantity' => 1,
+                    'maximum_order_quantity' => null,
+                    'weight' => 1,
+                    'length' => 2,
+                    'wide' => 3,
+                    'height' => 4,
+                ],
+                ['sku' => $secondSku, 'stock' => 13, 'cost_per_item' => 6, 'weight' => 7],
+            ],
+        ]);
+        $response->assertStatus(200);
+
+        $firstChild = Products::findOrFail($firstChildId);
+        $secondChildId = (int) Products::where('parent_id', $parentId)->where('sku', $secondSku)->value('id');
+        $secondLinkId = (int) DB::table('product_variations')->where('product_id', $secondChildId)->value('id');
+        $secondBefore = Products::findOrFail($secondChildId)->only([
+            'cost_per_item', 'price_includes_tax', 'tax_id', 'reorder_point',
+            'minimum_order_quantity', 'maximum_order_quantity', 'weight', 'length', 'wide', 'height',
+        ]);
+        $parentBefore = Products::findOrFail($parentId)->only([
+            'cost_per_item', 'price_includes_tax', 'tax_id', 'reorder_point',
+            'minimum_order_quantity', 'maximum_order_quantity', 'weight', 'length', 'wide', 'height',
+        ]);
+
+        $this->patchJson(route('admin.inventory.products.variations.update', [
+            'product' => $parentId,
+            'variation' => $firstLinkId,
+        ]), [
+            'sku' => $firstChild->sku,
+            'cost_per_item' => 9,
+            'barcode' => null,
+            'stock' => 8,
+            'stock_status' => 'in_stock',
+            'price_includes_tax' => true,
+            'tax_id' => 999999999,
+            'reorder_point' => 6,
+            'minimum_order_quantity' => 2,
+            'maximum_order_quantity' => null,
+            'weight' => 8,
+            'length' => 9,
+            'wide' => 10,
+            'height' => 11,
+        ])->assertStatus(422)->assertJsonValidationErrors(['tax_id']);
+
+        $this->patchJson(route('admin.inventory.products.variations.update', [
+            'product' => $parentId,
+            'variation' => $firstLinkId,
+        ]), [
+            'sku' => $firstChild->sku,
+            'cost_per_item' => 9,
+            'barcode' => null,
+            'stock' => 8,
+            'stock_status' => 'in_stock',
+            'price_includes_tax' => false,
+            'tax_id' => null,
+            'reorder_point' => 6,
+            'minimum_order_quantity' => 2,
+            'maximum_order_quantity' => null,
+            'weight' => 8,
+            'length' => 9,
+            'wide' => 10,
+            'height' => 11,
+        ])->assertOk();
+
+        $firstChild->refresh();
+        $this->assertSame('9.00', $firstChild->cost_per_item);
+        $this->assertFalse((bool) $firstChild->price_includes_tax);
+        $this->assertNull($firstChild->tax_id);
+        $this->assertSame(6, (int) $firstChild->reorder_point);
+        $this->assertSame(2, (int) $firstChild->minimum_order_quantity);
+        $this->assertNull($firstChild->maximum_order_quantity);
+        $this->assertSame('8.00', $firstChild->weight);
+        $this->assertSame(8, (int) $firstChild->quantity);
+        $this->assertSame($secondBefore, Products::findOrFail($secondChildId)->only(array_keys($secondBefore)));
+        $this->assertSame($parentBefore, Products::findOrFail($parentId)->only(array_keys($parentBefore)));
+
+        $otherParent = $this->createVariableFamily('PDOM-editor-other-parent');
+        $otherLinkId = (int) DB::table('product_variations')->where('product_id', $otherParent[1])->value('id');
+        $this->patchJson(route('admin.inventory.products.variations.update', [
+            'product' => $parentId,
+            'variation' => $otherLinkId,
+        ]), [
+            'price_includes_tax' => false,
+        ])->assertNotFound();
+
+        $this->assertSame($secondLinkId, (int) DB::table('product_variations')->where('product_id', $secondChildId)->value('id'));
+    }
+
+    public function test_simple_to_variation_conversion_updates_existing_parent_in_place(): void
+    {
+        $image = 'products/images/'.uniqid().'.jpg';
+        $productId = $this->createProduct('PDOM-convert-'.uniqid(), [
+            'description' => 'Preserved description',
+            'image' => $image,
+        ]);
+        $productBefore = Products::findOrFail($productId);
+        $variationSku = self::FIXTURE_PREFIX.'CONVERT-'.strtoupper(uniqid());
+
+        $this->putJson(route('admin.inventory.products.update', $productId), [
+            'name' => $productBefore->name,
+            'description' => $productBefore->description,
+            'image' => $productBefore->image,
+            'status' => 'active',
+            'product_type' => 'variation',
+            'variations' => [
+                [
+                    'sku' => $variationSku,
+                    'cost_per_item' => 3.25,
+                    'stock' => 4,
+                    'reorder_point' => 1,
+                    'minimum_order_quantity' => 1,
+                    'weight' => 2.5,
+                    'length' => 10,
+                    'wide' => 5,
+                    'height' => 3,
+                ],
+            ],
+        ])->assertOk();
+
+        $parent = Products::findOrFail($productId);
+        $child = Products::where('parent_id', $productId)->where('sku', $variationSku)->firstOrFail();
+        $this->assertSame('variation', $parent->product_type);
+        $this->assertSame('Preserved description', $parent->description);
+        $this->assertSame($image, $parent->image);
+        $this->assertSame($productId, (int) $child->parent_id);
+        $this->assertSame('3.25', $child->cost_per_item);
+        $this->assertSame(1, Products::where('name', $productBefore->name)->count());
+        $this->assertSame(1, DB::table('product_variations')->where('configurable_product_id', $productId)->count());
     }
 
     // ------------------------------------------------------------------
@@ -544,7 +759,7 @@ class ProductDomainTest extends TestCase
             'name' => $label.'-parent-'.uniqid(),
             'product_type' => 'variation',
             'variations' => [
-                ['sku' => strtoupper($label).'-A-'.strtoupper(uniqid()), 'price' => 10],
+                ['sku' => strtoupper($label).'-A-'.strtoupper(uniqid())],
             ],
         ]);
         $parentResponse->assertStatus(201);

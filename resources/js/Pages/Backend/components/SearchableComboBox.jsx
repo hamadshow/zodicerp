@@ -139,18 +139,24 @@ export default function SearchableComboBox({
     updateDropdownPosition();
   };
 
-  const handleWrapperClick = () => {
+  const handleWrapperClick = (event) => {
     if (disabled) return;
+    if (event.target === inputRef.current) return;
+
+    if (inputRef.current === document.activeElement) {
+      setIsOpen((prev) => {
+        const next = !prev;
+        if (next) updateDropdownPosition();
+        return next;
+      });
+      return;
+    }
+
     if (inputRef.current) {
       inputRef.current.focus();
     }
-    setIsOpen((prev) => {
-      const next = !prev;
-      if (next) {
-        updateDropdownPosition();
-      }
-      return next;
-    });
+    setIsOpen(true);
+    updateDropdownPosition();
   };
 
   const selectOption = (opt) => {
@@ -308,4 +314,3 @@ export default function SearchableComboBox({
     </div>
   );
 }
-

@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useNotification } from '@/Components/Notifications/useNotification';
 import AdminLayout from '../components/AdminLayout';
 import Table from '../components/Table';
+import SearchableComboBox from '../components/SearchableComboBox';
 import NavigationLink from '@/Components/NavigationLink';
 import '../../../../css/backend/main.scss';
 import MediaPickerModal from '../Media/MediaPickerModal';
@@ -181,6 +182,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
         brand_id: filters.brand_id || '',
         category_id: filters.category_id || '',
         unit_id: filters.unit_id || '',
+        per_page: Number(filters.per_page || safeProducts.per_page || 10),
     });
 
     const [selectedIds, setSelectedIds] = useState([]);
@@ -272,12 +274,6 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
         { header: t('brand', 'Brand'), key: 'brand', render: (product) => product.brand?.name || '-' },
         { header: t('unit', 'Unit'), key: 'unit', render: (product) => product.unit?.name || '-' },
         { 
-            header: t('price', 'Price'), 
-            key: 'price', 
-            sortable: true,
-            render: (product) => `$${product.price || '0.00'}`
-        },
-        { 
             header: t('stock', 'Stock'), 
             key: 'quantity', 
             sortable: true,
@@ -315,6 +311,8 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
     const [importSummary, setImportSummary] = useState({});
     const [importLoading, setImportLoading] = useState(false);
     const [importProgress, setImportProgress] = useState(0);
+    const [selectedFileName, setSelectedFileName] = useState('');
+    const [isImportDragActive, setIsImportDragActive] = useState(false);
     const [showExcelMenu, setShowExcelMenu] = useState(false);
     const excelMenuRef = useRef(null);
 
@@ -335,8 +333,27 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
             setInvalidRows([]);
             setImportSummary({});
             setImportProgress(0);
+            setSelectedFileName('');
+            setIsImportDragActive(false);
         }
     }, [flash]);
+
+    useEffect(() => {
+        if (!showImport) return undefined;
+
+        const preventFileDropNavigation = (event) => {
+            if (Array.from(event.dataTransfer?.types || []).includes('Files')) {
+                event.preventDefault();
+            }
+        };
+
+        window.addEventListener('dragover', preventFileDropNavigation);
+        window.addEventListener('drop', preventFileDropNavigation);
+        return () => {
+            window.removeEventListener('dragover', preventFileDropNavigation);
+            window.removeEventListener('drop', preventFileDropNavigation);
+        };
+    }, [showImport]);
 
     const handleFilterChange = (e) => {
         const { name, value } = e.target;
@@ -344,7 +361,11 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
     };
 
     const applyFilters = () => {
-        router.get(getLocalizedRoute('admin.inventory.products.index'), filterParams, { preserveState: true });
+        router.get(
+            getLocalizedRoute('admin.inventory.products.index'),
+            { ...filterParams, page: 1 },
+            { preserveState: true, preserveScroll: true, replace: true }
+        );
     };
 
     const handleDelete = (id) => {
@@ -364,6 +385,13 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
 
     const handleFileUpload = (file) => {
         if (!file) return;
+        if (!/\.(xlsx|xls)$/i.test(file.name)) {
+            setSelectedFileName('');
+            showError(t('invalid_excel_file', 'Please upload a valid Excel file (.xlsx, .xls)'));
+            return;
+        }
+
+        setSelectedFileName(file.name);
         setImportLoading(true);
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -378,17 +406,18 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                 setImportLoading(false);
             }
         };
+        reader.onerror = () => {
+            showError(t('file_read_error', 'Unable to read the selected file'));
+            setImportLoading(false);
+        };
         reader.readAsArrayBuffer(file);
     };
 
     const handleFileDrop = (e) => {
         e.preventDefault();
-        const file = e.dataTransfer.files[0];
-        if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
-            handleFileUpload(file);
-        } else {
-            showError('Please upload a valid Excel file (.xlsx, .xls)');
-        }
+        setIsImportDragActive(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) handleFileUpload(file);
     };
 
     const processExcelData = (rows) => {
@@ -540,35 +569,82 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
     const renderImportModal = () => {
         if (!showImport) return null;
         return (
-            <div className="modal-overlay active" onClick={() => !importLoading && setShowImport(false)}>
-                <div className="modal import-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-overlay active products-import-overlay" onClick={() => !importLoading && setShowImport(false)}>
+                <div className="modal import-modal products-import-modal" onClick={e => e.stopPropagation()}>
                     <div className="modal-header">
-                        <h3 className="modal-title">Import Products from Excel</h3>
-                        <button className="modal-close" onClick={() => setShowImport(false)}>&times;</button>
+                        <h3 className="modal-title">{t('import_excel_title', 'Import Products from Excel')}</h3>
+                        <button className="modal-close" onClick={() => setShowImport(false)} aria-label={t('close', 'Close')}>
+                            <span className="material-icons-outlined">close</span>
+                        </button>
                     </div>
                     <div className="modal-body">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            className="products-import-file-input"
+                            accept=".xlsx,.xls"
+                            onChange={(e) => {
+                                handleFileUpload(e.target.files?.[0]);
+                                e.target.value = '';
+                            }}
+                        />
                         {!excelRows.length && !invalidRows.length ? (
-                            <div 
-                                className={`import-dropzone ${importLoading ? 'loading' : ''}`}
+                            <div
+                                className={`products-import-dropzone${isImportDragActive ? ' is-dragging' : ''}${importLoading ? ' is-loading' : ''}`}
+                                onDragEnter={(e) => {
+                                    e.preventDefault();
+                                    setIsImportDragActive(true);
+                                }}
                                 onDragOver={(e) => e.preventDefault()}
+                                onDragLeave={(e) => {
+                                    if (!e.currentTarget.contains(e.relatedTarget)) {
+                                        setIsImportDragActive(false);
+                                    }
+                                }}
                                 onDrop={handleFileDrop}
-                                onClick={() => fileInputRef.current?.click()}
+                                onClick={() => {
+                                    if (!importLoading) fileInputRef.current?.click();
+                                }}
                             >
-                                <input 
-                                    type="file" 
-                                    ref={fileInputRef} 
-                                    className="hidden" 
-                                    accept=".xlsx, .xls"
-                                    onChange={(e) => handleFileUpload(e.target.files[0])}
-                                />
-                                <span className="material-icons-outlined drop-icon">cloud_upload</span>
-                                <p>Drag and drop Excel file or click to browse</p>
-                                <span className="file-hint">Only .xlsx and .xls files are supported</span>
-                                {importLoading && <div className="loader"></div>}
+                                <button
+                                    type="button"
+                                    className="products-import-dropzone-trigger"
+                                    disabled={importLoading}
+                                >
+                                    <span className="material-icons-outlined products-import-upload-icon">cloud_upload</span>
+                                    <span className="products-import-upload-instruction">
+                                        {t('click_to_upload', 'Click to upload or drag and drop')}
+                                    </span>
+                                    <span className="products-import-file-caption">
+                                        {t('excel_only', 'Excel files only (.xlsx, .xls)')}
+                                    </span>
+                                    {selectedFileName && (
+                                        <span className="products-import-file-name">
+                                            {t('selected_file', 'Selected file')}: {selectedFileName}
+                                        </span>
+                                    )}
+                                </button>
+                                <button
+                                    type="button"
+                                    className="products-import-template-button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        downloadTemplate();
+                                    }}
+                                >
+                                    <span className="material-icons-outlined">download</span>
+                                    {t('download_template', 'Download Template')}
+                                </button>
+                                {importLoading && <div className="loader" aria-label={t('reading_file', 'Reading file')} />}
                             </div>
                         ) : (
                             <div className="import-preview">
                                 <div className="summary-cards">
+                                    {selectedFileName && (
+                                        <span className="products-import-file-name">
+                                            {t('selected_file', 'Selected file')}: {selectedFileName}
+                                        </span>
+                                    )}
                                     <div className="summary-card total">
                                         <span className="label">Total Rows</span>
                                         <span className="value">{importSummary.total}</span>
@@ -581,8 +657,18 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                                         <span className="label">Invalid</span>
                                         <span className="value">{importSummary.invalid}</span>
                                     </div>
-                                    <button className="btn btn-outline ml-auto" onClick={() => { setExcelRows([]); setInvalidRows([]); }}>
-                                        Upload Different File
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline ml-auto"
+                                        onClick={() => {
+                                            setExcelRows([]);
+                                            setInvalidRows([]);
+                                            setImportSummary({});
+                                            setSelectedFileName('');
+                                            if (fileInputRef.current) fileInputRef.current.value = '';
+                                        }}
+                                    >
+                                        {t('upload_different_file', 'Upload Different File')}
                                     </button>
                                 </div>
 
@@ -678,31 +764,24 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                                 )}
                             </div>
                         )}
-                        <div className="import-instructions mt-4">
-                            <h4>Instructions:</h4>
-                            <ul>
-                                <li>Download the template to ensure correct column mapping.</li>
-                                <li><b>name:</b> Required.</li>
-                                <li><b>sku:</b> Product SKU (Stock Keeping Unit).</li>
-                                <li><b>price:</b> Selling price.</li>
-                                <li><b>status:</b> active or inactive.</li>
-                                <li><b>brand:</b> Optional. Must match an existing brand name.</li>
-                                <li><b>categories:</b> Optional. Comma-separated category names.</li>
-                                <li><b>unit:</b> Optional. Must match an existing unit name.</li>
-                            </ul>
-                        </div>
                     </div>
-                    <div className="modal-actions">
-                        <button className="btn-cancel" onClick={() => setShowImport(false)} disabled={importLoading}>Cancel</button>
-                        {excelRows.length > 0 && (
-                            <button 
-                                className="btn-primary" 
-                                onClick={submitImport}
-                                disabled={importLoading}
-                            >
-                                {importLoading ? 'Importing...' : `Import ${excelRows.length} Products`}
-                            </button>
-                        )}
+                    <div className="modal-actions products-import-actions">
+                        <button
+                            type="button"
+                            className="btn-cancel products-import-cancel"
+                            onClick={() => setShowImport(false)}
+                            disabled={importLoading}
+                        >
+                            {t('cancel', 'Cancel')}
+                        </button>
+                        <button
+                            type="button"
+                            className="btn-import products-import-confirm"
+                            onClick={submitImport}
+                            disabled={importLoading || !excelRows.length}
+                        >
+                            {importLoading ? t('importing', 'Importing...') : t('confirm_import', 'Confirm Import')}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -766,10 +845,10 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                 
                 {statsContent}
 
-                <div className="products-section-card">
-                    <div className="products-section-header">
+                <div className="products-section-card products-list-card">
+                    <div className="products-section-header products-list-header">
                         <h4 className="products-section-title">{t('products_list', 'Products List')}</h4>
-                        <div className="products-section-actions">
+                        <div className="products-section-actions products-list-actions">
                             <div className="search-bar">
                                 <input 
                                     type="text" 
@@ -818,7 +897,7 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                         </div>
                     </div>
 
-                    <div className="filter-bar">
+                    <div className="products-filter-bar">
                         <select name="category_id" className="form-control filter-select" value={filterParams.category_id} onChange={handleFilterChange}>
                             <option value="">{t('all_categories', 'All Categories')}</option>
                             {safeCategories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -842,32 +921,38 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
                         <button className="btn btn-outline" onClick={applyFilters}>{t('filter', 'Filter')}</button>
                     </div>
 
-                    <Table 
-                        tableData={tableData}
-                        columns={columns}
-                        handleRowSelect={handleRowSelect}
-                        selectAll={selectAll}
-                        handleSelectAll={handleSelectAll}
-                        onView={(product) => router.get(getLocalizedRoute('admin.inventory.products.show', { product: product.id }))}
-                        onEdit={(product) => router.get(getLocalizedRoute('admin.inventory.products.edit', { product: product.id }))}
-                        onDelete={(product) => handleDelete(product.id)}
-                        viewTitle={t('view', 'View')}
-                        editTitle={t('edit', 'Edit')}
-                        deleteTitle={t('delete', 'Delete')}
-                        currentPage={safeProducts.current_page || 1}
-                        totalPages={safeProducts.last_page || 1}
-                        totalRecords={safeProducts.total || 0}
-                        recordsPerPage={safeProducts.per_page || 20}
-                        onPageChange={(page) => router.get(getLocalizedRoute('admin.inventory.products.index'), {
-                            ...filterParams,
-                            page,
-                        }, { preserveState: true, preserveScroll: true, replace: true })}
-                        onRecordsPerPageChange={(perPage) => router.get(getLocalizedRoute('admin.inventory.products.index'), {
-                            ...filterParams,
-                            page: 1,
-                            per_page: perPage,
-                        }, { preserveState: true, preserveScroll: true, replace: true })}
-                    />
+                    <div className="products-table-responsive">
+                        <Table
+                            tableData={tableData}
+                            columns={columns}
+                            handleRowSelect={handleRowSelect}
+                            selectAll={selectAll}
+                            handleSelectAll={handleSelectAll}
+                            onView={(product) => router.get(getLocalizedRoute('admin.inventory.products.show', { product: product.id }))}
+                            onEdit={(product) => router.get(getLocalizedRoute('admin.inventory.products.edit', { product: product.id }))}
+                            onDelete={(product) => handleDelete(product.id)}
+                            viewTitle={t('view', 'View')}
+                            editTitle={t('edit', 'Edit')}
+                            deleteTitle={t('delete', 'Delete')}
+                            currentPage={safeProducts.current_page || 1}
+                            totalPages={safeProducts.last_page || 1}
+                            totalRecords={safeProducts.total || 0}
+                            recordsPerPage={safeProducts.per_page || 10}
+                            onPageChange={(page) => router.get(getLocalizedRoute('admin.inventory.products.index'), {
+                                ...filterParams,
+                                per_page: safeProducts.per_page || 10,
+                                page,
+                            }, { preserveState: true, preserveScroll: true, replace: true })}
+                            onRecordsPerPageChange={(perPage) => {
+                                setFilterParams((current) => ({ ...current, per_page: perPage }));
+                                router.get(getLocalizedRoute('admin.inventory.products.index'), {
+                                    ...filterParams,
+                                    page: 1,
+                                    per_page: perPage,
+                                }, { preserveState: true, preserveScroll: true, replace: true });
+                            }}
+                        />
+                    </div>
 
                 </div>
             </div>
@@ -879,9 +964,11 @@ const ProductsList = ({ products, brands, categories, units, filters = {} }) => 
 // Form Component (Create/Edit)
 // ==========================================
 
-const ProductsForm = ({ product, categories, brands, units = [], itemAttributes = [], suppliers = [] }) => {
+const ProductsForm = ({ product, categories, brands, units = [], itemAttributes = [], suppliers = [], taxes = [] }) => {
     const {
-        showInfo
+        showInfo,
+        showSuccess,
+        showError,
     } = useNotification();
     const { props } = usePage();
     const { localization } = props;
@@ -890,6 +977,11 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
     const t = (key, fallback) => {
         return translations[`products.${key}`] || fallback;
     };
+    const taxOptions = (Array.isArray(taxes) ? taxes : []).map(tax => ({
+        value: String(tax.id),
+        label: tax.name_en || tax.name_ar || tax.tax_code,
+        code: tax.tax_code,
+    }));
 
     const getLocalizedRoute = (name, params = {}) => {
         return route(name, {
@@ -899,7 +991,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         });
     };
 
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
+    const { data, setData, post, processing, errors, reset, clearErrors, transform } = useForm({
         name: '',
         parent_id: '',
         status: 'active',
@@ -915,12 +1007,14 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         supplier_code: '',
         is_featured: 0,
         variations: [],
+        deleted_variation_ids: [],
         price: '',
         sale_price: '',
         cost_per_item: '',
         tax_id: '',
         price_includes_tax: false,
         quantity: 0,
+        reorder_point: 0,
         stock_status: 'in_stock',
         allow_checkout_when_out_of_stock: false,
         with_storehouse_management: false,
@@ -948,12 +1042,15 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         color: '',
         size: '',
         sku: '',
-        price: '',
         stock: '',
-        sale_price: '',
         cost_per_item: '',
+        price_includes_tax: false,
+        tax_id: '',
         barcode: '',
         stock_status: 'in_stock',
+        reorder_point: 0,
+        minimum_order_quantity: 1,
+        maximum_order_quantity: '',
         weight: '',
         length: '',
         wide: '',
@@ -970,18 +1067,23 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
     const [editingVariationId, setEditingVariationId] = useState(null);
     const [editVariationForm, setEditVariationForm] = useState({
         sku: '',
-        price: '',
         stock: '',
-        sale_price: '',
         cost_per_item: '',
         barcode: '',
         stock_status: 'in_stock',
+        price_includes_tax: false,
+        tax_id: '',
+        reorder_point: 0,
+        minimum_order_quantity: 1,
+        maximum_order_quantity: '',
         weight: '',
         length: '',
         wide: '',
         height: '',
         attribute_values: {},
     });
+    const [editVariationErrors, setEditVariationErrors] = useState({});
+    const [savingVariation, setSavingVariation] = useState(false);
 
     const [permalink, setPermalink] = useState('');
     const [showContentEditor, setShowContentEditor] = useState(true);
@@ -1118,12 +1220,10 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
     );
 
     const shouldHideGlobalSections = useMemo(() => {
-        return (
-            (Array.isArray(data.variations) && data.variations.length > 0) ||
-            data.product_type === 'variation' ||
-            hasSelectedAttributes
-        );
+        if (data.product_type === 'variation') return true;
+        return (Array.isArray(data.variations) && data.variations.length > 0) || hasSelectedAttributes;
     }, [data.variations, data.product_type, hasSelectedAttributes]);
+    const isSimpleProduct = data.product_type === 'simple' && !data.parent_id;
 
     // Product Type is the authoritative UI condition: variable-only controls
     // (attributes/variations) render exclusively for variable products.
@@ -1191,14 +1291,25 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
             id: null,
             tempId: `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             sku: variationForm.sku || '',
-            price: variationForm.price || (data.price ?? ''),
             stock: variationForm.stock || '',
+            cost_per_item: variationForm.cost_per_item || '',
+            barcode: variationForm.barcode || '',
+            stock_status: variationForm.stock_status || 'in_stock',
+            price_includes_tax: false,
+            tax_id: '',
+            reorder_point: 0,
+            minimum_order_quantity: 1,
+            maximum_order_quantity: '',
+            weight: variationForm.weight || '',
+            length: variationForm.length || '',
+            wide: variationForm.wide || '',
+            height: variationForm.height || '',
             is_default: false,
             image: (newVariationImages && newVariationImages[0]) ? newVariationImages[0] : '',
             images: Array.isArray(newVariationImages) ? newVariationImages.slice() : [],
             attribute_values,
         });
-        setVariationForm(v => ({ ...v, sku: '', price: '', stock: '', sale_price: '', cost_per_item: '', barcode: '', weight: '', length: '', wide: '', height: '' }));
+        setVariationForm(v => ({ ...v, sku: '', stock: '', cost_per_item: '', barcode: '', weight: '', length: '', wide: '', height: '' }));
         setVariationAttributeValues({});
         setNewVariationImages([]);
         setIsVariationModalOpen(false);
@@ -1258,8 +1369,18 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
     const removeVariation = useCallback((tempId) => {
         setData(curr => {
             const list = Array.isArray(curr.variations) ? curr.variations : [];
+            const removed = list.find(v => v.tempId === tempId);
             const updated = list.filter(v => v.tempId !== tempId);
-            return { ...curr, variations: updated };
+            const deletedIds = Array.isArray(curr.deleted_variation_ids)
+                ? curr.deleted_variation_ids
+                : [];
+            return {
+                ...curr,
+                variations: updated,
+                deleted_variation_ids: removed?.id && !deletedIds.includes(removed.id)
+                    ? [...deletedIds, removed.id]
+                    : deletedIds,
+            };
         });
     }, [setData]);
 
@@ -1281,14 +1402,18 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         const v = list.find(x => x.tempId === tempId);
         if (!v) return;
         setEditingVariationId(tempId);
+        setEditVariationErrors({});
         setEditVariationForm({
             sku: v.sku || '',
-            price: v.price ?? '',
             stock: v.stock ?? '',
-            sale_price: v.sale_price ?? '',
             cost_per_item: v.cost_per_item ?? '',
             barcode: v.barcode || '',
             stock_status: v.stock_status || 'in_stock',
+            price_includes_tax: Boolean(v.price_includes_tax),
+            tax_id: v.price_includes_tax ? (v.tax_id || '') : '',
+            reorder_point: v.reorder_point ?? 0,
+            minimum_order_quantity: v.minimum_order_quantity ?? 1,
+            maximum_order_quantity: v.maximum_order_quantity ?? '',
             weight: v.weight ?? '',
             length: v.length ?? '',
             wide: v.wide ?? '',
@@ -1302,9 +1427,20 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
     const closeEditVariationModal = () => {
         setIsEditVariationModalOpen(false);
         setEditingVariationId(null);
+        setEditVariationErrors({});
     };
 
     const handleEditVariationChange = (field, value) => {
+        if (field === 'price_includes_tax') {
+            const selectedVariation = (data.variations || []).find(v => v.tempId === editingVariationId);
+            setEditVariationForm(prev => ({
+                ...prev,
+                price_includes_tax: Boolean(value),
+                tax_id: value ? (prev.tax_id || selectedVariation?.tax_id || '') : '',
+            }));
+            return;
+        }
+
         setEditVariationForm(prev => ({ ...prev, [field]: value }));
     };
 
@@ -1315,7 +1451,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         }));
     };
 
-    const saveEditVariation = () => {
+    const saveEditVariation = async () => {
         const editIds = Object.keys(editVariationForm.attribute_values || {});
         const missing = editIds.some(id => !editVariationForm.attribute_values?.[id]);
         if (missing) {
@@ -1323,33 +1459,73 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
             return;
         }
         const newKey = makeAttributesKey(editVariationForm.attribute_values || {});
-        setData(curr => {
-            const list = Array.isArray(curr.variations) ? curr.variations.slice() : [];
-            const dup = list.find(v => (v.attributes_key || makeAttributesKey(v.attribute_values || {})) === newKey && v.tempId !== editingVariationId);
-            if (dup) {
-                showInfo('A variation with the same properties already exists.');
-                return curr;
+        const list = Array.isArray(data.variations) ? data.variations : [];
+        const duplicate = list.find(v =>
+            (v.attributes_key || makeAttributesKey(v.attribute_values || {})) === newKey
+            && v.tempId !== editingVariationId
+        );
+        if (duplicate) {
+            showInfo('A variation with the same properties already exists.');
+            return;
+        }
+
+        const fields = {
+            sku: editVariationForm.sku || '',
+            stock: editVariationForm.stock === '' ? null : editVariationForm.stock,
+            cost_per_item: editVariationForm.cost_per_item === '' ? null : editVariationForm.cost_per_item,
+            barcode: editVariationForm.barcode || '',
+            stock_status: editVariationForm.stock_status || 'in_stock',
+            price_includes_tax: Boolean(editVariationForm.price_includes_tax),
+            tax_id: editVariationForm.price_includes_tax ? (editVariationForm.tax_id || null) : null,
+            reorder_point: editVariationForm.reorder_point === '' ? null : editVariationForm.reorder_point,
+            minimum_order_quantity: editVariationForm.minimum_order_quantity === '' ? null : editVariationForm.minimum_order_quantity,
+            maximum_order_quantity: editVariationForm.maximum_order_quantity === '' ? null : editVariationForm.maximum_order_quantity,
+            weight: editVariationForm.weight === '' ? null : editVariationForm.weight,
+            length: editVariationForm.length === '' ? null : editVariationForm.length,
+            wide: editVariationForm.wide === '' ? null : editVariationForm.wide,
+            height: editVariationForm.height === '' ? null : editVariationForm.height,
+            attribute_values: Object.fromEntries(
+                Object.entries(editVariationForm.attribute_values || {})
+                    .map(([attributeId, value]) => [attributeId, String(value)])
+            ),
+            attributes_key: newKey,
+        };
+        const selectedVariation = list.find(v => v.tempId === editingVariationId);
+
+        setSavingVariation(true);
+        setEditVariationErrors({});
+        try {
+            if (product?.id && selectedVariation?.id) {
+                await axios.patch(
+                    getLocalizedRoute('admin.inventory.products.variations.update', {
+                        product: product.id,
+                        variation: selectedVariation.id,
+                    }),
+                    fields
+                );
             }
-            const updated = list.map(v => v.tempId === editingVariationId ? {
-                ...v,
-                sku: editVariationForm.sku || '',
-                price: editVariationForm.price === '' ? '' : editVariationForm.price,
-                stock: editVariationForm.stock === '' ? '' : editVariationForm.stock,
-                sale_price: editVariationForm.sale_price ?? v.sale_price,
-                cost_per_item: editVariationForm.cost_per_item ?? v.cost_per_item,
-                barcode: editVariationForm.barcode || '',
-                stock_status: editVariationForm.stock_status || v.stock_status,
-                weight: editVariationForm.weight === '' ? '' : editVariationForm.weight,
-                length: editVariationForm.length === '' ? '' : editVariationForm.length,
-                wide: editVariationForm.wide === '' ? '' : editVariationForm.wide,
-                height: editVariationForm.height === '' ? '' : editVariationForm.height,
-                attribute_values: { ...(editVariationForm.attribute_values || {}) },
-                attributes_key: newKey,
-            } : v);
-            return { ...curr, variations: updated };
-        });
-        setIsEditVariationModalOpen(false);
-        setEditingVariationId(null);
+
+            setData(curr => ({
+                ...curr,
+                variations: (Array.isArray(curr.variations) ? curr.variations : []).map(v =>
+                    v.tempId === editingVariationId ? { ...v, ...fields } : v
+                ),
+            }));
+            if (product?.id && selectedVariation?.id) {
+                showSuccess('Variation updated successfully.');
+            }
+            closeEditVariationModal();
+        } catch (error) {
+            const validationErrors = error.response?.data?.errors || {};
+            setEditVariationErrors(validationErrors);
+            showError(
+                Object.values(validationErrors).flat()[0]
+                || error.response?.data?.message
+                || 'Unable to save this variation.'
+            );
+        } finally {
+            setSavingVariation(false);
+        }
     };
 
     const filteredVariations = useMemo(() => {
@@ -1404,6 +1580,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
             setData({
                 ...data,
                 ...product,
+                deleted_variation_ids: [],
                 name: product.name || '',
                 parent_id: product.parent_id || '',
                 supplier_code: product.supplier_code || '',
@@ -1418,14 +1595,18 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                 stock_status: product.stock_status || 'in_stock',
                 product_type: (product.product_type || 'simple').toLowerCase(),
                 quantity: Number.isFinite(Number(product.quantity)) ? Number(product.quantity) : 0,
+                reorder_point: Number.isFinite(Number(product.reorder_point)) ? Number(product.reorder_point) : 0,
                 minimum_order_quantity: Number.isFinite(Number(product.minimum_order_quantity)) ? Number(product.minimum_order_quantity) : 1,
                 maximum_order_quantity: product.maximum_order_quantity || '',
                 is_featured: (product.is_featured === 1 || product.is_featured === true || product.is_featured === '1' || product.is_featured === 'true') ? 1 : 0,
-                price: product.price || '',
-                sale_price: product.sale_price || '',
+                price: ['simple', 'variation'].includes((product.product_type || 'simple').toLowerCase()) && !product.parent_id ? '' : (product.price || ''),
+                sale_price: ['simple', 'variation'].includes((product.product_type || 'simple').toLowerCase()) && !product.parent_id ? '' : (product.sale_price || ''),
                 cost_per_item: product.cost_per_item || '',
                 tax_id: product.tax_id || '',
-                price_includes_tax: Boolean(product.price_includes_tax),
+                price_includes_tax: product.price_includes_tax === 1
+                    || product.price_includes_tax === true
+                    || product.price_includes_tax === '1'
+                    || product.price_includes_tax === 'true',
                 allow_checkout_when_out_of_stock: Boolean(product.allow_checkout_when_out_of_stock),
                 with_storehouse_management:
                     // Phase 1 domain: services are never stock-tracked.
@@ -1453,12 +1634,15 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                             id: v.id || null,
                             tempId: `v-${v.id || Math.random().toString(36).slice(2)}`,
                             sku: child.sku || '',
-                            price: child.price ?? '',
-                            sale_price: child.sale_price ?? '',
                             cost_per_item: child.cost_per_item ?? '',
                             barcode: child.barcode || '',
                             stock: child.quantity ?? '',
                             stock_status: child.stock_status || 'in_stock',
+                            price_includes_tax: Boolean(child.price_includes_tax),
+                            tax_id: child.price_includes_tax ? (child.tax_id || '') : '',
+                            reorder_point: child.reorder_point ?? 0,
+                            minimum_order_quantity: child.minimum_order_quantity ?? 1,
+                            maximum_order_quantity: child.maximum_order_quantity ?? '',
                             weight: child.weight ?? '',
                             length: child.length ?? '',
                             wide: child.wide ?? '',
@@ -1543,25 +1727,47 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
         if (processing || submitLockRef.current) return;
         submitLockRef.current = true;
         setSubmitLock(true);
+        transform(payload => {
+            const formPayload = { ...payload };
+            if (product && Array.isArray(payload.deleted_variation_ids)) {
+                formPayload.deleted_variation_ids = payload.deleted_variation_ids;
+            } else {
+                delete formPayload.deleted_variation_ids;
+            }
+            if (isSimpleProduct) {
+                ['price', 'sale_price', 'sale_type', 'start_date', 'end_date'].forEach(field => delete formPayload[field]);
+            } else if (data.product_type === 'variation') {
+                ['price', 'sale_price', 'sale_type', 'start_date', 'end_date'].forEach(field => delete formPayload[field]);
+                [
+                    'quantity',
+                    'reorder_point',
+                    'stock_status',
+                    'allow_checkout_when_out_of_stock',
+                    'with_storehouse_management',
+                    'minimum_order_quantity',
+                    'maximum_order_quantity',
+                    'cost_per_item',
+                    'price_includes_tax',
+                    'tax_id',
+                    'weight',
+                    'length',
+                    'wide',
+                    'height',
+                ].forEach(field => delete formPayload[field]);
+            }
+            if (formPayload.maximum_order_quantity === '') {
+                formPayload.maximum_order_quantity = null;
+            }
+
+            return {
+                ...formPayload,
+                save_action: action,
+                dedupe_key: requestKeyRef.current,
+                ...(product ? { _method: 'PUT' } : {}),
+            };
+        });
         const options = {
             forceFormData: true,
-            transform: (payload) => {
-                if (payload instanceof FormData) {
-                    payload.set('save_action', action);
-                    payload.set('dedupe_key', requestKeyRef.current);
-                    if (product) {
-                        payload.set('_method', 'PUT');
-                    }
-                    return payload;
-                }
-
-                return {
-                    ...payload,
-                    save_action: action,
-                    dedupe_key: requestKeyRef.current,
-                    ...(product ? { _method: 'PUT' } : {}),
-                };
-            },
             headers: {
                 'X-Request-Id': requestKeyRef.current,
                 ...(product ? { 'X-HTTP-Method-Override': 'PUT' } : {}),
@@ -1677,8 +1883,8 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                     {permalink || 'your-product-slug'}
                                                 </span>
                                             </div>
-                                        </div>
                                     </div>
+                                </div>
                                 </div>
 
 
@@ -1925,7 +2131,6 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                         <th>Image</th>
                                                         <th>Properties</th>
                                                         <th>SKU</th>
-                                                        <th>Price</th>
                                                         <th>Stock</th>
                                                         <th>Default</th>
                                                         <th>Actions</th>
@@ -1980,14 +2185,6 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                                 <input
                                                                     type="number"
                                                                     className="form-control"
-                                                                    value={v.price ?? ''}
-                                                                    onChange={(e) => updateVariationField(v.tempId, 'price', e.target.value)}
-                                                                />
-                                                            </td>
-                                                            <td style={{ width: 120 }}>
-                                                                <input
-                                                                    type="number"
-                                                                    className="form-control"
                                                                     value={v.stock ?? ''}
                                                                     onChange={(e) => updateVariationField(v.tempId, 'stock', e.target.value)}
                                                                 />
@@ -2023,7 +2220,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                     ))}
                                                     {(!Array.isArray(data.variations) || data.variations.length === 0) && (
                                                         <tr>
-                                                            <td colSpan="8" className="empty-state">No variations yet.</td>
+                                                            <td colSpan="7" className="empty-state">No variations yet.</td>
                                                         </tr>
                                                     )}
                                                 </tbody>
@@ -2044,6 +2241,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                         <h4 className="products-section-title">Pricing</h4>
                                     </div>
                                     <div className="products-section-content">
+                                        {!isSimpleProduct && !isVariableProduct && (
                                         <div className="form-row">
                                             <div className="form-group half">
                                                 <label className="form-label">Price</label>
@@ -2066,6 +2264,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                 />
                                             </div>
                                         </div>
+                                        )}
                                         <div className="form-row">
                                             <div className="form-group half">
                                                 <label className="form-label">Cost per item</label>
@@ -2079,6 +2278,40 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                 <small className="text-gray-medium">Customers won't see this</small>
                                             </div>
                                         </div>
+                                        {(isSimpleProduct || isVariableProduct) && (
+                                            <>
+                                                <div className="form-group">
+                                                    <label className="checkbox-option">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={Boolean(data.price_includes_tax)}
+                                                            onChange={e => {
+                                                                const included = e.target.checked;
+                                                                setData(current => ({
+                                                                    ...current,
+                                                                    price_includes_tax: included,
+                                                                    tax_id: included ? current.tax_id : '',
+                                                                }));
+                                                            }}
+                                                        />
+                                                        <span>{t('price_includes_tax', 'Price Includes Tax')}</span>
+                                                    </label>
+                                                    {errors.price_includes_tax && <div className="error-msg">{errors.price_includes_tax}</div>}
+                                                </div>
+                                                {data.price_includes_tax && (
+                                                    <div className="form-group">
+                                                        <label className="form-label">{t('tax', 'Tax')}</label>
+                                                        <SearchableComboBox
+                                                            options={taxOptions}
+                                                            value={data.tax_id ? String(data.tax_id) : ''}
+                                                            onChange={value => setData('tax_id', value)}
+                                                            placeholder={t('select_tax', 'Select tax')}
+                                                        />
+                                                        {errors.tax_id && <div className="error-msg">{errors.tax_id}</div>}
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                                 )}
@@ -2089,6 +2322,8 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                         <h4 className="products-section-title">Inventory</h4>
                                     </div>
                                     <div className="products-section-content">
+                                        {!isVariableProduct && (
+                                        <>
                                         <div className="form-row">
                                             <div className="form-group half">
                                                 <label className="form-label">SKU (Stock Keeping Unit)</label>
@@ -2145,6 +2380,48 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                 </div>
                                             </div>
                                         )}
+                                        </>
+                                        )}
+                                        {(isSimpleProduct || isVariableProduct) && (
+                                            <div className="form-row">
+                                                <div className="form-group third">
+                                                    <label className="form-label">{t('reorder_point', 'Reorder Point')}</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        step="1"
+                                                        className="form-control"
+                                                        value={data.reorder_point}
+                                                        onChange={e => setData('reorder_point', e.target.value)}
+                                                    />
+                                                    {errors.reorder_point && <div className="error-msg">{errors.reorder_point}</div>}
+                                                </div>
+                                                <div className="form-group third">
+                                                    <label className="form-label">{t('minimum_order_quantity', 'Minimum Order Quantity')}</label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        step="1"
+                                                        className="form-control"
+                                                        value={data.minimum_order_quantity}
+                                                        onChange={e => setData('minimum_order_quantity', e.target.value)}
+                                                    />
+                                                    {errors.minimum_order_quantity && <div className="error-msg">{errors.minimum_order_quantity}</div>}
+                                                </div>
+                                                <div className="form-group third">
+                                                    <label className="form-label">{t('maximum_order_quantity', 'Maximum Order Quantity')}</label>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        step="1"
+                                                        className="form-control"
+                                                        value={data.maximum_order_quantity}
+                                                        onChange={e => setData('maximum_order_quantity', e.target.value)}
+                                                    />
+                                                    {errors.maximum_order_quantity && <div className="error-msg">{errors.maximum_order_quantity}</div>}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 )}
@@ -2155,18 +2432,18 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                         <h4 className="products-section-title">Shipping</h4>
                                     </div>
                                     <div className="products-section-content">
-                                        <div className="form-group">
-                                            <label className="form-label">Weight (kg)</label>
-                                            <input
-                                                type="number"
-                                                className="form-control"
-                                                value={data.weight}
-                                                onChange={e => setData('weight', e.target.value)}
-                                            />
-                                        </div>
-                                        <div className="form-row">
-                                            <div className="form-group third">
-                                                <label className="form-label">Length (cm)</label>
+                                        <div className="products-shipping-row">
+                                            <div className="form-group">
+                                                <label className="form-label">{t('weight', 'Weight (kg)')}</label>
+                                                <input
+                                                    type="number"
+                                                    className="form-control"
+                                                    value={data.weight}
+                                                    onChange={e => setData('weight', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">{t('length', 'Length (cm)')}</label>
                                                 <input
                                                     type="number"
                                                     className="form-control"
@@ -2174,8 +2451,8 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                     onChange={e => setData('length', e.target.value)}
                                                 />
                                             </div>
-                                            <div className="form-group third">
-                                                <label className="form-label">Wide (cm)</label>
+                                            <div className="form-group">
+                                                <label className="form-label">{t('width', 'Width (cm)')}</label>
                                                 <input
                                                     type="number"
                                                     className="form-control"
@@ -2183,17 +2460,17 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                     onChange={e => setData('wide', e.target.value)}
                                                 />
                                             </div>
-                                            <div className="form-group third">
-                                                <label className="form-label">Height (cm)</label>
-                                                <input
-                                                    type="number"
-                                                    className="form-control"
-                                                    value={data.height}
-                                                    onChange={e => setData('height', e.target.value)}
-                                                />
-                                            </div>
+                                            <div className="form-group">
+                                                <label className="form-label">{t('height', 'Height (cm)')}</label>
+                                            <input
+                                                type="number"
+                                                className="form-control"
+                                                value={data.height}
+                                                onChange={e => setData('height', e.target.value)}
+                                            />
                                         </div>
                                     </div>
+                                </div>
                                 </div>
                                 )}
                             </div>
@@ -2211,19 +2488,49 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                 value={data.product_type || 'simple'}
                                                 onChange={e => {
                                                     const nextType = e.target.value;
-                                                    // Leaving variable: the backend contract
-                                                    // prohibits variations for simple/service
-                                                    // (422), so drop client-side variation
-                                                    // state to keep payload and UI consistent.
-                                                    // DB records are untouched until save.
                                                     if (data.product_type === 'variation' && nextType !== 'variation') {
-                                                        setData(curr => ({ ...curr, product_type: nextType, variations: [] }));
+                                                        const unremovedPersistedVariations = (data.variations || [])
+                                                            .some(variation => variation.id
+                                                                && !(data.deleted_variation_ids || []).includes(variation.id));
+                                                        if (unremovedPersistedVariations) {
+                                                            showInfo('Remove each saved variation using its Delete button before changing the product type.');
+                                                            return;
+                                                        }
+                                                        setData(curr => ({
+                                                            ...curr,
+                                                            product_type: nextType,
+                                                            variations: [],
+                                                            price: '',
+                                                            sale_price: '',
+                                                            price_includes_tax: false,
+                                                            tax_id: '',
+                                                        }));
                                                         setSelectedAttributeIds([]);
                                                         setSelectedVariationOptions({});
                                                         setVariationAttributeValues({});
                                                         setIsAttributesModalOpen(false);
                                                         setIsGenerateModalOpen(false);
                                                         setIsVariationModalOpen(false);
+                                                        return;
+                                                    }
+                                                    if (nextType === 'variation' && data.product_type !== 'variation') {
+                                                        setData(curr => ({
+                                                            ...curr,
+                                                            product_type: nextType,
+                                                            price: '',
+                                                            sale_price: '',
+                                                            price_includes_tax: false,
+                                                            tax_id: '',
+                                                        }));
+                                                        return;
+                                                    }
+                                                    if (nextType === 'service' && data.product_type !== 'service') {
+                                                        setData(curr => ({
+                                                            ...curr,
+                                                            product_type: nextType,
+                                                            price_includes_tax: false,
+                                                            tax_id: '',
+                                                        }));
                                                         return;
                                                     }
                                                     setData('product_type', nextType);
@@ -2456,17 +2763,6 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                     }
                                                 />
                                             </div>
-                                            <div className="form-group">
-                                                <label className="form-label">{t('price', 'Price')}</label>
-                                                <input
-                                                    type="number"
-                                                    className="form-control"
-                                                    value={variationForm.price}
-                                                    onChange={e =>
-                                                        handleVariationChange('price', e.target.value)
-                                                    }
-                                                />
-                                            </div>
                                         </div>
 
                                         <div className="form-grid">
@@ -2475,29 +2771,6 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                     <input type="checkbox" />
                                                     <span>Auto generate SKU?</span>
                                                 </label>
-                                            </div>
-                                            <div className="form-group">
-                                                <label className="form-label">Price sale</label>
-                                                <div style={{ display: 'flex', gap: '8px' }}>
-                                                    <input
-                                                        type="number"
-                                                        className="form-control"
-                                                        value={variationForm.sale_price}
-                                                        onChange={e =>
-                                                            handleVariationChange(
-                                                                'sale_price',
-                                                                e.target.value
-                                                            )
-                                                        }
-                                                    />
-                                                    <button
-                                                        type="button"
-                                                        className="btn btn-outline"
-                                                        style={{ whiteSpace: 'nowrap' }}
-                                                    >
-                                                        Choose Discount Period
-                                                    </button>
-                                                </div>
                                             </div>
                                         </div>
 
@@ -2805,44 +3078,62 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                     }
                                                 />
                                             </div>
-                                            <div className="form-group">
-                                                <label className="form-label">Price</label>
-                                                <input
-                                                    type="number"
-                                                    className="form-control"
-                                                    value={editVariationForm.price}
-                                                    onChange={e =>
-                                                        handleEditVariationChange('price', e.target.value)
-                                                    }
-                                                />
+                                        </div>
+
+                                        {Object.keys(editVariationErrors).length > 0 && (
+                                            <div className="error-msg" role="alert">
+                                                {Object.values(editVariationErrors).flat().join(' ')}
+                                            </div>
+                                        )}
+                                        <div className="products-section-card">
+                                            <div className="products-section-header">
+                                                <h4 className="products-section-title">Pricing</h4>
+                                            </div>
+                                            <div className="products-section-content">
+                                                <div className="form-grid">
+                                                    <div className="form-group">
+                                                        <label className="form-label">Cost per item</label>
+                                                        <input
+                                                            type="number"
+                                                            className="form-control"
+                                                            value={editVariationForm.cost_per_item}
+                                                            onChange={e =>
+                                                                handleEditVariationChange('cost_per_item', e.target.value)
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="form-group">
+                                                    <label className="checkbox-option">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={Boolean(editVariationForm.price_includes_tax)}
+                                                            onChange={e =>
+                                                                handleEditVariationChange('price_includes_tax', e.target.checked)
+                                                            }
+                                                        />
+                                                        <span>{t('price_includes_tax', 'Price Includes Tax')}</span>
+                                                    </label>
+                                                </div>
+                                                {editVariationForm.price_includes_tax && (
+                                                    <div className="form-group">
+                                                        <label className="form-label">{t('tax', 'Tax')}</label>
+                                                        <SearchableComboBox
+                                                            options={taxOptions}
+                                                            value={editVariationForm.tax_id ? String(editVariationForm.tax_id) : ''}
+                                                            onChange={value => handleEditVariationChange('tax_id', value)}
+                                                            placeholder={t('select_tax', 'Select tax')}
+                                                        />
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 
-                                        <div className="form-grid">
-                                            <div className="form-group">
-                                                <label className="form-label">Price sale</label>
-                                                <input
-                                                    type="number"
-                                                    className="form-control"
-                                                    value={editVariationForm.sale_price}
-                                                    onChange={e =>
-                                                        handleEditVariationChange('sale_price', e.target.value)
-                                                    }
-                                                />
+                                        <div className="products-section-card">
+                                            <div className="products-section-header">
+                                                <h4 className="products-section-title">Inventory</h4>
                                             </div>
-                                            <div className="form-group">
-                                                <label className="form-label">Cost per item</label>
-                                                <input
-                                                    type="number"
-                                                    className="form-control"
-                                                    value={editVariationForm.cost_per_item}
-                                                    onChange={e =>
-                                                        handleEditVariationChange('cost_per_item', e.target.value)
-                                                    }
-                                                />
-                                            </div>
-                                        </div>
-
+                                            <div className="products-section-content">
                                         <div className="form-grid">
                                             <div className="form-group">
                                                 <label className="form-label">
@@ -2908,6 +3199,40 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                 </label>
                                             </div>
                                         </div>
+                                        <div className="form-row">
+                                            <div className="form-group third">
+                                                <label className="form-label">{t('reorder_point', 'Reorder Point')}</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    className="form-control"
+                                                    value={editVariationForm.reorder_point}
+                                                    onChange={e => handleEditVariationChange('reorder_point', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="form-group third">
+                                                <label className="form-label">{t('minimum_order_quantity', 'Minimum Order Quantity')}</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    className="form-control"
+                                                    value={editVariationForm.minimum_order_quantity}
+                                                    onChange={e => handleEditVariationChange('minimum_order_quantity', e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="form-group third">
+                                                <label className="form-label">{t('maximum_order_quantity', 'Maximum Order Quantity')}</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    className="form-control"
+                                                    value={editVariationForm.maximum_order_quantity}
+                                                    onChange={e => handleEditVariationChange('maximum_order_quantity', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                            </div>
+                                        </div>
 
                                         <div className="products-section-card">
                                             <div className="products-section-header">
@@ -2916,7 +3241,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                             <div className="products-section-content">
                                                 <div className="form-row">
                                                     <div className="form-group half">
-                                                        <label className="form-label">Weight (g)</label>
+                                                        <label className="form-label">Weight (kg)</label>
                                                         <input
                                                             type="number"
                                                             className="form-control"
@@ -2940,7 +3265,7 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                                         />
                                                     </div>
                                                     <div className="form-group third">
-                                                        <label className="form-label">Wide (cm)</label>
+                                                        <label className="form-label">Width (cm)</label>
                                                         <input
                                                             type="number"
                                                             className="form-control"
@@ -3061,8 +3386,9 @@ const ProductsForm = ({ product, categories, brands, units = [], itemAttributes 
                                             type="button"
                                             className="btn btn-primary"
                                             onClick={saveEditVariation}
+                                            disabled={savingVariation}
                                         >
-                                            Save changes
+                                            {savingVariation ? t('saving', 'Saving...') : 'Save changes'}
                                         </button>
                                     </div>
                                 </div>

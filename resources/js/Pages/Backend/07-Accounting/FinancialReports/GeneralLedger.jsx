@@ -23,14 +23,33 @@ const STATUS_OPTIONS = [
  * entirely. The direction label comes from the API's `account.dm_label`
  * (the same value the Nature summary card shows).
  */
-export const formatBalanceWithDirection = (value, natureLabel) => {
-  const amount = Math.abs(Number(value) || 0).toFixed(2);
+export const getBalancePresentation = (value, natureLabel) => {
+  const numericValue = Number(value) || 0;
+  const amount = Math.abs(numericValue).toFixed(2);
+  if (numericValue === 0) return { amount, isCredit: false };
+
   const isCreditNature = natureLabel === 'Credit';
   // A non-negative balance carries the account's own nature; a negative
   // balance overflows the natural side and flips the direction.
-  const direction = (Number(value) < 0) === isCreditNature ? 'Debit' : 'Credit';
-  return `${amount} ${direction}`;
+  const isCredit = (numericValue < 0) !== isCreditNature;
+  return { amount, isCredit };
 };
+
+export const formatBalanceWithDirection = (value, natureLabel) => {
+  const { amount, isCredit } = getBalancePresentation(value, natureLabel);
+  return isCredit ? `(${amount})` : amount;
+};
+
+function RunningBalanceCell({ value, natureLabel }) {
+  const balance = getBalancePresentation(value, natureLabel);
+  const className = `gl-amount${balance.isCredit ? ' gl-running-balance-credit' : ''}`;
+
+  return (
+    <td className={className}>
+      {balance.isCredit ? `(${balance.amount})` : balance.amount}
+    </td>
+  );
+}
 
 export default function GeneralLedger() {
   const { props } = usePage();
@@ -525,8 +544,8 @@ export default function GeneralLedger() {
                             {row.journal_code}
                           </button>
                           {!row.isOpening && row.is_balanced === 0 && (
-                            <span 
-                              className="material-icons-outlined" 
+                            <span
+                              className="material-icons-outlined"
                               style={{ color: '#c62828', fontSize: '16px' }}
                               title={t('unbalanced_journal_entry', 'Unbalanced Journal Entry')}
                             >
@@ -546,9 +565,7 @@ export default function GeneralLedger() {
                     <td className="gl-amount gl-amount-credit">
                       {row.credit ? row.credit.toFixed(2) : ''}
                     </td>
-                    <td className="gl-amount">
-                      {formatBalanceWithDirection(row.running_balance, natureLabel)}
-                    </td>
+                    <RunningBalanceCell value={row.running_balance} natureLabel={natureLabel} />
                   </tr>
                 ))}
             </tbody>
@@ -564,9 +581,10 @@ export default function GeneralLedger() {
                   <td className="gl-amount gl-amount-credit">
                     {displayedLedger.total_credit.toFixed(2)}
                   </td>
-                  <td className="gl-amount">
-                    {formatBalanceWithDirection(displayedLedger.closing_balance, natureLabel)}
-                  </td>
+                  <RunningBalanceCell
+                    value={displayedLedger.closing_balance}
+                    natureLabel={natureLabel}
+                  />
                 </tr>
               </tfoot>
             )}

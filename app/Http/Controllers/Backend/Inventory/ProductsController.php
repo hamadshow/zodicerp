@@ -11,6 +11,8 @@ use App\Models\Categories;
 use App\Models\ItemAttribute;
 use App\Models\ItemUnit;
 use App\Models\Products;
+use App\Models\ProductVariation;
+use App\Models\Taxes\Tax;
 use App\Models\Vendor_Purchases\Supplier;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -20,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
@@ -189,7 +192,17 @@ class ProductsController extends Controller
                 $query->where('unit_id', $request->unit_id);
             }
 
-            $products = $query->orderBy('order')->orderBy('name')->paginate(20)->withQueryString();
+            $perPage = (int) $request->input('per_page', 10);
+            if (! in_array($perPage, [10, 25, 50, 100], true)) {
+                $perPage = 10;
+            }
+
+            $products = $query
+                ->orderBy('order')
+                ->orderBy('name')
+                ->orderBy('id')
+                ->paginate($perPage)
+                ->withQueryString();
 
             // Data for dropdowns
             $parents = Products::select('id', 'name')
@@ -215,7 +228,7 @@ class ProductsController extends Controller
                 'brands' => $brands,
                 'categories' => $categories,
                 'units' => $units,
-                'filters' => $request->only(['search', 'status', 'brand_id', 'category_id', 'unit_id']),
+                'filters' => $request->only(['search', 'status', 'brand_id', 'category_id', 'unit_id', 'per_page']),
             ]);
         } catch (Exception $e) {
             Log::error('Error retrieving products: '.$e->getMessage(), [
@@ -235,7 +248,7 @@ class ProductsController extends Controller
                 'brands' => collect([]),
                 'categories' => collect([]),
                 'units' => collect([]),
-                'filters' => $request->only(['search', 'status', 'brand_id', 'category_id', 'unit_id']),
+                'filters' => $request->only(['search', 'status', 'brand_id', 'category_id', 'unit_id', 'per_page']),
                 'error' => 'Failed to retrieve products. Please try again later.',
             ])->with('error', 'Failed to retrieve products. Please try again later.');
         }
@@ -267,6 +280,7 @@ class ProductsController extends Controller
             'units' => $units,
             'itemAttributes' => $itemAttributes,
             'suppliers' => $suppliers,
+            'taxes' => $this->taxOptions(auth()->user()?->company_id),
         ]);
     }
 
@@ -299,6 +313,13 @@ class ProductsController extends Controller
             ->orderBy('title')
             ->get();
         $suppliers = Supplier::select('supplier_code', 'name_ar', 'store_name_json')->where('is_active', true)->orderBy('name_ar')->get();
+        $selectedTaxIds = $product->variations
+            ->map(fn ($variation) => $variation->product?->tax_id)
+            ->filter()
+            ->all();
+        if ($product->tax_id) {
+            $selectedTaxIds[] = (int) $product->tax_id;
+        }
 
         return Inertia::render('Backend/03-Inventory/Products', [
             'product' => $product,
@@ -307,6 +328,7 @@ class ProductsController extends Controller
             'units' => $units,
             'itemAttributes' => $itemAttributes,
             'suppliers' => $suppliers,
+            'taxes' => $this->taxOptions(auth()->user()?->company_id, $selectedTaxIds),
         ]);
     }
 
@@ -333,6 +355,13 @@ class ProductsController extends Controller
             ->orderBy('title')
             ->get();
         $suppliers = Supplier::select('supplier_code', 'name_ar', 'store_name_json')->where('is_active', true)->orderBy('name_ar')->get();
+        $selectedTaxIds = $product->variations
+            ->map(fn ($variation) => $variation->product?->tax_id)
+            ->filter()
+            ->all();
+        if ($product->tax_id) {
+            $selectedTaxIds[] = (int) $product->tax_id;
+        }
 
         return Inertia::render('Backend/03-Inventory/Products', [
             'product' => $product,
@@ -341,6 +370,7 @@ class ProductsController extends Controller
             'units' => $units,
             'itemAttributes' => $itemAttributes,
             'suppliers' => $suppliers,
+            'taxes' => $this->taxOptions(auth()->user()?->company_id, $selectedTaxIds),
         ]);
     }
 
@@ -375,6 +405,27 @@ class ProductsController extends Controller
             }
 
             $data = $request->validated();
+            $variations = $data['variations'] ?? [];
+            unset($data['variations']);
+            if (($data['product_type'] ?? null) === Products::PRODUCT_TYPE_VARIATION
+                && ($data['parent_id'] ?? null) === null) {
+                unset(
+                    $data['quantity'],
+                    $data['reorder_point'],
+                    $data['stock_status'],
+                    $data['allow_checkout_when_out_of_stock'],
+                    $data['with_storehouse_management'],
+                    $data['minimum_order_quantity'],
+                    $data['maximum_order_quantity'],
+                    $data['cost_per_item'],
+                    $data['price_includes_tax'],
+                    $data['tax_id'],
+                    $data['weight'],
+                    $data['length'],
+                    $data['wide'],
+                    $data['height']
+                );
+            }
 
             // Explicitly handle is_featured to ensure it captures 1/0/"1"/"0"/true/false
             // If is_featured is not in the request (e.g. unchecked checkbox not sent), default to false
@@ -442,7 +493,6 @@ class ProductsController extends Controller
 
             // Configurable parent handling
             if (($data['product_type'] ?? 'simple') === Products::PRODUCT_TYPE_VARIATION) {
-                $variations = $request->input('variations', []);
                 $variationFiles = $request->file('variations', []);
 
                 if (! is_array($variations) || count($variations) === 0) {
@@ -516,31 +566,35 @@ class ProductsController extends Controller
                     $childProductData['product_code'] = $productCode.'-'.($index + 1);
                     $childProductData['slug'] = $slug.'-'.($index + 1);
                     $childProductData['sku'] = $var['sku'] ?? null;
-                    $childProductData['price'] = (array_key_exists('price', $var) && $var['price'] !== null)
-                        ? $var['price']
-                        : $product->price;
-                    $childProductData['sale_price'] = (array_key_exists('sale_price', $var) && $var['sale_price'] !== null)
-                        ? $var['sale_price']
-                        : null;
                     $childProductData['cost_per_item'] = (array_key_exists('cost_per_item', $var) && $var['cost_per_item'] !== null)
                         ? $var['cost_per_item']
                         : null;
+                    $childProductData['price_includes_tax'] = filter_var(
+                        $var['price_includes_tax'] ?? false,
+                        FILTER_VALIDATE_BOOLEAN
+                    );
+                    $childProductData['tax_id'] = $childProductData['price_includes_tax']
+                        ? ($var['tax_id'] ?? null)
+                        : null;
                     $childProductData['quantity'] = (array_key_exists('stock', $var) && $var['stock'] !== null)
                         ? $var['stock']
-                        : ($product->quantity ?? 0);
+                        : 0;
                     $childProductData['stock_status'] = $var['stock_status'] ?? 'in_stock';
+                    $childProductData['reorder_point'] = $var['reorder_point'] ?? 0;
+                    $childProductData['minimum_order_quantity'] = $var['minimum_order_quantity'] ?? 1;
+                    $childProductData['maximum_order_quantity'] = $var['maximum_order_quantity'] ?? null;
                     $childProductData['weight'] = (array_key_exists('weight', $var) && $var['weight'] !== null)
                         ? $var['weight']
-                        : $product->weight;
+                        : null;
                     $childProductData['length'] = (array_key_exists('length', $var) && $var['length'] !== null)
                         ? $var['length']
-                        : $product->length;
+                        : null;
                     $childProductData['wide'] = (array_key_exists('wide', $var) && $var['wide'] !== null)
                         ? $var['wide']
-                        : $product->wide;
+                        : null;
                     $childProductData['height'] = (array_key_exists('height', $var) && $var['height'] !== null)
                         ? $var['height']
-                        : $product->height;
+                        : null;
                     $childProductData['image'] = $mainImage;
                     $childProductData['images'] = $variationImages;
 
@@ -575,11 +629,15 @@ class ProductsController extends Controller
                     $total++;
                 }
 
-                if (! $defaultMarked) {
-                    $first = $product->variations()->first();
-                    if ($first) {
-                        $first->is_default = true;
-                        $first->save();
+                $defaultVariation = $product->variations()->where('is_default', true)->first()
+                    ?? $product->variations()->first();
+                if ($defaultVariation) {
+                    $product->variations()
+                        ->where('id', '!=', $defaultVariation->id)
+                        ->update(['is_default' => false]);
+                    if (! $defaultVariation->is_default) {
+                        $defaultVariation->is_default = true;
+                        $defaultVariation->save();
                     }
                 }
 
@@ -680,6 +738,31 @@ class ProductsController extends Controller
             }
 
             $data = $request->validated();
+            $variationPayload = $data['variations'] ?? [];
+            $deletedVariationIds = $data['deleted_variation_ids'] ?? [];
+            unset($data['variations']);
+            unset($data['deleted_variation_ids']);
+
+            $isVariableParent = ($data['product_type'] ?? $product->product_type) === Products::PRODUCT_TYPE_VARIATION
+                && ($data['parent_id'] ?? $product->parent_id) === null;
+            if ($isVariableParent) {
+                unset(
+                    $data['quantity'],
+                    $data['reorder_point'],
+                    $data['stock_status'],
+                    $data['allow_checkout_when_out_of_stock'],
+                    $data['with_storehouse_management'],
+                    $data['minimum_order_quantity'],
+                    $data['maximum_order_quantity'],
+                    $data['cost_per_item'],
+                    $data['price_includes_tax'],
+                    $data['tax_id'],
+                    $data['weight'],
+                    $data['length'],
+                    $data['wide'],
+                    $data['height']
+                );
+            }
 
             Log::info("Update Product {$product->id}", [
                 'product_type_input' => $data['product_type'] ?? 'null',
@@ -693,7 +776,10 @@ class ProductsController extends Controller
             // NOTE: Service non-stock semantics are enforced in the Products model
             // (booted saving hook) so every write path is covered.
 
-            $categoryIds = $request->input('category_ids', []);
+            $categoryIds = $request->input(
+                'category_ids',
+                $product->categories()->pluck('categories.id')->all()
+            );
             // $data['updated_by_id'] = $user->id;
             // $data['updated_by_type'] = get_class($user);
 
@@ -789,7 +875,7 @@ class ProductsController extends Controller
 
             // Configurable parent handling
             if (($data['product_type'] ?? $product->product_type) === Products::PRODUCT_TYPE_VARIATION) {
-                $variations = $request->input('variations', []);
+                $variations = $variationPayload;
                 $variationFiles = $request->file('variations', []);
 
                 if (! is_array($variations) || count($variations) === 0) {
@@ -798,19 +884,29 @@ class ProductsController extends Controller
                     ]);
                 }
 
-                $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
-                $product->variations()->delete();
-                if (! empty($existingVariationProductIds)) {
-                    \App\Models\Products::whereIn('id', $existingVariationProductIds)->forceDelete();
-                }
+                $existingVariations = $product->variations()->with('product')->get()->keyBy('id');
+                $retainedVariationIds = [];
 
                 $total = 0;
-                $defaultMarked = false;
+                $nextVariationNumber = 1;
                 foreach ($variations as $index => $var) {
-                    $isDefault = (bool) ($var['is_default'] ?? false);
-                    if ($isDefault) {
-                        $defaultMarked = true;
+                    $variationId = $var['id'] ?? null;
+                    $variation = $variationId === null
+                        ? null
+                        : $existingVariations->get((int) $variationId);
+                    if ($variationId !== null && ! $variation) {
+                        throw ValidationException::withMessages([
+                            "variations.$index.id" => ['The selected variation does not belong to this product.'],
+                        ]);
                     }
+                    $childProduct = $variation?->product;
+                    if ($variation && ! $childProduct) {
+                        throw ValidationException::withMessages([
+                            "variations.$index.id" => ['The selected variation product no longer exists.'],
+                        ]);
+                    }
+
+                    $isDefault = (bool) ($var['is_default'] ?? false);
 
                     $variationImages = [];
 
@@ -849,6 +945,15 @@ class ProductsController extends Controller
                         }
                     }
 
+                    if (empty($variationImages) && $childProduct
+                        && ! array_key_exists('images', $var)
+                        && ! array_key_exists('image', $var)) {
+                        $variationImages = $childProduct->images ?? [];
+                        if (empty($variationImages) && $childProduct->image) {
+                            $variationImages[] = $childProduct->image;
+                        }
+                    }
+
                     // 4. Final Fallback: Parent image
                     if (empty($variationImages) && $product->image) {
                         $variationImages[] = $product->image;
@@ -857,58 +962,92 @@ class ProductsController extends Controller
                     $variationImages = array_values(array_unique($variationImages));
                     $mainImage = ! empty($variationImages) ? $variationImages[0] : null;
 
-                    $childProductData = $product->toArray();
-                    unset(
-                        $childProductData['id'],
-                        $childProductData['created_at'],
-                        $childProductData['updated_at'],
-                        $childProductData['deleted_at'],
-                        $childProductData['variations_count']
-                    );
+                    if ($childProduct) {
+                        $childProductData = [];
+                    } else {
+                        $childProductData = $product->toArray();
+                        unset(
+                            $childProductData['id'],
+                            $childProductData['created_at'],
+                            $childProductData['updated_at'],
+                            $childProductData['deleted_at'],
+                            $childProductData['variations_count']
+                        );
+                    }
 
                     $childProductData['parent_id'] = $product->id;
                     $childProductData['product_type'] = Products::PRODUCT_TYPE_SIMPLE;
                     // NOTE: is_variation is written by the Products model hook
                     // (parent_id != null => true).
-                    $childProductData['barcode'] = $var['barcode'] ?? null;
-                    $childProductData['product_code'] = $product->product_code.'-'.($index + 1);
-                    $childProductData['slug'] = $product->slug.'-'.($index + 1);
-                    $childProductData['sku'] = $var['sku'] ?? null;
-                    $childProductData['price'] = (array_key_exists('price', $var) && $var['price'] !== null)
-                        ? $var['price']
-                        : $product->price;
-                    $childProductData['sale_price'] = (array_key_exists('sale_price', $var) && $var['sale_price'] !== null)
-                        ? $var['sale_price']
-                        : null;
-                    $childProductData['cost_per_item'] = (array_key_exists('cost_per_item', $var) && $var['cost_per_item'] !== null)
+                    $childProductData['barcode'] = array_key_exists('barcode', $var) ? $var['barcode'] : $childProduct?->barcode;
+                    if ($childProduct) {
+                        $childProductData['product_code'] = $childProduct->product_code;
+                        $childProductData['slug'] = $childProduct->slug;
+                    } else {
+                        do {
+                            $variationNumber = $nextVariationNumber++;
+                            $childProductData['product_code'] = $product->product_code.'-'.$variationNumber;
+                            $childProductData['slug'] = $product->slug.'-'.$variationNumber;
+                        } while (Products::withTrashed()
+                            ->where('product_code', $childProductData['product_code'])
+                            ->orWhere('slug', $childProductData['slug'])
+                            ->exists());
+                    }
+                    $childProductData['sku'] = array_key_exists('sku', $var) ? $var['sku'] : $childProduct?->sku;
+                    $childProductData['cost_per_item'] = array_key_exists('cost_per_item', $var)
                         ? $var['cost_per_item']
+                        : $childProduct?->cost_per_item;
+                    $includesTax = array_key_exists('price_includes_tax', $var)
+                        ? filter_var($var['price_includes_tax'], FILTER_VALIDATE_BOOLEAN)
+                        : (bool) ($childProduct?->price_includes_tax ?? false);
+                    $childProductData['price_includes_tax'] = $includesTax;
+                    $childProductData['tax_id'] = $includesTax
+                        ? ($var['tax_id'] ?? $childProduct?->tax_id)
                         : null;
                     $childProductData['quantity'] = (array_key_exists('stock', $var) && $var['stock'] !== null)
                         ? $var['stock']
-                        : ($product->quantity ?? 0);
-                    $childProductData['stock_status'] = $var['stock_status'] ?? 'in_stock';
+                        : ($childProduct?->quantity ?? 0);
+                    $childProductData['stock_status'] = $var['stock_status'] ?? ($childProduct?->stock_status ?? 'in_stock');
+                    $childProductData['reorder_point'] = array_key_exists('reorder_point', $var)
+                        ? ($var['reorder_point'] ?? 0)
+                        : ($childProduct?->reorder_point ?? 0);
+                    $childProductData['minimum_order_quantity'] = array_key_exists('minimum_order_quantity', $var)
+                        ? ($var['minimum_order_quantity'] ?? 1)
+                        : ($childProduct?->minimum_order_quantity ?? 1);
+                    $childProductData['maximum_order_quantity'] = array_key_exists('maximum_order_quantity', $var)
+                        ? $var['maximum_order_quantity']
+                        : $childProduct?->maximum_order_quantity;
                     $childProductData['weight'] = (array_key_exists('weight', $var) && $var['weight'] !== null)
                         ? $var['weight']
-                        : $product->weight;
+                        : $childProduct?->weight;
                     $childProductData['length'] = (array_key_exists('length', $var) && $var['length'] !== null)
                         ? $var['length']
-                        : $product->length;
+                        : $childProduct?->length;
                     $childProductData['wide'] = (array_key_exists('wide', $var) && $var['wide'] !== null)
                         ? $var['wide']
-                        : $product->wide;
+                        : $childProduct?->wide;
                     $childProductData['height'] = (array_key_exists('height', $var) && $var['height'] !== null)
                         ? $var['height']
-                        : $product->height;
+                        : $childProduct?->height;
                     $childProductData['image'] = $mainImage;
                     $childProductData['images'] = $variationImages;
 
-                    $childProduct = \App\Models\Products::create($childProductData);
+                    if ($childProduct) {
+                        $childProduct->update($childProductData);
+                    } else {
+                        $childProduct = Products::create($childProductData);
+                    }
 
-                    $variation = \App\Models\ProductVariation::create([
-                        'product_id' => $childProduct->id,
-                        'configurable_product_id' => $product->id,
-                        'is_default' => $isDefault,
-                    ]);
+                    if ($variation) {
+                        $variation->update(['is_default' => $isDefault]);
+                    } else {
+                        $variation = \App\Models\ProductVariation::create([
+                            'product_id' => $childProduct->id,
+                            'configurable_product_id' => $product->id,
+                            'is_default' => $isDefault,
+                        ]);
+                    }
+                    $retainedVariationIds[] = $variation->id;
 
                     $attributes = [];
                     if (isset($var['attributes']) && is_array($var['attributes'])) {
@@ -922,38 +1061,64 @@ class ProductsController extends Controller
                         }
                     }
 
-                    foreach ($attributes as $attr) {
-                        \App\Models\ProductVariationItem::create([
-                            'variation_id' => $variation->id,
-                            'attribute_id' => $attr['attribute_id'],
-                            'attribute_value' => $attr['attribute_value'],
-                        ]);
+                    if ($variationId === null || array_key_exists('attributes', $var) || array_key_exists('attribute_values', $var)) {
+                        foreach ($attributes as $attr) {
+                            $variation->items()->updateOrCreate(
+                                ['attribute_id' => $attr['attribute_id']],
+                                ['attribute_value' => $attr['attribute_value']]
+                            );
+                        }
                     }
 
                     $total++;
                 }
 
-                if (! $defaultMarked) {
-                    $first = $product->variations()->first();
-                    if ($first) {
-                        $first->is_default = true;
-                        $first->save();
+                foreach ($deletedVariationIds as $deletedVariationId) {
+                    $existingVariation = $existingVariations->get((int) $deletedVariationId);
+                    if (! $existingVariation || in_array($existingVariation->id, $retainedVariationIds, true)) {
+                        continue;
+                    }
+
+                    if ($existingVariation->product) {
+                        $existingVariation->product->delete();
+                    } else {
+                        $existingVariation->delete();
+                    }
+                }
+
+                $defaultVariation = $product->variations()->where('is_default', true)->first()
+                    ?? $product->variations()->first();
+                $product->variations()->update(['is_default' => false]);
+                if ($defaultVariation) {
+                    $defaultVariation->is_default = true;
+                    $defaultVariation->save();
+                }
+
+                $product->update([
+                    'variations_count' => $product->variations()->count(),
+                ]);
+            } else {
+                $existingVariations = $product->variations()->with('product')->get();
+                $explicitlyDeletedIds = array_map('intval', $deletedVariationIds);
+                $notExplicitlyDeleted = $existingVariations
+                    ->reject(fn ($variation) => in_array((int) $variation->id, $explicitlyDeletedIds, true));
+
+                if ($notExplicitlyDeleted->isNotEmpty()) {
+                    throw ValidationException::withMessages([
+                        'product_type' => ['Remove each saved variation individually before changing the product type.'],
+                    ]);
+                }
+
+                foreach ($existingVariations as $existingVariation) {
+                    if ($existingVariation->product) {
+                        $existingVariation->product->delete();
+                    } else {
+                        $existingVariation->delete();
                     }
                 }
 
                 $product->update([
-                    'variations_count' => $total,
-                ]);
-            } else {
-                $existingVariationProductIds = $product->variations()->pluck('product_id')->all();
-                $product->variations()->delete();
-                if (! empty($existingVariationProductIds)) {
-                    \App\Models\Products::whereIn('id', $existingVariationProductIds)->delete();
-                }
-                // NOTE: is_variation is written by the Products model hook
-                // (parent_id === null => false).
-                $product->update([
-                    'variations_count' => 0,
+                    'variations_count' => $product->variations()->count(),
                 ]);
             }
 
@@ -1033,6 +1198,97 @@ class ProductsController extends Controller
 
             return back()->withErrors(['error' => 'An unexpected error occurred. Please try again later.'])->withInput();
         }
+    }
+
+    public function updateVariation(Request $request, Products $product, ProductVariation $variation)
+    {
+        $user = $request->user();
+        abort_unless($user && (int) $product->company_id === (int) $user->company_id, 404);
+        abort_unless(
+            $product->product_type === Products::PRODUCT_TYPE_VARIATION
+                && $product->parent_id === null
+                && (int) $variation->configurable_product_id === (int) $product->id,
+            404
+        );
+
+        $childProduct = $variation->product;
+        abort_unless(
+            $childProduct
+                && (int) $childProduct->parent_id === (int) $product->id
+                && (int) $childProduct->company_id === (int) $user->company_id,
+            404
+        );
+
+        $priceIncludesTax = filter_var(
+            $request->input('price_includes_tax'),
+            FILTER_VALIDATE_BOOLEAN,
+            FILTER_NULL_ON_FAILURE
+        );
+        if ($priceIncludesTax === false) {
+            $request->merge(['tax_id' => null]);
+        }
+
+        $companyId = $user->company_id;
+        $validated = $request->validate([
+            'sku' => ['nullable', 'string', 'max:150', Rule::unique('products', 'sku')->ignore($childProduct->id)],
+            'cost_per_item' => ['nullable', 'numeric', 'min:0'],
+            'barcode' => ['nullable', 'string', 'max:100', Rule::unique('products', 'barcode')->ignore($childProduct->id)],
+            'stock' => ['nullable', 'integer', 'min:0'],
+            'stock_status' => ['nullable', 'in:in_stock,out_of_stock,on_backorder'],
+            'price_includes_tax' => ['required', 'boolean'],
+            'tax_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('taxes', 'id')->where(function ($query) use ($companyId) {
+                    $query->where(function ($query) use ($companyId) {
+                        if ($companyId === null) {
+                            $query->whereNull('company_id');
+                        } else {
+                            $query->where('company_id', $companyId)->orWhereNull('company_id');
+                        }
+                    });
+                }),
+            ],
+            'reorder_point' => ['nullable', 'integer', 'min:0'],
+            'minimum_order_quantity' => ['nullable', 'integer', 'min:1'],
+            'maximum_order_quantity' => ['nullable', 'integer', 'min:1', 'gte:minimum_order_quantity'],
+            'weight' => ['nullable', 'numeric', 'min:0'],
+            'length' => ['nullable', 'numeric', 'min:0'],
+            'wide' => ['nullable', 'numeric', 'min:0'],
+            'height' => ['nullable', 'numeric', 'min:0'],
+            'attribute_values' => ['nullable', 'array'],
+            'attribute_values.*' => ['required', 'string', 'max:255'],
+        ]);
+
+        $data = $validated;
+        $attributeValues = $data['attribute_values'] ?? null;
+        unset($data['attribute_values']);
+        $data['reorder_point'] = $validated['reorder_point'] ?? 0;
+        $data['minimum_order_quantity'] = $validated['minimum_order_quantity'] ?? 1;
+        $data['tax_id'] = $validated['price_includes_tax']
+            ? ($validated['tax_id'] ?? null)
+            : null;
+        if (array_key_exists('stock', $data)) {
+            $data['quantity'] = $data['stock'] ?? 0;
+            unset($data['stock']);
+        }
+
+        DB::transaction(function () use ($childProduct, $data, $variation, $attributeValues) {
+            $childProduct->update($data);
+
+            if (is_array($attributeValues)) {
+                foreach ($attributeValues as $attributeId => $attributeValue) {
+                    $variation->items()->updateOrCreate(
+                        ['attribute_id' => $attributeId],
+                        ['attribute_value' => $attributeValue]
+                    );
+                }
+            }
+        });
+
+        return response()->json([
+            'variation' => $variation->fresh(['items', 'product']),
+        ]);
     }
 
     public function destroy(Products $product)
@@ -1141,5 +1397,30 @@ class ProductsController extends Controller
         }
 
         return true;
+    }
+
+    private function taxOptions(?int $companyId, int|array|null $selectedTaxId = null)
+    {
+        $selectedTaxIds = array_values(array_filter(
+            is_array($selectedTaxId) ? $selectedTaxId : [$selectedTaxId]
+        ));
+
+        return Tax::query()
+            ->select(['id', 'name_en', 'name_ar', 'tax_code', 'tax_rate'])
+            ->where(function ($query) use ($companyId) {
+                if ($companyId === null) {
+                    $query->whereNull('company_id');
+                } else {
+                    $query->where('company_id', $companyId)->orWhereNull('company_id');
+                }
+            })
+            ->where(function ($query) use ($selectedTaxIds) {
+                $query->where('is_active', true);
+                if ($selectedTaxIds !== []) {
+                    $query->orWhereIn('id', $selectedTaxIds);
+                }
+            })
+            ->orderBy('name_en')
+            ->get();
     }
 }

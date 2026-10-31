@@ -386,9 +386,11 @@ Route::group([
             Route::resource('quotations', \App\Http\Controllers\Backend\Purchases\PurchaseQuotationController::class);
             Route::resource('orders', \App\Http\Controllers\Backend\Purchases\PurchaseOrderController::class);
             $grc = \App\Http\Controllers\Backend\Purchases\GoodsReceiptController::class;
+            Route::get('goods-receiptsin', [$grc, 'index'])->name('goods-receiptsin.index');
             Route::get('goods-receipts', [$grc, 'index'])->name('goods-receipts.index');
             Route::post('goods-receipts', [$grc, 'store'])->name('goods-receipts.store');
             Route::get('goods-receipts/{goodsReceipt}', [$grc, 'show'])->name('goods-receipts.show');
+            Route::put('goods-receipts/{goodsReceipt}', [$grc, 'update'])->name('goods-receipts.update');
             Route::post('goods-receipts/{goodsReceipt}/approve', [$grc, 'approve'])->name('goods-receipts.approve');
             Route::post('goods-receipts/{goodsReceipt}/receive', [$grc, 'receive'])->name('goods-receipts.receive');
             Route::post('goods-receipts/{goodsReceipt}/check', [$grc, 'check'])->name('goods-receipts.check');

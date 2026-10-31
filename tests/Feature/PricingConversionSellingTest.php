@@ -34,7 +34,7 @@ class PricingConversionSellingTest extends TestCase
             ['id' => $baseUnitId, 'name' => 'Test Piece', 'unit_type' => 1, 'base_unit' => null, 'conversion_factor' => 1, 'active' => 1, 'company_id' => 1, 'created_at' => now(), 'updated_at' => now()],
             ['id' => $otherUnitId, 'name' => 'Test Box', 'unit_type' => 2, 'base_unit' => $baseUnitId, 'conversion_factor' => 10, 'active' => 1, 'company_id' => 1, 'created_at' => now(), 'updated_at' => now()],
         ]);
-        DB::table('products')->insert(['id' => $productId, 'product_code' => 'TEST-PRICE-'.$productId, 'name' => 'Price Test', 'slug' => 'price-test-'.$productId, 'status' => 'active', 'unit_id' => $baseUnitId, 'price' => 120, 'sale_price' => 100, 'company_id' => 1, 'created_at' => now(), 'updated_at' => now()]);
+        DB::table('products')->insert(['id' => $productId, 'product_code' => 'TEST-PRICE-'.$productId, 'name' => 'Price Test', 'slug' => 'price-test-'.$productId, 'status' => 'active', 'unit_id' => $baseUnitId, 'company_id' => 1, 'created_at' => now(), 'updated_at' => now()]);
         DB::table('price_lists')->insert(['id' => $priceListId, 'code' => 'TEST-'.$priceListId, 'name_ar' => 'اختبار', 'name_en' => 'Test', 'currency_id' => 1, 'valid_from' => '2026-01-01', 'valid_to' => null, 'is_default' => 0, 'price_type' => 'retail', 'rounding_method' => 'none', 'rounding_factor' => 0.05, 'is_active' => 1, 'created_at' => now(), 'updated_at' => now()]);
         $firstPriceItemId = $this->nextId('price_list_items');
         DB::table('price_list_items')->insert([
@@ -60,8 +60,8 @@ class PricingConversionSellingTest extends TestCase
         $parentId = $this->nextId('products');
         $childId = $parentId + 1;
         $now = now();
-        DB::table('products')->insert(['id' => $parentId, 'product_code' => 'TEST-PARENT-'.$parentId, 'name' => 'Parent', 'slug' => 'parent-'.$parentId, 'status' => 'active', 'price' => 10, 'company_id' => 1, 'created_at' => $now, 'updated_at' => $now]);
-        DB::table('products')->insert(['id' => $childId, 'product_code' => 'TEST-CHILD-'.$childId, 'name' => 'Child', 'slug' => 'child-'.$childId, 'status' => 'active', 'parent_id' => $parentId, 'price' => 10, 'company_id' => 1, 'created_at' => $now, 'updated_at' => $now]);
+        DB::table('products')->insert(['id' => $parentId, 'product_code' => 'TEST-PARENT-'.$parentId, 'name' => 'Parent', 'slug' => 'parent-'.$parentId, 'status' => 'active', 'company_id' => 1, 'created_at' => $now, 'updated_at' => $now]);
+        DB::table('products')->insert(['id' => $childId, 'product_code' => 'TEST-CHILD-'.$childId, 'name' => 'Child', 'slug' => 'child-'.$childId, 'status' => 'active', 'parent_id' => $parentId, 'company_id' => 1, 'created_at' => $now, 'updated_at' => $now]);
 
         $this->expectException(ValidationException::class);
         ProductSellingGuard::assertSellable($parentId);
@@ -72,8 +72,8 @@ class PricingConversionSellingTest extends TestCase
         $parentId = $this->nextId('products');
         $childId = $parentId + 1;
         $now = now();
-        DB::table('products')->insert(['id' => $parentId, 'product_code' => 'TEST-PARENT-'.$parentId, 'name' => 'Parent', 'slug' => 'parent-'.$parentId, 'status' => 'active', 'price' => 10, 'company_id' => 1, 'created_at' => $now, 'updated_at' => $now]);
-        DB::table('products')->insert(['id' => $childId, 'product_code' => 'TEST-CHILD-'.$childId, 'name' => 'Child', 'slug' => 'child-'.$childId, 'status' => 'active', 'parent_id' => $parentId, 'price' => 10, 'company_id' => 1, 'created_at' => $now, 'updated_at' => $now]);
+        DB::table('products')->insert(['id' => $parentId, 'product_code' => 'TEST-PARENT-'.$parentId, 'name' => 'Parent', 'slug' => 'parent-'.$parentId, 'status' => 'active', 'company_id' => 1, 'created_at' => $now, 'updated_at' => $now]);
+        DB::table('products')->insert(['id' => $childId, 'product_code' => 'TEST-CHILD-'.$childId, 'name' => 'Child', 'slug' => 'child-'.$childId, 'status' => 'active', 'parent_id' => $parentId, 'company_id' => 1, 'created_at' => $now, 'updated_at' => $now]);
 
         ProductSellingGuard::assertSellable($childId);
         $this->assertTrue(true);

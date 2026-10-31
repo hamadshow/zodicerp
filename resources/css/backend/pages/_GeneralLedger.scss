@@ -65,6 +65,12 @@
 .gl-amount {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.gl-running-balance-credit {
+  color: #c62828 !important;
+  font-weight: 600;
 }
 
 .gl-amount-debit {

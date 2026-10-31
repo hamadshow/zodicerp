@@ -294,15 +294,31 @@ class FinancialReportController extends Controller
     }
 
     /**
-     * Company identity (name + logo) shared by the printable financial
-     * reports. Stored logos are returned as data URIs so printed pages
-     * never depend on authenticated storage URLs.
+     * Company identity shared by the printable financial reports. Stored
+     * logos are returned as data URIs so printed pages never depend on
+     * authenticated storage URLs.
      */
     private function printCompanyData(Request $request): array
     {
         $user = $request->user() ?: $request->user('employee');
         $company = $user?->company_id
-            ? Company::query()->select(['company_name', 'logo'])->find($user->company_id)
+            ? Company::query()
+                ->select([
+                    'company_name',
+                    'english_name',
+                    'mobile',
+                    'country',
+                    'city',
+                    'area',
+                    'vat_number',
+                    'logo',
+                ])
+                ->with([
+                    'countryData:id,name_json',
+                    'cityData:id,name_json',
+                    'areaData:id,name_json',
+                ])
+                ->find($user->company_id)
             : null;
         $logo = $company?->logo;
         $logoUrl = null;
@@ -322,6 +338,12 @@ class FinancialReportController extends Controller
 
         return [
             'company_name' => $company?->company_name,
+            'english_name' => $company?->english_name,
+            'mobile' => $company?->mobile,
+            'country' => $company?->countryData?->name ?: $company?->country,
+            'city' => $company?->cityData?->name ?: $company?->city,
+            'area' => $company?->areaData?->name ?: $company?->area,
+            'vat_number' => $company?->vat_number,
             'logo_url' => $logoUrl,
         ];
     }

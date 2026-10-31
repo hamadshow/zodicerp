@@ -91,7 +91,6 @@ const products = [
         unit_id: 1,
         cost_per_item: '12.00',
         unit_options: [
-            { id: 1, name: 'Piece', unit_type: 1, base_unit: null, conversion_factor: '1.0000' },
             { id: 2, name: 'Dozen', unit_type: 2, base_unit: 1, conversion_factor: '12.0000' },
         ],
     },
@@ -151,12 +150,19 @@ describe('Opening Stock item form', () => {
         ]);
 
         const documentWarehouse = document.querySelector('.invoice-info-grid select');
-        await user.selectOptions(documentWarehouse, '55');
+        await user.click(document.querySelector('.invoice-info-grid .searchable-combobox-input'));
+        const warehouseOption = [...document.querySelectorAll('.searchable-combobox-option')]
+            .find((element) => element.textContent.trim() === 'Main Warehouse');
+        expect(warehouseOption).toBeTruthy();
+        fireEvent.mouseDown(warehouseOption);
         expect(documentWarehouse).toHaveValue('55');
+        expect(document.querySelectorAll('.invoice-info-grid .searchable-combobox-arrow')).toHaveLength(1);
+        expect(document.querySelector('.invoice-info-grid .searchable-combobox-input')).toHaveValue('Main Warehouse');
+        expect(document.querySelector('.searchable-combobox-dropdown')).not.toBeInTheDocument();
 
         await chooseProduct(user, 'SKU-VARIANT', 'Shirt / Black / XL / Adidas (SKU-VARIANT)');
         const itemUnit = document.querySelectorAll('.invoice-items-section select')[1];
-        expect([...itemUnit.options].map((option) => option.value)).toEqual(['', '1', '2']);
+        expect([...itemUnit.options].map((option) => option.value)).toEqual(['', '2']);
         await user.selectOptions(itemUnit, '2');
 
         await chooseProduct(user, 'SKU-PAIR', 'Pair Product (SKU-PAIR)');
@@ -164,7 +170,7 @@ describe('Opening Stock item form', () => {
         expect(itemUnit).toHaveValue('3');
 
         await chooseProduct(user, 'SKU-VARIANT', 'Shirt / Black / XL / Adidas (SKU-VARIANT)');
-        expect([...itemUnit.options].map((option) => option.value)).toEqual(['', '1', '2']);
+        expect([...itemUnit.options].map((option) => option.value)).toEqual(['', '2']);
         await user.selectOptions(itemUnit, '2');
 
         const numbers = document.querySelectorAll('.invoice-items-section input[type="number"]');
@@ -215,6 +221,7 @@ describe('Opening Stock item form', () => {
         await user.click(screen.getByRole('button', { name: 'Edit Opening Stock' }));
 
         expect(document.querySelector('.invoice-info-grid select')).toHaveValue('55');
+        expect(document.querySelector('.invoice-info-grid .searchable-combobox-input')).toHaveValue('Main Warehouse');
         expect(document.querySelectorAll('.invoice-items-section select')[1]).toHaveValue('2');
         const numericInputs = document.querySelectorAll('.invoice-items-section input[type="number"]');
         expect(numericInputs[0]).toHaveValue(2);
@@ -233,5 +240,38 @@ describe('Opening Stock item form', () => {
             quantity: 2,
             cost_price: 12,
         });
+    });
+
+    it('keeps a saved grouping unit visible and unchanged while excluding it from selectable units', async () => {
+        const existingOpeningStock = {
+            id: 78,
+            voucher_num: 'OS-78',
+            movement_date: '2026-01-15',
+            warehouse_id: 55,
+            items: [{
+                id: 89,
+                product_id: 101,
+                unit_id: 1,
+                unit: { name: 'Piece' },
+                quantity: '24.000000',
+                original_quantity: '24.000000',
+                conversion_factor_snapshot: '1.000000',
+                cost_price: '1.000000',
+                product: { name_en: 'Variant SKU' },
+            }],
+        };
+        const user = userEvent.setup();
+        renderPage([existingOpeningStock]);
+
+        await user.click(screen.getByRole('button', { name: 'Edit Opening Stock' }));
+
+        const unitValue = document.querySelector('.invoice-items-section input[disabled]');
+        expect(unitValue).toHaveValue('Piece');
+        expect([...document.querySelectorAll('.invoice-items-section select')][1].options)
+            .toHaveLength(2);
+
+        await user.click(screen.getByRole('button', { name: 'Save Opening Stock' }));
+        await waitFor(() => expect(putSpy).toHaveBeenCalled());
+        expect(putSpy.mock.calls[0][1].items[0].unit_id).toBe('1');
     });
 });

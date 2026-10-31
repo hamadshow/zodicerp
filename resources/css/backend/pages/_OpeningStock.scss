@@ -229,6 +229,10 @@
           color: var(--danger-color);
           font-size: 0.75rem;
         }
+
+        .opening-stock-warehouse.error .searchable-combobox-input {
+          border-color: var(--danger-color);
+        }
       }
     }
   }

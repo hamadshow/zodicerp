@@ -68,8 +68,8 @@ class OpeningStockController extends Controller
     }
 
     /**
-     * Return only units UnitConversionService can convert to each product's
-     * configured base unit: the base, direct subunits, and explicit conversions.
+     * Return units UnitConversionService can convert to each product's base
+     * unit, excluding grouping units that have child units of their own.
      *
      * @param  Collection<int, Products>  $products
      * @return array<int, array<int, array{id:int,name:string,unit_type:int,base_unit:?int,conversion_factor:string}>>
@@ -83,6 +83,16 @@ class OpeningStockController extends Controller
             })
             ->get(['id', 'name', 'unit_type', 'base_unit', 'conversion_factor'])
             ->keyBy('id');
+
+        $headerUnitIds = ItemUnit::query()
+            ->whereNotNull('base_unit')
+            ->where(function ($query) use ($companyId) {
+                $query->where('company_id', $companyId)->orWhereNull('company_id');
+            })
+            ->distinct()
+            ->pluck('base_unit')
+            ->map(fn ($id) => (int) $id)
+            ->all();
 
         $baseUnitByProduct = [];
         foreach ($products as $product) {
@@ -113,9 +123,12 @@ class OpeningStockController extends Controller
                     $query->whereIn('from_unit_id', $baseUnitIds)
                         ->orWhereIn('to_unit_id', $baseUnitIds);
                 })
-                ->get(['from_unit_id', 'to_unit_id']);
+                ->get(['from_unit_id', 'to_unit_id', 'conversion_factor']);
 
             foreach ($conversions as $conversion) {
+                if (bccomp((string) $conversion->conversion_factor, '0', 6) <= 0) {
+                    continue;
+                }
                 if (in_array((int) $conversion->to_unit_id, $baseUnitIds, true)) {
                     $convertedUnitIdsByBase[(int) $conversion->to_unit_id][] = (int) $conversion->from_unit_id;
                 }
@@ -135,7 +148,9 @@ class OpeningStockController extends Controller
 
             $eligibleIds = collect([$baseId])
                 ->merge($units
-                    ->filter(fn (ItemUnit $unit) => (int) $unit->unit_type === 2 && (int) $unit->base_unit === $baseId)
+                    ->filter(fn (ItemUnit $unit) => (int) $unit->unit_type === 2
+                        && (int) $unit->base_unit === $baseId
+                        && bccomp((string) $unit->conversion_factor, '0', 6) > 0)
                     ->keys())
                 ->merge($convertedUnitIdsByBase[$baseId] ?? [])
                 ->unique()
@@ -144,6 +159,7 @@ class OpeningStockController extends Controller
 
             $optionsByProduct[$product->id] = $eligibleIds
                 ->map(fn ($id) => $units->get((int) $id))
+                ->filter(fn (?ItemUnit $unit) => $unit && ! in_array((int) $unit->id, $headerUnitIds, true))
                 ->sortBy(fn (ItemUnit $unit) => (int) $unit->id === $baseId ? -1 : (int) $unit->id)
                 ->map(fn (ItemUnit $unit) => [
                     'id' => (int) $unit->id,

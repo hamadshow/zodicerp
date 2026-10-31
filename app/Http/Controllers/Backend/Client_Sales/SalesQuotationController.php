@@ -79,7 +79,7 @@ class SalesQuotationController extends Controller
         $currencies = Currency::where('status', 'active')
             ->select('id', 'name', 'code', 'symbol')
             ->get();
-        $products = Products::select('id', 'name as name_en', 'name as name_ar', 'sku', 'sale_price', 'cost_per_item as purchase_price')
+        $products = Products::select('id', 'name as name_en', 'name as name_ar', 'sku', 'cost_per_item as purchase_price')
             ->get();
         // All active units (labels for print/export); the unit selector itself
         // only offers units priced in the selected price list per product.

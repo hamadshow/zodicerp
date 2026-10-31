@@ -23,11 +23,7 @@ class GoodsReceiptService
     {
         return DB::transaction(function () use ($data) {
             $companyId = $this->companyContext->id();
-
-            $this->assertOwnership($companyId, (int) $data['warehouse_id'], array_map(
-                'intval',
-                array_column($data['items'], 'product_id')
-            ));
+            $this->assertReceiptInput($companyId, $data);
 
             $receipt = GoodsReceipt::create([
                 'receipt_number' => $this->generateReceiptNumber(),
@@ -48,57 +44,123 @@ class GoodsReceiptService
                 'created_by' => auth()->id(),
             ]);
 
-            $totalQuantity = 0;
-            $totalValue = 0;
-            $totalItems = 0;
-
-            foreach ($data['items'] as $item) {
-                $acceptedQty = (float) ($item['accepted_quantity'] ?? $item['quantity_received']);
-                $rejectedQty = (float) ($item['rejected_quantity'] ?? 0);
-                $receivedQty = $acceptedQty + $rejectedQty;
-
-                if (! empty($item['invoice_detail_id'])) {
-                    $invoiceDetail = PurchaseInvoiceDetail::findOrFail((int) $item['invoice_detail_id']);
-                    if ((int) $invoiceDetail->product_id !== (int) $item['product_id']
-                        || (int) $invoiceDetail->warehouse_id !== (int) $data['warehouse_id']) {
-                        throw new \RuntimeException('Goods Receipt detail does not match its Purchase Invoice Detail.');
-                    }
-                }
-
-                GoodsReceiptDetail::create([
-                    'receipt_id' => $receipt->id,
-                    'invoice_detail_id' => $item['invoice_detail_id'] ?? null,
-                    'product_id' => $item['product_id'],
-                    'quantity_received' => $receivedQty,
-                    'unit_id' => $item['unit_id'],
-                    'unit_cost' => $item['unit_cost'] ?? 0,
-                    'batch_number' => $item['batch_number'] ?? null,
-                    'serial_number' => $item['serial_number'] ?? null,
-                    'expiry_date' => $item['expiry_date'] ?? null,
-                    'production_date' => $item['production_date'] ?? null,
-                    'shelf_location' => $item['shelf_location'] ?? null,
-                    'quality_status' => $item['quality_status'] ?? 'good',
-                    'quality_notes' => $item['quality_notes'] ?? null,
-                    'is_accepted' => $rejectedQty <= 0,
-                    'accepted_quantity' => $acceptedQty,
-                    'rejected_quantity' => $rejectedQty,
-                    'rejection_reason' => $item['rejection_reason'] ?? null,
-                    'notes' => $item['notes'] ?? null,
-                ]);
-
-                $totalQuantity += $receivedQty;
-                $totalValue += $receivedQty * (float) ($item['unit_cost'] ?? 0);
-                $totalItems++;
-            }
-
-            $receipt->update([
-                'total_items' => $totalItems,
-                'total_quantity' => $totalQuantity,
-                'total_value' => round($totalValue, 2),
-            ]);
+            $this->syncDetails($receipt, $data);
 
             return $receipt;
         });
+    }
+
+    public function updateGoodsReceipt(GoodsReceipt $receipt, array $data): GoodsReceipt
+    {
+        return DB::transaction(function () use ($receipt, $data) {
+            $receipt = GoodsReceipt::query()->lockForUpdate()->findOrFail($receipt->id);
+            if ($receipt->status !== 'draft') {
+                throw new \RuntimeException('Only draft receipts can be edited.');
+            }
+
+            $this->assertReceiptInput($this->companyContext->id(), $data);
+
+            $receipt->update([
+                'order_id' => $data['order_id'],
+                'invoice_id' => $data['invoice_id'] ?? null,
+                'warehouse_id' => $data['warehouse_id'],
+                'receipt_date' => $data['receipt_date'],
+                'receipt_time' => $data['receipt_time'] ?? null,
+                'receipt_type' => $data['receipt_type'] ?? 'partial',
+                'notes' => $data['notes'] ?? null,
+                'inspection_notes' => $data['inspection_notes'] ?? null,
+            ]);
+
+            $receipt->details()->delete();
+            $this->syncDetails($receipt, $data);
+
+            return $receipt->fresh();
+        });
+    }
+
+    private function syncDetails(GoodsReceipt $receipt, array $data): void
+    {
+        $totalQuantity = 0;
+        $totalValue = 0;
+
+        foreach ($data['items'] as $item) {
+            $acceptedQty = (float) ($item['accepted_quantity'] ?? $item['quantity_received']);
+            $rejectedQty = (float) ($item['rejected_quantity'] ?? 0);
+            $receivedQty = $acceptedQty + $rejectedQty;
+
+            if (! empty($item['invoice_detail_id'])) {
+                $invoiceDetail = PurchaseInvoiceDetail::findOrFail((int) $item['invoice_detail_id']);
+                if ((int) $invoiceDetail->product_id !== (int) $item['product_id']
+                    || (int) $invoiceDetail->warehouse_id !== (int) $data['warehouse_id']) {
+                    throw new \RuntimeException('Goods Receipt detail does not match its Purchase Invoice Detail.');
+                }
+            }
+
+            GoodsReceiptDetail::create([
+                'receipt_id' => $receipt->id,
+                'invoice_detail_id' => $item['invoice_detail_id'] ?? null,
+                'product_id' => $item['product_id'],
+                'quantity_received' => $receivedQty,
+                'unit_id' => $item['unit_id'],
+                'unit_cost' => $item['unit_cost'] ?? 0,
+                'batch_number' => $item['batch_number'] ?? null,
+                'serial_number' => $item['serial_number'] ?? null,
+                'expiry_date' => $item['expiry_date'] ?? null,
+                'production_date' => $item['production_date'] ?? null,
+                'shelf_location' => $item['shelf_location'] ?? null,
+                'quality_status' => $item['quality_status'] ?? 'good',
+                'quality_notes' => $item['quality_notes'] ?? null,
+                'is_accepted' => $rejectedQty <= 0,
+                'accepted_quantity' => $acceptedQty,
+                'rejected_quantity' => $rejectedQty,
+                'rejection_reason' => $item['rejection_reason'] ?? null,
+                'notes' => $item['notes'] ?? null,
+            ]);
+
+            $totalQuantity += $receivedQty;
+            $totalValue += $receivedQty * (float) ($item['unit_cost'] ?? 0);
+        }
+
+        $receipt->update([
+            'total_items' => count($data['items']),
+            'total_quantity' => $totalQuantity,
+            'total_value' => round($totalValue, 2),
+        ]);
+    }
+
+    private function assertReceiptInput(int $companyId, array $data): void
+    {
+        $productIds = array_values(array_unique(array_map(
+            'intval',
+            array_column($data['items'], 'product_id')
+        )));
+        $this->assertOwnership($companyId, (int) $data['warehouse_id'], $productIds);
+
+        $order = PurchaseOrder::query()
+            ->where('company_id', $companyId)
+            ->with('items')
+            ->findOrFail((int) $data['order_id']);
+        $orderProductIds = $order->items
+            ->whereNotNull('product_id')
+            ->pluck('product_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->all();
+
+        foreach ($productIds as $productId) {
+            if (! in_array($productId, $orderProductIds, true)) {
+                throw new \RuntimeException('Every received product must belong to the selected purchase order.');
+            }
+        }
+
+        $unitConversionService = app(UnitConversionService::class);
+        foreach ($data['items'] as $item) {
+            $unitConversionService->toBase(
+                (int) $item['product_id'],
+                (int) $item['unit_id'],
+                '1'
+            );
+        }
     }
 
     public function approveReceipt(GoodsReceipt $receipt): GoodsReceipt
@@ -125,7 +187,7 @@ class GoodsReceiptService
             // Create inventory movements and update product quantities for accepted items
             $unitConversionService = app(UnitConversionService::class);
             foreach ($receipt->details as $detail) {
-                if ($detail->is_accepted && $detail->accepted_quantity > 0) {
+                if ($detail->accepted_quantity > 0) {
                     $conversion = $unitConversionService->toBase(
                         (int) $detail->product_id,
                         (int) $detail->unit_id,
@@ -216,7 +278,6 @@ class GoodsReceiptService
             $reverseDate = max((string) $receipt->receipt_date, $today);
 
             $detailIds = $receipt->details()
-                ->where('is_accepted', true)
                 ->where('accepted_quantity', '>', 0)
                 ->pluck('id');
 
@@ -261,6 +322,7 @@ class GoodsReceiptService
             // must not count itself anymore.
             $receipt->update(['status' => 'cancelled']);
             $this->updatePurchaseOrderQuantities($receipt);
+            $this->updatePurchaseInvoiceQuantities($receipt);
 
             return $receipt->fresh();
         });
@@ -281,8 +343,8 @@ class GoodsReceiptService
     public function checkItems(GoodsReceipt $receipt, string $qualityStatus, ?string $inspectionNotes = null): GoodsReceipt
     {
         return DB::transaction(function () use ($receipt, $qualityStatus, $inspectionNotes) {
-            $acceptedCount = $receipt->details()->where('is_accepted', true)->count();
-            $rejectedCount = $receipt->details()->where('is_accepted', false)->count();
+            $acceptedCount = $receipt->details()->where('accepted_quantity', '>', 0)->count();
+            $rejectedCount = $receipt->details()->where('rejected_quantity', '>', 0)->count();
 
             if ($acceptedCount > 0 && $rejectedCount > 0) {
                 $qualityStatus = 'partial';
@@ -323,12 +385,13 @@ class GoodsReceiptService
         $quantity = $conversion !== null ? $conversion['base_quantity'] : (string) $detail->accepted_quantity;
         $conversionFactorSnapshot = $conversion['conversion_factor'] ?? '1.000000';
 
+        $baseUnitCost = bcdiv((string) $detail->unit_cost, $conversionFactorSnapshot, 6);
         $movementLineId = DB::table('inventory_movement_lines')->insertGetId([
             'stock_movement_id' => $movementHeaderId,
             'product_id' => $detail->product_id,
             'unit_id' => $detail->unit_id,
             'quantity' => $quantity,
-            'cost_price' => $detail->unit_cost,
+            'cost_price' => $baseUnitCost,
             'conversion_factor_snapshot' => $conversionFactorSnapshot,
             'original_quantity' => $detail->accepted_quantity,
             'goods_receipt_detail_id' => $detail->id,
@@ -341,7 +404,7 @@ class GoodsReceiptService
             (int) $detail->product_id,
             (int) $receipt->warehouse_id,
             $quantity,
-            (string) $detail->unit_cost,
+            $baseUnitCost,
             'goods_receipt_detail',
             (int) $detail->id,
             (string) $receipt->receipt_date,
@@ -361,35 +424,63 @@ class GoodsReceiptService
             return;
         }
 
-        // Calculate total received quantity per product from all approved receipts
-        $receivedByProduct = GoodsReceipt::query()
-            ->join('goods_receipt_details', 'goods_receipt_details.receipt_id', '=', 'goods_receipts.id')
-            ->where('goods_receipts.order_id', $receipt->order_id)
-            ->where('goods_receipts.status', 'approved')
-            ->whereNull('goods_receipts.deleted_at')
-            ->select('goods_receipt_details.product_id', DB::raw('SUM(goods_receipt_details.accepted_quantity) as total_received'))
-            ->groupBy('goods_receipt_details.product_id')
-            ->pluck('total_received', 'product_id');
-
-        // Update PO items. Received is written UNCONDITIONALLY (clamped to the
-        // ordered quantity): a reversal recomputes to zero and must actually
-        // reset the accumulated figure, not silently keep the stale one.
-        foreach ($order->items as $item) {
-            $received = (float) ($receivedByProduct[$item->product_id] ?? 0);
-            $ordered = (float) $item->ordered_quantity;
-
-            $item->update([
-                'received_quantity' => min($received, $ordered),
-            ]);
+        $conversionService = app(UnitConversionService::class);
+        $acceptedDetails = GoodsReceiptDetail::query()
+            ->whereHas('receipt', fn ($query) => $query
+                ->where('order_id', $receipt->order_id)
+                ->where('status', 'approved')
+                ->whereNull('deleted_at'))
+            ->get(['product_id', 'unit_id', 'accepted_quantity']);
+        $receivedBaseByProduct = [];
+        foreach ($acceptedDetails as $detail) {
+            $baseQuantity = $conversionService->toBase(
+                (int) $detail->product_id,
+                (int) $detail->unit_id,
+                (string) $detail->accepted_quantity
+            )['base_quantity'];
+            $key = (int) $detail->product_id;
+            $receivedBaseByProduct[$key] = bcadd($receivedBaseByProduct[$key] ?? '0', $baseQuantity, 6);
         }
 
-        // Update PO overall status
-        $totalOrdered = $order->items->sum('ordered_quantity');
-        $totalReceived = $order->items->sum('received_quantity');
+        $remainingBaseByProduct = $receivedBaseByProduct;
+        $allLinesReceived = true;
+        $hasReceived = false;
+        foreach ($order->items as $item) {
+            if (! $item->product_id) {
+                continue;
+            }
 
-        if ($totalReceived >= $totalOrdered - 0.0001) {
+            $productId = (int) $item->product_id;
+            $unitId = (int) ($item->unit_id ?: $item->product?->unit_id);
+            if ($unitId <= 0) {
+                $item->update(['received_quantity' => 0]);
+                $allLinesReceived = false;
+                continue;
+            }
+
+            $orderedBase = $conversionService->toBase(
+                $productId,
+                $unitId,
+                (string) $item->ordered_quantity
+            )['base_quantity'];
+            $remainingBase = $remainingBaseByProduct[$productId] ?? '0.000000';
+            $allocatedBase = bccomp($remainingBase, $orderedBase, 6) > 0 ? $orderedBase : $remainingBase;
+            $receivedInOrderUnit = $conversionService->fromBase(
+                $productId,
+                $unitId,
+                $allocatedBase
+            )['quantity'];
+            $remainingBaseByProduct[$productId] = bcsub($remainingBase, $allocatedBase, 6);
+
+            $item->update(['received_quantity' => $receivedInOrderUnit]);
+            $hasReceived = $hasReceived || bccomp($receivedInOrderUnit, '0', 4) > 0;
+            $allLinesReceived = $allLinesReceived
+                && bccomp($receivedInOrderUnit, (string) $item->ordered_quantity, 4) >= 0;
+        }
+
+        if ($allLinesReceived && $order->items->contains(fn ($item) => $item->product_id)) {
             $order->update(['status' => 'fully_received']);
-        } elseif ($totalReceived > 0) {
+        } elseif ($hasReceived) {
             $order->update(['status' => 'partially_received']);
         } else {
             // Everything received has been reversed — back to the plain
@@ -400,28 +491,44 @@ class GoodsReceiptService
 
     private function updatePurchaseInvoiceQuantities(GoodsReceipt $receipt): void
     {
+        $conversionService = app(UnitConversionService::class);
         $details = GoodsReceiptDetail::query()
             ->where('receipt_id', $receipt->id)
             ->whereNotNull('invoice_detail_id')
-            ->where('is_accepted', true)
-            ->select('invoice_detail_id', DB::raw('SUM(accepted_quantity) as accepted_total'))
+            ->where('accepted_quantity', '>', 0)
+            ->select('invoice_detail_id')
             ->groupBy('invoice_detail_id')
             ->get();
 
         foreach ($details as $detail) {
             $invoiceDetail = PurchaseInvoiceDetail::lockForUpdate()->find($detail->invoice_detail_id);
-            if (! $invoiceDetail) {
+            if (! $invoiceDetail || ! $invoiceDetail->unit_id) {
                 continue;
             }
 
-            $received = GoodsReceiptDetail::query()
+            $acceptedDetails = GoodsReceiptDetail::query()
                 ->where('invoice_detail_id', $invoiceDetail->id)
-                ->where('is_accepted', true)
+                ->where('accepted_quantity', '>', 0)
                 ->whereHas('receipt', fn ($query) => $query->where('status', 'approved')->whereNull('deleted_at'))
-                ->sum('accepted_quantity');
+                ->get(['product_id', 'unit_id', 'accepted_quantity']);
+            $receivedBase = '0.000000';
+            foreach ($acceptedDetails as $acceptedDetail) {
+                $receivedBase = bcadd($receivedBase, $conversionService->toBase(
+                    (int) $acceptedDetail->product_id,
+                    (int) $acceptedDetail->unit_id,
+                    (string) $acceptedDetail->accepted_quantity
+                )['base_quantity'], 6);
+            }
+            $received = $conversionService->fromBase(
+                (int) $invoiceDetail->product_id,
+                (int) $invoiceDetail->unit_id,
+                $receivedBase
+            )['quantity'];
 
             $invoiceDetail->update([
-                'received_quantity' => min((float) $invoiceDetail->quantity, (float) $received),
+                'received_quantity' => bccomp($received, (string) $invoiceDetail->quantity, 4) > 0
+                    ? $invoiceDetail->quantity
+                    : $received,
             ]);
         }
     }

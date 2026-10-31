@@ -51,6 +51,16 @@ const clickExportExcel = () => {
   fireEvent.click(getExportExcelMenuItem());
 };
 
+const applyDateRange = (fromDate = '01/01/2025', toDate = '31/12/2025') => {
+  fireEvent.change(screen.getByLabelText('From Date'), {
+    target: { value: fromDate },
+  });
+  fireEvent.change(screen.getByLabelText('To Date'), {
+    target: { value: toDate },
+  });
+  fireEvent.click(screen.getByRole('button', { name: /Apply/ }));
+};
+
 const reportRows = [
   {
     AccID: 1,
@@ -83,6 +93,8 @@ const reportRows = [
 describe('Trial Balance Excel export', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete pageProps.printCompany;
+    pageProps.localization.current_locale = 'en';
     vi.stubGlobal('ResizeObserver', class ResizeObserver {
       observe() {}
       unobserve() {}
@@ -98,24 +110,116 @@ describe('Trial Balance Excel export', () => {
     });
   });
 
+  it('prints the active company name and details using the system locale', async () => {
+    pageProps.printCompany = {
+      company_name: 'شركة المثال',
+      english_name: 'Example Company',
+      mobile: '123456789',
+      country: 'Saudi Arabia',
+      city: 'Riyadh',
+      area: 'Olaya',
+      vat_number: 'VAT-123',
+    };
+
+    const { rerender } = render(<TrialBalance />);
+
+    applyDateRange();
+    expect(await screen.findByText('1001 - Cash in Bank')).toBeInTheDocument();
+    expect(screen.getByText('Example Company')).toBeInTheDocument();
+    expect(screen.getByText('Saudi Arabia - Riyadh - Olaya')).toBeInTheDocument();
+    expect(screen.getByText('VAT-123')).toBeInTheDocument();
+    expect(document.querySelector('.print-report')).toHaveAttribute('dir', 'ltr');
+
+    pageProps.localization.current_locale = 'ar';
+    rerender(<TrialBalance />);
+
+    expect(screen.getByText('شركة المثال')).toBeInTheDocument();
+    expect(document.querySelector('.print-report')).toHaveAttribute('dir', 'rtl');
+    pageProps.localization.current_locale = 'en';
+  });
+
+  it('does not request or render the report until Apply is clicked', () => {
+    render(<TrialBalance />);
+
+    expect(getSpy).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('From Date')).toBeInTheDocument();
+    expect(screen.getByLabelText('To Date')).toBeInTheDocument();
+    expect(screen.queryByText('No data available')).not.toBeInTheDocument();
+    expect(screen.queryByText('GRAND TOTAL')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Language')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('From Date')).toHaveValue('');
+    expect(screen.getByLabelText('To Date')).toHaveValue('');
+    expect(document.querySelector('.report-header__filters-grid')).toHaveClass(
+      'trial-balance-filters-grid',
+    );
+  });
+
+  it('requires both dates before submitting', () => {
+    render(<TrialBalance />);
+    fireEvent.change(screen.getByLabelText('From Date'), {
+      target: { value: '01/01/2025' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Apply/ }));
+
+    expect(window.alert).toHaveBeenCalledWith('Please select both From Date and To Date.');
+    expect(getSpy).not.toHaveBeenCalled();
+  });
+
+  it('loads the backend default period only after Apply when both dates are blank', async () => {
+    render(<TrialBalance />);
+    expect(getSpy).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /Apply/ }));
+
+    expect(await screen.findByText('1001 - Cash in Bank')).toBeInTheDocument();
+    expect(getSpy).toHaveBeenCalledWith('/reports/trial-balance');
+  });
+
+  it('submits the selected ISO date range and displays it as dd/MM/yyyy', async () => {
+    render(<TrialBalance />);
+    applyDateRange('05/03/2026', '31/12/2026');
+
+    expect(await screen.findByText('1001 - Cash in Bank')).toBeInTheDocument();
+    expect(screen.getByLabelText('From Date')).toHaveValue('05/03/2026');
+    expect(screen.getByLabelText('To Date')).toHaveValue('31/12/2026');
+    expect(getSpy).toHaveBeenCalledWith(
+      '/reports/trial-balance?start_date=2026-03-05&as_of_date=2026-12-31',
+    );
+  });
+
+  it('validates the date range without requesting report data', () => {
+    render(<TrialBalance />);
+    applyDateRange('31/12/2025', '01/01/2025');
+
+    expect(window.alert).toHaveBeenCalledWith('From Date cannot be after To Date.');
+    expect(getSpy).not.toHaveBeenCalled();
+    expect(screen.queryByText('GRAND TOTAL')).not.toBeInTheDocument();
+  });
+
+  it('resets dates and clears the report without making another request', async () => {
+    render(<TrialBalance />);
+    applyDateRange();
+    expect(await screen.findByText('1001 - Cash in Bank')).toBeInTheDocument();
+    expect(getSpy).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole('button', { name: /Reset/ }));
+
+    expect(screen.getByLabelText('From Date')).toHaveValue('');
+    expect(screen.getByLabelText('To Date')).toHaveValue('');
+    expect(screen.queryByText('1001 - Cash in Bank')).not.toBeInTheDocument();
+    expect(getSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('exports a valid workbook with the visible report rows, totals, and applied period', async () => {
     render(<TrialBalance />);
 
     const exportButton = screen.getByRole('button', { name: 'Export' });
     expect(exportButton).toBeVisible();
+    expect(getSpy).not.toHaveBeenCalled();
+    applyDateRange();
     expect(await screen.findByText('1001 - Cash in Bank')).toBeInTheDocument();
     expect(exportButton).toBeEnabled();
 
-    fireEvent.change(screen.getByLabelText('From Date'), {
-      target: { value: '2025-01-01' },
-    });
-    fireEvent.change(screen.getByLabelText('To Date'), {
-      target: { value: '2025-12-31' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Apply/ }));
-
-    expect(await screen.findByText('1001 - Cash in Bank')).toBeInTheDocument();
-    expect(exportButton).toBeEnabled();
     expect(getSpy).toHaveBeenCalledWith(
       '/reports/trial-balance?start_date=2025-01-01&as_of_date=2025-12-31',
     );
@@ -169,6 +273,7 @@ describe('Trial Balance Excel export', () => {
     getSpy.mockResolvedValue({ data: [], headers: {} });
     render(<TrialBalance />);
 
+    applyDateRange();
     await screen.findByText('No data available');
     openExportMenu();
 
@@ -182,26 +287,14 @@ describe('Trial Balance Excel export', () => {
 
   it('still shows the no-data banner if handleExportExcel runs with empty data (e.g. race with stale props)', async () => {
     render(<TrialBalance />);
+    applyDateRange();
     await screen.findByText('1001 - Cash in Bank');
 
-    fireEvent.change(screen.getByLabelText('From Date'), {
-      target: { value: '2025-01-01' },
-    });
-    fireEvent.change(screen.getByLabelText('To Date'), {
-      target: { value: '2025-12-31' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Apply/ }));
     await new Promise((r) => setTimeout(r, 10));
 
     getSpy.mockResolvedValue({ data: [], headers: {} });
     fireEvent.click(screen.getByRole('button', { name: /Reset/ }));
-    fireEvent.change(screen.getByLabelText('From Date'), {
-      target: { value: '2025-01-01' },
-    });
-    fireEvent.change(screen.getByLabelText('To Date'), {
-      target: { value: '2025-12-31' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /Apply/ }));
+    applyDateRange();
     await screen.findByText('No data available');
 
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
@@ -218,6 +311,7 @@ describe('Trial Balance Excel export', () => {
     });
     render(<TrialBalance />);
 
+    applyDateRange();
     await screen.findByText('1001 - Cash in Bank');
     clickExportExcel();
 
@@ -229,6 +323,7 @@ describe('Trial Balance Excel export', () => {
 
   it('keeps Export Excel disabled while filters have changed since the last Apply', async () => {
     render(<TrialBalance />);
+    applyDateRange();
     await screen.findByText('1001 - Cash in Bank');
 
     openExportMenu();
@@ -236,9 +331,7 @@ describe('Trial Balance Excel export', () => {
     expect(item).not.toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Export' }));
 
-    fireEvent.change(screen.getByLabelText('From Date'), {
-      target: { value: '2025-02-01' },
-    });
+    fireEvent.change(screen.getByLabelText('From Date'), { target: { value: '01/02/2025' } });
     openExportMenu();
     item = getExportExcelMenuItem();
     expect(item).toBeDisabled();

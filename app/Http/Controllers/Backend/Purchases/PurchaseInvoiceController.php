@@ -304,7 +304,7 @@ class PurchaseInvoiceController extends Controller
         $currencies = Currency::where('status', 'active')
             ->select('id', 'name', 'code', 'symbol')
             ->get();
-        $products = Products::select('id', 'name as name_en', 'name as name_ar', 'sku', 'sale_price', 'cost_per_item as purchase_price')
+        $products = Products::select('id', 'name as name_en', 'name as name_ar', 'sku', 'cost_per_item as purchase_price')
             ->get();
         $units = ItemUnit::select('id', 'name as name_en', 'name as name_ar')->where('unit_type', 1)->get();
         $warehouses = Warehouses::select('id', 'name as name_en', 'name as name_ar')->get();

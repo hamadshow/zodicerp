@@ -171,6 +171,28 @@ class OpeningStockLifecycleTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        $standaloneUnitId = ItemUnit::query()->insertGetId([
+            'name' => 'OSL Standalone '.$suffix,
+            'unit_type' => 1,
+            'conversion_factor' => 1,
+            'active' => 1,
+            'company_id' => $this->companyId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $standaloneProductId = Products::query()->insertGetId([
+            'product_code' => 'OSL-STANDALONE-'.$suffix,
+            'name' => 'OSL Standalone Product',
+            'slug' => 'osl-standalone-'.$suffix,
+            'sku' => 'OSL-STANDALONE-SKU-'.$suffix,
+            'quantity' => 0,
+            'unit_id' => $standaloneUnitId,
+            'cost_per_item' => 10,
+            'company_id' => $this->companyId,
+            'status' => 'active',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         $attributeId = DB::table('item_attributes')->insertGetId([
             'title' => 'Color',
@@ -237,13 +259,15 @@ class OpeningStockLifecycleTest extends TestCase
         $this->get(route('admin.inventory.opening-stock.index', ['country' => 'sa', 'lang' => 'ar']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('products', function ($products) use ($childId, $subunitId) {
+                ->where('products', function ($products) use ($childId, $subunitId, $standaloneProductId, $standaloneUnitId) {
                     $byId = collect($products)->keyBy('id');
                     $child = $byId->get($childId);
+                    $standaloneProduct = $byId->get($standaloneProductId);
 
                     return ! $byId->has($this->productId)
                         && $child['display_name'] === 'OSL Shirt, Black, XL, Adidas'
-                        && array_column($child['unit_options'], 'id') === [$this->baseUnitId, $subunitId];
+                        && array_column($child['unit_options'], 'id') === [$subunitId]
+                        && array_column($standaloneProduct['unit_options'], 'id') === [$standaloneUnitId];
                 })
                 ->where('warehouses', fn ($warehouses) => collect($warehouses)
                     ->contains(fn ($warehouse) => (int) $warehouse['id'] === $this->warehouseId))

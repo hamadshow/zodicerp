@@ -10,7 +10,7 @@ use PHPUnit\Framework\TestCase;
 
 class ProductPriceResolverTest extends TestCase
 {
-    public function test_sale_price_precedes_base_product_price(): void
+    public function test_product_model_prices_are_not_used_as_a_fallback(): void
     {
         $product = new Products([
             'price' => '120.00',
@@ -25,11 +25,11 @@ class ProductPriceResolverTest extends TestCase
             'transaction_date' => '2026-09-15',
         ]);
 
-        $this->assertSame('product_sale_price', $result['source']);
-        $this->assertSame('100.0000', $result['final_price']);
+        $this->assertSame('none', $result['source']);
+        $this->assertNull($result['final_price']);
     }
 
-    public function test_customer_group_discount_is_applied_before_product_fallback(): void
+    public function test_customer_group_discount_does_not_invent_a_base_price(): void
     {
         $group = new CustomerGroup(['discount_percentage' => '10.00']);
         $customer = new Customer(['customer_group_id' => 1]);
@@ -48,9 +48,8 @@ class ProductPriceResolverTest extends TestCase
             'transaction_date' => '2026-09-15',
         ]);
 
-        $this->assertSame('customer_group_discount', $result['source']);
-        $this->assertSame('108.0000', $result['final_price']);
-        $this->assertSame('12.00', $result['discount_amount']);
+        $this->assertSame('none', $result['source']);
+        $this->assertNull($result['final_price']);
     }
 
     public function test_missing_product_prices_return_no_price(): void

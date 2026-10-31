@@ -1,10 +1,29 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Head, usePage } from '@inertiajs/react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 import AdminLayout from '../../components/AdminLayout';
 import ReportHeader, { ReportFormActions, ReportFormGroup } from '../../components/ReportHeader';
 import { apiService } from '../../../../services/api';
 import PrintReport from '../../../../Components/PrintReport';
 import { exportReportToExcel } from '../../../../Components/ExportReportExcel';
+
+const parseIsoDate = (value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+    ? date
+    : null;
+};
+
+const formatIsoDate = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export default function TrialBalance() {
   const { props } = usePage();
@@ -20,9 +39,9 @@ export default function TrialBalance() {
   const [data, setData] = useState([]);
   const [reportError, setReportError] = useState('');
   const [exportError, setExportError] = useState('');
+  const [hasAppliedReport, setHasAppliedReport] = useState(false);
   const [appliedPeriod, setAppliedPeriod] = useState(null);
   const [appliedFilters, setAppliedFilters] = useState(null);
-  const [lang, setLang] = useState(currentLocale);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
 
@@ -46,17 +65,25 @@ export default function TrialBalance() {
         queryString ? `/reports/trial-balance?${queryString}` : '/reports/trial-balance',
       );
       const reportData = Array.isArray(response.data) ? response.data : [];
+      const appliedFrom = response.headers?.['x-trial-balance-start-date'] || selectedFromDate;
+      const appliedTo = response.headers?.['x-trial-balance-as-of-date'] || selectedToDate;
+      const displayedFrom = selectedFromDate || appliedFrom || '';
+      const displayedTo = selectedToDate || appliedTo || '';
       setData(reportData);
+      setHasAppliedReport(true);
       setAppliedPeriod({
-        from: response.headers?.['x-trial-balance-start-date'] || selectedFromDate,
-        to: response.headers?.['x-trial-balance-as-of-date'] || selectedToDate,
+        from: appliedFrom,
+        to: appliedTo,
       });
-      setAppliedFilters({ from: selectedFromDate, to: selectedToDate });
+      setFromDate(displayedFrom);
+      setToDate(displayedTo);
+      setAppliedFilters({ from: displayedFrom, to: displayedTo });
       setReportError('');
       setExportError('');
     } catch (error) {
       console.error('Failed to fetch trial balance:', error);
       setData([]);
+      setHasAppliedReport(false);
       setAppliedPeriod(null);
       setAppliedFilters(null);
       setReportError(t('load_error', 'Unable to load the Trial Balance report. Please try again.'));
@@ -76,7 +103,7 @@ export default function TrialBalance() {
       return;
     }
 
-    if (Number.isNaN(new Date(fromDate).getTime()) || Number.isNaN(new Date(toDate).getTime())) {
+    if (!parseIsoDate(fromDate) || !parseIsoDate(toDate)) {
       window.alert(t('invalid_date', 'Please enter valid dates.'));
       return;
     }
@@ -92,22 +119,13 @@ export default function TrialBalance() {
   const handleResetFilters = () => {
     setFromDate('');
     setToDate('');
-    fetchData();
+    setData([]);
+    setHasAppliedReport(false);
+    setAppliedPeriod(null);
+    setAppliedFilters(null);
+    setReportError('');
+    setExportError('');
   };
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      if (e.key.toLowerCase() === 'a') {
-        setLang(prev => prev === 'ar' ? 'en' : 'ar');
-      }
-    };
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
 
   const formatNumber = (num) => {
     if (num === 0) return '-';
@@ -127,8 +145,10 @@ export default function TrialBalance() {
       '6': t('expenses', 'Expenses')
     };
     
-    return lang === 'ar' ? name : (accountTranslations[code] || name);
-  }, [lang, t]);
+    return String(currentLocale).toLowerCase().startsWith('ar')
+      ? name
+      : (accountTranslations[code] || name);
+  }, [currentLocale, t]);
 
   const handleAccountClick = (row) => {
     if (row.AccType !== 1) return;
@@ -271,7 +291,7 @@ export default function TrialBalance() {
   return (
     <AdminLayout activeMenu="Financial Reports">
       <Head title={`${t('title', 'Trial Balance')} - ZodicERP`} />
-      <div className="fr-page trial-balance-page">
+      <div className={`fr-page trial-balance-page ${String(currentLocale).toLowerCase().startsWith('ar') ? 'rtl' : 'ltr'}`}>
         <div className="fr-breadcrumb">
           <a href="#">{t('dashboard', 'Dashboard')}</a>
           <span className="fr-sep">/</span>
@@ -288,56 +308,50 @@ export default function TrialBalance() {
           onExportExcel={handleExportExcel}
           onExportPdf={handleExportPdf}
           onPrint={() => window.print()}
-          printDisabled={loading}
+          printDisabled={loading || !hasAppliedReport}
           exportExcelLabel={t('export_excel', 'Export Excel')}
           exportPdfLabel={t('export_pdf', 'Export Report (PDF)')}
           printButtonLabel={t('print', 'Print')}
           exportExcelDisabled={loading || data.length === 0 || filtersChangedSinceReport}
           exportPdfDisabled={loading || data.length === 0 || filtersChangedSinceReport}
           exportDropdownDisabled={loading}
+          filtersGridClassName="report-header__filters-grid trial-balance-filters-grid"
         >
           <ReportFormGroup
+            className="report-header__form-group trial-balance-date-filter"
             label={t('from_date', 'From Date')}
             htmlFor="tb-date-from"
           >
-            <input
+            <DatePicker
               id="tb-date-from"
-              type="date"
+              selected={parseIsoDate(fromDate)}
+              onChange={(date) => setFromDate(formatIsoDate(date))}
+              dateFormat="dd/MM/yyyy"
+              placeholderText="DD/MM/YYYY"
               className="report-header__form-control"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
+              autoComplete="off"
+              disabled={loading}
             />
           </ReportFormGroup>
 
           <ReportFormGroup
+            className="report-header__form-group trial-balance-date-filter"
             label={t('to_date', 'To Date')}
             htmlFor="tb-date-to"
           >
-            <input
+            <DatePicker
               id="tb-date-to"
-              type="date"
+              selected={parseIsoDate(toDate)}
+              onChange={(date) => setToDate(formatIsoDate(date))}
+              dateFormat="dd/MM/yyyy"
+              placeholderText="DD/MM/YYYY"
               className="report-header__form-control"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
+              autoComplete="off"
+              disabled={loading}
             />
           </ReportFormGroup>
 
-          <ReportFormGroup
-            label={t('language', 'Language')}
-            htmlFor="tb-lang"
-          >
-            <select
-              id="tb-lang"
-              className="report-header__form-control"
-              value={lang}
-              onChange={(e) => setLang(e.target.value)}
-            >
-              <option value="en">{t('english', 'English')}</option>
-              <option value="ar">{t('arabic', 'Arabic')}</option>
-            </select>
-          </ReportFormGroup>
-
-          <ReportFormActions>
+          <ReportFormActions className="report-header__form-actions trial-balance-filter-actions">
             <button
               type="button"
               className="btn btn-primary"
@@ -361,13 +375,13 @@ export default function TrialBalance() {
         {reportError && <div className="fr-error-banner" role="alert">{reportError}</div>}
         {exportError && <div className="fr-error-banner" role="alert">{exportError}</div>}
 
-        <PrintReport
-          companyName={props.printCompany?.company_name}
+        {hasAppliedReport && <PrintReport
+          companyInfo={props.printCompany}
           companyLogo={props.printCompany?.logo_url}
           reportTitle={t('title', 'Trial Balance')}
           dateFrom={appliedPeriod?.from || undefined}
           dateTo={appliedPeriod?.to || undefined}
-          locale={lang}
+          locale={currentLocale}
         >
           <div className="fr-table-card" id="trial-balance-report">
           <div className="fr-table-wrapper">
@@ -440,12 +454,55 @@ export default function TrialBalance() {
             </table>
           </div>
         </div>
-        </PrintReport>
+        </PrintReport>}
       </div>
 
       <style jsx>{`
         .trial-balance-page.rtl { direction: rtl; text-align: right; }
         .trial-balance-page.ltr { direction: ltr; text-align: left; }
+
+        .trial-balance-filters-grid {
+          grid-template-columns: repeat(2, minmax(180px, 1fr)) auto;
+        }
+
+        .trial-balance-date-filter { min-width: 0; }
+
+        .trial-balance-date-filter .react-datepicker-wrapper,
+        .trial-balance-date-filter .react-datepicker__input-container {
+          display: block;
+          width: 100%;
+        }
+
+        .trial-balance-date-filter .report-header__form-control {
+          box-sizing: border-box;
+          min-width: 0;
+          width: 100%;
+        }
+
+        .trial-balance-filter-actions {
+          align-self: end;
+          flex-wrap: wrap;
+          padding-bottom: 1px;
+        }
+
+        @media (max-width: 760px) {
+          .trial-balance-filters-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .trial-balance-filter-actions {
+            grid-column: 1 / -1;
+            justify-content: flex-end;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .trial-balance-filters-grid {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .trial-balance-filter-actions { grid-column: auto; }
+        }
         
         .main-header th {
           background-color: #f1f5f9;
